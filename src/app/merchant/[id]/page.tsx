@@ -1,5 +1,6 @@
 "use client"
 
+import { use, useEffect, useState } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { SidebarNav } from "@/components/layout/sidebar-nav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,24 +17,45 @@ import {
 import { 
   LayoutDashboard, 
   ArrowUpRight, 
-  ArrowDownLeft, 
   Wallet, 
   CreditCard,
   History,
   TrendingUp,
-  CircleDollarSign
+  CircleDollarSign,
+  AlertCircle,
+  Clock
 } from "lucide-react"
+import { db, type Merchant, type Transaction } from "@/app/lib/db"
 
-// Mock merchant transactions
-const transactions = [
-  { id: "tx_101", amount: 250.50, status: "success", date: "2024-05-22T14:20:00Z", method: "Card", ref: "ORD-9901" },
-  { id: "tx_102", amount: 1200.00, status: "success", date: "2024-05-22T11:45:00Z", method: "Bank Transfer", ref: "ORD-9902" },
-  { id: "tx_103", amount: 45.00, status: "failed", date: "2024-05-21T18:10:00Z", method: "Card", ref: "ORD-9903" },
-  { id: "tx_104", amount: 890.75, status: "success", date: "2024-05-21T09:30:00Z", method: "Card", ref: "ORD-9904" },
-  { id: "tx_105", amount: 300.00, status: "success", date: "2024-05-20T16:55:00Z", method: "Card", ref: "ORD-9905" },
-]
+export default function MerchantDashboard({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const [merchant, setMerchant] = useState<Merchant | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
 
-export default function MerchantDashboard({ params }: { params: { id: string } }) {
+  useEffect(() => {
+    const m = db.getMerchantById(id)
+    if (m) {
+      setMerchant(m)
+      setTransactions(db.getTransactionsByMerchant(id))
+    }
+  }, [id])
+
+  if (!merchant) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-muted/20 gap-4">
+        <AlertCircle className="w-12 h-12 text-muted-foreground" />
+        <h2 className="text-xl font-bold">Merchant Not Found</h2>
+        <p className="text-muted-foreground">The requested merchant account does not exist.</p>
+      </div>
+    )
+  }
+
+  const isPending = merchant.status === 'pending'
+  const isRejected = merchant.status === 'rejected'
+  const isApproved = merchant.status === 'approved'
+
+  const totalVolume = transactions.reduce((acc, tx) => acc + (tx.status === 'success' ? tx.amount : 0), 0)
+
   return (
     <SidebarProvider>
       <SidebarNav />
@@ -43,13 +65,34 @@ export default function MerchantDashboard({ params }: { params: { id: string } }
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2">
             <LayoutDashboard className="text-primary w-5 h-5" />
-            <h1 className="text-lg font-semibold font-headline">Merchant Insights</h1>
+            <h1 className="text-lg font-semibold font-headline">Merchant Insights: {merchant.name}</h1>
           </div>
         </header>
 
         <main className="flex-1 overflow-auto p-6 bg-muted/20">
           <div className="max-w-6xl mx-auto space-y-6">
             
+            {/* Status Alert for Unapproved Merchants */}
+            {!isApproved && (
+              <Card className={`border-none ${isPending ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    {isPending ? <Clock className="w-6 h-6 text-orange-500 mt-1" /> : <AlertCircle className="w-6 h-6 text-red-500 mt-1" />}
+                    <div>
+                      <h3 className={`font-bold text-lg ${isPending ? 'text-orange-800' : 'text-red-800'}`}>
+                        Account Status: {merchant.status.toUpperCase()}
+                      </h3>
+                      <p className={`text-sm ${isPending ? 'text-orange-700' : 'text-red-700'}`}>
+                        {isPending 
+                          ? "Your application is currently being reviewed by our compliance team. Some dashboard features may be restricted until activation."
+                          : `Your application was rejected. Reason: ${merchant.rejectionReason || "No specific reason provided."}`}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Merchant Overview Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="border-none shadow-sm">
@@ -58,38 +101,40 @@ export default function MerchantDashboard({ params }: { params: { id: string } }
                   <Wallet className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$14,240.50</div>
-                  <p className="text-xs text-muted-foreground">+12% this month</p>
+                  <div className="text-2xl font-bold">${(totalVolume * 0.98).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                  <p className="text-xs text-muted-foreground">Net of 2% gateway fee</p>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Volume (24h)</CardTitle>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Volume (Life)</CardTitle>
                   <TrendingUp className="h-4 w-4 text-accent-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$2,686.25</div>
-                  <p className="text-xs text-muted-foreground">8 successful transactions</p>
+                  <div className="text-2xl font-bold">${totalVolume.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                  <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === 'success').length} successful transactions</p>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tx Limit Used</CardTitle>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Daily Limit</CardTitle>
                   <CircleDollarSign className="h-4 w-4 text-orange-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">24%</div>
-                  <p className="text-xs text-muted-foreground">$1,200 of $5,000</p>
+                  <div className="text-2xl font-bold">${merchant.dailyLimit.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">Max daily processing capacity</p>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</CardTitle>
-                  <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Account Status</CardTitle>
+                  <Badge className={isApproved ? 'bg-green-500' : isPending ? 'bg-orange-500' : 'bg-destructive'}>
+                    {merchant.status}
+                  </Badge>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Verified</div>
-                  <p className="text-xs text-muted-foreground">Gateway Fully Operational</p>
+                  <div className="text-2xl font-bold">{isApproved ? 'Verified' : 'Unverified'}</div>
+                  <p className="text-xs text-muted-foreground">Business Type: {merchant.businessType}</p>
                 </CardContent>
               </Card>
             </div>
@@ -107,10 +152,9 @@ export default function MerchantDashboard({ params }: { params: { id: string } }
                   <TableHeader>
                     <TableRow>
                       <TableHead>Transaction ID</TableHead>
-                      <TableHead>Reference</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Method</TableHead>
                       <TableHead className="text-right">Timestamp</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -118,19 +162,25 @@ export default function MerchantDashboard({ params }: { params: { id: string } }
                     {transactions.map((tx) => (
                       <TableRow key={tx.id}>
                         <TableCell className="font-mono text-xs text-primary font-medium">{tx.id}</TableCell>
-                        <TableCell>{tx.ref}</TableCell>
+                        <TableCell>{tx.description}</TableCell>
                         <TableCell className="font-semibold">${tx.amount.toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge variant={tx.status === 'success' ? 'default' : 'destructive'} className={tx.status === 'success' ? 'bg-green-500' : ''}>
                             {tx.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{tx.method}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
-                          {new Date(tx.date).toLocaleString()}
+                          {new Date(tx.timestamp).toLocaleString()}
                         </TableCell>
                       </TableRow>
                     ))}
+                    {transactions.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">
+                          No transactions found for this account.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -147,12 +197,12 @@ export default function MerchantDashboard({ params }: { params: { id: string } }
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="p-4 bg-white rounded-lg border border-primary/10 space-y-2">
-                    <p className="text-xs font-bold uppercase text-muted-foreground">Payment Endpoint</p>
-                    <code className="text-sm text-primary block truncate">POST /api/pay/initiate</code>
+                    <p className="text-xs font-bold uppercase text-muted-foreground">Merchant ID</p>
+                    <code className="text-sm text-primary block truncate">{merchant.id}</code>
                   </div>
                   <div className="p-4 bg-white rounded-lg border border-primary/10 space-y-2">
-                    <p className="text-xs font-bold uppercase text-muted-foreground">Auth Token</p>
-                    <code className="text-sm text-primary block truncate">Bearer live_sk_f672...88a1</code>
+                    <p className="text-xs font-bold uppercase text-muted-foreground">Callback Endpoint</p>
+                    <code className="text-sm text-primary block truncate">{merchant.callbackUrl}</code>
                   </div>
                 </div>
               </CardContent>

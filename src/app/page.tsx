@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CreditCard, ShieldCheck, UserPlus, Activity, ArrowRight } from "lucide-react";
+import { CreditCard, ShieldCheck, UserPlus, Activity, ArrowRight, Store } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Home() {
@@ -17,10 +17,10 @@ export default function Home() {
           </div>
           <div className="flex gap-4">
             <Button variant="ghost" asChild>
-              <Link href="/admin">Admin</Link>
+              <Link href="/admin">Admin Oversight</Link>
             </Button>
             <Button asChild className="bg-primary hover:bg-primary/90">
-              <Link href="/maker">Get Started</Link>
+              <Link href="/register">Register as Merchant</Link>
             </Button>
           </div>
         </div>
@@ -42,10 +42,10 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button size="lg" className="h-12 px-8 text-lg bg-primary hover:bg-primary/90" asChild>
-                <Link href="/maker">Enter Maker Portal <ArrowRight className="ml-2 h-5 w-5" /></Link>
+                <Link href="/register">Join as a Merchant <ArrowRight className="ml-2 h-5 w-5" /></Link>
               </Button>
               <Button size="lg" variant="outline" className="h-12 px-8 text-lg" asChild>
-                <Link href="/checker">Checker Review</Link>
+                <Link href="/maker">Maker Portal (Staff)</Link>
               </Button>
             </div>
           </div>
@@ -58,14 +58,14 @@ export default function Home() {
               <Card className="hover:shadow-lg transition-shadow border-none shadow-sm">
                 <CardHeader>
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-2">
-                    <UserPlus />
+                    <Store />
                   </div>
-                  <CardTitle className="text-xl">Maker Portal</CardTitle>
-                  <CardDescription>Submit new merchant registrations with AI-assisted pre-filling.</CardDescription>
+                  <CardTitle className="text-xl">Merchant Join</CardTitle>
+                  <CardDescription>Self-register your business and get verified in minutes.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button variant="link" className="p-0 h-auto text-primary" asChild>
-                    <Link href="/maker">Register Merchant →</Link>
+                    <Link href="/register">Start Onboarding →</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -91,7 +91,7 @@ export default function Home() {
                     <LayoutDashboard />
                   </div>
                   <CardTitle className="text-xl">Merchant Dash</CardTitle>
-                  <CardDescription>Secure dashboard for merchants to view transaction history.</CardDescription>
+                  <CardDescription>Secure dashboard for approved merchants to view transaction history.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button variant="link" className="p-0 h-auto text-primary" asChild>
