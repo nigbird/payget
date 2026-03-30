@@ -14,6 +14,7 @@ export interface Merchant {
   id: string;
   name: string;
   email: string;
+  password?: string; // Added for self-service status tracking
   accountNumber: string;
   dailyLimit: number;
   transactionLimit: number;
@@ -66,6 +67,7 @@ if (!globalStore.merchants) {
       id: 'm1',
       name: 'TechGear Solutions',
       email: 'onboarding@techgear.io',
+      password: 'password123',
       accountNumber: '1234567890',
       dailyLimit: 50000,
       transactionLimit: 5000,

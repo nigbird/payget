@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -31,7 +31,10 @@ import {
   X,
   FileCheck,
   CreditCard,
-  ArrowLeft
+  ArrowLeft,
+  Copy,
+  CheckCircle2,
+  Clock
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
@@ -42,8 +45,11 @@ export default function MerchantSelfRegistration() {
   const { toast } = useToast()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [credentials, setCredentials] = useState<{ id: string; pass: string } | null>(null)
   const [systemConfig, setSystemConfig] = useState(db.getSystemConfig())
   
   const [formData, setFormData] = useState({
@@ -156,6 +162,15 @@ export default function MerchantSelfRegistration() {
     }
   }
 
+  const generatePassword = () => {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+    let retVal = ""
+    for (let i = 0, n = charset.length; i < 12; ++i) {
+      retVal += charset.charAt(Math.floor(Math.random() * n))
+    }
+    return retVal
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -180,10 +195,12 @@ export default function MerchantSelfRegistration() {
     setIsSubmitting(true)
     
     const merchantId = `m_${Math.random().toString(36).substr(2, 9)}`
+    const generatedPass = generatePassword()
     
     db.addMerchant({
       id: merchantId,
       ...formData,
+      password: generatedPass,
       dailyLimit: Number(formData.dailyLimit),
       transactionLimit: Number(formData.transactionLimit),
       status: 'pending',
@@ -192,14 +209,84 @@ export default function MerchantSelfRegistration() {
       createdAt: new Date().toISOString()
     })
 
+    setCredentials({ id: merchantId, pass: generatedPass })
+    setIsSuccess(true)
+    setIsSubmitting(false)
+
     toast({
       title: "Application Submitted",
-      description: "Your registration is now pending review by our compliance team."
+      description: "Please save your credentials to check status later."
     })
-    
-    setTimeout(() => {
-      router.push("/")
-    }, 2000)
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast({
+      description: "Copied to clipboard"
+    })
+  }
+
+  if (isSuccess && credentials) {
+    return (
+      <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-lg border-none animate-in zoom-in-95">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-8 h-8 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl font-headline">Application Received!</CardTitle>
+            <CardDescription>
+              Your registration is now <span className="text-orange-600 font-bold uppercase">Pending Approval</span>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 py-6">
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-3">
+              <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-2">
+                <Clock className="w-3 h-3" /> User Credential Details
+              </p>
+              <p className="text-sm text-blue-700 leading-relaxed">
+                Please save these credentials securely. You will need them to check your application status or access your dashboard once approved.
+              </p>
+              
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-blue-600">Merchant ID (Username)</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-white p-2 rounded border border-blue-200 text-sm font-mono font-bold">{credentials.id}</code>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600" onClick={() => copyToClipboard(credentials.id)}>
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-blue-600">Unique Password</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-white p-2 rounded border border-blue-200 text-sm font-mono font-bold">{credentials.pass}</code>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600" onClick={() => copyToClipboard(credentials.pass)}>
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Our compliance team typically reviews applications within 24-48 business hours.
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-2">
+            <Button className="w-full" asChild>
+              <Link href="/">Return to Home</Link>
+            </Button>
+            <Button variant="ghost" className="w-full text-xs" asChild>
+              <Link href={`/merchant/${credentials.id}`}>Preview Dashboard (ReadOnly)</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   return (
