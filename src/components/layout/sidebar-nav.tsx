@@ -10,7 +10,8 @@ import {
   CreditCard, 
   History,
   Activity,
-  LogOut
+  LogOut,
+  BadgeCheck
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { 
@@ -27,9 +28,9 @@ import {
 const menuItems = [
   { name: "Admin Oversight", href: "/admin", icon: Activity, role: "admin" },
   { name: "Maker Portal", href: "/maker", icon: UserPlus, role: "maker" },
-  { name: "Checker Portal", href: "/checker", icon: ShieldCheck, role: "checker" },
+  { name: "Branch Approval", href: "/checker", icon: ShieldCheck, role: "checker" },
+  { name: "Head Office Approval", href: "/head-office", icon: BadgeCheck, role: "ho" },
   { name: "Merchant Dashboard", href: "/merchant/m1", icon: LayoutDashboard, role: "merchant" },
-  { name: "Transaction History", href: "/history", icon: History, role: "merchant" },
 ]
 
 export function SidebarNav() {

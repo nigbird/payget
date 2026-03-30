@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Merchant account is not active' }, { status: 403 });
     }
 
-    // 3. Limit Check
+    // 3. Limit Checks (Amount)
     if (amount > merchant.transactionLimit) {
       return NextResponse.json({ 
         error: 'Transaction amount exceeds per-transaction limit',
@@ -29,9 +29,31 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 4. Process Payment (Simulated)
+    const todayTxs = db.getTransactionsByMerchant(merchantId).filter(tx => {
+      const txDate = new Date(tx.timestamp).toDateString();
+      const todayDate = new Date().toDateString();
+      return txDate === todayDate && tx.status === 'success';
+    });
+
+    const totalTodayAmount = todayTxs.reduce((acc, tx) => acc + tx.amount, 0);
+    if (totalTodayAmount + amount > merchant.dailyLimit) {
+      return NextResponse.json({
+        error: 'Daily processing amount limit reached',
+        limit: merchant.dailyLimit
+      }, { status: 400 });
+    }
+
+    // 4. Limit Checks (Count)
+    if (todayTxs.length >= merchant.dailyCountLimit) {
+      return NextResponse.json({
+        error: 'Daily transaction count limit reached',
+        limit: merchant.dailyCountLimit
+      }, { status: 400 });
+    }
+
+    // 5. Process Payment (Simulated)
     const transactionId = `tx_${Math.random().toString(36).substr(2, 9)}`;
-    const isSuccess = Math.random() > 0.1; // 90% success rate
+    const isSuccess = Math.random() > 0.1;
 
     const tx = {
       id: transactionId,
@@ -44,10 +66,6 @@ export async function POST(request: Request) {
     };
 
     db.addTransaction(tx);
-
-    // 5. Notify Merchant (Simulated Callback)
-    // In a real app, this would be an async webhook request
-    console.log(`[Webhook] Sending update to ${callbackUrl}: Status ${tx.status} for Tx ${tx.id}`);
 
     return NextResponse.json({
       transactionId: tx.id,

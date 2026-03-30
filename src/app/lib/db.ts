@@ -1,6 +1,6 @@
 import { type AiMerchantOnboardingAssistantOutput } from '@/ai/flows/ai-merchant-onboarding-assistant';
 
-export type MerchantStatus = 'pending' | 'approved' | 'rejected';
+export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected';
 
 export interface MerchantDocument {
   id: string;
@@ -18,8 +18,9 @@ export interface Merchant {
   passwordResetToken?: string;
   passwordResetExpires?: string;
   accountNumber: string;
-  dailyLimit: number;
-  transactionLimit: number;
+  dailyLimit: number; // Daily Amount Limit
+  transactionLimit: number; // Max Per Transaction Amount
+  dailyCountLimit: number; // New: Daily Transaction Count Limit
   status: MerchantStatus;
   rejectionReason?: string;
   businessDescription: string;
@@ -57,7 +58,6 @@ export interface SystemConfig {
   resetTimeoutSeconds: number;
 }
 
-// Global singleton for demo data
 const globalStore = global as unknown as {
   merchants: Merchant[];
   transactions: Transaction[];
@@ -74,6 +74,7 @@ if (!globalStore.merchants) {
       accountNumber: '1234567890',
       dailyLimit: 50000,
       transactionLimit: 5000,
+      dailyCountLimit: 100,
       status: 'approved',
       businessDescription: 'E-commerce platform selling high-end tech accessories.',
       websiteUrl: 'https://techgear.io',

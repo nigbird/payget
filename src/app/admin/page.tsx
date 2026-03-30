@@ -46,7 +46,11 @@ import {
   FileCheck,
   Eye,
   CreditCard,
-  ShieldAlert
+  ShieldAlert,
+  Hash,
+  TrendingUp,
+  ShieldCheck,
+  BadgeCheck
 } from "lucide-react"
 import { 
   ChartContainer, 
@@ -114,6 +118,21 @@ export default function AdminDashboard() {
     m.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-green-500 gap-1"><BadgeCheck className="w-3 h-3" /> Approved</Badge>
+      case 'branch_approved':
+        return <Badge className="bg-blue-500 gap-1"><ShieldCheck className="w-3 h-3" /> Branch OK</Badge>
+      case 'pending':
+        return <Badge variant="outline" className="text-orange-500 border-orange-200 gap-1 bg-orange-50"><Clock className="w-3 h-3" /> Pending</Badge>
+      case 'rejected':
+        return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
+  }
+
   return (
     <SidebarProvider>
       <SidebarNav />
@@ -151,7 +170,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{merchants.length}</div>
-                  <p className="text-xs text-muted-foreground">{merchants.filter(m => m.status === 'approved').length} approved</p>
+                  <p className="text-xs text-muted-foreground">{merchants.filter(m => m.status === 'approved').length} Active</p>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
@@ -166,12 +185,12 @@ export default function AdminDashboard() {
               </Card>
               <Card className="border-none shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+                  <CardTitle className="text-sm font-medium">Approval Queue</CardTitle>
                   <AlertCircle className="h-4 w-4 text-orange-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{merchants.filter(m => m.status === 'pending').length}</div>
-                  <p className="text-xs text-muted-foreground">Require attention</p>
+                  <div className="text-2xl font-bold">{merchants.filter(m => m.status === 'pending' || m.status === 'branch_approved').length}</div>
+                  <p className="text-xs text-muted-foreground">Across all stages</p>
                 </CardContent>
               </Card>
             </div>
@@ -248,21 +267,6 @@ export default function AdminDashboard() {
                     <Save className="w-4 h-4 mr-2" />
                     Save Configuration
                   </Button>
-                  
-                  <Separator className="my-4" />
-                  
-                  <div className="space-y-4">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Service Health</Label>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <Server className="w-4 h-4 text-muted-foreground" />
-                          Security Node
-                        </span>
-                        <Badge className="bg-green-500">Live</Badge>
-                      </div>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -272,12 +276,12 @@ export default function AdminDashboard() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Merchant Registry</CardTitle>
-                  <CardDescription>Comprehensive directory of all registered merchants and their status.</CardDescription>
+                  <CardDescription>Comprehensive directory of all merchants and their current approval stage.</CardDescription>
                 </div>
                 <div className="relative w-72">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search by name, ID or email..." 
+                    placeholder="Search registry..." 
                     className="pl-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -289,11 +293,11 @@ export default function AdminDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Merchant</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Category</TableHead>
                       <TableHead>Location</TableHead>
+                      <TableHead>Daily Limit</TableHead>
+                      <TableHead>Tx Count Limit</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead className="text-right">Inspect</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -305,24 +309,20 @@ export default function AdminDashboard() {
                             <span className="text-[10px] font-mono text-muted-foreground uppercase">{m.id}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col text-xs">
-                            <span>{m.contactName}</span>
-                            <span className="text-muted-foreground">{m.email}</span>
+                        <TableCell className="text-xs">
+                          <div className="flex flex-col">
+                            <span>{m.district}</span>
+                            <span className="text-muted-foreground">{m.branchName}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="font-normal text-[10px] uppercase">
-                            {m.category || 'General'}
-                          </Badge>
+                        <TableCell className="text-sm font-semibold">
+                          ${m.dailyLimit.toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-xs">
-                          {m.district}
+                        <TableCell className="text-sm">
+                          {m.dailyCountLimit || 'N/A'}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={m.status === 'approved' ? 'default' : m.status === 'pending' ? 'outline' : 'destructive'} className={m.status === 'approved' ? 'bg-green-500' : ''}>
-                            {m.status}
-                          </Badge>
+                          {getStatusBadge(m.status)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Dialog>
@@ -343,7 +343,6 @@ export default function AdminDashboard() {
                               </DialogHeader>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
-                                {/* Column 1: Core Business */}
                                 <div className="space-y-6">
                                   <div className="space-y-3">
                                     <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
@@ -353,10 +352,6 @@ export default function AdminDashboard() {
                                       <div className="flex justify-between border-b pb-1">
                                         <span className="text-muted-foreground">Legal Name:</span>
                                         <span className="font-medium">{selectedMerchant?.name}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Merchant ID:</span>
-                                        <span className="font-mono text-xs">{selectedMerchant?.id}</span>
                                       </div>
                                       <div className="flex justify-between border-b pb-1">
                                         <span className="text-muted-foreground">Type:</span>
@@ -369,6 +364,28 @@ export default function AdminDashboard() {
                                     </div>
                                   </div>
 
+                                  <div className="space-y-3 p-4 bg-muted/20 rounded-lg border border-primary/10">
+                                    <h4 className="text-xs font-bold uppercase text-primary flex items-center gap-2">
+                                      <TrendingUp className="w-3 h-3" /> Configured Constraints
+                                    </h4>
+                                    <div className="grid gap-2 text-sm">
+                                      <div className="flex justify-between border-b pb-1 border-primary/10">
+                                        <span className="text-muted-foreground">Daily Max ($):</span>
+                                        <span className="font-bold">${selectedMerchant?.dailyLimit.toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1 border-primary/10">
+                                        <span className="text-muted-foreground">Per Tx Max ($):</span>
+                                        <span className="font-bold">${selectedMerchant?.transactionLimit.toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1 border-primary/10">
+                                        <span className="text-muted-foreground">Daily Max (Count):</span>
+                                        <span className="font-bold">{selectedMerchant?.dailyCountLimit}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-6">
                                   <div className="space-y-3">
                                     <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                                       <User className="w-3 h-3" /> Contact Person
@@ -391,116 +408,26 @@ export default function AdminDashboard() {
 
                                   <div className="space-y-3">
                                     <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                                      <CreditCard className="w-3 h-3" /> Financial Info
-                                    </h4>
-                                    <div className="grid gap-2 text-sm">
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Bank Account:</span>
-                                        <span className="font-mono">{selectedMerchant?.accountNumber}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Daily Limit:</span>
-                                        <span>${selectedMerchant?.dailyLimit.toLocaleString()}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Tx Limit:</span>
-                                        <span>${selectedMerchant?.transactionLimit.toLocaleString()}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Column 2: Infrastructure & Compliance */}
-                                <div className="space-y-6">
-                                  <div className="space-y-3">
-                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                                      <MapPin className="w-3 h-3" /> Presence
-                                    </h4>
-                                    <div className="grid gap-2 text-sm">
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">District:</span>
-                                        <span>{selectedMerchant?.district}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Branch:</span>
-                                        <span>{selectedMerchant?.branchName}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                                      <LinkIcon className="w-3 h-3" /> Integration
-                                    </h4>
-                                    <div className="space-y-2">
-                                      <div className="space-y-1">
-                                        <p className="text-[10px] text-muted-foreground">Website:</p>
-                                        <p className="text-xs text-primary truncate hover:underline cursor-pointer">{selectedMerchant?.websiteUrl}</p>
-                                      </div>
-                                      <div className="space-y-1">
-                                        <p className="text-[10px] text-muted-foreground">Callback URL:</p>
-                                        <p className="text-xs font-mono bg-muted p-1 rounded truncate">{selectedMerchant?.callbackUrl}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                                       <FileCheck className="w-3 h-3" /> Compliance Vault
                                     </h4>
                                     <div className="space-y-2">
                                       {selectedMerchant?.documents.map((doc) => (
                                         <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-muted/30 border">
-                                          <div className="flex items-center gap-2 overflow-hidden">
+                                          <div className="flex items-center gap-2">
                                             <FileCheck className="w-3 h-3 text-primary shrink-0" />
                                             <span className="text-[10px] truncate">{doc.name}</span>
                                           </div>
-                                          <span className="text-[8px] text-muted-foreground">{(doc.size/1024).toFixed(0)}KB</span>
                                         </div>
                                       ))}
-                                      {selectedMerchant?.documents.length === 0 && (
-                                        <p className="text-xs text-muted-foreground italic">No documents uploaded.</p>
-                                      )}
                                     </div>
                                   </div>
-
-                                  {selectedMerchant?.riskFactors && selectedMerchant.riskFactors.length > 0 && (
-                                    <div className="space-y-3 p-3 bg-red-50 rounded border border-red-100">
-                                      <h4 className="text-xs font-bold text-red-700 flex items-center gap-2">
-                                        <ShieldAlert className="w-3 h-3" /> AI Risk Profile
-                                      </h4>
-                                      <div className="flex flex-wrap gap-1">
-                                        {selectedMerchant.riskFactors.map((risk, i) => (
-                                          <Badge key={i} variant="outline" className="text-[9px] bg-white text-red-600 border-red-200">
-                                            {risk}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
-                              </div>
-                              
-                              <Separator />
-                              
-                              <div className="py-4 space-y-2">
-                                <h4 className="text-xs font-bold uppercase text-muted-foreground">Business Description</h4>
-                                <p className="text-sm text-muted-foreground leading-relaxed italic bg-muted/20 p-3 rounded">
-                                  "{selectedMerchant?.businessDescription || 'No description provided.'}"
-                                </p>
                               </div>
                             </DialogContent>
                           </Dialog>
                         </TableCell>
                       </TableRow>
                     ))}
-                    {filteredMerchants.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground italic">
-                          No merchants found matching your search.
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </CardContent>

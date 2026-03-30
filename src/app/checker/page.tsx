@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { 
   Table, 
@@ -39,15 +40,24 @@ import {
   Link as LinkIcon,
   FileCheck,
   ExternalLink,
-  MessageSquare
+  MessageSquare,
+  TrendingUp,
+  Hash
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { db, type Merchant } from "@/app/lib/db"
 
-export default function CheckerPortal() {
+export default function BranchApprovalPortal() {
   const { toast } = useToast()
   const [pending, setPending] = useState<Merchant[]>([])
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
+  
+  const [limits, setLimits] = useState({
+    dailyLimit: "10000",
+    transactionLimit: "1000",
+    dailyCountLimit: "100"
+  })
+  
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
 
@@ -65,13 +75,27 @@ export default function CheckerPortal() {
       return
     }
 
-    db.updateMerchantStatus(id, action === 'approve' ? 'approved' : 'rejected', action === 'reject' ? rejectionReason : undefined)
+    if (action === 'approve') {
+      db.updateMerchant(id, {
+        dailyLimit: Number(limits.dailyLimit),
+        transactionLimit: Number(limits.transactionLimit),
+        dailyCountLimit: Number(limits.dailyCountLimit),
+        status: 'branch_approved'
+      })
+      toast({
+        title: "Branch Approved",
+        description: "Application moved to Head Office for final review.",
+      })
+    } else {
+      db.updateMerchantStatus(id, 'rejected', rejectionReason)
+      toast({
+        title: "Registration Rejected",
+        description: `Merchant account has been rejected.`,
+        variant: 'destructive'
+      })
+    }
+
     setPending(prev => prev.filter(m => m.id !== id))
-    toast({
-      title: action === 'approve' ? "Merchant Approved" : "Registration Rejected",
-      description: `Merchant account has been ${action}d.`,
-      variant: action === 'reject' ? 'destructive' : 'default'
-    })
     setSelectedMerchant(null)
     setRejectionReason("")
     setIsRejecting(false)
@@ -86,7 +110,7 @@ export default function CheckerPortal() {
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2">
             <ShieldCheck className="text-primary w-5 h-5" />
-            <h1 className="text-lg font-semibold font-headline">Merchant Approval (Checker)</h1>
+            <h1 className="text-lg font-semibold font-headline">Branch Approval</h1>
           </div>
         </header>
 
@@ -97,11 +121,11 @@ export default function CheckerPortal() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Pending Applications</CardTitle>
-                    <CardDescription>Review new merchant applications submitted by Makers.</CardDescription>
+                    <CardTitle>Initial Reviews</CardTitle>
+                    <CardDescription>Review new applications and set transaction constraints for HO approval.</CardDescription>
                   </div>
                   <Badge variant="outline" className="text-primary font-bold">
-                    {pending.length} Pending Review
+                    {pending.length} Pending
                   </Badge>
                 </div>
               </CardHeader>
@@ -111,7 +135,6 @@ export default function CheckerPortal() {
                     <TableRow>
                       <TableHead>Company & Branch</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Limits</TableHead>
                       <TableHead>Documents</TableHead>
                       <TableHead>District</TableHead>
                       <TableHead className="text-right">Action</TableHead>
@@ -128,9 +151,6 @@ export default function CheckerPortal() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="font-normal">{m.category}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">${m.dailyLimit.toLocaleString()} / ${m.transactionLimit.toLocaleString()}</span>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="gap-1">
@@ -152,10 +172,10 @@ export default function CheckerPortal() {
                               <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
                                   <Building2 className="w-5 h-5 text-primary" />
-                                  Application Review: {selectedMerchant?.name}
+                                  Branch Review: {selectedMerchant?.name}
                                 </DialogTitle>
                                 <DialogDescription>
-                                  Verify registration details and compliance documents before activation.
+                                  Set limits and verify identity before forwarding to Head Office.
                                 </DialogDescription>
                               </DialogHeader>
                               
@@ -173,7 +193,7 @@ export default function CheckerPortal() {
                                     </div>
                                     <div className="space-y-1">
                                       <p className="text-xs text-muted-foreground font-bold uppercase flex items-center gap-1">
-                                        <MapPin className="w-3 h-3" /> Branch & Location
+                                        <MapPin className="w-3 h-3" /> Location
                                       </p>
                                       <p className="font-medium">{selectedMerchant?.branchName}</p>
                                       <p className="text-sm text-muted-foreground">{selectedMerchant?.district}</p>
@@ -188,15 +208,46 @@ export default function CheckerPortal() {
                                         {selectedMerchant?.callbackUrl}
                                       </p>
                                     </div>
-                                    <div className="space-y-1">
-                                      <p className="text-xs text-muted-foreground font-bold uppercase">Limits</p>
-                                      <p className="text-sm font-medium">Daily: ${selectedMerchant?.dailyLimit.toLocaleString()}</p>
-                                      <p className="text-sm font-medium">Tx: ${selectedMerchant?.transactionLimit.toLocaleString()}</p>
-                                    </div>
                                   </div>
                                 </div>
 
                                 <Separator />
+
+                                {/* LIMIT SETTING SECTION */}
+                                <div className="space-y-4 bg-primary/5 p-4 rounded-lg border border-primary/10">
+                                  <h4 className="text-sm font-bold flex items-center gap-2 text-primary">
+                                    <TrendingUp className="w-4 h-4" /> Set Transaction Limits
+                                  </h4>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="dailyLimit">Daily Amount ($)</Label>
+                                      <Input 
+                                        id="dailyLimit" 
+                                        type="number" 
+                                        value={limits.dailyLimit}
+                                        onChange={(e) => setLimits({...limits, dailyLimit: e.target.value})}
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="txLimit">Max Tx Amount ($)</Label>
+                                      <Input 
+                                        id="txLimit" 
+                                        type="number" 
+                                        value={limits.transactionLimit}
+                                        onChange={(e) => setLimits({...limits, transactionLimit: e.target.value})}
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="countLimit">Daily Tx Count</Label>
+                                      <Input 
+                                        id="countLimit" 
+                                        type="number" 
+                                        value={limits.dailyCountLimit}
+                                        onChange={(e) => setLimits({...limits, dailyCountLimit: e.target.value})}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
 
                                 <div className="space-y-3">
                                   <p className="text-xs text-muted-foreground font-bold uppercase">Uploaded Documents</p>
@@ -207,7 +258,6 @@ export default function CheckerPortal() {
                                           <FileCheck className="w-4 h-4 text-primary shrink-0" />
                                           <div className="overflow-hidden">
                                             <p className="text-xs font-medium truncate">{doc.name}</p>
-                                            <p className="text-[10px] text-muted-foreground">{(doc.size / 1024).toFixed(1)} KB</p>
                                           </div>
                                         </div>
                                         <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -218,22 +268,6 @@ export default function CheckerPortal() {
                                   </div>
                                 </div>
 
-                                {selectedMerchant?.riskFactors && selectedMerchant.riskFactors.length > 0 && (
-                                  <div className="p-4 bg-red-50 rounded-lg border border-red-100">
-                                    <div className="flex items-center gap-2 text-red-700 font-bold text-sm mb-2">
-                                      <AlertTriangle className="w-4 h-4" />
-                                      AI Risk Assessment
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {selectedMerchant.riskFactors.map((risk, i) => (
-                                        <Badge key={i} variant="secondary" className="bg-white/50 border-red-200 text-red-600">
-                                          {risk}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
                                 {isRejecting && (
                                   <div className="space-y-2 p-4 bg-muted rounded-lg border animate-in slide-in-from-top-2">
                                     <Label htmlFor="reason" className="flex items-center gap-2 text-destructive">
@@ -242,7 +276,7 @@ export default function CheckerPortal() {
                                     </Label>
                                     <Textarea 
                                       id="reason" 
-                                      placeholder="e.g. Invalid Trade License, KYC details mismatch..." 
+                                      placeholder="Provide detailed feedback..." 
                                       value={rejectionReason}
                                       onChange={(e) => setRejectionReason(e.target.value)}
                                       className="bg-white"
@@ -270,7 +304,7 @@ export default function CheckerPortal() {
                                     onClick={() => handleAction(selectedMerchant!.id, 'approve')}
                                   >
                                     <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Approve & Activate
+                                    Set Limits & Forward
                                   </Button>
                                 </DialogFooter>
                               )}
@@ -281,8 +315,8 @@ export default function CheckerPortal() {
                     ))}
                     {pending.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                          No pending applications for review.
+                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                          No pending branch reviews.
                         </TableCell>
                       </TableRow>
                     )}

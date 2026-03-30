@@ -44,7 +44,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Edit2
+  Edit2,
+  ShieldCheck,
+  CheckCircle
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
@@ -63,8 +65,6 @@ export default function MakerPortal() {
     name: "",
     email: "",
     accountNumber: "",
-    dailyLimit: "10000",
-    transactionLimit: "1000",
     businessDescription: "",
     websiteUrl: "",
     callbackUrl: "",
@@ -180,8 +180,6 @@ export default function MakerPortal() {
       name: merchant.name,
       email: merchant.email,
       accountNumber: merchant.accountNumber,
-      dailyLimit: merchant.dailyLimit.toString(),
-      transactionLimit: merchant.transactionLimit.toString(),
       businessDescription: merchant.businessDescription,
       websiteUrl: merchant.websiteUrl,
       callbackUrl: merchant.callbackUrl,
@@ -202,8 +200,6 @@ export default function MakerPortal() {
       name: "",
       email: "",
       accountNumber: "",
-      dailyLimit: "10000",
-      transactionLimit: "1000",
       businessDescription: "",
       websiteUrl: "",
       callbackUrl: "",
@@ -243,22 +239,21 @@ export default function MakerPortal() {
     if (editingMerchantId) {
       db.updateMerchant(editingMerchantId, {
         ...formData,
-        dailyLimit: Number(formData.dailyLimit),
-        transactionLimit: Number(formData.transactionLimit),
         status: 'pending', // Re-submit for review
         documents,
         riskFactors
       })
       toast({
         title: "Submission Updated",
-        description: "Changes saved and sent back for Checker review."
+        description: "Changes saved and sent back for Branch review."
       })
     } else {
       db.addMerchant({
         id: `m_${Math.random().toString(36).substr(2, 9)}`,
         ...formData,
-        dailyLimit: Number(formData.dailyLimit),
-        transactionLimit: Number(formData.transactionLimit),
+        dailyLimit: 0,
+        transactionLimit: 0,
+        dailyCountLimit: 0,
         status: 'pending',
         documents,
         riskFactors,
@@ -266,12 +261,27 @@ export default function MakerPortal() {
       })
       toast({
         title: "Merchant Registered",
-        description: "Successfully submitted to the Checker Portal for review."
+        description: "Successfully submitted to Branch Approval."
       })
     }
 
     resetForm()
     refreshSubmissions()
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-green-500 gap-1"><CheckCircle className="w-3 h-3" /> Approved</Badge>
+      case 'branch_approved':
+        return <Badge className="bg-blue-500 gap-1"><ShieldCheck className="w-3 h-3" /> Branch OK</Badge>
+      case 'pending':
+        return <Badge variant="outline" className="text-orange-500 border-orange-200 gap-1 bg-orange-50"><Clock className="w-3 h-3" /> Pending</Badge>
+      case 'rejected':
+        return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
   }
 
   return (
@@ -322,7 +332,7 @@ export default function MakerPortal() {
                     <Card className="shadow-sm border-none">
                       <CardHeader>
                         <CardTitle>{editingMerchantId ? 'Update Registration' : 'Merchant Profile'}</CardTitle>
-                        <CardDescription>Capture company details, contact person, and compliance documents.</CardDescription>
+                        <CardDescription>Capture company details, contact person, and compliance documents. Limits will be set during approval.</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
@@ -496,10 +506,10 @@ export default function MakerPortal() {
 
                           <Separator />
 
-                          {/* Integration & Limits */}
+                          {/* Integration */}
                           <div className="space-y-4">
                             <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                              <LinkIcon className="w-4 h-4" /> Integration & Limits
+                              <LinkIcon className="w-4 h-4" /> Integration Details
                             </h3>
                             <div className="grid gap-4 sm:grid-cols-2">
                               <div className="space-y-2">
@@ -665,15 +675,7 @@ export default function MakerPortal() {
                               {new Date(m.createdAt).toLocaleDateString()}
                             </TableCell>
                             <TableCell>
-                              {m.status === 'approved' && (
-                                <Badge className="bg-green-500 gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</Badge>
-                              )}
-                              {m.status === 'pending' && (
-                                <Badge variant="outline" className="text-orange-500 border-orange-200 gap-1 bg-orange-50"><Clock className="w-3 h-3" /> Pending</Badge>
-                              )}
-                              {m.status === 'rejected' && (
-                                <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
-                              )}
+                              {getStatusBadge(m.status)}
                             </TableCell>
                             <TableCell>
                               <div className="space-y-2">
