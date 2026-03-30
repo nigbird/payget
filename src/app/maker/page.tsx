@@ -43,7 +43,8 @@ import {
   History,
   AlertCircle,
   CheckCircle2,
-  Clock
+  Clock,
+  Edit2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
@@ -52,9 +53,11 @@ import { db, type MerchantDocument, type Merchant } from "@/app/lib/db"
 export default function MakerPortal() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [activeTab, setActiveTab] = useState("register")
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [systemConfig, setSystemConfig] = useState(db.getSystemConfig())
   const [mySubmissions, setMySubmissions] = useState<Merchant[]>([])
+  const [editingMerchantId, setEditingMerchantId] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
     name: "",
@@ -171,6 +174,51 @@ export default function MakerPortal() {
     }
   }
 
+  const startEdit = (merchant: Merchant) => {
+    setEditingMerchantId(merchant.id)
+    setFormData({
+      name: merchant.name,
+      email: merchant.email,
+      accountNumber: merchant.accountNumber,
+      dailyLimit: merchant.dailyLimit.toString(),
+      transactionLimit: merchant.transactionLimit.toString(),
+      businessDescription: merchant.businessDescription,
+      websiteUrl: merchant.websiteUrl,
+      callbackUrl: merchant.callbackUrl,
+      contactName: merchant.contactName,
+      contactPhone: merchant.contactPhone,
+      branchName: merchant.branchName,
+      district: merchant.district,
+      category: merchant.category,
+      businessType: merchant.businessType
+    })
+    setDocuments(merchant.documents)
+    setRiskFactors(merchant.riskFactors)
+    setActiveTab("register")
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      accountNumber: "",
+      dailyLimit: "10000",
+      transactionLimit: "1000",
+      businessDescription: "",
+      websiteUrl: "",
+      callbackUrl: "",
+      contactName: "",
+      contactPhone: "",
+      branchName: "",
+      district: "",
+      category: "",
+      businessType: ""
+    })
+    setDocuments([])
+    setRiskFactors([])
+    setEditingMerchantId(null)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -192,41 +240,37 @@ export default function MakerPortal() {
       return
     }
 
-    db.addMerchant({
-      id: `m_${Math.random().toString(36).substr(2, 9)}`,
-      ...formData,
-      dailyLimit: Number(formData.dailyLimit),
-      transactionLimit: Number(formData.transactionLimit),
-      status: 'pending',
-      documents,
-      riskFactors,
-      createdAt: new Date().toISOString()
-    })
+    if (editingMerchantId) {
+      db.updateMerchant(editingMerchantId, {
+        ...formData,
+        dailyLimit: Number(formData.dailyLimit),
+        transactionLimit: Number(formData.transactionLimit),
+        status: 'pending', // Re-submit for review
+        documents,
+        riskFactors
+      })
+      toast({
+        title: "Submission Updated",
+        description: "Changes saved and sent back for Checker review."
+      })
+    } else {
+      db.addMerchant({
+        id: `m_${Math.random().toString(36).substr(2, 9)}`,
+        ...formData,
+        dailyLimit: Number(formData.dailyLimit),
+        transactionLimit: Number(formData.transactionLimit),
+        status: 'pending',
+        documents,
+        riskFactors,
+        createdAt: new Date().toISOString()
+      })
+      toast({
+        title: "Merchant Registered",
+        description: "Successfully submitted to the Checker Portal for review."
+      })
+    }
 
-    toast({
-      title: "Merchant Registered",
-      description: "Successfully submitted to the Checker Portal for review."
-    })
-    
-    // Reset state
-    setFormData({
-      name: "",
-      email: "",
-      accountNumber: "",
-      dailyLimit: "10000",
-      transactionLimit: "1000",
-      businessDescription: "",
-      websiteUrl: "",
-      callbackUrl: "",
-      contactName: "",
-      contactPhone: "",
-      branchName: "",
-      district: "",
-      category: "",
-      businessType: ""
-    })
-    setDocuments([])
-    setRiskFactors([])
+    resetForm()
     refreshSubmissions()
   }
 
@@ -245,10 +289,10 @@ export default function MakerPortal() {
 
         <main className="flex-1 overflow-auto p-6 bg-muted/20">
           <div className="max-w-6xl mx-auto">
-            <Tabs defaultValue="register" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="bg-white p-1 border">
                 <TabsTrigger value="register" className="flex items-center gap-2">
-                  <UserPlus className="w-4 h-4" /> Register New
+                  <UserPlus className="w-4 h-4" /> {editingMerchantId ? 'Correct Submission' : 'Register New'}
                 </TabsTrigger>
                 <TabsTrigger value="history" className="flex items-center gap-2">
                   <History className="w-4 h-4" /> Submission Status
@@ -259,9 +303,25 @@ export default function MakerPortal() {
                 <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
                   {/* Main Form */}
                   <div className="lg:col-span-2 space-y-6">
+                    {editingMerchantId && (
+                      <Card className="bg-orange-50 border-orange-200">
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <AlertCircle className="text-orange-600 w-5 h-5" />
+                            <p className="text-sm text-orange-800 font-medium">
+                              You are currently correcting a rejected application. 
+                            </p>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={resetForm} className="text-orange-800 hover:bg-orange-100">
+                            Cancel Edit
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     <Card className="shadow-sm border-none">
                       <CardHeader>
-                        <CardTitle>Merchant Profile</CardTitle>
+                        <CardTitle>{editingMerchantId ? 'Update Registration' : 'Merchant Profile'}</CardTitle>
                         <CardDescription>Capture company details, contact person, and compliance documents.</CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -506,7 +566,7 @@ export default function MakerPortal() {
                           </div>
 
                           <Button type="submit" className="w-full h-11 bg-primary text-lg">
-                            Submit for Approval
+                            {editingMerchantId ? 'Update & Resubmit' : 'Submit for Approval'}
                           </Button>
                         </form>
                       </CardContent>
@@ -593,7 +653,7 @@ export default function MakerPortal() {
                           <TableHead>Branch</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Feedback / Reason</TableHead>
+                          <TableHead>Feedback / Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -615,14 +675,28 @@ export default function MakerPortal() {
                                 <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
                               )}
                             </TableCell>
-                            <TableCell className="max-w-[300px]">
-                              {m.status === 'rejected' && m.rejectionReason ? (
-                                <div className="p-2 bg-red-50 text-red-700 text-xs rounded border border-red-100 italic">
-                                  "{m.rejectionReason}"
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
+                            <TableCell>
+                              <div className="space-y-2">
+                                {m.status === 'rejected' && m.rejectionReason && (
+                                  <div className="p-2 bg-red-50 text-red-700 text-xs rounded border border-red-100 italic">
+                                    "{m.rejectionReason}"
+                                  </div>
+                                )}
+                                {m.status === 'rejected' && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-8 gap-2"
+                                    onClick={() => startEdit(m)}
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                    Correct & Resubmit
+                                  </Button>
+                                )}
+                                {m.status !== 'rejected' && (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}

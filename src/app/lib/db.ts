@@ -31,6 +31,7 @@ export interface Merchant {
   businessType: string;
   documents: MerchantDocument[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type TransactionStatus = 'success' | 'failed' | 'initiated';
@@ -116,11 +117,22 @@ export const db = {
   addMerchant: (merchant: Merchant) => {
     globalStore.merchants.push(merchant);
   },
+  updateMerchant: (id: string, updates: Partial<Merchant>) => {
+    const index = globalStore.merchants.findIndex(m => m.id === id);
+    if (index !== -1) {
+      globalStore.merchants[index] = { 
+        ...globalStore.merchants[index], 
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+    }
+  },
   updateMerchantStatus: (id: string, status: MerchantStatus, reason?: string) => {
     const m = globalStore.merchants.find(merchant => merchant.id === id);
     if (m) {
       m.status = status;
       if (reason) m.rejectionReason = reason;
+      else delete m.rejectionReason; // Clear reason if approved
     }
   },
   getTransactions: () => globalStore.transactions,
