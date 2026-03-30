@@ -10,6 +10,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table"
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog"
+import { 
   Activity, 
   Users, 
   ArrowUpRight, 
@@ -20,7 +36,17 @@ import {
   Settings2,
   FileUp,
   Save,
-  Clock
+  Clock,
+  Search,
+  Building2,
+  User,
+  Phone,
+  MapPin,
+  Link as LinkIcon,
+  FileCheck,
+  Eye,
+  CreditCard,
+  ShieldAlert
 } from "lucide-react"
 import { 
   ChartContainer, 
@@ -29,7 +55,7 @@ import {
   type ChartConfig 
 } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
-import { db } from "@/app/lib/db"
+import { db, type Merchant } from "@/app/lib/db"
 import { useToast } from "@/hooks/use-toast"
 
 const chartData = [
@@ -50,6 +76,9 @@ const chartConfig = {
 
 export default function AdminDashboard() {
   const { toast } = useToast()
+  const [merchants, setMerchants] = useState<Merchant[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
   const [config, setConfig] = useState({
     maxFileSizeMB: 5,
     allowedFileTypes: ".pdf, .jpg, .jpeg, .png",
@@ -58,6 +87,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const sysConfig = db.getSystemConfig()
+    setMerchants(db.getMerchants())
     setConfig({
       maxFileSizeMB: sysConfig.maxFileSizeMB,
       allowedFileTypes: sysConfig.allowedFileTypes.join(", "),
@@ -78,11 +108,17 @@ export default function AdminDashboard() {
     })
   }
 
+  const filteredMerchants = merchants.filter(m => 
+    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.email.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
     <SidebarProvider>
       <SidebarNav />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sticky top-0 bg-background/95 backdrop-blur z-50">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2">
@@ -114,8 +150,8 @@ export default function AdminDashboard() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">1,482</div>
-                  <p className="text-xs text-muted-foreground">34 new this month</p>
+                  <div className="text-2xl font-bold">{merchants.length}</div>
+                  <p className="text-xs text-muted-foreground">{merchants.filter(m => m.status === 'approved').length} approved</p>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
@@ -134,7 +170,7 @@ export default function AdminDashboard() {
                   <AlertCircle className="h-4 w-4 text-orange-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">12</div>
+                  <div className="text-2xl font-bold">{merchants.filter(m => m.status === 'pending').length}</div>
                   <p className="text-xs text-muted-foreground">Require attention</p>
                 </CardContent>
               </Card>
@@ -230,6 +266,245 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Merchant Registry Section */}
+            <Card className="border-none shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Merchant Registry</CardTitle>
+                  <CardDescription>Comprehensive directory of all registered merchants and their status.</CardDescription>
+                </div>
+                <div className="relative w-72">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search by name, ID or email..." 
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Merchant</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMerchants.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{m.name}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground uppercase">{m.id}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col text-xs">
+                            <span>{m.contactName}</span>
+                            <span className="text-muted-foreground">{m.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="font-normal text-[10px] uppercase">
+                            {m.category || 'General'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {m.district}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={m.status === 'approved' ? 'default' : m.status === 'pending' ? 'outline' : 'destructive'} className={m.status === 'approved' ? 'bg-green-500' : ''}>
+                            {m.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={() => setSelectedMerchant(m)}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                  <Building2 className="w-5 h-5 text-primary" />
+                                  Merchant Profile: {selectedMerchant?.name}
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Detailed business and compliance information.
+                                </DialogDescription>
+                              </DialogHeader>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
+                                {/* Column 1: Core Business */}
+                                <div className="space-y-6">
+                                  <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                      <Building2 className="w-3 h-3" /> Business Details
+                                    </h4>
+                                    <div className="grid gap-2 text-sm">
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Legal Name:</span>
+                                        <span className="font-medium">{selectedMerchant?.name}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Merchant ID:</span>
+                                        <span className="font-mono text-xs">{selectedMerchant?.id}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Type:</span>
+                                        <span>{selectedMerchant?.businessType}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Category:</span>
+                                        <span>{selectedMerchant?.category}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                      <User className="w-3 h-3" /> Contact Person
+                                    </h4>
+                                    <div className="grid gap-2 text-sm">
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Name:</span>
+                                        <span className="font-medium">{selectedMerchant?.contactName}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Email:</span>
+                                        <span>{selectedMerchant?.email}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Phone:</span>
+                                        <span>{selectedMerchant?.contactPhone}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                      <CreditCard className="w-3 h-3" /> Financial Info
+                                    </h4>
+                                    <div className="grid gap-2 text-sm">
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Bank Account:</span>
+                                        <span className="font-mono">{selectedMerchant?.accountNumber}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Daily Limit:</span>
+                                        <span>${selectedMerchant?.dailyLimit.toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Tx Limit:</span>
+                                        <span>${selectedMerchant?.transactionLimit.toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Column 2: Infrastructure & Compliance */}
+                                <div className="space-y-6">
+                                  <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                      <MapPin className="w-3 h-3" /> Presence
+                                    </h4>
+                                    <div className="grid gap-2 text-sm">
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">District:</span>
+                                        <span>{selectedMerchant?.district}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b pb-1">
+                                        <span className="text-muted-foreground">Branch:</span>
+                                        <span>{selectedMerchant?.branchName}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                      <LinkIcon className="w-3 h-3" /> Integration
+                                    </h4>
+                                    <div className="space-y-2">
+                                      <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground">Website:</p>
+                                        <p className="text-xs text-primary truncate hover:underline cursor-pointer">{selectedMerchant?.websiteUrl}</p>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground">Callback URL:</p>
+                                        <p className="text-xs font-mono bg-muted p-1 rounded truncate">{selectedMerchant?.callbackUrl}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                      <FileCheck className="w-3 h-3" /> Compliance Vault
+                                    </h4>
+                                    <div className="space-y-2">
+                                      {selectedMerchant?.documents.map((doc) => (
+                                        <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-muted/30 border">
+                                          <div className="flex items-center gap-2 overflow-hidden">
+                                            <FileCheck className="w-3 h-3 text-primary shrink-0" />
+                                            <span className="text-[10px] truncate">{doc.name}</span>
+                                          </div>
+                                          <span className="text-[8px] text-muted-foreground">{(doc.size/1024).toFixed(0)}KB</span>
+                                        </div>
+                                      ))}
+                                      {selectedMerchant?.documents.length === 0 && (
+                                        <p className="text-xs text-muted-foreground italic">No documents uploaded.</p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {selectedMerchant?.riskFactors && selectedMerchant.riskFactors.length > 0 && (
+                                    <div className="space-y-3 p-3 bg-red-50 rounded border border-red-100">
+                                      <h4 className="text-xs font-bold text-red-700 flex items-center gap-2">
+                                        <ShieldAlert className="w-3 h-3" /> AI Risk Profile
+                                      </h4>
+                                      <div className="flex flex-wrap gap-1">
+                                        {selectedMerchant.riskFactors.map((risk, i) => (
+                                          <Badge key={i} variant="outline" className="text-[9px] bg-white text-red-600 border-red-200">
+                                            {risk}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <Separator />
+                              
+                              <div className="py-4 space-y-2">
+                                <h4 className="text-xs font-bold uppercase text-muted-foreground">Business Description</h4>
+                                <p className="text-sm text-muted-foreground leading-relaxed italic bg-muted/20 p-3 rounded">
+                                  "{selectedMerchant?.businessDescription || 'No description provided.'}"
+                                </p>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredMerchants.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground italic">
+                          No merchants found matching your search.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
           </div>
         </main>
