@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-dashboard",
+      "description": "A professional financial dashboard showing transaction metrics.",
+      "imageUrl": "https://picsum.photos/seed/finflow-hero/1200/800",
+      "imageHint": "finance dashboard"
+    },
+    {
+      "id": "merchant-avatar-1",
+      "description": "A professional merchant avatar.",
+      "imageUrl": "https://picsum.photos/seed/merchant-1/200/200",
+      "imageHint": "professional person"
+    }
+  ]
 }
