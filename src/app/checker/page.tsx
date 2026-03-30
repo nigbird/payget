@@ -24,10 +24,10 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
-import { ShieldCheck, Eye, CheckCircle2, XCircle, AlertTriangle, Building2, ExternalLink } from "lucide-react"
+import { ShieldCheck, Eye, CheckCircle2, XCircle, AlertTriangle, Building2, User, Phone, MapPin, Link as LinkIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-// Mock pending registrations
+// Mock pending registrations with new fields
 const initialPending = [
   {
     id: "m2",
@@ -38,6 +38,11 @@ const initialPending = [
     transactionLimit: 500,
     category: "Florist",
     businessType: "Retail",
+    contactName: "Alice Smith",
+    contactPhone: "+1 555-010-2233",
+    branchName: "Westside Hub",
+    district: "Greenwood District",
+    callbackUrl: "https://bloom.com/hooks/payments",
     riskFactors: ["Seasonal Demand Fluctuations"],
     createdAt: "2024-05-20T10:30:00Z"
   },
@@ -50,6 +55,11 @@ const initialPending = [
     transactionLimit: 2500,
     category: "Web Services",
     businessType: "E-commerce",
+    contactName: "Bob Johnson",
+    contactPhone: "+1 555-010-4455",
+    branchName: "Tech Park Office",
+    district: "Digital District",
+    callbackUrl: "https://nitrohosting.io/webhooks/pay",
     riskFactors: ["High chargeback risk domain"],
     createdAt: "2024-05-21T09:15:00Z"
   }
@@ -90,11 +100,11 @@ export default function CheckerPortal() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Pending Registrations</CardTitle>
+                    <CardTitle>Pending Applications</CardTitle>
                     <CardDescription>Review new merchant applications submitted by Makers.</CardDescription>
                   </div>
                   <Badge variant="outline" className="text-primary font-bold">
-                    {pending.length} Applications
+                    {pending.length} Pending Review
                   </Badge>
                 </div>
               </CardHeader>
@@ -102,11 +112,11 @@ export default function CheckerPortal() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Company</TableHead>
+                      <TableHead>Company & Branch</TableHead>
                       <TableHead>Account No.</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Limits (Daily/Tx)</TableHead>
-                      <TableHead>Submitted At</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Daily/Tx Limits</TableHead>
+                      <TableHead>Location</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -116,7 +126,7 @@ export default function CheckerPortal() {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">{m.name}</span>
-                            <span className="text-xs text-muted-foreground">{m.email}</span>
+                            <span className="text-xs text-muted-foreground">{m.branchName}</span>
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{m.accountNumber}</TableCell>
@@ -126,8 +136,8 @@ export default function CheckerPortal() {
                         <TableCell>
                           <span className="text-sm">${m.dailyLimit.toLocaleString()} / ${m.transactionLimit.toLocaleString()}</span>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(m.createdAt).toLocaleDateString()}
+                        <TableCell>
+                          <span className="text-sm">{m.district}</span>
                         </TableCell>
                         <TableCell className="text-right">
                           <Dialog>
@@ -136,44 +146,71 @@ export default function CheckerPortal() {
                                 <Eye className="w-4 h-4" />
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-[500px]">
+                            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
                                   <Building2 className="w-5 h-5 text-primary" />
-                                  Review Merchant Registration
+                                  Application Review: {selectedMerchant?.name}
                                 </DialogTitle>
                                 <DialogDescription>
-                                  Verify the captured information for {selectedMerchant?.name}.
+                                  Verify the registration details before activation.
                                 </DialogDescription>
                               </DialogHeader>
                               
-                              <div className="grid gap-6 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground font-bold uppercase">Account Number</p>
-                                    <p className="font-mono">{selectedMerchant?.accountNumber}</p>
+                              <div className="space-y-6 py-4">
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-bold uppercase flex items-center gap-1">
+                                        <User className="w-3 h-3" /> Contact Person
+                                      </p>
+                                      <p className="font-medium">{selectedMerchant?.contactName}</p>
+                                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                        <Phone className="w-3 h-3" /> {selectedMerchant?.contactPhone}
+                                      </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-bold uppercase flex items-center gap-1">
+                                        <MapPin className="w-3 h-3" /> Branch Details
+                                      </p>
+                                      <p className="font-medium">{selectedMerchant?.branchName}</p>
+                                      <p className="text-sm text-muted-foreground">{selectedMerchant?.district}</p>
+                                    </div>
                                   </div>
-                                  <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground font-bold uppercase">Business Type</p>
-                                    <p className="font-medium">{selectedMerchant?.businessType}</p>
+                                  <div className="space-y-4">
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-bold uppercase flex items-center gap-1">
+                                        <LinkIcon className="w-3 h-3" /> Callback URL
+                                      </p>
+                                      <p className="text-xs font-mono text-primary truncate bg-primary/5 p-1 rounded">
+                                        {selectedMerchant?.callbackUrl}
+                                      </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-bold uppercase">Account Number</p>
+                                      <p className="font-mono text-sm">{selectedMerchant?.accountNumber}</p>
+                                    </div>
                                   </div>
                                 </div>
+
+                                <Separator />
+
                                 <div className="grid grid-cols-2 gap-4">
                                   <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground font-bold uppercase">Daily Limit</p>
-                                    <p className="font-medium">${selectedMerchant?.dailyLimit.toLocaleString()}</p>
+                                    <p className="font-medium text-lg">${selectedMerchant?.dailyLimit.toLocaleString()}</p>
                                   </div>
                                   <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground font-bold uppercase">Tx Limit</p>
-                                    <p className="font-medium">${selectedMerchant?.transactionLimit.toLocaleString()}</p>
+                                    <p className="font-medium text-lg">${selectedMerchant?.transactionLimit.toLocaleString()}</p>
                                   </div>
                                 </div>
 
                                 {selectedMerchant?.riskFactors && selectedMerchant.riskFactors.length > 0 && (
-                                  <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                                  <div className="p-4 bg-red-50 rounded-lg border border-red-100">
                                     <div className="flex items-center gap-2 text-red-700 font-bold text-sm mb-2">
                                       <AlertTriangle className="w-4 h-4" />
-                                      AI Flagged Risk Factors
+                                      AI Risk Assessment
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                       {selectedMerchant.riskFactors.map((risk, i) => (
@@ -186,7 +223,7 @@ export default function CheckerPortal() {
                                 )}
                               </div>
 
-                              <DialogFooter className="gap-2 sm:gap-0">
+                              <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
                                 <Button 
                                   variant="outline" 
                                   className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"

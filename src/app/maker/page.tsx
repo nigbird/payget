@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Sparkles, UserPlus, Globe, Building2, Wallet } from "lucide-react"
+import { Loader2, Sparkles, UserPlus, Globe, Building2, User, Phone, MapPin, Link as LinkIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
 
@@ -25,6 +25,11 @@ export default function MakerPortal() {
     transactionLimit: "1000",
     businessDescription: "",
     websiteUrl: "",
+    callbackUrl: "",
+    contactName: "",
+    contactPhone: "",
+    branchName: "",
+    district: "",
     category: "",
     businessType: ""
   })
@@ -85,6 +90,11 @@ export default function MakerPortal() {
       transactionLimit: "1000",
       businessDescription: "",
       websiteUrl: "",
+      callbackUrl: "",
+      contactName: "",
+      contactPhone: "",
+      branchName: "",
+      district: "",
       category: "",
       businessType: ""
     })
@@ -111,92 +121,180 @@ export default function MakerPortal() {
             <div className="lg:col-span-2 space-y-6">
               <Card className="shadow-sm border-none">
                 <CardHeader>
-                  <CardTitle>Company Information</CardTitle>
-                  <CardDescription>Capture basic merchant profile and limits.</CardDescription>
+                  <CardTitle>Merchant Profile</CardTitle>
+                  <CardDescription>Capture company details, contact person, and registration location.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Company Name</Label>
-                        <Input 
-                          id="name" 
-                          placeholder="Acme Inc." 
-                          required 
-                          value={formData.name}
-                          onChange={e => setFormData({...formData, name: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input 
-                          id="email" 
-                          type="email" 
-                          placeholder="contact@acme.com" 
-                          required 
-                          value={formData.email}
-                          onChange={e => setFormData({...formData, email: e.target.value})}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="accountNumber">Bank Account Number</Label>
-                        <Input 
-                          id="accountNumber" 
-                          placeholder="000123456789" 
-                          required 
-                          value={formData.accountNumber}
-                          onChange={e => setFormData({...formData, accountNumber: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="businessType">Business Type</Label>
-                        <Input 
-                          id="businessType" 
-                          placeholder="e.g. Retail, SaaS" 
-                          value={formData.businessType}
-                          onChange={e => setFormData({...formData, businessType: e.target.value})}
-                        />
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                        <Building2 className="w-4 h-4" /> Company Details
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="name">Company Name</Label>
+                          <Input 
+                            id="name" 
+                            placeholder="Acme Inc." 
+                            required 
+                            value={formData.name}
+                            onChange={e => setFormData({...formData, name: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email Address</Label>
+                          <Input 
+                            id="email" 
+                            type="email" 
+                            placeholder="contact@acme.com" 
+                            required 
+                            value={formData.email}
+                            onChange={e => setFormData({...formData, email: e.target.value})}
+                          />
+                        </div>
                       </div>
                     </div>
 
                     <Separator />
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="dailyLimit">Daily Transaction Limit ($)</Label>
-                        <Input 
-                          id="dailyLimit" 
-                          type="number" 
-                          value={formData.dailyLimit}
-                          onChange={e => setFormData({...formData, dailyLimit: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="transactionLimit">Per Transaction Limit ($)</Label>
-                        <Input 
-                          id="transactionLimit" 
-                          type="number" 
-                          value={formData.transactionLimit}
-                          onChange={e => setFormData({...formData, transactionLimit: e.target.value})}
-                        />
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                        <User className="w-4 h-4" /> Contact Person
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="contactName">Full Name</Label>
+                          <Input 
+                            id="contactName" 
+                            placeholder="Authorized Representative" 
+                            required 
+                            value={formData.contactName}
+                            onChange={e => setFormData({...formData, contactName: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="contactPhone">Phone Number</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                              id="contactPhone" 
+                              className="pl-9"
+                              placeholder="+1 (555) 000-0000" 
+                              required 
+                              value={formData.contactPhone}
+                              onChange={e => setFormData({...formData, contactPhone: e.target.value})}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="websiteUrl">Website URL (Optional)</Label>
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                        <MapPin className="w-4 h-4" /> Registration Branch
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="branchName">Branch Name</Label>
                           <Input 
-                            id="websiteUrl" 
-                            className="pl-9" 
-                            placeholder="https://example.com" 
-                            value={formData.websiteUrl}
-                            onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
+                            id="branchName" 
+                            placeholder="Main City Branch" 
+                            required 
+                            value={formData.branchName}
+                            onChange={e => setFormData({...formData, branchName: e.target.value})}
                           />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="district">District</Label>
+                          <Input 
+                            id="district" 
+                            placeholder="North District" 
+                            required 
+                            value={formData.district}
+                            onChange={e => setFormData({...formData, district: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                        <LinkIcon className="w-4 h-4" /> Integration & Limits
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="accountNumber">Bank Account Number</Label>
+                          <Input 
+                            id="accountNumber" 
+                            placeholder="000123456789" 
+                            required 
+                            value={formData.accountNumber}
+                            onChange={e => setFormData({...formData, accountNumber: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="businessType">Business Type</Label>
+                          <Input 
+                            id="businessType" 
+                            placeholder="e.g. Retail, SaaS" 
+                            value={formData.businessType}
+                            onChange={e => setFormData({...formData, businessType: e.target.value})}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="dailyLimit">Daily Transaction Limit ($)</Label>
+                          <Input 
+                            id="dailyLimit" 
+                            type="number" 
+                            value={formData.dailyLimit}
+                            onChange={e => setFormData({...formData, dailyLimit: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="transactionLimit">Per Transaction Limit ($)</Label>
+                          <Input 
+                            id="transactionLimit" 
+                            type="number" 
+                            value={formData.transactionLimit}
+                            onChange={e => setFormData({...formData, transactionLimit: e.target.value})}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="websiteUrl">Website URL</Label>
+                          <div className="relative">
+                            <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                              id="websiteUrl" 
+                              className="pl-9" 
+                              placeholder="https://example.com" 
+                              value={formData.websiteUrl}
+                              onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="callbackUrl">Callback (Webhook) URL</Label>
+                          <div className="relative">
+                            <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                              id="callbackUrl" 
+                              className="pl-9" 
+                              placeholder="https://api.example.com/webhook" 
+                              required
+                              value={formData.callbackUrl}
+                              onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -206,7 +304,7 @@ export default function MakerPortal() {
                       <Textarea 
                         id="businessDescription" 
                         placeholder="Briefly describe the business operations..." 
-                        rows={4}
+                        rows={3}
                         value={formData.businessDescription}
                         onChange={e => setFormData({...formData, businessDescription: e.target.value})}
                       />

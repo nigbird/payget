@@ -12,6 +12,11 @@ export interface Merchant {
   status: MerchantStatus;
   businessDescription: string;
   websiteUrl: string;
+  callbackUrl: string;
+  contactName: string;
+  contactPhone: string;
+  branchName: string;
+  district: string;
   category: string;
   riskFactors: string[];
   businessType: string;
@@ -48,6 +53,11 @@ if (!globalStore.merchants) {
       status: 'approved',
       businessDescription: 'E-commerce platform selling high-end tech accessories.',
       websiteUrl: 'https://techgear.io',
+      callbackUrl: 'https://techgear.io/api/webhook',
+      contactName: 'John Doe',
+      contactPhone: '+1234567890',
+      branchName: 'Downtown HQ',
+      district: 'Central Business District',
       category: 'E-commerce',
       riskFactors: [],
       businessType: 'Retail',
@@ -63,7 +73,7 @@ if (!globalStore.transactions) {
       merchantId: 'm1',
       amount: 450.00,
       status: 'success',
-      callbackUrl: 'https://techgear.io/hooks',
+      callbackUrl: 'https://techgear.io/api/webhook',
       description: 'Order #8821',
       timestamp: new Date().toISOString()
     }
