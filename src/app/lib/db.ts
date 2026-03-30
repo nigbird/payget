@@ -47,6 +47,8 @@ export interface Transaction {
 export interface SystemConfig {
   maxFileSizeMB: number;
   allowedFileTypes: string[];
+  districts: string[];
+  branches: string[];
 }
 
 // Global singleton for demo data
@@ -101,7 +103,9 @@ if (!globalStore.transactions) {
 if (!globalStore.systemConfig) {
   globalStore.systemConfig = {
     maxFileSizeMB: 5,
-    allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png']
+    allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
+    districts: ['Central Business District', 'North Industrial', 'South Residential', 'East Port', 'West Hills'],
+    branches: ['Downtown HQ', 'North Hub', 'South Plaza', 'East Wing', 'West Station']
   };
 }
 

@@ -11,6 +11,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select"
+import { 
   Loader2, 
   Sparkles, 
   UserPlus, 
@@ -157,6 +164,15 @@ export default function MakerPortal() {
       return
     }
 
+    if (!formData.branchName || !formData.district) {
+      toast({
+        variant: "destructive",
+        title: "Missing Selections",
+        description: "Please select a branch and district."
+      })
+      return
+    }
+
     // Simulated backend submission
     db.addMerchant({
       id: `m_${Math.random().toString(36).substr(2, 9)}`,
@@ -295,23 +311,35 @@ export default function MakerPortal() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="branchName">Branch Name</Label>
-                          <Input 
-                            id="branchName" 
-                            placeholder="Main City Branch" 
-                            required 
-                            value={formData.branchName}
-                            onChange={e => setFormData({...formData, branchName: e.target.value})}
-                          />
+                          <Select 
+                            value={formData.branchName} 
+                            onValueChange={(val) => setFormData({...formData, branchName: val})}
+                          >
+                            <SelectTrigger id="branchName">
+                              <SelectValue placeholder="Select Branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {systemConfig.branches.map(branch => (
+                                <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="district">District</Label>
-                          <Input 
-                            id="district" 
-                            placeholder="North District" 
-                            required 
-                            value={formData.district}
-                            onChange={e => setFormData({...formData, district: e.target.value})}
-                          />
+                          <Select 
+                            value={formData.district} 
+                            onValueChange={(val) => setFormData({...formData, district: val})}
+                          >
+                            <SelectTrigger id="district">
+                              <SelectValue placeholder="Select District" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {systemConfig.districts.map(district => (
+                                <SelectItem key={district} value={district}>{district}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>
