@@ -1,10 +1,14 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { SidebarNav } from "@/components/layout/sidebar-nav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { 
   Activity, 
   Users, 
@@ -12,7 +16,10 @@ import {
   AlertCircle, 
   BarChart3,
   Server,
-  Zap
+  Zap,
+  Settings2,
+  FileUp,
+  Save
 } from "lucide-react"
 import { 
   ChartContainer, 
@@ -20,7 +27,9 @@ import {
   ChartTooltipContent,
   type ChartConfig 
 } from "@/components/ui/chart"
-import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import { db } from "@/app/lib/db"
+import { useToast } from "@/hooks/use-toast"
 
 const chartData = [
   { month: "Jan", volume: 45000 },
@@ -39,6 +48,32 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export default function AdminDashboard() {
+  const { toast } = useToast()
+  const [config, setConfig] = useState({
+    maxFileSizeMB: 5,
+    allowedFileTypes: ".pdf, .jpg, .jpeg, .png"
+  })
+
+  useEffect(() => {
+    const sysConfig = db.getSystemConfig()
+    setConfig({
+      maxFileSizeMB: sysConfig.maxFileSizeMB,
+      allowedFileTypes: sysConfig.allowedFileTypes.join(", ")
+    })
+  }, [])
+
+  const handleSaveConfig = () => {
+    const types = config.allowedFileTypes.split(",").map(t => t.trim()).filter(t => t.startsWith("."))
+    db.updateSystemConfig({
+      maxFileSizeMB: Number(config.maxFileSizeMB),
+      allowedFileTypes: types
+    })
+    toast({
+      title: "Settings Updated",
+      description: "Document upload constraints have been saved successfully."
+    })
+  }
+
   return (
     <SidebarProvider>
       <SidebarNav />
@@ -130,47 +165,57 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Server Health */}
+              {/* System Config - Document Uploads */}
               <Card className="border-none shadow-sm">
                 <CardHeader>
-                  <CardTitle>System Health</CardTitle>
-                  <CardDescription>Real-time gateway monitoring.</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="w-5 h-5 text-primary" />
+                    <CardTitle>System Settings</CardTitle>
+                  </div>
+                  <CardDescription>Configure document upload rules.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <Server className="w-4 h-4 text-muted-foreground" />
-                        Main Gateway API
-                      </span>
-                      <Badge className="bg-green-500">Live</Badge>
-                    </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 w-[95%]" />
-                    </div>
+                    <Label htmlFor="maxSize" className="flex items-center gap-2">
+                      <FileUp className="w-4 h-4" /> Max File Size (MB)
+                    </Label>
+                    <Input 
+                      id="maxSize" 
+                      type="number" 
+                      value={config.maxFileSizeMB}
+                      onChange={(e) => setConfig({...config, maxFileSizeMB: Number(e.target.value)})}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <Server className="w-4 h-4 text-muted-foreground" />
-                        AI Analysis Engine
-                      </span>
-                      <Badge className="bg-green-500">Live</Badge>
-                    </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 w-[82%]" />
-                    </div>
+                    <Label htmlFor="allowedTypes">Allowed Extensions</Label>
+                    <Input 
+                      id="allowedTypes" 
+                      placeholder=".pdf, .png, .jpg" 
+                      value={config.allowedFileTypes}
+                      onChange={(e) => setConfig({...config, allowedFileTypes: e.target.value})}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Comma-separated starting with dot.</p>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <Server className="w-4 h-4 text-muted-foreground" />
-                        Settlement Service
-                      </span>
-                      <Badge className="bg-yellow-500">Heavy Load</Badge>
-                    </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-yellow-500 w-[98%]" />
+                  <Button className="w-full" onClick={handleSaveConfig}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Configuration
+                  </Button>
+                  
+                  <Separator className="my-4" />
+                  
+                  <div className="space-y-4">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Service Health</Label>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <Server className="w-4 h-4 text-muted-foreground" />
+                          Storage Node
+                        </span>
+                        <Badge className="bg-green-500">Live</Badge>
+                      </div>
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500 w-[92%]" />
+                      </div>
                     </div>
                   </div>
                 </CardContent>

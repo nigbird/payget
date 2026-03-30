@@ -2,6 +2,14 @@ import { type AiMerchantOnboardingAssistantOutput } from '@/ai/flows/ai-merchant
 
 export type MerchantStatus = 'pending' | 'approved' | 'rejected';
 
+export interface MerchantDocument {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface Merchant {
   id: string;
   name: string;
@@ -20,6 +28,7 @@ export interface Merchant {
   category: string;
   riskFactors: string[];
   businessType: string;
+  documents: MerchantDocument[];
   createdAt: string;
 }
 
@@ -35,10 +44,16 @@ export interface Transaction {
   timestamp: string;
 }
 
+export interface SystemConfig {
+  maxFileSizeMB: number;
+  allowedFileTypes: string[];
+}
+
 // Global singleton for demo data
 const globalStore = global as unknown as {
   merchants: Merchant[];
   transactions: Transaction[];
+  systemConfig: SystemConfig;
 };
 
 if (!globalStore.merchants) {
@@ -61,6 +76,9 @@ if (!globalStore.merchants) {
       category: 'E-commerce',
       riskFactors: [],
       businessType: 'Retail',
+      documents: [
+        { id: 'doc1', name: 'trade_license.pdf', type: 'application/pdf', size: 1024 * 1024 * 1.5, uploadedAt: new Date().toISOString() }
+      ],
       createdAt: new Date().toISOString()
     }
   ];
@@ -80,6 +98,13 @@ if (!globalStore.transactions) {
   ];
 }
 
+if (!globalStore.systemConfig) {
+  globalStore.systemConfig = {
+    maxFileSizeMB: 5,
+    allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png']
+  };
+}
+
 export const db = {
   getMerchants: () => globalStore.merchants,
   getMerchantById: (id: string) => globalStore.merchants.find(m => m.id === id),
@@ -95,5 +120,9 @@ export const db = {
     globalStore.transactions.filter(t => t.merchantId === merchantId),
   addTransaction: (tx: Transaction) => {
     globalStore.transactions.push(tx);
+  },
+  getSystemConfig: () => globalStore.systemConfig,
+  updateSystemConfig: (config: Partial<SystemConfig>) => {
+    globalStore.systemConfig = { ...globalStore.systemConfig, ...config };
   }
 };
