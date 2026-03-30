@@ -34,7 +34,8 @@ import {
   ArrowLeft,
   Copy,
   CheckCircle2,
-  Clock
+  Clock,
+  Mail
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
@@ -49,7 +50,7 @@ export default function MerchantSelfRegistration() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [credentials, setCredentials] = useState<{ id: string; pass: string } | null>(null)
+  const [credentials, setCredentials] = useState<{ id: string; email: string; pass: string } | null>(null)
   const [systemConfig, setSystemConfig] = useState(db.getSystemConfig())
   
   const [formData, setFormData] = useState({
@@ -209,7 +210,7 @@ export default function MerchantSelfRegistration() {
       createdAt: new Date().toISOString()
     })
 
-    setCredentials({ id: merchantId, pass: generatedPass })
+    setCredentials({ id: merchantId, email: formData.email, pass: generatedPass })
     setIsSuccess(true)
     setIsSubmitting(false)
 
@@ -245,12 +246,21 @@ export default function MerchantSelfRegistration() {
                 <Clock className="w-3 h-3" /> User Credential Details
               </p>
               <p className="text-sm text-blue-700 leading-relaxed">
-                Please save these credentials securely. You will need them to check your application status or access your dashboard once approved.
+                You can log in using your <span className="font-bold">Email</span>, <span className="font-bold">Phone</span>, or <span className="font-bold">Merchant ID</span>.
               </p>
               
               <div className="space-y-4 pt-2">
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-blue-600">Merchant ID (Username)</Label>
+                  <Label className="text-[10px] text-blue-600">Email (Primary Identifier)</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-white p-2 rounded border border-blue-200 text-sm font-mono font-bold">{credentials.email}</code>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600" onClick={() => copyToClipboard(credentials.email)}>
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-blue-600">Merchant ID</Label>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 bg-white p-2 rounded border border-blue-200 text-sm font-mono font-bold">{credentials.id}</code>
                     <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600" onClick={() => copyToClipboard(credentials.id)}>
@@ -268,12 +278,6 @@ export default function MerchantSelfRegistration() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="text-center space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Our compliance team typically reviews applications within 24-48 business hours.
-              </p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
@@ -308,7 +312,6 @@ export default function MerchantSelfRegistration() {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
-          {/* Main Registration Form */}
           <div className="lg:col-span-2 space-y-6">
             <Card className="shadow-md border-none">
               <CardHeader>
@@ -322,7 +325,6 @@ export default function MerchantSelfRegistration() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-8">
-                  {/* Company Info */}
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
                       <Building2 className="w-4 h-4" /> Company Profile
@@ -340,34 +342,24 @@ export default function MerchantSelfRegistration() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Business Email</Label>
-                        <Input 
-                          id="email" 
-                          type="email" 
-                          placeholder="legal@business.com" 
-                          required 
-                          value={formData.email}
-                          onChange={e => setFormData({...formData, email: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="websiteUrl">Business Website</Label>
-                      <div className="relative">
-                        <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                          id="websiteUrl" 
-                          className="pl-9" 
-                          placeholder="https://yourbusiness.com" 
-                          value={formData.websiteUrl}
-                          onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
-                        />
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            id="email" 
+                            type="email" 
+                            className="pl-9"
+                            placeholder="legal@business.com" 
+                            required 
+                            value={formData.email}
+                            onChange={e => setFormData({...formData, email: e.target.value})}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <Separator />
 
-                  {/* Contact Info */}
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
                       <User className="w-4 h-4" /> Authorized Contact
@@ -390,7 +382,7 @@ export default function MerchantSelfRegistration() {
                           <Input 
                             id="contactPhone" 
                             className="pl-9"
-                            placeholder="+1 (555) 000-0000" 
+                            placeholder="+1234567890" 
                             required 
                             value={formData.contactPhone}
                             onChange={e => setFormData({...formData, contactPhone: e.target.value})}
@@ -402,7 +394,6 @@ export default function MerchantSelfRegistration() {
 
                   <Separator />
 
-                  {/* Location Info */}
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
                       <MapPin className="w-4 h-4" /> Business Location
@@ -445,7 +436,6 @@ export default function MerchantSelfRegistration() {
 
                   <Separator />
 
-                  {/* Documents */}
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
                       <FileText className="w-4 h-4" /> Compliance Documents
@@ -456,10 +446,6 @@ export default function MerchantSelfRegistration() {
                     >
                       <Upload className="w-10 h-10 text-primary mb-3" />
                       <p className="text-base font-semibold">Upload KYC Documents</p>
-                      <p className="text-xs text-muted-foreground mt-2 text-center max-w-sm">
-                        Please upload your Trade License, Tax ID, and Identity documents. 
-                        Max size: {systemConfig.maxFileSizeMB}MB. Allowed: {systemConfig.allowedFileTypes.join(', ')}
-                      </p>
                       <input 
                         type="file" 
                         multiple 
@@ -469,67 +455,6 @@ export default function MerchantSelfRegistration() {
                         accept={systemConfig.allowedFileTypes.join(',')}
                       />
                     </div>
-
-                    {documents.length > 0 && (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {documents.map((doc) => (
-                          <div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border shadow-sm">
-                            <div className="flex items-center gap-3 overflow-hidden">
-                              <FileCheck className="w-5 h-5 text-green-500 shrink-0" />
-                              <div className="overflow-hidden">
-                                <p className="text-xs font-medium truncate">{doc.name}</p>
-                                <p className="text-[10px] text-muted-foreground">{(doc.size / 1024).toFixed(1)} KB</p>
-                              </div>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeDoc(doc.id)}>
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  {/* Technical Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                      <LinkIcon className="w-4 h-4" /> Settlement & Webhooks
-                    </h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="accountNumber">Bank Settlement Account</Label>
-                        <Input 
-                          id="accountNumber" 
-                          placeholder="000123456789" 
-                          required 
-                          value={formData.accountNumber}
-                          onChange={e => setFormData({...formData, accountNumber: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="callbackUrl">Webhook Callback URL</Label>
-                        <Input 
-                          id="callbackUrl" 
-                          placeholder="https://api.yourdomain.com/v1/payments" 
-                          required
-                          value={formData.callbackUrl}
-                          onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="businessDescription">Business Activity Description</Label>
-                    <Textarea 
-                      id="businessDescription" 
-                      placeholder="Describe your primary products or services..." 
-                      rows={4}
-                      value={formData.businessDescription}
-                      onChange={e => setFormData({...formData, businessDescription: e.target.value})}
-                    />
                   </div>
 
                   <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isSubmitting}>
@@ -540,7 +465,6 @@ export default function MerchantSelfRegistration() {
             </Card>
           </div>
 
-          {/* AI Assistance Side Panel */}
           <div className="space-y-6">
             <Card className="border-accent/20 bg-accent/5 shadow-sm overflow-hidden">
               <div className="bg-accent/10 p-4 border-b border-accent/20 flex items-center gap-2">
@@ -548,9 +472,6 @@ export default function MerchantSelfRegistration() {
                 <h3 className="font-bold text-sm text-accent-foreground">AI Onboarding Assistant</h3>
               </div>
               <CardContent className="p-4 space-y-4">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Provide your website or a brief description, and our AI will help categorize your business and flag any missing compliance requirements.
-                </p>
                 <Button 
                   variant="outline" 
                   className="w-full border-accent/40 text-accent-foreground hover:bg-accent/10"
@@ -560,39 +481,6 @@ export default function MerchantSelfRegistration() {
                   {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                   Auto-fill Profile
                 </Button>
-
-                {riskFactors.length > 0 && (
-                  <div className="space-y-2 mt-4 animate-in fade-in slide-in-from-top-2">
-                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Pre-Screening Insights</Label>
-                    <div className="flex flex-wrap gap-1">
-                      {riskFactors.map((risk, i) => (
-                        <Badge key={i} variant="secondary" className="bg-white/80 text-[10px] text-orange-600 border-orange-100">
-                          {risk}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="bg-primary text-primary-foreground border-none">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Why Finflow?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex gap-2">
-                  <div className="w-5 h-5 rounded bg-white/20 flex items-center justify-center shrink-0">✓</div>
-                  <p>Settlements within 24 hours.</p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="w-5 h-5 rounded bg-white/20 flex items-center justify-center shrink-0">✓</div>
-                  <p>Enterprise-grade security.</p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="w-5 h-5 rounded bg-white/20 flex items-center justify-center shrink-0">✓</div>
-                  <p>Global multi-currency support.</p>
-                </div>
               </CardContent>
             </Card>
           </div>

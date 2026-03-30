@@ -19,7 +19,8 @@ import {
   Zap,
   Settings2,
   FileUp,
-  Save
+  Save,
+  Clock
 } from "lucide-react"
 import { 
   ChartContainer, 
@@ -51,14 +52,16 @@ export default function AdminDashboard() {
   const { toast } = useToast()
   const [config, setConfig] = useState({
     maxFileSizeMB: 5,
-    allowedFileTypes: ".pdf, .jpg, .jpeg, .png"
+    allowedFileTypes: ".pdf, .jpg, .jpeg, .png",
+    resetTimeoutSeconds: 60
   })
 
   useEffect(() => {
     const sysConfig = db.getSystemConfig()
     setConfig({
       maxFileSizeMB: sysConfig.maxFileSizeMB,
-      allowedFileTypes: sysConfig.allowedFileTypes.join(", ")
+      allowedFileTypes: sysConfig.allowedFileTypes.join(", "),
+      resetTimeoutSeconds: sysConfig.resetTimeoutSeconds || 60
     })
   }, [])
 
@@ -66,11 +69,12 @@ export default function AdminDashboard() {
     const types = config.allowedFileTypes.split(",").map(t => t.trim()).filter(t => t.startsWith("."))
     db.updateSystemConfig({
       maxFileSizeMB: Number(config.maxFileSizeMB),
-      allowedFileTypes: types
+      allowedFileTypes: types,
+      resetTimeoutSeconds: Number(config.resetTimeoutSeconds)
     })
     toast({
       title: "Settings Updated",
-      description: "Document upload constraints have been saved successfully."
+      description: "System constraints and security settings have been saved successfully."
     })
   }
 
@@ -90,7 +94,6 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-auto p-6 bg-muted/20">
           <div className="max-w-7xl mx-auto space-y-6">
             
-            {/* High-level System Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="border-none shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -138,7 +141,6 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Volume Chart */}
               <Card className="lg:col-span-2 border-none shadow-sm">
                 <CardHeader>
                   <CardTitle>Processing Insights</CardTitle>
@@ -165,14 +167,13 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* System Config - Document Uploads */}
               <Card className="border-none shadow-sm">
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Settings2 className="w-5 h-5 text-primary" />
                     <CardTitle>System Settings</CardTitle>
                   </div>
-                  <CardDescription>Configure document upload rules.</CardDescription>
+                  <CardDescription>Configure constraints and security.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -194,7 +195,18 @@ export default function AdminDashboard() {
                       value={config.allowedFileTypes}
                       onChange={(e) => setConfig({...config, allowedFileTypes: e.target.value})}
                     />
-                    <p className="text-[10px] text-muted-foreground">Comma-separated starting with dot.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="resetTimeout" className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" /> Reset Expiry (Sec)
+                    </Label>
+                    <Input 
+                      id="resetTimeout" 
+                      type="number" 
+                      value={config.resetTimeoutSeconds}
+                      onChange={(e) => setConfig({...config, resetTimeoutSeconds: Number(e.target.value)})}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Time window for password reset links.</p>
                   </div>
                   <Button className="w-full" onClick={handleSaveConfig}>
                     <Save className="w-4 h-4 mr-2" />
@@ -209,12 +221,9 @@ export default function AdminDashboard() {
                       <div className="flex justify-between text-sm">
                         <span className="flex items-center gap-2">
                           <Server className="w-4 h-4 text-muted-foreground" />
-                          Storage Node
+                          Security Node
                         </span>
                         <Badge className="bg-green-500">Live</Badge>
-                      </div>
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 w-[92%]" />
                       </div>
                     </div>
                   </div>

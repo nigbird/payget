@@ -14,7 +14,9 @@ export interface Merchant {
   id: string;
   name: string;
   email: string;
-  password?: string; // Added for self-service status tracking
+  password?: string;
+  passwordResetToken?: string;
+  passwordResetExpires?: string;
   accountNumber: string;
   dailyLimit: number;
   transactionLimit: number;
@@ -52,6 +54,7 @@ export interface SystemConfig {
   allowedFileTypes: string[];
   districts: string[];
   branches: string[];
+  resetTimeoutSeconds: number;
 }
 
 // Global singleton for demo data
@@ -109,13 +112,18 @@ if (!globalStore.systemConfig) {
     maxFileSizeMB: 5,
     allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
     districts: ['Central Business District', 'North Industrial', 'South Residential', 'East Port', 'West Hills'],
-    branches: ['Downtown HQ', 'North Hub', 'South Plaza', 'East Wing', 'West Station']
+    branches: ['Downtown HQ', 'North Hub', 'South Plaza', 'East Wing', 'West Station'],
+    resetTimeoutSeconds: 60
   };
 }
 
 export const db = {
   getMerchants: () => globalStore.merchants,
   getMerchantById: (id: string) => globalStore.merchants.find(m => m.id === id),
+  findMerchantByIdentifier: (identifier: string) => 
+    globalStore.merchants.find(m => m.id === identifier || m.email === identifier || m.contactPhone === identifier),
+  findMerchantByResetToken: (token: string) => 
+    globalStore.merchants.find(m => m.passwordResetToken === token),
   addMerchant: (merchant: Merchant) => {
     globalStore.merchants.push(merchant);
   },
@@ -134,7 +142,7 @@ export const db = {
     if (m) {
       m.status = status;
       if (reason) m.rejectionReason = reason;
-      else delete m.rejectionReason; // Clear reason if approved
+      else delete m.rejectionReason;
     }
   },
   getTransactions: () => globalStore.transactions,

@@ -16,7 +16,7 @@ export default function Home() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [credentials, setCredentials] = useState({
-    id: "",
+    identifier: "",
     password: ""
   })
 
@@ -24,9 +24,8 @@ export default function Home() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate a small delay for better UX
     setTimeout(() => {
-      const merchant = db.getMerchantById(credentials.id)
+      const merchant = db.findMerchantByIdentifier(credentials.identifier)
       
       if (merchant && merchant.password === credentials.password) {
         toast({
@@ -38,7 +37,7 @@ export default function Home() {
         toast({
           variant: "destructive",
           title: "Authentication Failed",
-          description: "Invalid Merchant ID or Password. Please check your credentials."
+          description: "Invalid Email, Phone, or Password. Please check your credentials."
         })
         setIsLoading(false)
       }
@@ -47,7 +46,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-muted/20 flex flex-col">
-      {/* Simple Header */}
       <header className="h-16 border-b bg-white flex items-center px-6">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
@@ -60,7 +58,6 @@ export default function Home() {
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           
-          {/* Left Side: Value Prop */}
           <div className="space-y-6 text-center md:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/20 text-accent-foreground text-sm font-medium border border-accent/30">
               <ShieldCheck size={16} />
@@ -71,49 +68,40 @@ export default function Home() {
               <span className="text-primary">Infinite Possibilities.</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-md mx-auto md:mx-0">
-              Securely process payments, manage settlements, and track business growth with our AI-powered gateway.
+              Securely process payments using your business email or phone number.
             </p>
-            
-            <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-              <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-primary/10">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold italic">T+1</div>
-                <div className="text-left">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Fast Settlement</p>
-                  <p className="text-sm font-medium">Funds in your account next day</p>
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Right Side: Login & Sign Up Hub */}
           <div className="space-y-6">
             <Card className="shadow-xl border-none">
               <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-headline">Merchant Login</CardTitle>
                 <CardDescription>
-                  Access your dashboard to view transactions and status.
+                  Enter your email or phone number to access your account.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="merchantId">Merchant ID</Label>
+                    <Label htmlFor="identifier">Email or Phone</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input 
-                        id="merchantId" 
-                        placeholder="m_xxxxxx" 
+                        id="identifier" 
+                        placeholder="email@example.com or +123..." 
                         className="pl-9"
                         required
-                        value={credentials.id}
-                        onChange={(e) => setCredentials({...credentials, id: e.target.value})}
+                        value={credentials.identifier}
+                        onChange={(e) => setCredentials({...credentials, identifier: e.target.value})}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Password</Label>
-                      <Button variant="link" className="px-0 h-auto text-xs" type="button">Forgot password?</Button>
+                      <Button variant="link" className="px-0 h-auto text-xs" type="button" asChild>
+                        <Link href="/forgot-password">Forgot password?</Link>
+                      </Button>
                     </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -144,7 +132,6 @@ export default function Home() {
               </CardFooter>
             </Card>
 
-            {/* Staff Entry Points */}
             <div className="grid grid-cols-3 gap-2">
               <Button variant="ghost" className="text-[10px] uppercase font-bold text-muted-foreground hover:text-primary" asChild>
                 <Link href="/admin">Admin</Link>
