@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { 
   Table, 
   TableBody, 
@@ -14,7 +16,7 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from "@/components/ui/table"
+} from "@/table"
 import { 
   Dialog, 
   DialogContent, 
@@ -36,7 +38,8 @@ import {
   MapPin, 
   Link as LinkIcon,
   FileCheck,
-  ExternalLink
+  ExternalLink,
+  MessageSquare
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { db, type Merchant } from "@/app/lib/db"
@@ -45,13 +48,24 @@ export default function CheckerPortal() {
   const { toast } = useToast()
   const [pending, setPending] = useState<Merchant[]>([])
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
+  const [rejectionReason, setRejectionReason] = useState("")
+  const [isRejecting, setIsRejecting] = useState(false)
 
   useEffect(() => {
     setPending(db.getMerchants().filter(m => m.status === 'pending'))
   }, [])
 
   const handleAction = (id: string, action: 'approve' | 'reject') => {
-    db.updateMerchantStatus(id, action === 'approve' ? 'approved' : 'rejected')
+    if (action === 'reject' && !rejectionReason.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Reason Required",
+        description: "Please provide a reason for rejecting this application."
+      })
+      return
+    }
+
+    db.updateMerchantStatus(id, action === 'approve' ? 'approved' : 'rejected', action === 'reject' ? rejectionReason : undefined)
     setPending(prev => prev.filter(m => m.id !== id))
     toast({
       title: action === 'approve' ? "Merchant Approved" : "Registration Rejected",
@@ -59,6 +73,8 @@ export default function CheckerPortal() {
       variant: action === 'reject' ? 'destructive' : 'default'
     })
     setSelectedMerchant(null)
+    setRejectionReason("")
+    setIsRejecting(false)
   }
 
   return (
@@ -126,7 +142,7 @@ export default function CheckerPortal() {
                           <span className="text-sm">{m.district}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Dialog>
+                          <Dialog onOpenChange={(open) => { if(!open) { setIsRejecting(false); setRejectionReason(""); } }}>
                             <DialogTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => setSelectedMerchant(m)}>
                                 <Eye className="w-4 h-4" />
@@ -217,25 +233,47 @@ export default function CheckerPortal() {
                                     </div>
                                   </div>
                                 )}
+
+                                {isRejecting && (
+                                  <div className="space-y-2 p-4 bg-muted rounded-lg border animate-in slide-in-from-top-2">
+                                    <Label htmlFor="reason" className="flex items-center gap-2 text-destructive">
+                                      <MessageSquare className="w-4 h-4" />
+                                      Reason for Rejection
+                                    </Label>
+                                    <Textarea 
+                                      id="reason" 
+                                      placeholder="e.g. Invalid Trade License, KYC details mismatch..." 
+                                      value={rejectionReason}
+                                      onChange={(e) => setRejectionReason(e.target.value)}
+                                      className="bg-white"
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                      <Button variant="ghost" size="sm" onClick={() => setIsRejecting(false)}>Cancel</Button>
+                                      <Button variant="destructive" size="sm" onClick={() => handleAction(selectedMerchant!.id, 'reject')}>Confirm Rejection</Button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
 
-                              <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
-                                <Button 
-                                  variant="outline" 
-                                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                  onClick={() => handleAction(selectedMerchant!.id, 'reject')}
-                                >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Reject
-                                </Button>
-                                <Button 
-                                  className="bg-primary"
-                                  onClick={() => handleAction(selectedMerchant!.id, 'approve')}
-                                >
-                                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                                  Approve & Activate
-                                </Button>
-                              </DialogFooter>
+                              {!isRejecting && (
+                                <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
+                                  <Button 
+                                    variant="outline" 
+                                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                    onClick={() => setIsRejecting(true)}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                  <Button 
+                                    className="bg-primary"
+                                    onClick={() => handleAction(selectedMerchant!.id, 'approve')}
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    Approve & Activate
+                                  </Button>
+                                </DialogFooter>
+                              )}
                             </DialogContent>
                           </Dialog>
                         </TableCell>

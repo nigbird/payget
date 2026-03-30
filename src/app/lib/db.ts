@@ -18,6 +18,7 @@ export interface Merchant {
   dailyLimit: number;
   transactionLimit: number;
   status: MerchantStatus;
+  rejectionReason?: string;
   businessDescription: string;
   websiteUrl: string;
   callbackUrl: string;
@@ -115,9 +116,12 @@ export const db = {
   addMerchant: (merchant: Merchant) => {
     globalStore.merchants.push(merchant);
   },
-  updateMerchantStatus: (id: string, status: MerchantStatus) => {
+  updateMerchantStatus: (id: string, status: MerchantStatus, reason?: string) => {
     const m = globalStore.merchants.find(merchant => merchant.id === id);
-    if (m) m.status = status;
+    if (m) {
+      m.status = status;
+      if (reason) m.rejectionReason = reason;
+    }
   },
   getTransactions: () => globalStore.transactions,
   getTransactionsByMerchant: (merchantId: string) => 

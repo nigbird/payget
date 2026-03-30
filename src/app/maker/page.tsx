@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Select, 
   SelectContent, 
@@ -17,6 +18,14 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/table"
 import { 
   Loader2, 
   Sparkles, 
@@ -30,17 +39,22 @@ import {
   FileText,
   Upload,
   X,
-  FileCheck
+  FileCheck,
+  History,
+  AlertCircle,
+  CheckCircle2,
+  Clock
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
-import { db, type MerchantDocument } from "@/app/lib/db"
+import { db, type MerchantDocument, type Merchant } from "@/app/lib/db"
 
 export default function MakerPortal() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [systemConfig, setSystemConfig] = useState(db.getSystemConfig())
+  const [mySubmissions, setMySubmissions] = useState<Merchant[]>([])
   
   const [formData, setFormData] = useState({
     name: "",
@@ -64,7 +78,12 @@ export default function MakerPortal() {
 
   useEffect(() => {
     setSystemConfig(db.getSystemConfig())
+    refreshSubmissions()
   }, [])
+
+  const refreshSubmissions = () => {
+    setMySubmissions([...db.getMerchants()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+  }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -173,7 +192,6 @@ export default function MakerPortal() {
       return
     }
 
-    // Simulated backend submission
     db.addMerchant({
       id: `m_${Math.random().toString(36).substr(2, 9)}`,
       ...formData,
@@ -209,6 +227,7 @@ export default function MakerPortal() {
     })
     setDocuments([])
     setRiskFactors([])
+    refreshSubmissions()
   }
 
   return (
@@ -220,333 +239,406 @@ export default function MakerPortal() {
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2">
             <UserPlus className="text-primary w-5 h-5" />
-            <h1 className="text-lg font-semibold font-headline">Merchant Registration (Maker)</h1>
+            <h1 className="text-lg font-semibold font-headline">Merchant Administration</h1>
           </div>
         </header>
 
         <main className="flex-1 overflow-auto p-6 bg-muted/20">
-          <div className="max-w-5xl mx-auto grid gap-6 grid-cols-1 lg:grid-cols-3">
-            
-            {/* Main Form */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="shadow-sm border-none">
-                <CardHeader>
-                  <CardTitle>Merchant Profile</CardTitle>
-                  <CardDescription>Capture company details, contact person, and compliance documents.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Basic Info */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                        <Building2 className="w-4 h-4" /> Company Details
-                      </h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Company Name</Label>
-                          <Input 
-                            id="name" 
-                            placeholder="Acme Inc." 
-                            required 
-                            value={formData.name}
-                            onChange={e => setFormData({...formData, name: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email Address</Label>
-                          <Input 
-                            id="email" 
-                            type="email" 
-                            placeholder="contact@acme.com" 
-                            required 
-                            value={formData.email}
-                            onChange={e => setFormData({...formData, email: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                    </div>
+          <div className="max-w-6xl mx-auto">
+            <Tabs defaultValue="register" className="space-y-6">
+              <TabsList className="bg-white p-1 border">
+                <TabsTrigger value="register" className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" /> Register New
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="w-4 h-4" /> Submission Status
+                </TabsTrigger>
+              </TabsList>
 
-                    <Separator />
-
-                    {/* Contact Person */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                        <User className="w-4 h-4" /> Contact Person
-                      </h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="contactName">Full Name</Label>
-                          <Input 
-                            id="contactName" 
-                            placeholder="Authorized Representative" 
-                            required 
-                            value={formData.contactName}
-                            onChange={e => setFormData({...formData, contactName: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="contactPhone">Phone Number</Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                              id="contactPhone" 
-                              className="pl-9"
-                              placeholder="+1 (555) 000-0000" 
-                              required 
-                              value={formData.contactPhone}
-                              onChange={e => setFormData({...formData, contactPhone: e.target.value})}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Registration Branch */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                        <MapPin className="w-4 h-4" /> Registration Branch
-                      </h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="branchName">Branch Name</Label>
-                          <Select 
-                            value={formData.branchName} 
-                            onValueChange={(val) => setFormData({...formData, branchName: val})}
-                          >
-                            <SelectTrigger id="branchName">
-                              <SelectValue placeholder="Select Branch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {systemConfig.branches.map(branch => (
-                                <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="district">District</Label>
-                          <Select 
-                            value={formData.district} 
-                            onValueChange={(val) => setFormData({...formData, district: val})}
-                          >
-                            <SelectTrigger id="district">
-                              <SelectValue placeholder="Select District" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {systemConfig.districts.map(district => (
-                                <SelectItem key={district} value={district}>{district}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Document Uploads */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                        <FileText className="w-4 h-4" /> Compliance Documents
-                      </h3>
-                      
-                      <div 
-                        className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center bg-muted/5 hover:bg-muted/10 transition-colors cursor-pointer"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                        <p className="text-sm font-medium">Click to upload documents</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Trade License, ID, or Tax Certificates (Max {systemConfig.maxFileSizeMB}MB)
-                        </p>
-                        <input 
-                          type="file" 
-                          multiple 
-                          className="hidden" 
-                          ref={fileInputRef}
-                          onChange={handleFileUpload}
-                          accept={systemConfig.allowedFileTypes.join(',')}
-                        />
-                      </div>
-
-                      {documents.length > 0 && (
-                        <div className="space-y-2">
-                          <Label className="text-xs font-bold text-muted-foreground">Uploaded ({documents.length})</Label>
-                          <div className="grid gap-2">
-                            {documents.map((doc) => (
-                              <div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-md border shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
-                                    <FileCheck className="w-4 h-4" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium truncate max-w-[200px]">{doc.name}</p>
-                                    <p className="text-[10px] text-muted-foreground">{(doc.size / 1024).toFixed(1)} KB</p>
-                                  </div>
-                                </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    removeDoc(doc.id)
-                                  }}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
+              <TabsContent value="register">
+                <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+                  {/* Main Form */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <Card className="shadow-sm border-none">
+                      <CardHeader>
+                        <CardTitle>Merchant Profile</CardTitle>
+                        <CardDescription>Capture company details, contact person, and compliance documents.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                          {/* Basic Info */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                              <Building2 className="w-4 h-4" /> Company Details
+                            </h3>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="name">Company Name</Label>
+                                <Input 
+                                  id="name" 
+                                  placeholder="Acme Inc." 
+                                  required 
+                                  value={formData.name}
+                                  onChange={e => setFormData({...formData, name: e.target.value})}
+                                />
                               </div>
-                            ))}
+                              <div className="space-y-2">
+                                <Label htmlFor="email">Email Address</Label>
+                                <Input 
+                                  id="email" 
+                                  type="email" 
+                                  placeholder="contact@acme.com" 
+                                  required 
+                                  value={formData.email}
+                                  onChange={e => setFormData({...formData, email: e.target.value})}
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
 
-                    <Separator />
+                          <Separator />
 
-                    {/* Integration & Limits */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                        <LinkIcon className="w-4 h-4" /> Integration & Limits
-                      </h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="accountNumber">Bank Account Number</Label>
-                          <Input 
-                            id="accountNumber" 
-                            placeholder="000123456789" 
-                            required 
-                            value={formData.accountNumber}
-                            onChange={e => setFormData({...formData, accountNumber: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="businessType">Business Type</Label>
-                          <Input 
-                            id="businessType" 
-                            placeholder="e.g. Retail, SaaS" 
-                            value={formData.businessType}
-                            onChange={e => setFormData({...formData, businessType: e.target.value})}
-                          />
-                        </div>
-                      </div>
+                          {/* Contact Person */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                              <User className="w-4 h-4" /> Contact Person
+                            </h3>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="contactName">Full Name</Label>
+                                <Input 
+                                  id="contactName" 
+                                  placeholder="Authorized Representative" 
+                                  required 
+                                  value={formData.contactName}
+                                  onChange={e => setFormData({...formData, contactName: e.target.value})}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="contactPhone">Phone Number</Label>
+                                <div className="relative">
+                                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                  <Input 
+                                    id="contactPhone" 
+                                    className="pl-9"
+                                    placeholder="+1 (555) 000-0000" 
+                                    required 
+                                    value={formData.contactPhone}
+                                    onChange={e => setFormData({...formData, contactPhone: e.target.value})}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="websiteUrl">Website URL</Label>
-                          <div className="relative">
-                            <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                              id="websiteUrl" 
-                              className="pl-9" 
-                              placeholder="https://example.com" 
-                              value={formData.websiteUrl}
-                              onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
+                          <Separator />
+
+                          {/* Registration Branch */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                              <MapPin className="w-4 h-4" /> Registration Branch
+                            </h3>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="branchName">Branch Name</Label>
+                                <Select 
+                                  value={formData.branchName} 
+                                  onValueChange={(val) => setFormData({...formData, branchName: val})}
+                                >
+                                  <SelectTrigger id="branchName">
+                                    <SelectValue placeholder="Select Branch" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {systemConfig.branches.map(branch => (
+                                      <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="district">District</Label>
+                                <Select 
+                                  value={formData.district} 
+                                  onValueChange={(val) => setFormData({...formData, district: val})}
+                                >
+                                  <SelectTrigger id="district">
+                                    <SelectValue placeholder="Select District" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {systemConfig.districts.map(district => (
+                                      <SelectItem key={district} value={district}>{district}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* Document Uploads */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                              <FileText className="w-4 h-4" /> Compliance Documents
+                            </h3>
+                            
+                            <div 
+                              className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center bg-muted/5 hover:bg-muted/10 transition-colors cursor-pointer"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                              <p className="text-sm font-medium">Click to upload documents</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Trade License, ID, or Tax Certificates (Max {systemConfig.maxFileSizeMB}MB)
+                              </p>
+                              <input 
+                                type="file" 
+                                multiple 
+                                className="hidden" 
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept={systemConfig.allowedFileTypes.join(',')}
+                              />
+                            </div>
+
+                            {documents.length > 0 && (
+                              <div className="space-y-2">
+                                <Label className="text-xs font-bold text-muted-foreground">Uploaded ({documents.length})</Label>
+                                <div className="grid gap-2">
+                                  {documents.map((doc) => (
+                                    <div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-md border shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
+                                          <FileCheck className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium truncate max-w-[200px]">{doc.name}</p>
+                                          <p className="text-[10px] text-muted-foreground">{(doc.size / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                      </div>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          removeDoc(doc.id)
+                                        }}
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <Separator />
+
+                          {/* Integration & Limits */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
+                              <LinkIcon className="w-4 h-4" /> Integration & Limits
+                            </h3>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="accountNumber">Bank Account Number</Label>
+                                <Input 
+                                  id="accountNumber" 
+                                  placeholder="000123456789" 
+                                  required 
+                                  value={formData.accountNumber}
+                                  onChange={e => setFormData({...formData, accountNumber: e.target.value})}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="businessType">Business Type</Label>
+                                <Input 
+                                  id="businessType" 
+                                  placeholder="e.g. Retail, SaaS" 
+                                  value={formData.businessType}
+                                  onChange={e => setFormData({...formData, businessType: e.target.value})}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="websiteUrl">Website URL</Label>
+                                <div className="relative">
+                                  <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                  <Input 
+                                    id="websiteUrl" 
+                                    className="pl-9" 
+                                    placeholder="https://example.com" 
+                                    value={formData.websiteUrl}
+                                    onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="callbackUrl">Callback (Webhook) URL</Label>
+                                <div className="relative">
+                                  <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                  <Input 
+                                    id="callbackUrl" 
+                                    className="pl-9" 
+                                    placeholder="https://api.example.com/webhook" 
+                                    required
+                                    value={formData.callbackUrl}
+                                    onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="businessDescription">Business Description</Label>
+                            <Textarea 
+                              id="businessDescription" 
+                              placeholder="Briefly describe the business operations..." 
+                              rows={3}
+                              value={formData.businessDescription}
+                              onChange={e => setFormData({...formData, businessDescription: e.target.value})}
                             />
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="callbackUrl">Callback (Webhook) URL</Label>
-                          <div className="relative">
-                            <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                              id="callbackUrl" 
-                              className="pl-9" 
-                              placeholder="https://api.example.com/webhook" 
-                              required
-                              value={formData.callbackUrl}
-                              onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
-                            />
+
+                          <Button type="submit" className="w-full h-11 bg-primary text-lg">
+                            Submit for Approval
+                          </Button>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* AI Assistant Sidebar */}
+                  <div className="space-y-6">
+                    <Card className="border-accent/20 shadow-sm bg-accent/5">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-accent-foreground">
+                          <Sparkles className="h-5 w-5" />
+                          AI Assistant
+                        </CardTitle>
+                        <CardDescription>
+                          Analyze provided details to pre-fill fields and identify risks.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <Button 
+                          variant="outline" 
+                          className="w-full border-accent/30 text-accent-foreground hover:bg-accent/10"
+                          disabled={isAiLoading}
+                          onClick={handleAiAssistant}
+                        >
+                          {isAiLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Run Intelligence
+                            </>
+                          )}
+                        </Button>
+
+                        {riskFactors.length > 0 && (
+                          <div className="space-y-3 pt-4 border-t border-accent/20">
+                            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Identified Risk Factors</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {riskFactors.map((risk, i) => (
+                                <Badge key={i} variant="secondary" className="bg-red-100 text-red-700 border-red-200">
+                                  {risk}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base">Compliance Help</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-muted-foreground space-y-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-xs font-bold">1</div>
+                          <p>Ensure Trade License is current and valid.</p>
                         </div>
-                      </div>
-                    </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-xs font-bold">2</div>
+                          <p>Allowed: {systemConfig.allowedFileTypes.join(', ')}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="businessDescription">Business Description</Label>
-                      <Textarea 
-                        id="businessDescription" 
-                        placeholder="Briefly describe the business operations..." 
-                        rows={3}
-                        value={formData.businessDescription}
-                        onChange={e => setFormData({...formData, businessDescription: e.target.value})}
-                      />
-                    </div>
-
-                    <Button type="submit" className="w-full h-11 bg-primary text-lg">
-                      Submit for Approval
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* AI Assistant Sidebar */}
-            <div className="space-y-6">
-              <Card className="border-accent/20 shadow-sm bg-accent/5">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-accent-foreground">
-                    <Sparkles className="h-5 w-5" />
-                    AI Assistant
-                  </CardTitle>
-                  <CardDescription>
-                    Analyze provided details to pre-fill fields and identify risks.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-accent/30 text-accent-foreground hover:bg-accent/10"
-                    disabled={isAiLoading}
-                    onClick={handleAiAssistant}
-                  >
-                    {isAiLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Run Intelligence
-                      </>
-                    )}
-                  </Button>
-
-                  {riskFactors.length > 0 && (
-                    <div className="space-y-3 pt-4 border-t border-accent/20">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Identified Risk Factors</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {riskFactors.map((risk, i) => (
-                          <Badge key={i} variant="secondary" className="bg-red-100 text-red-700 border-red-200">
-                            {risk}
-                          </Badge>
+              <TabsContent value="history">
+                <Card className="border-none shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Submission History</CardTitle>
+                    <CardDescription>Track the status of your merchant registrations and view feedback from Checkers.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Merchant</TableHead>
+                          <TableHead>Branch</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Feedback / Reason</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {mySubmissions.map((m) => (
+                          <TableRow key={m.id}>
+                            <TableCell className="font-medium">{m.name}</TableCell>
+                            <TableCell className="text-xs">{m.branchName}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {new Date(m.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {m.status === 'approved' && (
+                                <Badge className="bg-green-500 gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</Badge>
+                              )}
+                              {m.status === 'pending' && (
+                                <Badge variant="outline" className="text-orange-500 border-orange-200 gap-1 bg-orange-50"><Clock className="w-3 h-3" /> Pending</Badge>
+                              )}
+                              {m.status === 'rejected' && (
+                                <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-[300px]">
+                              {m.status === 'rejected' && m.rejectionReason ? (
+                                <div className="p-2 bg-red-50 text-red-700 text-xs rounded border border-red-100 italic">
+                                  "{m.rejectionReason}"
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base">Compliance Help</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-xs font-bold">1</div>
-                    <p>Ensure Trade License is current and valid.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-xs font-bold">2</div>
-                    <p>Allowed: {systemConfig.allowedFileTypes.join(', ')}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
+                        {mySubmissions.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">
+                              No submissions found.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </SidebarInset>
