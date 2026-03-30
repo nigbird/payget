@@ -25,7 +25,7 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from "@/table"
+} from "@/components/ui/table"
 import { 
   Loader2, 
   Sparkles, 
