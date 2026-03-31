@@ -148,10 +148,20 @@ export const db = {
     }
   },
   getTransactions: () => globalStore.transactions,
+  getTransactionById: (id: string) => globalStore.transactions.find(t => t.id === id),
   getTransactionsByMerchant: (merchantId: string) => 
     globalStore.transactions.filter(t => t.merchantId === merchantId),
   addTransaction: (tx: Transaction) => {
     globalStore.transactions.push(tx);
+  },
+  updateTransactionStatus: (id: string, status: TransactionStatus) => {
+    const index = globalStore.transactions.findIndex(t => t.id === id);
+    if (index !== -1) {
+      globalStore.transactions[index] = {
+        ...globalStore.transactions[index],
+        status
+      };
+    }
   },
   getSystemConfig: () => globalStore.systemConfig,
   updateSystemConfig: (config: Partial<SystemConfig>) => {
