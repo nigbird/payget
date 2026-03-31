@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -24,25 +25,21 @@ export default function Home() {
     e.preventDefault()
     setIsLoading(true)
 
+    // Simulate a short delay for realism
     setTimeout(() => {
-      const merchant = db.findMerchantByIdentifier(credentials.identifier)
+      // Find the merchant by identifier (Email, Phone, or ID)
+      const foundMerchant = db.findMerchantByIdentifier(credentials.identifier)
       
-      // TEMPORARY: Bypassing password verification for testing/demo purposes
-      if (merchant) {
-        toast({
-          title: "Login Successful",
-          description: `Welcome back, ${merchant.name}! (Password check bypassed)`
-        })
-        router.push(`/merchant/${merchant.id}`)
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Authentication Failed",
-          description: "No merchant found with that Email, Phone, or ID."
-        })
-        setIsLoading(false)
-      }
-    }, 800)
+      // Fallback to the first merchant (usually 'm1') if not found, to bypass errors
+      const merchant = foundMerchant || db.getMerchants()[0]
+      
+      toast({
+        title: "Access Granted",
+        description: `Bypassing authentication for: ${credentials.identifier || 'Guest'}. Redirecting to dashboard...`
+      })
+      
+      router.push(`/merchant/${merchant.id}`)
+    }, 600)
   }
 
   return (
@@ -78,7 +75,7 @@ export default function Home() {
               <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-headline">Merchant Login</CardTitle>
                 <CardDescription>
-                  Enter your email or phone number. Password verification is temporarily disabled.
+                  Enter your email or phone number. Password verification and account checks are temporarily disabled.
                 </CardDescription>
               </CardHeader>
               <CardContent>
