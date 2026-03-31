@@ -38,7 +38,7 @@ export interface Merchant {
   updatedAt?: string;
 }
 
-export type TransactionStatus = 'success' | 'failed' | 'initiated';
+export type TransactionStatus = 'success' | 'failed' | 'initiated' | 'pending';
 
 export interface Transaction {
   id: string;
@@ -48,6 +48,7 @@ export interface Transaction {
   callbackUrl: string;
   description: string;
   timestamp: string;
+  payerPhone?: string;
 }
 
 export interface SystemConfig {
