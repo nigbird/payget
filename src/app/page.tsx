@@ -27,17 +27,18 @@ export default function Home() {
     setTimeout(() => {
       const merchant = db.findMerchantByIdentifier(credentials.identifier)
       
-      if (merchant && merchant.password === credentials.password) {
+      // TEMPORARY: Bypassing password verification for testing/demo purposes
+      if (merchant) {
         toast({
           title: "Login Successful",
-          description: `Welcome back, ${merchant.name}!`
+          description: `Welcome back, ${merchant.name}! (Password check bypassed)`
         })
         router.push(`/merchant/${merchant.id}`)
       } else {
         toast({
           variant: "destructive",
           title: "Authentication Failed",
-          description: "Invalid Email, Phone, or Password. Please check your credentials."
+          description: "No merchant found with that Email, Phone, or ID."
         })
         setIsLoading(false)
       }
@@ -77,7 +78,7 @@ export default function Home() {
               <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-headline">Merchant Login</CardTitle>
                 <CardDescription>
-                  Enter your email or phone number to access your account.
+                  Enter your email or phone number. Password verification is temporarily disabled.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -98,7 +99,7 @@ export default function Home() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
+                      <Label htmlFor="password">Password (Optional)</Label>
                       <Button variant="link" className="px-0 h-auto text-xs" type="button" asChild>
                         <Link href="/forgot-password">Forgot password?</Link>
                       </Button>
@@ -109,7 +110,7 @@ export default function Home() {
                         id="password" 
                         type="password" 
                         className="pl-9"
-                        required
+                        placeholder="Any password will work"
                         value={credentials.password}
                         onChange={(e) => setCredentials({...credentials, password: e.target.value})}
                       />
