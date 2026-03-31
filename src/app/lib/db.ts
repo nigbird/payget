@@ -105,6 +105,16 @@ if (!globalStore.transactions) {
       callbackUrl: 'https://techgear.io/api/webhook',
       description: 'Order #8821',
       timestamp: new Date().toISOString()
+    },
+    {
+      id: '2',
+      merchantId: 'm1',
+      amount: 1250.00,
+      status: 'pending',
+      callbackUrl: 'https://techgear.io/api/webhook',
+      description: 'Invoice for Enterprise Support Package (Q3)',
+      timestamp: new Date().toISOString(),
+      payerPhone: '+1 (555) 987-6543'
     }
   ];
 }
