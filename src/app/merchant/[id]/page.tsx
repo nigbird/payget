@@ -1,48 +1,33 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { SidebarNav } from "@/components/layout/sidebar-nav"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import Link from "next/link"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { 
-  LayoutDashboard, 
-  ArrowUpRight, 
-  Wallet, 
-  CreditCard,
-  History,
-  TrendingUp,
-  CircleDollarSign,
-  AlertCircle,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import {
+  Wallet,
   Clock,
-  PlusCircle,
+  Activity,
+  Plus,
+  Receipt,
+  AlertCircle,
   Phone,
-  MessageSquare,
-  DollarSign,
+  UserRound,
+  Sparkles,
+  ChevronRight,
   Loader2,
-  CheckCircle2
 } from "lucide-react"
 import { db, type Merchant, type Transaction } from "@/app/lib/db"
 import { useToast } from "@/hooks/use-toast"
@@ -54,11 +39,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+  const [showAllRecent, setShowAllRecent] = useState(false)
+
   const [requestForm, setRequestForm] = useState({
     amount: "",
     description: "",
-    payerPhone: ""
+    payerPhone: "",
+    customerName: "",
   })
 
   useEffect(() => {
@@ -104,7 +91,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
     setIsSubmitting(true)
 
-    // Simulate creation
     setTimeout(() => {
       const newRequest: Transaction = {
         id: `req_${Math.random().toString(36).substr(2, 9)}`,
@@ -112,7 +98,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         amount: amountNum,
         status: 'pending',
         callbackUrl: merchant.callbackUrl,
-        description: requestForm.description || 'Payment Request',
+        description: requestForm.description || `Payment Request for ${requestForm.customerName || "Customer"}`,
         timestamp: new Date().toISOString(),
         payerPhone: requestForm.payerPhone
       }
@@ -121,7 +107,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       setTransactions([newRequest, ...transactions])
       setIsSubmitting(false)
       setIsRequestModalOpen(false)
-      setRequestForm({ amount: "", description: "", payerPhone: "" })
+      setRequestForm({ amount: "", description: "", payerPhone: "", customerName: "" })
 
       toast({
         title: "Payment Requested",
@@ -134,236 +120,193 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const isRejected = merchant.status === 'rejected'
   const isApproved = merchant.status === 'approved'
 
-  const totalVolume = transactions.reduce((acc, tx) => acc + (tx.status === 'success' ? tx.amount : 0), 0)
+  const totalReceived = transactions.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0)
+  const pendingRequests = transactions.filter((tx) => tx.status === "pending")
+  const todayActivity = transactions.filter((tx) => {
+    const txDate = new Date(tx.timestamp)
+    const now = new Date()
+    return txDate.toDateString() === now.toDateString()
+  })
+  const recentTransactions = showAllRecent ? transactions : transactions.slice(0, 3)
+  const quickAmounts = [25, 50, 100, 250]
 
   return (
-    <SidebarProvider>
-      <SidebarNav />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center justify-between border-b px-4 sticky top-0 bg-background/95 backdrop-blur z-40">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <LayoutDashboard className="text-primary w-5 h-5" />
-            <h1 className="text-lg font-semibold font-headline hidden sm:block">Merchant Insights: {merchant.name}</h1>
-          </div>
-          
-          <Dialog open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={!isApproved} size="sm" className="gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Request Payment
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>New Payment Request</DialogTitle>
-                <DialogDescription>
-                  Send a payment link to your customer's mobile device.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleRequestPayment} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount ($)</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="amount" 
-                      type="number" 
-                      step="0.01"
-                      placeholder="0.00" 
-                      className="pl-9"
-                      required
-                      value={requestForm.amount}
-                      onChange={e => setRequestForm({...requestForm, amount: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Payer Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="phone" 
-                      type="tel" 
-                      placeholder="+1 (555) 000-0000" 
-                      className="pl-9"
-                      required
-                      value={requestForm.payerPhone}
-                      onChange={e => setRequestForm({...requestForm, payerPhone: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Payment Reason</Label>
-                  <div className="relative">
-                    <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Textarea 
-                      id="description" 
-                      placeholder="e.g. Order #12345" 
-                      className="pl-9 min-h-[80px]"
-                      value={requestForm.description}
-                      onChange={e => setRequestForm({...requestForm, description: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Send Payment Request"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </header>
+    <div className="min-h-screen bg-[linear-gradient(145deg,#fff7e5_0%,#fef0cf_40%,#fff7ec_100%)] pb-24">
+      <main className="mx-auto w-full max-w-md p-4 space-y-4">
+        <section className="rounded-3xl border border-white/40 bg-white/65 p-5 shadow-xl backdrop-blur-md">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Merchant Dashboard</p>
+          <h1 className="mt-2 text-2xl font-bold text-[#5b371f]">Welcome back, {merchant.name}</h1>
+          <p className="mt-1 text-sm text-[#754319]/70">Track requests and collect payments with smooth flow.</p>
+        </section>
 
-        <main className="flex-1 overflow-auto p-6 bg-muted/20">
-          <div className="max-w-6xl mx-auto space-y-6">
-            
-            {/* Status Alert for Unapproved Merchants */}
-            {!isApproved && (
-              <Card className={`border-none ${isPending ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    {isPending ? <Clock className="w-6 h-6 text-orange-500 mt-1" /> : <AlertCircle className="w-6 h-6 text-red-500 mt-1" />}
-                    <div>
-                      <h3 className={`font-bold text-lg ${isPending ? 'text-orange-800' : 'text-red-800'}`}>
-                        Account Status: {merchant.status.toUpperCase()}
-                      </h3>
-                      <p className={`text-sm ${isPending ? 'text-orange-700' : 'text-red-700'}`}>
-                        {isPending 
-                          ? "Your application is currently being reviewed by our compliance team. Payment requesting features are disabled until activation."
-                          : `Your application was rejected. Reason: ${merchant.rejectionReason || "No specific reason provided."}`}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Merchant Overview Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="border-none shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Settled Balance</CardTitle>
-                  <Wallet className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">${(totalVolume * 0.98).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                  <p className="text-xs text-muted-foreground">Net of 2% gateway fee</p>
-                </CardContent>
-              </Card>
-              <Card className="border-none shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Volume (Life)</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-accent-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">${totalVolume.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                  <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === 'success').length} successful transactions</p>
-                </CardContent>
-              </Card>
-              <Card className="border-none shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Daily Limit</CardTitle>
-                  <CircleDollarSign className="h-4 w-4 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">${merchant.dailyLimit.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">Max daily processing capacity</p>
-                </CardContent>
-              </Card>
-              <Card className="border-none shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Account Status</CardTitle>
-                  <Badge className={isApproved ? 'bg-green-500' : isPending ? 'bg-orange-500' : 'bg-destructive'}>
-                    {merchant.status}
-                  </Badge>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{isApproved ? 'Verified' : 'Unverified'}</div>
-                  <p className="text-xs text-muted-foreground">Business Type: {merchant.businessType}</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between">
+        {!isApproved && (
+          <Card className={`rounded-3xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"}`}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />}
                 <div>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Real-time log of payments and pending requests.</CardDescription>
+                  <p className="font-semibold text-sm">Account status: {merchant.status}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isPending ? "Payment requests unlock once your account is approved." : merchant.rejectionReason || "Application requires updates."}
+                  </p>
                 </div>
-                <History className="text-muted-foreground w-5 h-5" />
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Reference</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Timestamp</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((tx) => (
-                      <TableRow key={tx.id}>
-                        <TableCell className="font-mono text-[10px] text-primary font-medium">{tx.id}</TableCell>
-                        <TableCell className="text-xs">{tx.payerPhone || 'Web Checkout'}</TableCell>
-                        <TableCell>{tx.description}</TableCell>
-                        <TableCell className="font-semibold">${tx.amount.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={tx.status === 'success' ? 'default' : tx.status === 'pending' ? 'outline' : 'destructive'} 
-                            className={tx.status === 'success' ? 'bg-green-500' : tx.status === 'pending' ? 'text-orange-500 border-orange-200' : ''}
-                          >
-                            {tx.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">
-                          {new Date(tx.timestamp).toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {transactions.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-10 text-muted-foreground italic">
-                          No activity found for this account.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <section className="grid grid-cols-1 gap-3">
+          <Card className="overflow-hidden rounded-3xl border-0 shadow-lg">
+            <CardContent className="bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-4 text-[#3f210f]">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider">Total Received</p>
+                <Wallet className="h-4 w-4" />
+              </div>
+              <p className="mt-3 text-3xl font-black">${totalReceived.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="rounded-3xl border-white/60 bg-white/60 shadow-md backdrop-blur-sm">
+              <CardContent className="p-4">
+                <p className="text-xs text-[#754319]/70">Pending Requests</p>
+                <p className="mt-2 text-2xl font-bold text-[#5b371f]">{pendingRequests.length}</p>
               </CardContent>
             </Card>
-
-            {/* Quick API Docs Preview */}
-            <Card className="border-none shadow-sm bg-primary/5 border border-primary/10">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-primary" />
-                  Integration Guide
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-4 bg-white rounded-lg border border-primary/10 space-y-2">
-                    <p className="text-xs font-bold uppercase text-muted-foreground">Merchant ID</p>
-                    <code className="text-sm text-primary block truncate">{merchant.id}</code>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border border-primary/10 space-y-2">
-                    <p className="text-xs font-bold uppercase text-muted-foreground">Callback Endpoint</p>
-                    <code className="text-sm text-primary block truncate">{merchant.callbackUrl}</code>
-                  </div>
-                </div>
+            <Card className="rounded-3xl border-white/60 bg-white/60 shadow-md backdrop-blur-sm">
+              <CardContent className="p-4">
+                <p className="text-xs text-[#754319]/70">Today Activity</p>
+                <p className="mt-2 text-2xl font-bold text-[#5b371f]">{todayActivity.length}</p>
               </CardContent>
             </Card>
-
           </div>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+        </section>
+
+        <section className="rounded-3xl border border-white/50 bg-white/65 p-4 shadow-md backdrop-blur-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold text-[#5b371f]">Recent transactions</h2>
+            <Button variant="link" className="h-auto p-0 text-[#754319]" onClick={() => setShowAllRecent((prev) => !prev)}>
+              {showAllRecent ? "Show Less" : "View All"}
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {recentTransactions.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between rounded-2xl border border-white/70 bg-white/80 p-3">
+                <div>
+                  <p className="text-sm font-medium text-[#5b371f]">{tx.description}</p>
+                  <p className="text-xs text-[#754319]/70">{tx.payerPhone || "Web checkout"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-[#5b371f]">${tx.amount.toFixed(2)}</p>
+                  <Badge variant="outline" className="mt-1 text-[10px] capitalize">
+                    {tx.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+            {transactions.length === 0 && <p className="text-sm text-muted-foreground">No transactions yet.</p>}
+          </div>
+          <Link href="/" className="mt-3 inline-flex items-center text-xs font-medium text-[#754319]">
+            Go to overview <ChevronRight className="ml-1 h-3.5 w-3.5" />
+          </Link>
+        </section>
+      </main>
+
+      <Sheet open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
+        <SheetTrigger asChild>
+          <Button
+            disabled={!isApproved}
+            className="fixed bottom-6 right-6 h-14 rounded-full bg-gradient-to-r from-[#f8b513] to-[#754319] px-6 text-white shadow-2xl shadow-amber-500/40 hover:scale-[1.02] active:scale-95"
+          >
+            <Plus className="mr-2 h-5 w-5" />
+            Request Payment
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="bottom" className="h-[88vh] rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8">
+          <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
+            <SheetDescription>Capture customer info and send a request in seconds.</SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleRequestPayment} className="mt-5 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customerName">Customer Name</Label>
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="customerName"
+                  placeholder="Jane Carter"
+                  className="h-12 rounded-2xl border-white/50 bg-white/80 pl-9"
+                  value={requestForm.customerName}
+                  onChange={(e) => setRequestForm({ ...requestForm, customerName: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Customer Phone</Label>
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1 (555) 000-0000"
+                  className="h-12 rounded-2xl border-white/50 bg-white/80 pl-9"
+                  required
+                  value={requestForm.payerPhone}
+                  onChange={(e) => setRequestForm({ ...requestForm, payerPhone: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                className="h-16 rounded-2xl border-2 border-[#f8b513]/30 bg-white text-center text-3xl font-black text-[#5b371f]"
+                required
+                value={requestForm.amount}
+                onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+              />
+              <div className="flex flex-wrap gap-2">
+                {quickAmounts.map((amount) => (
+                  <Button
+                    key={amount}
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-[#f8b513]/40 bg-white/80 text-[#754319]"
+                    onClick={() => setRequestForm({ ...requestForm, amount: amount.toString() })}
+                  >
+                    ${amount}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Order #1022"
+                className="min-h-[100px] rounded-2xl border-white/50 bg-white/80"
+                value={requestForm.description}
+                onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
+              />
+            </div>
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-base text-white shadow-lg shadow-amber-600/30"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              Send Payment Request
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              <Receipt className="mr-1 inline h-3.5 w-3.5" />
+              Request is instantly visible to the customer app.
+            </p>
+          </form>
+        </SheetContent>
+      </Sheet>
+    </div>
   )
 }
