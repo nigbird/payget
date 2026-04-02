@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { SidebarNav } from "@/components/layout/sidebar-nav"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
   Dialog,
@@ -35,6 +33,10 @@ import {
   ArrowUpRight,
   ChevronRight,
   Loader2,
+  ArrowRightLeft,
+  Zap,
+  ShieldAlert,
+  Info,
 } from "lucide-react"
 import { db, type Merchant, type Transaction } from "@/app/lib/db"
 import { useToast } from "@/hooks/use-toast"
@@ -49,7 +51,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [requestMode, setRequestMode] = useState<"push" | "link">("push")
+  const [lastMode, setLastMode] = useState<"push" | "link" | null>(null)
   const [generatedResult, setGeneratedResult] = useState<{
     paymentUrl?: string
     customerPinToken?: string
@@ -84,9 +86,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     )
   }
 
-  const handleRequestPayment = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleRequestPayment = async (mode: "push" | "link") => {
     const amountNum = parseFloat(requestForm.amount)
     if (isNaN(amountNum) || amountNum <= 0) {
       toast({
@@ -107,6 +107,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     }
 
     setIsSubmitting(true)
+    setLastMode(mode)
     setGeneratedResult(null)
 
     try {
@@ -129,7 +130,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         timestamp,
       }
 
-      const endpoint = requestMode === "push" ? "/api/payments/push" : "/api/payments/link"
+      const endpoint = mode === "push" ? "/api/payments/push" : "/api/payments/link"
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -153,7 +154,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         )
       )
 
-      if (requestMode === "push") {
+      if (mode === "push") {
         const customerPinToken = data?.customerPinToken as string | undefined
         const transactionReference = data?.transactionReference as string | undefined
         const paymentUrl =
@@ -171,9 +172,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       }
 
       toast({
-        title: requestMode === "push" ? "USSD Request Initiated" : "Payment Link Generated",
+        title: mode === "push" ? "USSD Request Initiated" : "Payment Link Generated",
         description:
-          requestMode === "push"
+          mode === "push"
             ? `A customer PIN entry prompt is ready (demo token returned).`
             : `Share the secure payment link with your customer.`,
       })
@@ -195,39 +196,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const isPending = merchant.status === "pending"
   const isApproved = merchant.status === "approved"
 
-  const RequestPaymentForm = () => (
+  const formContent = (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full pr-4">
           <div className="space-y-6 pb-6">
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/60 bg-white/60 backdrop-blur-sm p-1">
-              <Button
-                type="button"
-                variant="outline"
-                className={`h-10 rounded-2xl transition-all ${
-                  requestMode === "push"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
-                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
-                }`}
-                onClick={() => setRequestMode("push")}
-              >
-                Push
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className={`h-10 rounded-2xl transition-all ${
-                  requestMode === "link"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
-                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
-                }`}
-                onClick={() => setRequestMode("link")}
-              >
-                Payment Link
-              </Button>
-            </div>
-
-            <form onSubmit={handleRequestPayment} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">Customer Phone</Label>
                 <div className="relative">
@@ -255,19 +229,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   value={requestForm.amount}
                   onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
                 />
-                <div className="flex flex-wrap gap-2">
-                  {quickAmounts.map((amount) => (
-                    <Button
-                      key={amount}
-                      type="button"
-                      variant="outline"
-                      className="rounded-full border-[#f8b513]/40 bg-white/85 text-[#754319] hover:-translate-y-0.5 transition-all"
-                      onClick={() => setRequestForm({ ...requestForm, amount: amount.toString() })}
-                    >
-                      ${amount}
-                    </Button>
-                  ))}
-                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
@@ -279,19 +240,40 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
                 />
               </div>
-              <Button
-                type="submit"
-                className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-base text-white shadow-lg shadow-amber-600/30"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {requestMode === "push" ? "Push Payment" : "Generate Secure Link"}
-              </Button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  onClick={() => handleRequestPayment("push")}
+                  className="h-12 rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-sm font-bold text-white shadow-lg shadow-amber-600/30"
+                  disabled={isSubmitting || !isApproved}
+                >
+                  {isSubmitting && lastMode === "push" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  Push Payment
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleRequestPayment("link")}
+                  className="h-12 rounded-2xl bg-white border border-[#f8b513]/30 text-[#754319] text-sm font-bold shadow-sm hover:bg-amber-50/50"
+                  disabled={isSubmitting || !isApproved}
+                >
+                  {isSubmitting && lastMode === "link" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  Generate Link
+                </Button>
+              </div>
 
               {generatedResult && (
                 <div className="rounded-2xl border border-white/70 bg-white/80 p-3 space-y-2 shadow-sm">
                   <p className="text-xs uppercase tracking-wider text-[#754319]/70">
-                    {requestMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
+                    {lastMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
                   </p>
 
                   {generatedResult.paymentUrl ? (
@@ -351,7 +333,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   </div>
                 </div>
               )}
-            </form>
+            </div>
           </div>
         </ScrollArea>
       </div>
@@ -439,30 +421,60 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {metricCards.map((item) => {
+      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
+        {metricCards.filter(m => m.title !== "Limits" && m.title !== "Account Status").map((item) => {
           const Icon = item.icon
           return (
             <Card
               key={item.title}
-              className="overflow-hidden rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              className="overflow-hidden rounded-[2.5rem] border-white/60 bg-[#fdf2d5] shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group relative"
             >
-              <CardContent className="relative p-4">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#f4db9f]/45 via-[#f8b513]/25 to-transparent pointer-events-none" />
-                <div className="relative flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#754319]/80">{item.title}</p>
-                    <p className="mt-2 text-2xl font-black text-[#5b371f]">{item.value}</p>
-                    <p className="mt-1 text-xs text-[#754319]/70">{item.hint}</p>
-                  </div>
-                  <div className="rounded-xl bg-white/80 p-2 shadow-sm">
-                    <Icon className="h-4 w-4 text-[#754319]" />
-                  </div>
+              <CardContent className="relative p-5 h-full flex items-center justify-between gap-3">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#754319]/70">{item.title}</p>
+                  <p className="mt-1 text-2xl font-black text-[#5b371f]">{item.value}</p>
+                  <p className="mt-0.5 text-[10px] text-[#754319]/60 font-semibold">{item.hint}</p>
+                </div>
+                <div className="shrink-0 p-2.5 rounded-2xl bg-white/90 shadow-sm border border-white/40 group-hover:scale-110 transition-transform">
+                  <Icon className="h-4 w-4 text-[#754319]" />
                 </div>
               </CardContent>
             </Card>
           )
         })}
+        
+        <Card
+          className="xl:col-span-2 overflow-hidden rounded-[2.5rem] border-white/60 bg-[#fdf2d5] shadow-md transition-all duration-500 group relative"
+        >
+          <CardContent className="relative p-3 h-full flex items-center">
+            <div className="flex-1 grid grid-cols-3 gap-2">
+              <div className="relative flex flex-col items-center p-2.5 rounded-3xl bg-white/40 border border-white/30 backdrop-blur-sm transition-all hover:bg-white/60">
+                <Zap className="h-3.5 w-3.5 text-[#754319]/80 mb-1" />
+                <p className="text-[8px] uppercase tracking-wider font-bold text-[#754319]/70">Max Tx</p>
+                <p className="text-sm font-black text-[#5b371f]">${merchant.transactionLimit.toLocaleString()}</p>
+              </div>
+
+              <div className="relative flex flex-col items-center p-2.5 rounded-3xl bg-white/40 border border-white/30 backdrop-blur-sm transition-all hover:bg-white/60">
+                <ArrowRightLeft className="h-3.5 w-3.5 text-[#754319]/80 mb-1" />
+                <p className="text-[8px] uppercase tracking-wider font-bold text-[#754319]/70">Daily Cnt</p>
+                <p className="text-sm font-black text-[#5b371f]">{merchant.dailyCountLimit.toLocaleString()}</p>
+              </div>
+
+              <div className="relative flex flex-col items-center p-2.5 rounded-3xl bg-white/60 border border-white/40 backdrop-blur-md transition-all hover:bg-white/80 shadow-sm">
+                <CircleDollarSign className="h-3.5 w-3.5 text-[#754319] mb-1" />
+                <p className="text-[8px] uppercase tracking-wider font-bold text-[#754319]/80">Daily Max</p>
+                <p className="text-sm font-black text-[#5b371f]">${merchant.dailyLimit.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex flex-col items-center pl-4 border-l border-[#754319]/10 ml-2">
+              <div className="flex items-center gap-1 text-[#754319]/70">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span className="text-[9px] font-black uppercase tracking-widest">Verified</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -544,12 +556,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           <SheetHeader className="text-left mb-4">
             <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
             <SheetDescription>
-              {requestMode === "push"
+              {lastMode === "push"
                 ? "Push a USSD PIN prompt to the customer instantly (mock)."
-                : "Generate a secure payment link your customer can open on any channel."}
+                : lastMode === "link"
+                ? "Generate a secure payment link your customer can open on any channel."
+                : "Choose how you want to receive payment from your customer."}
             </SheetDescription>
           </SheetHeader>
-          <RequestPaymentForm />
+          {formContent}
         </SheetContent>
       </Sheet>
 
@@ -558,13 +572,15 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           <DialogHeader className="text-left mb-4">
             <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
             <DialogDescription>
-              {requestMode === "push"
+              {lastMode === "push"
                 ? "Push a USSD PIN prompt to the customer instantly (mock)."
-                : "Generate a secure payment link your customer can open on any channel."}
+                : lastMode === "link"
+                ? "Generate a secure payment link your customer can open on any channel."
+                : "Choose how you want to receive payment from your customer."}
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[70vh]">
-            <RequestPaymentForm />
+            {formContent}
           </div>
         </DialogContent>
       </Dialog>

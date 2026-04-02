@@ -36,7 +36,7 @@ export function RequestPaymentModal({
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [copied, setCopied] = React.useState<string | null>(null)
-  const [requestMode, setRequestMode] = React.useState<"push" | "link">("push")
+  const [lastMode, setLastMode] = React.useState<"push" | "link" | null>(null)
   const [generatedResult, setGeneratedResult] = React.useState<{
     paymentUrl?: string
     customerPinToken?: string
@@ -49,8 +49,6 @@ export function RequestPaymentModal({
     payerPhone: "",
   })
 
-  const quickAmounts = React.useMemo(() => [25, 50, 100, 250], [])
-
   const copyText = async (value: string, key: string) => {
     await navigator.clipboard.writeText(value)
     setCopied(key)
@@ -58,9 +56,7 @@ export function RequestPaymentModal({
     toast({ title: "Copied", description: "Value copied to clipboard." })
   }
 
-  const handleRequestPayment = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleRequestPayment = async (mode: "push" | "link") => {
     const amountNum = parseFloat(requestForm.amount)
     if (isNaN(amountNum) || amountNum <= 0) {
       toast({
@@ -90,6 +86,7 @@ export function RequestPaymentModal({
     }
 
     setIsSubmitting(true)
+    setLastMode(mode)
     setGeneratedResult(null)
 
     try {
@@ -111,7 +108,7 @@ export function RequestPaymentModal({
         timestamp,
       }
 
-      const endpoint = requestMode === "push" ? "/api/payments/push" : "/api/payments/link"
+      const endpoint = mode === "push" ? "/api/payments/push" : "/api/payments/link"
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,7 +125,7 @@ export function RequestPaymentModal({
         return
       }
 
-      if (requestMode === "push") {
+      if (mode === "push") {
         const customerPinToken = data?.customerPinToken as string | undefined
         const transactionReference = data?.transactionReference as string | undefined
 
@@ -147,9 +144,9 @@ export function RequestPaymentModal({
       }
 
       toast({
-        title: requestMode === "push" ? "USSD Request Initiated" : "Payment Link Generated",
+        title: mode === "push" ? "USSD Request Initiated" : "Payment Link Generated",
         description:
-          requestMode === "push"
+          mode === "push"
             ? `A customer PIN entry prompt is ready (demo token returned).`
             : `Share the secure payment link with your customer.`,
       })
@@ -167,7 +164,9 @@ export function RequestPaymentModal({
     }
   }
 
-  const RequestPaymentForm = () => (
+  if (!open) return null
+
+  const formContent = (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full pr-4">
@@ -184,34 +183,7 @@ export function RequestPaymentModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/60 bg-white/60 backdrop-blur-sm p-1">
-              <Button
-                type="button"
-                variant="outline"
-                className={`h-10 rounded-2xl transition-all ${
-                  requestMode === "push"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
-                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
-                }`}
-                onClick={() => setRequestMode("push")}
-              >
-                Push
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className={`h-10 rounded-2xl transition-all ${
-                  requestMode === "link"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
-                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
-                }`}
-                onClick={() => setRequestMode("link")}
-              >
-                Payment Link
-              </Button>
-            </div>
-
-            <form onSubmit={handleRequestPayment} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">Customer Phone</Label>
                 <div className="relative">
@@ -240,19 +212,6 @@ export function RequestPaymentModal({
                   value={requestForm.amount}
                   onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
                 />
-                <div className="flex flex-wrap gap-2">
-                  {quickAmounts.map((amount) => (
-                    <Button
-                      key={amount}
-                      type="button"
-                      variant="outline"
-                      className="rounded-full border-[#f8b513]/40 bg-white/85 text-[#754319] hover:-translate-y-0.5 transition-all"
-                      onClick={() => setRequestForm({ ...requestForm, amount: amount.toString() })}
-                    >
-                      ${amount}
-                    </Button>
-                  ))}
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -266,19 +225,39 @@ export function RequestPaymentModal({
                 />
               </div>
 
-              <Button
-                type="submit"
-                className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-base text-white shadow-lg shadow-amber-600/30"
-                disabled={isSubmitting || !isMerchantApproved}
-              >
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {requestMode === "push" ? "Push Payment" : "Generate Secure Link"}
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  onClick={() => handleRequestPayment("push")}
+                  className="h-12 rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-sm font-bold text-white shadow-lg shadow-amber-600/30"
+                  disabled={isSubmitting || !isMerchantApproved}
+                >
+                  {isSubmitting && lastMode === "push" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  Push Payment
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleRequestPayment("link")}
+                  className="h-12 rounded-2xl bg-white border border-[#f8b513]/30 text-[#754319] text-sm font-bold shadow-sm hover:bg-amber-50/50"
+                  disabled={isSubmitting || !isMerchantApproved}
+                >
+                  {isSubmitting && lastMode === "link" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  Generate Link
+                </Button>
+              </div>
 
               {generatedResult && (
                 <div className="rounded-2xl border border-white/70 bg-white/80 p-3 space-y-2 shadow-sm">
                   <p className="text-xs uppercase tracking-wider text-[#754319]/70">
-                    {requestMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
+                    {lastMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
                   </p>
 
                   {generatedResult.paymentUrl ? (
@@ -330,21 +309,11 @@ export function RequestPaymentModal({
                   </div>
                 </div>
               )}
-            </form>
+            </div>
           </div>
         </ScrollArea>
       </div>
     </div>
-  )
-
-  if (!open) return null
-
-  const content = (
-    <>
-      <div className="flex-1 min-h-0">
-        <RequestPaymentForm />
-      </div>
-    </>
   )
 
   if (isMobile) {
@@ -358,12 +327,14 @@ export function RequestPaymentModal({
           <SheetHeader className="text-left mb-4 shrink-0">
             <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
             <SheetDescription>
-              {requestMode === "push"
+              {lastMode === "push"
                 ? "Push a USSD PIN prompt to the customer instantly (mock)."
-                : "Generate a secure payment link your customer can open on any channel."}
+                : lastMode === "link"
+                ? "Generate a secure payment link your customer can open on any channel."
+                : "Choose how you want to receive payment from your customer."}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 min-h-0 pb-8">{content}</div>
+          <div className="flex-1 min-h-0 pb-8">{formContent}</div>
         </SheetContent>
       </Sheet>
     )
@@ -375,12 +346,14 @@ export function RequestPaymentModal({
         <DialogHeader className="text-left mb-4 shrink-0">
           <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
           <DialogDescription>
-            {requestMode === "push"
+            {lastMode === "push"
               ? "Push a USSD PIN prompt to the customer instantly (mock)."
-              : "Generate a secure payment link your customer can open on any channel."}
+              : lastMode === "link"
+              ? "Generate a secure payment link your customer can open on any channel."
+              : "Choose how you want to receive payment from your customer."}
           </DialogDescription>
         </DialogHeader>
-        {content}
+        {formContent}
       </DialogContent>
     </Dialog>
   )
