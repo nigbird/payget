@@ -254,6 +254,7 @@ export default function MakerPortal() {
         dailyLimit: 0,
         transactionLimit: 0,
         dailyCountLimit: 0,
+        jweSecret: `demo_jwe_secret_${formData.name || "merchant"}`,
         status: 'pending',
         documents,
         riskFactors,

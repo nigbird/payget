@@ -62,7 +62,14 @@ export async function POST(request: Request) {
       status: isSuccess ? 'success' : 'failed' as any,
       callbackUrl,
       description: description || 'Payment initiation',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      transactionReference: `ref_${transactionId}`,
+      serviceDescription: description || 'Payment initiation',
+      transactionTimestamp: new Date().toISOString(),
+      userCredentials: {
+        phone: 'unknown',
+        authToken: 'legacy_demo_auth',
+      }
     };
 
     db.addTransaction(tx);

@@ -17,6 +17,11 @@ export interface Merchant {
   password?: string;
   passwordResetToken?: string;
   passwordResetExpires?: string;
+  /**
+   * JWE symmetric secret for encrypting/decrypting customer payloads (mock provider).
+   * In production this should be securely stored server-side (KMS/secret manager).
+   */
+  jweSecret: string;
   accountNumber: string;
   dailyLimit: number; // Daily Amount Limit
   transactionLimit: number; // Max Per Transaction Amount
@@ -38,7 +43,13 @@ export interface Merchant {
   updatedAt?: string;
 }
 
-export type TransactionStatus = 'success' | 'failed' | 'initiated' | 'pending';
+export type TransactionStatus =
+  | 'success'
+  | 'failed'
+  | 'initiated'
+  | 'pending'
+  | 'awaiting_pin'
+  | 'processing';
 
 export interface Transaction {
   id: string;
@@ -49,6 +60,25 @@ export interface Transaction {
   description: string;
   timestamp: string;
   payerPhone?: string;
+  /**
+   * Gateway-generated payment reference (used by provider callbacks).
+   */
+  transactionReference: string;
+  /**
+   * Customer-facing description of the service being paid for.
+   */
+  serviceDescription: string;
+  /**
+   * Timestamp originating from the merchant payload (gateway records it for audit).
+   */
+  transactionTimestamp: string;
+  /**
+   * Customer credentials included in the encrypted payload (mock only).
+   */
+  userCredentials: {
+    phone: string;
+    authToken: string;
+  };
 }
 
 export interface SystemConfig {
@@ -72,6 +102,7 @@ if (!globalStore.merchants) {
       name: 'TechGear Solutions',
       email: 'onboarding@techgear.io',
       password: 'password123',
+      jweSecret: 'demo_jwe_secret_m1',
       accountNumber: '1234567890',
       dailyLimit: 50000,
       transactionLimit: 5000,
@@ -104,7 +135,12 @@ if (!globalStore.transactions) {
       status: 'success',
       callbackUrl: 'https://techgear.io/api/webhook',
       description: 'Order #8821',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      transactionReference: 'ref_demo_tx1',
+      serviceDescription: 'Order #8821',
+      transactionTimestamp: new Date().toISOString(),
+      userCredentials: { phone: '+1234567890', authToken: 'demo_auth_token_tx1' },
+      payerPhone: '+1234567890'
     },
     {
       id: '2',
@@ -114,6 +150,10 @@ if (!globalStore.transactions) {
       callbackUrl: 'https://techgear.io/api/webhook',
       description: 'Invoice for Enterprise Support Package (Q3)',
       timestamp: new Date().toISOString(),
+      transactionReference: 'ref_demo_tx2',
+      serviceDescription: 'Invoice for Enterprise Support Package (Q3)',
+      transactionTimestamp: new Date().toISOString(),
+      userCredentials: { phone: '+1 (555) 987-6543', authToken: 'demo_auth_token_tx2' },
       payerPhone: '+1 (555) 987-6543'
     }
   ];
