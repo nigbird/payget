@@ -12,6 +12,14 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { SidebarNav } from "@/components/layout/sidebar-nav"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import {
   Wallet,
   Clock,
   TrendingUp,
@@ -52,7 +60,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     amount: "",
     description: "",
     payerPhone: "",
-    customerName: "",
   })
 
   useEffect(() => {
@@ -106,7 +113,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       const transactionId = `tx_${Math.random().toString(36).slice(2, 10)}`
       const timestamp = new Date().toISOString()
       const serviceDescription =
-        requestForm.description || `Payment Request for ${requestForm.customerName || "Customer"}`
+        requestForm.description || `Payment Request for Customer`
 
       const authToken = `demo_auth_${Math.random().toString(36).slice(2, 10)}`
 
@@ -187,6 +194,170 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
   const isPending = merchant.status === "pending"
   const isApproved = merchant.status === "approved"
+
+  const RequestPaymentForm = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full pr-4">
+          <div className="space-y-6 pb-6">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/60 bg-white/60 backdrop-blur-sm p-1">
+              <Button
+                type="button"
+                variant="outline"
+                className={`h-10 rounded-2xl transition-all ${
+                  requestMode === "push"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
+                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
+                }`}
+                onClick={() => setRequestMode("push")}
+              >
+                Push
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={`h-10 rounded-2xl transition-all ${
+                  requestMode === "link"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
+                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
+                }`}
+                onClick={() => setRequestMode("link")}
+              >
+                Payment Link
+              </Button>
+            </div>
+
+            <form onSubmit={handleRequestPayment} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">Customer Phone</Label>
+                <div className="relative">
+                  <Phone className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+1 (555) 000-0000"
+                    className="h-12 rounded-2xl border-white/50 bg-white/85 pl-9 shadow-sm focus-visible:ring-amber-500"
+                    required
+                    value={requestForm.payerPhone}
+                    onChange={(e) => setRequestForm({ ...requestForm, payerPhone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="h-16 rounded-2xl border-2 border-[#f8b513]/30 bg-white text-center text-3xl font-black text-[#5b371f] shadow-sm focus-visible:ring-amber-500"
+                  required
+                  value={requestForm.amount}
+                  onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+                />
+                <div className="flex flex-wrap gap-2">
+                  {quickAmounts.map((amount) => (
+                    <Button
+                      key={amount}
+                      type="button"
+                      variant="outline"
+                      className="rounded-full border-[#f8b513]/40 bg-white/85 text-[#754319] hover:-translate-y-0.5 transition-all"
+                      onClick={() => setRequestForm({ ...requestForm, amount: amount.toString() })}
+                    >
+                      ${amount}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Order #1022"
+                  className="min-h-[100px] rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                  value={requestForm.description}
+                  onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-base text-white shadow-lg shadow-amber-600/30"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                {requestMode === "push" ? "Push Payment" : "Generate Secure Link"}
+              </Button>
+
+              {generatedResult && (
+                <div className="rounded-2xl border border-white/70 bg-white/80 p-3 space-y-2 shadow-sm">
+                  <p className="text-xs uppercase tracking-wider text-[#754319]/70">
+                    {requestMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
+                  </p>
+
+                  {generatedResult.paymentUrl ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-[#754319]/70">Shareable URL</p>
+                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
+                        {generatedResult.paymentUrl}
+                      </code>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-xs text-[#754319]/70">Customer token (demo)</p>
+                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
+                        {generatedResult.customerPinToken}
+                      </code>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    {generatedResult.paymentUrl ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
+                        onClick={() => generatedResult.paymentUrl && copyText(generatedResult.paymentUrl, "paymentUrl")}
+                      >
+                        {copied === "paymentUrl" ? (
+                          <CheckCircle2 className="mr-1 h-4 w-4" />
+                        ) : (
+                          <Copy className="mr-1 h-4 w-4" />
+                        )}
+                        {copied === "paymentUrl" ? "Copied" : "Copy URL"}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
+                        onClick={() =>
+                          generatedResult.customerPinToken && copyText(generatedResult.customerPinToken, "customerPinToken")
+                        }
+                      >
+                        {copied === "customerPinToken" ? (
+                          <CheckCircle2 className="mr-1 h-4 w-4" />
+                        ) : (
+                          <Copy className="mr-1 h-4 w-4" />
+                        )}
+                        {copied === "customerPinToken" ? "Copied" : "Copy Token"}
+                      </Button>
+                    )}
+
+                    {generatedResult.transactionReference && (
+                      <Badge className="rounded-full bg-amber-100 text-amber-700 border-0">
+                        Ref: {generatedResult.transactionReference}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
+  )
+
   const totalReceived = transactions.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0)
   const pendingRequests = transactions.filter((tx) => tx.status === "pending" || tx.status === "awaiting_pin" || tx.status === "initiated")
   const todayActivity = transactions.filter((tx) => {
@@ -369,27 +540,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           </section>
         </main>
 
-        <Sheet open={isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
-          {isMobile && (
-            <Button
-              disabled={!isApproved}
-              className="fixed bottom-6 right-6 h-14 rounded-full bg-gradient-to-r from-[#f8b513] to-[#754319] px-6 text-white shadow-2xl shadow-amber-500/40 hover:scale-[1.02] active:scale-95 md:hidden"
-              onClick={() => setIsRequestPanelOpen(true)}
-            >
-              <Plus className="mr-2 h-5 w-5" />
-              Request Payment
-            </Button>
-          )}
+        <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
           <SheetContent
-            side={isMobile ? "bottom" : "right"}
-            className={
-              isMobile
-                ? "h-[88vh] rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8"
-                : "w-full max-w-md border-l-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-5 pb-8"
-            }
+            side="bottom"
+            className="h-[88vh] rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8"
           >
-            {isMobile && <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />}
-            <SheetHeader className="text-left">
+            <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
+            <SheetHeader className="text-left mb-4">
               <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
               <SheetDescription>
                 {requestMode === "push"
@@ -397,174 +554,36 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   : "Generate a secure payment link your customer can open on any channel."}
               </SheetDescription>
             </SheetHeader>
-
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-white/60 bg-white/60 backdrop-blur-sm p-1">
-              <Button
-                type="button"
-                variant="outline"
-                className={`h-10 rounded-2xl transition-all ${
-                  requestMode === "push"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
-                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
-                }`}
-                onClick={() => setRequestMode("push")}
-              >
-                Push
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className={`h-10 rounded-2xl transition-all ${
-                  requestMode === "link"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white border-transparent shadow-sm shadow-amber-500/30"
-                    : "bg-white/70 text-[#754319] border-[#f8b513]/30 hover:-translate-y-0.5"
-                }`}
-                onClick={() => setRequestMode("link")}
-              >
-                Payment Link
-              </Button>
-            </div>
-
-            <form onSubmit={handleRequestPayment} className="mt-5 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customerName">Customer Name</Label>
-                <div className="relative">
-                  <UserRound className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="customerName"
-                    placeholder="Jane Carter"
-                    className="h-12 rounded-2xl border-white/50 bg-white/85 pl-9 shadow-sm"
-                    value={requestForm.customerName}
-                    onChange={(e) => setRequestForm({ ...requestForm, customerName: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Customer Phone</Label>
-                <div className="relative">
-                  <Phone className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+1 (555) 000-0000"
-                    className="h-12 rounded-2xl border-white/50 bg-white/85 pl-9 shadow-sm"
-                    required
-                    value={requestForm.payerPhone}
-                    onChange={(e) => setRequestForm({ ...requestForm, payerPhone: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="h-16 rounded-2xl border-2 border-[#f8b513]/30 bg-white text-center text-3xl font-black text-[#5b371f] shadow-sm"
-                  required
-                  value={requestForm.amount}
-                  onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
-                />
-                <div className="flex flex-wrap gap-2">
-                  {quickAmounts.map((amount) => (
-                    <Button
-                      key={amount}
-                      type="button"
-                      variant="outline"
-                      className="rounded-full border-[#f8b513]/40 bg-white/85 text-[#754319] hover:-translate-y-0.5 transition-all"
-                      onClick={() => setRequestForm({ ...requestForm, amount: amount.toString() })}
-                    >
-                      ${amount}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Order #1022"
-                  className="min-h-[100px] rounded-2xl border-white/50 bg-white/85 shadow-sm"
-                  value={requestForm.description}
-                  onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
-                />
-              </div>
-              <Button
-                type="submit"
-                className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-base text-white shadow-lg shadow-amber-600/30"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {requestMode === "push" ? "Request via USSD" : "Generate Secure Link"}
-              </Button>
-
-              {generatedResult && (
-                <div className="rounded-2xl border border-white/70 bg-white/80 p-3 space-y-2 shadow-sm">
-                  <p className="text-xs uppercase tracking-wider text-[#754319]/70">
-                    {requestMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
-                  </p>
-
-                  {generatedResult.paymentUrl ? (
-                    <div className="space-y-1">
-                      <p className="text-xs text-[#754319]/70">Shareable URL</p>
-                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
-                        {generatedResult.paymentUrl}
-                      </code>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="text-xs text-[#754319]/70">Customer token (demo)</p>
-                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
-                        {generatedResult.customerPinToken}
-                      </code>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    {generatedResult.paymentUrl ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
-                        onClick={() => generatedResult.paymentUrl && copyText(generatedResult.paymentUrl, "paymentUrl")}
-                      >
-                        {copied === "paymentUrl" ? (
-                          <CheckCircle2 className="mr-1 h-4 w-4" />
-                        ) : (
-                          <Copy className="mr-1 h-4 w-4" />
-                        )}
-                        {copied === "paymentUrl" ? "Copied" : "Copy URL"}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
-                        onClick={() =>
-                          generatedResult.customerPinToken && copyText(generatedResult.customerPinToken, "customerPinToken")
-                        }
-                      >
-                        {copied === "customerPinToken" ? (
-                          <CheckCircle2 className="mr-1 h-4 w-4" />
-                        ) : (
-                          <Copy className="mr-1 h-4 w-4" />
-                        )}
-                        {copied === "customerPinToken" ? "Copied" : "Copy Token"}
-                      </Button>
-                    )}
-
-                    {generatedResult.transactionReference && (
-                      <Badge className="rounded-full bg-amber-100 text-amber-700 border-0">
-                        Ref: {generatedResult.transactionReference}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              )}
-            </form>
+            <RequestPaymentForm />
           </SheetContent>
         </Sheet>
+
+        <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
+          <DialogContent className="max-w-md border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] p-6 rounded-3xl shadow-2xl">
+            <DialogHeader className="text-left mb-4">
+              <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
+              <DialogDescription>
+                {requestMode === "push"
+                  ? "Push a USSD PIN prompt to the customer instantly (mock)."
+                  : "Generate a secure payment link your customer can open on any channel."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[70vh]">
+              <RequestPaymentForm />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {isMobile && (
+          <Button
+            disabled={!isApproved}
+            className="fixed bottom-6 right-6 h-14 rounded-full bg-gradient-to-r from-[#f8b513] to-[#754319] px-6 text-white shadow-2xl shadow-amber-500/40 hover:scale-[1.02] active:scale-95 md:hidden z-50"
+            onClick={() => setIsRequestPanelOpen(true)}
+          >
+            <Plus className="mr-2 h-5 w-5" />
+            Request Payment
+          </Button>
+        )}
       </SidebarInset>
     </SidebarProvider>
   )

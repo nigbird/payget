@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { ArrowLeft, Loader2, Mail, Phone, Sparkles } from "lucide-react"
+import { ArrowLeft, Clock, Loader2, Mail, Phone, Sparkles } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { db } from "@/app/lib/db"
 
@@ -16,7 +16,7 @@ export default function ForgotPassword() {
   const [identifier, setIdentifier] = useState("")
   const [sentTo, setSentTo] = useState<string | null>(null)
 
-  const handleRequestReset = (e: React.FormEvent) => {
+  const handleRequestReset = (e: FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 

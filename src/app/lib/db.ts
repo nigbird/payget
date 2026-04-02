@@ -2,6 +2,21 @@ import { type AiMerchantOnboardingAssistantOutput } from '@/ai/flows/ai-merchant
 
 export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected';
 
+export type MerchantTeamRole = 'payment_initiator' | 'account_admin';
+export type MerchantTeamMemberStatus = 'active' | 'deactivated';
+
+export interface MerchantTeamMember {
+  id: string;
+  merchantId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: MerchantTeamRole;
+  status: MerchantTeamMemberStatus;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface MerchantDocument {
   id: string;
   name: string;
@@ -92,6 +107,7 @@ export interface SystemConfig {
 const globalStore = global as unknown as {
   merchants: Merchant[];
   transactions: Transaction[];
+  merchantTeamMembers: MerchantTeamMember[];
   systemConfig: SystemConfig;
 };
 
@@ -169,6 +185,30 @@ if (!globalStore.systemConfig) {
   };
 }
 
+if (!globalStore.merchantTeamMembers) {
+  globalStore.merchantTeamMembers = [
+    {
+      id: 'tm1',
+      merchantId: 'm1',
+      name: 'Aisha Payments',
+      email: 'payments@techgear.io',
+      phone: '+1234567890',
+      role: 'payment_initiator',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'tm2',
+      merchantId: 'm1',
+      name: 'Morgan Admin',
+      email: 'admin@techgear.io',
+      role: 'account_admin',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
+
 export const db = {
   getMerchants: () => globalStore.merchants,
   getMerchantById: (id: string) => globalStore.merchants.find(m => m.id === id),
@@ -211,6 +251,35 @@ export const db = {
         ...globalStore.transactions[index],
         status
       };
+    }
+  },
+  getMerchantTeamMembersByMerchantId: (merchantId: string) =>
+    globalStore.merchantTeamMembers.filter(m => m.merchantId === merchantId),
+  addMerchantTeamMember: (member: MerchantTeamMember) => {
+    globalStore.merchantTeamMembers.push(member);
+  },
+  updateMerchantTeamMember: (memberId: string, updates: Partial<MerchantTeamMember>) => {
+    const index = globalStore.merchantTeamMembers.findIndex(m => m.id === memberId);
+    if (index !== -1) {
+      globalStore.merchantTeamMembers[index] = {
+        ...globalStore.merchantTeamMembers[index],
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+    }
+  },
+  deactivateMerchantTeamMember: (memberId: string) => {
+    const member = globalStore.merchantTeamMembers.find(m => m.id === memberId);
+    if (member) {
+      member.status = 'deactivated';
+      member.updatedAt = new Date().toISOString();
+    }
+  },
+  setMerchantTeamMemberActive: (memberId: string, active: boolean) => {
+    const member = globalStore.merchantTeamMembers.find(m => m.id === memberId);
+    if (member) {
+      member.status = active ? 'active' : 'deactivated';
+      member.updatedAt = new Date().toISOString();
     }
   },
   getSystemConfig: () => globalStore.systemConfig,
