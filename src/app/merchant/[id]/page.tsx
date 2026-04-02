@@ -402,189 +402,172 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <SidebarProvider>
-      <SidebarNav />
-      <SidebarInset className="bg-[linear-gradient(135deg,#fff9ef_0%,#fdf1d4_45%,#fbe8bc_100%)]">
-        <main className="mx-auto w-full max-w-7xl p-4 md:p-8 pb-24">
-          <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
-            <div className="flex items-start justify-between gap-4">
+    <div className="space-y-4">
+      <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Merchant Dashboard</p>
+            <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">Welcome back, {merchant.name}</h1>
+            <p className="mt-1 text-sm md:text-base text-[#754319]/70">A premium view of your requests, activity, and settlements.</p>
+          </div>
+          <div className="hidden md:flex items-center gap-3">
+            <Button
+              disabled={!isApproved}
+              className="h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-700/30 hover:-translate-y-0.5 transition-all"
+              onClick={() => setIsRequestPanelOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Request Payment
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {!isApproved && (
+        <Card className={`mt-4 rounded-3xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"}`}>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />}
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Merchant Dashboard</p>
-                <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">Welcome back, {merchant.name}</h1>
-                <p className="mt-1 text-sm md:text-base text-[#754319]/70">A premium view of your requests, activity, and settlements.</p>
+                <p className="font-semibold text-sm">Account status: {merchant.status}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isPending ? "Payment requests unlock once your account is approved." : merchant.rejectionReason || "Application requires updates."}
+                </p>
               </div>
-              <div className="hidden md:flex items-center gap-3">
-                <SidebarTrigger className="rounded-xl border border-white/70 bg-white/75 shadow-sm" />
-                <Button
-                  disabled={!isApproved}
-                  className="h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-700/30 hover:-translate-y-0.5 transition-all"
-                  onClick={() => setIsRequestPanelOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Request Payment
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {metricCards.map((item) => {
+          const Icon = item.icon
+          return (
+            <Card
+              key={item.title}
+              className="overflow-hidden rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            >
+              <CardContent className="relative p-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#f4db9f]/45 via-[#f8b513]/25 to-transparent pointer-events-none" />
+                <div className="relative flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#754319]/80">{item.title}</p>
+                    <p className="mt-2 text-2xl font-black text-[#5b371f]">{item.value}</p>
+                    <p className="mt-1 text-xs text-[#754319]/70">{item.hint}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/80 p-2 shadow-sm">
+                    <Icon className="h-4 w-4 text-[#754319]" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </section>
+
+      <section className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card className="xl:col-span-2 rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
+          <CardContent className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-[#5b371f] text-lg">Recent Activity</h2>
+                <p className="text-xs text-[#754319]/70">{pendingRequests.length} pending requests, {todayActivity.length} today</p>
+              </div>
+              <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-medium text-[#754319]">
+                View All Transactions <ArrowUpRight className="ml-1 h-4 w-4" />
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {recentTransactions.map((tx) => (
+                <div key={tx.id} className="group flex items-center justify-between rounded-2xl border border-white/70 bg-white/80 p-3 transition-all hover:-translate-y-0.5 hover:shadow-md">
+                  <div>
+                    <p className="text-sm font-medium text-[#5b371f]">{tx.description}</p>
+                    <p className="text-xs text-[#754319]/70">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-[#5b371f]">${tx.amount.toFixed(2)}</p>
+                    <Badge
+                      variant="outline"
+                      className={`mt-1 text-[10px] capitalize ${
+                        tx.status === "success"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : tx.status === "pending" || tx.status === "awaiting_pin" || tx.status === "initiated" || tx.status === "processing"
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
+                      }`}
+                    >
+                      {tx.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+              {transactions.length === 0 && <p className="text-sm text-muted-foreground">No transactions yet.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
+          <CardContent className="p-5">
+            <h2 className="font-semibold text-[#5b371f] text-lg">Integration</h2>
+            <p className="mt-1 text-xs text-[#754319]/70">Copy your credentials for webhooks and API setup.</p>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-white/70 bg-white/80 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Merchant ID</p>
+                <p className="truncate font-mono text-sm text-[#5b371f]">{merchant.id}</p>
+                <Button type="button" variant="ghost" className="mt-2 h-8 px-2 text-xs text-[#754319]" onClick={() => copyText(merchant.id, "id")}>
+                  {copied === "id" ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
+                  {copied === "id" ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <div className="rounded-2xl border border-white/70 bg-white/80 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Callback URL</p>
+                <p className="truncate font-mono text-sm text-[#5b371f]">{merchant.callbackUrl}</p>
+                <Button type="button" variant="ghost" className="mt-2 h-8 px-2 text-xs text-[#754319]" onClick={() => copyText(merchant.callbackUrl, "callback")}>
+                  {copied === "callback" ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
+                  {copied === "callback" ? "Copied" : "Copy"}
                 </Button>
               </div>
             </div>
-          </section>
+            <Link href="/" className="mt-4 inline-flex items-center text-xs font-medium text-[#754319]">
+              Back to overview <ChevronRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
+          </CardContent>
+        </Card>
+      </section>
 
-          {!isApproved && (
-            <Card className={`mt-4 rounded-3xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />}
-                  <div>
-                    <p className="font-semibold text-sm">Account status: {merchant.status}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isPending ? "Payment requests unlock once your account is approved." : merchant.rejectionReason || "Application requires updates."}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
+        <SheetContent
+          side="bottom"
+          className="h-[88vh] rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8"
+        >
+          <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
+          <SheetHeader className="text-left mb-4">
+            <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
+            <SheetDescription>
+              {requestMode === "push"
+                ? "Push a USSD PIN prompt to the customer instantly (mock)."
+                : "Generate a secure payment link your customer can open on any channel."}
+            </SheetDescription>
+          </SheetHeader>
+          <RequestPaymentForm />
+        </SheetContent>
+      </Sheet>
 
-          <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {metricCards.map((item) => {
-              const Icon = item.icon
-              return (
-                <Card
-                  key={item.title}
-                  className="overflow-hidden rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-                >
-                  <CardContent className="relative p-4">
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#f4db9f]/45 via-[#f8b513]/25 to-transparent pointer-events-none" />
-                    <div className="relative flex items-start justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-[#754319]/80">{item.title}</p>
-                        <p className="mt-2 text-2xl font-black text-[#5b371f]">{item.value}</p>
-                        <p className="mt-1 text-xs text-[#754319]/70">{item.hint}</p>
-                      </div>
-                      <div className="rounded-xl bg-white/80 p-2 shadow-sm">
-                        <Icon className="h-4 w-4 text-[#754319]" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </section>
-
-          <section className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <Card className="xl:col-span-2 rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
-              <CardContent className="p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="font-semibold text-[#5b371f] text-lg">Recent Activity</h2>
-                    <p className="text-xs text-[#754319]/70">{pendingRequests.length} pending requests, {todayActivity.length} today</p>
-                  </div>
-                  <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-medium text-[#754319]">
-                    View All Transactions <ArrowUpRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </div>
-                <div className="space-y-2">
-                  {recentTransactions.map((tx) => (
-                    <div key={tx.id} className="group flex items-center justify-between rounded-2xl border border-white/70 bg-white/80 p-3 transition-all hover:-translate-y-0.5 hover:shadow-md">
-                      <div>
-                        <p className="text-sm font-medium text-[#5b371f]">{tx.description}</p>
-                        <p className="text-xs text-[#754319]/70">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-[#5b371f]">${tx.amount.toFixed(2)}</p>
-                        <Badge
-                          variant="outline"
-                          className={`mt-1 text-[10px] capitalize ${
-                            tx.status === "success"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : tx.status === "pending" || tx.status === "awaiting_pin" || tx.status === "initiated" || tx.status === "processing"
-                                ? "border-amber-200 bg-amber-50 text-amber-700"
-                                : "border-rose-200 bg-rose-50 text-rose-700"
-                          }`}
-                        >
-                          {tx.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                  {transactions.length === 0 && <p className="text-sm text-muted-foreground">No transactions yet.</p>}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
-              <CardContent className="p-5">
-                <h2 className="font-semibold text-[#5b371f] text-lg">Integration</h2>
-                <p className="mt-1 text-xs text-[#754319]/70">Copy your credentials for webhooks and API setup.</p>
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-2xl border border-white/70 bg-white/80 p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Merchant ID</p>
-                    <p className="truncate font-mono text-sm text-[#5b371f]">{merchant.id}</p>
-                    <Button type="button" variant="ghost" className="mt-2 h-8 px-2 text-xs text-[#754319]" onClick={() => copyText(merchant.id, "id")}>
-                      {copied === "id" ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
-                      {copied === "id" ? "Copied" : "Copy"}
-                    </Button>
-                  </div>
-                  <div className="rounded-2xl border border-white/70 bg-white/80 p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Callback URL</p>
-                    <p className="truncate font-mono text-sm text-[#5b371f]">{merchant.callbackUrl}</p>
-                    <Button type="button" variant="ghost" className="mt-2 h-8 px-2 text-xs text-[#754319]" onClick={() => copyText(merchant.callbackUrl, "callback")}>
-                      {copied === "callback" ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
-                      {copied === "callback" ? "Copied" : "Copy"}
-                    </Button>
-                  </div>
-                </div>
-                <Link href="/" className="mt-4 inline-flex items-center text-xs font-medium text-[#754319]">
-                  Back to overview <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                </Link>
-              </CardContent>
-            </Card>
-          </section>
-        </main>
-
-        <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
-          <SheetContent
-            side="bottom"
-            className="h-[88vh] rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8"
-          >
-            <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
-            <SheetHeader className="text-left mb-4">
-              <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
-              <SheetDescription>
-                {requestMode === "push"
-                  ? "Push a USSD PIN prompt to the customer instantly (mock)."
-                  : "Generate a secure payment link your customer can open on any channel."}
-              </SheetDescription>
-            </SheetHeader>
+      <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
+        <DialogContent className="max-w-md border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] p-6 rounded-3xl shadow-2xl">
+          <DialogHeader className="text-left mb-4">
+            <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
+            <DialogDescription>
+              {requestMode === "push"
+                ? "Push a USSD PIN prompt to the customer instantly (mock)."
+                : "Generate a secure payment link your customer can open on any channel."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[70vh]">
             <RequestPaymentForm />
-          </SheetContent>
-        </Sheet>
-
-        <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
-          <DialogContent className="max-w-md border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] p-6 rounded-3xl shadow-2xl">
-            <DialogHeader className="text-left mb-4">
-              <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
-              <DialogDescription>
-                {requestMode === "push"
-                  ? "Push a USSD PIN prompt to the customer instantly (mock)."
-                  : "Generate a secure payment link your customer can open on any channel."}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="max-h-[70vh]">
-              <RequestPaymentForm />
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {isMobile && (
-          <Button
-            disabled={!isApproved}
-            className="fixed bottom-6 right-6 h-14 rounded-full bg-gradient-to-r from-[#f8b513] to-[#754319] px-6 text-white shadow-2xl shadow-amber-500/40 hover:scale-[1.02] active:scale-95 md:hidden z-50"
-            onClick={() => setIsRequestPanelOpen(true)}
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            Request Payment
-          </Button>
-        )}
-      </SidebarInset>
-    </SidebarProvider>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
