@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 type ResolvedPayment = {
   merchantId: string
   merchantName: string
+  merchantAccountNumber: string
   transactionId: string
   transactionReference: string
   amount: number
@@ -163,6 +164,13 @@ export default function PayLinkPage() {
               <div className="space-y-1">
                 <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Merchant</p>
                 <p className="font-semibold text-[#5b371f]">{payment.merchantName}</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                <div className="rounded-2xl bg-white/70 border border-white/60 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Merchant Account Number</p>
+                  <p className="font-mono text-sm text-[#5b371f] break-all">{payment.merchantAccountNumber}</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
