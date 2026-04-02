@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       merchantId: merchant.id,
       merchantName: merchant.name,
+      merchantAccountNumber: merchant.accountNumber,
       transactionId: payload.transactionId,
       transactionReference: payload.transactionReference,
       amount: payload.amount,
