@@ -38,7 +38,6 @@ import {
   ShieldAlert,
   Info,
 } from "lucide-react"
-import { db, type Merchant, type Transaction } from "@/app/lib/db"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -46,8 +45,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const { id } = use(params)
   const { toast } = useToast()
   const isMobile = useIsMobile()
-  const [merchant, setMerchant] = useState<Merchant | null>(null)
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [merchant, setMerchant] = useState<any>(null)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
@@ -65,16 +65,31 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   })
 
   useEffect(() => {
-    const m = db.getMerchantById(id)
-    if (m) {
-      setMerchant(m)
-      setTransactions(
-        [...db.getTransactionsByMerchant(id)].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-      )
+    async function fetchData() {
+      try {
+        const [mRes, tRes] = await Promise.all([
+          fetch(`/api/merchants/${id}`),
+          fetch(`/api/merchants/${id}/transactions`)
+        ]);
+        if (mRes.ok) setMerchant(await mRes.json());
+        if (tRes.ok) setTransactions(await tRes.json());
+      } catch (err) {
+        console.error("Failed to fetch dashboard data", err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [id])
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-muted/20 gap-4">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Syncing dashboard data...</p>
+      </div>
+    )
+  }
 
   if (!merchant) {
     return (
@@ -147,12 +162,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         return
       }
 
-      // Refresh from the shared in-memory DB.
-      setTransactions(
-        [...db.getTransactionsByMerchant(id)].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-      )
+      const txRefresh = await fetch(`/api/merchants/${id}/transactions`);
+      if (txRefresh.ok) setTransactions(await txRefresh.json());
 
       if (mode === "push") {
         const customerPinToken = data?.customerPinToken as string | undefined
@@ -180,7 +191,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       })
       setIsRequestPanelOpen(true)
 
-      // Keep inputs for quick repeats; clear only amount/description.
       setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
     } catch {
       toast({
@@ -341,14 +351,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   )
 
   const totalReceived = transactions.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0)
-  const pendingRequests = transactions.filter((tx) => tx.status === "pending" || tx.status === "awaiting_pin" || tx.status === "initiated")
+  const pendingRequests = transactions.filter((tx) => ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status))
   const todayActivity = transactions.filter((tx) => {
     const txDate = new Date(tx.timestamp)
     const now = new Date()
     return txDate.toDateString() === now.toDateString()
   })
   const recentTransactions = transactions.slice(0, 4)
-  const quickAmounts = [25, 50, 100, 250]
   const metricCards = [
     {
       title: "Balance",
@@ -503,7 +512,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                       className={`mt-1 text-[10px] capitalize ${
                         tx.status === "success"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : tx.status === "pending" || tx.status === "awaiting_pin" || tx.status === "initiated" || tx.status === "processing"
+                          : ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status)
                             ? "border-amber-200 bg-amber-50 text-amber-700"
                             : "border-rose-200 bg-rose-50 text-rose-700"
                       }`}

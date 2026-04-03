@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -10,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { db } from "@/app/lib/db"
 
 export default function Home() {
   const router = useRouter()
@@ -21,25 +19,46 @@ export default function Home() {
     password: ""
   })
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate a short delay for realism
-    setTimeout(() => {
-      // Find the merchant by identifier (Email, Phone, or ID)
-      const foundMerchant = db.findMerchantByIdentifier(credentials.identifier)
+    try {
+      // For the demo bypass, we fetch the merchants to find a valid ID 
+      // or just default to the first one available in the DB.
+      const res = await fetch('/api/merchants');
+      const merchants = await res.json();
       
-      // Fallback to the first merchant (usually 'm1') if not found, to bypass errors
-      const merchant = foundMerchant || db.getMerchants()[0]
+      let targetId = "m1"; // Default demo ID
       
+      if (Array.isArray(merchants) && merchants.length > 0) {
+        const found = merchants.find((m: any) => 
+          m.id === credentials.identifier || 
+          m.email === credentials.identifier || 
+          m.contactPhone === credentials.identifier
+        );
+        if (found) {
+          targetId = found.id;
+        } else {
+          targetId = merchants[0].id;
+        }
+      }
+
       toast({
         title: "Access Granted",
-        description: `Bypassing authentication for: ${credentials.identifier || 'Guest'}. Redirecting to dashboard...`
-      })
+        description: `Bypassing authentication for demo. Redirecting to dashboard...`
+      });
       
-      router.push(`/merchant/${merchant.id}`)
-    }, 600)
+      router.push(`/merchant/${targetId}`);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Login Error",
+        description: "Could not connect to the gateway services."
+      });
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -75,7 +94,7 @@ export default function Home() {
               <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-headline">Merchant Login</CardTitle>
                 <CardDescription>
-                  Enter your email or phone number. Password verification and account checks are temporarily disabled.
+                  Enter your email or phone number. Password verification is temporarily disabled for demo.
                 </CardDescription>
               </CardHeader>
               <CardContent>

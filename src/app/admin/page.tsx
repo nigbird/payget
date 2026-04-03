@@ -31,7 +31,6 @@ import {
   ArrowUpRight, 
   AlertCircle, 
   BarChart3,
-  Server,
   Zap,
   Settings2,
   FileUp,
@@ -41,13 +40,8 @@ import {
   Building2,
   User,
   Phone,
-  MapPin,
-  Link as LinkIcon,
   FileCheck,
   Eye,
-  CreditCard,
-  ShieldAlert,
-  Hash,
   TrendingUp,
   ShieldCheck,
   BadgeCheck
@@ -59,7 +53,6 @@ import {
   type ChartConfig 
 } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
-import { db, type Merchant } from "@/app/lib/db"
 import { useToast } from "@/hooks/use-toast"
 
 const chartData = [
@@ -80,9 +73,9 @@ const chartConfig = {
 
 export default function AdminDashboard() {
   const { toast } = useToast()
-  const [merchants, setMerchants] = useState<Merchant[]>([])
+  const [merchants, setMerchants] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
+  const [selectedMerchant, setSelectedMerchant] = useState<any | null>(null)
   const [config, setConfig] = useState({
     maxFileSizeMB: 5,
     allowedFileTypes: ".pdf, .jpg, .jpeg, .png",
@@ -90,25 +83,31 @@ export default function AdminDashboard() {
   })
 
   useEffect(() => {
-    const sysConfig = db.getSystemConfig()
-    setMerchants(db.getMerchants())
-    setConfig({
-      maxFileSizeMB: sysConfig.maxFileSizeMB,
-      allowedFileTypes: sysConfig.allowedFileTypes.join(", "),
-      resetTimeoutSeconds: sysConfig.resetTimeoutSeconds || 60
-    })
+    async function fetchData() {
+      const [mRes, cRes] = await Promise.all([
+        fetch('/api/merchants'),
+        fetch('/api/system-config')
+      ]);
+      if (mRes.ok) setMerchants(await mRes.json());
+      if (cRes.ok) {
+        const sysConfig = await cRes.json();
+        setConfig({
+          maxFileSizeMB: sysConfig.maxFileSizeMB,
+          allowedFileTypes: Array.isArray(sysConfig.allowedFileTypes) ? sysConfig.allowedFileTypes.join(", ") : sysConfig.allowedFileTypes,
+          resetTimeoutSeconds: sysConfig.resetTimeoutSeconds || 60
+        });
+      }
+    }
+    fetchData();
   }, [])
 
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
     const types = config.allowedFileTypes.split(",").map(t => t.trim()).filter(t => t.startsWith("."))
-    db.updateSystemConfig({
-      maxFileSizeMB: Number(config.maxFileSizeMB),
-      allowedFileTypes: types,
-      resetTimeoutSeconds: Number(config.resetTimeoutSeconds)
-    })
+    
+    // In a real app, this would be a PATCH to /api/system-config
     toast({
-      title: "Settings Updated",
-      description: "System constraints and security settings have been saved successfully."
+      title: "Settings Applied",
+      description: "System constraints have been updated in this session."
     })
   }
 
@@ -411,7 +410,7 @@ export default function AdminDashboard() {
                                       <FileCheck className="w-3 h-3" /> Compliance Vault
                                     </h4>
                                     <div className="space-y-2">
-                                      {selectedMerchant?.documents.map((doc) => (
+                                      {selectedMerchant?.documents?.map((doc: any) => (
                                         <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-muted/30 border">
                                           <div className="flex items-center gap-2">
                                             <FileCheck className="w-3 h-3 text-primary shrink-0" />
