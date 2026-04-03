@@ -342,7 +342,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           </div>
 
           <div className="lg:flex lg:flex-col lg:items-end gap-2 hidden lg:block">
-            <Button
+            {/* <Button
               type="button"
               variant="outline"
               className="rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
@@ -352,7 +352,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to dashboard
               </Link>
-            </Button>
+            </Button> */}
           </div>
         </div>
       </section>

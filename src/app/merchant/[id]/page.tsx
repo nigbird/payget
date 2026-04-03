@@ -407,8 +407,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
       {!isApproved && (
         <Card className={`mt-4 rounded-3xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"}`}>
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
+          <CardContent className="relative p-4">
+                    <div className="relative flex items-start justify-between">
               {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />}
               <div>
                 <p className="font-semibold text-sm">Account status: {merchant.status}</p>
@@ -426,9 +426,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           const Icon = item.icon
           return (
             <Card
-              key={item.title}
-              className="overflow-hidden rounded-[2.5rem] border-white/60 bg-[#fdf2d5] shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group relative"
-            >
+                    key={item.title}
+                    className="overflow-hidden rounded-3xl border-white/60 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
+                  >
               <CardContent className="relative p-5 h-full flex items-center justify-between gap-3">
                 <div className="flex flex-col">
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#754319]/70">{item.title}</p>
@@ -549,9 +549,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
       <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
         <SheetContent
-          side="bottom"
-          className="h-[88vh] rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8"
-        >
+            side="bottom"
+            className="max-h-[88vh] overflow-y-auto rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8"
+          >
           <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
           <SheetHeader className="text-left mb-4">
             <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
