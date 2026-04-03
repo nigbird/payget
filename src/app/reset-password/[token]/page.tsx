@@ -109,7 +109,7 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
 
   if (!isValid) {
     return (
-      <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full text-center border-none shadow-lg">
           <CardHeader>
             <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-2">
@@ -131,7 +131,7 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="max-w-md w-full border-none shadow-xl">
         <CardHeader>
           <CardTitle>Create New Password</CardTitle>

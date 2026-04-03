@@ -46,7 +46,8 @@ import {
   Clock,
   Edit2,
   ShieldCheck,
-  CheckCircle
+  CheckCircle,
+  Mail
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
@@ -324,15 +325,31 @@ export default function MakerPortal() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-500 gap-1"><CheckCircle className="w-3 h-3" /> Approved</Badge>
+        return (
+          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50 gap-1.5 px-2.5 py-1 rounded-full font-medium">
+            <CheckCircle className="w-3.5 h-3.5" /> Approved
+          </Badge>
+        )
       case 'branch_approved':
-        return <Badge className="bg-blue-500 gap-1"><ShieldCheck className="w-3 h-3" /> Branch OK</Badge>
+        return (
+          <Badge className="bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-50 gap-1.5 px-2.5 py-1 rounded-full font-medium">
+            <ShieldCheck className="w-3.5 h-3.5" /> Branch Verified
+          </Badge>
+        )
       case 'pending':
-        return <Badge variant="outline" className="text-orange-500 border-orange-200 gap-1 bg-orange-50"><Clock className="w-3 h-3" /> Pending</Badge>
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 gap-1.5 px-2.5 py-1 rounded-full font-medium">
+            <Clock className="w-3.5 h-3.5" /> Pending Review
+          </Badge>
+        )
       case 'rejected':
-        return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
+        return (
+          <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-100 hover:bg-red-50 gap-1.5 px-2.5 py-1 rounded-full font-medium">
+            <AlertCircle className="w-3.5 h-3.5" /> Rejected
+          </Badge>
+        )
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary" className="rounded-full px-2.5 py-1">{status}</Badge>
     }
   }
 
@@ -340,399 +357,369 @@ export default function MakerPortal() {
     <SidebarProvider>
       <SidebarNav />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-white/50 bg-white/70 backdrop-blur-md px-4 sticky top-0 z-50">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2">
-            <UserPlus className="text-primary w-5 h-5" />
-            <h1 className="text-lg font-semibold font-headline">Merchant Administration</h1>
+            <UserPlus className="text-[#754319] w-5 h-5" />
+            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight">Merchant Administration</h1>
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 bg-muted/20">
-          <div className="max-w-6xl mx-auto">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="bg-white p-1 border">
-                <TabsTrigger value="register" className="flex items-center gap-2">
-                  <UserPlus className="w-4 h-4" /> {editingMerchantId ? 'Correct Submission' : 'Register New'}
-                </TabsTrigger>
-                <TabsTrigger value="history" className="flex items-center gap-2">
-                  <History className="w-4 h-4" /> Submission Status
-                </TabsTrigger>
-              </TabsList>
+        <main className="flex-1 overflow-auto">
+          <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+              <div className="flex items-center justify-between">
+                <TabsList className="bg-white/50 backdrop-blur-sm p-1 border border-gray-200 rounded-xl shadow-sm">
+                  <TabsTrigger value="register" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
+                    <UserPlus className="w-4 h-4" /> {editingMerchantId ? 'Correct Submission' : 'Register New'}
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
+                    <History className="w-4 h-4" /> Submission Status
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-              <TabsContent value="register">
-                <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-                  {/* Main Form */}
-                  <div className="lg:col-span-2 space-y-6">
-                    {editingMerchantId && (
-                      <Card className="bg-orange-50 border-orange-200">
-                        <CardContent className="p-4 flex items-center justify-between">
+              <TabsContent value="register" className="mt-0">
+                <div className="space-y-6">
+                  {editingMerchantId && (
+                    <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                          <AlertCircle className="text-orange-600 w-4 h-4" />
+                        </div>
+                        <p className="text-sm text-orange-800 font-medium">
+                          You are currently correcting a rejected application. 
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={resetForm} className="text-orange-800 hover:bg-orange-100/50 rounded-lg">
+                        Cancel Edit
+                      </Button>
+                    </div>
+                  )}
+
+                  <Card className="shadow-sm border-gray-200 overflow-hidden bg-white rounded-2xl">
+                    <CardContent className="p-0">
+                      <form onSubmit={handleSubmit} className="divide-y divide-gray-100">
+                        {/* Section 1: Company Profile */}
+                        <div className="p-8 space-y-6">
                           <div className="flex items-center gap-3">
-                            <AlertCircle className="text-orange-600 w-5 h-5" />
-                            <p className="text-sm text-orange-800 font-medium">
-                              You are currently correcting a rejected application. 
-                            </p>
+                            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                              <Building2 className="w-5 h-5 text-gray-400" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Company Details</h3>
+                              <p className="text-xs text-gray-400">Capture legal entity information</p>
+                            </div>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={resetForm} className="text-orange-800 hover:bg-orange-100">
-                            Cancel Edit
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    )}
 
-                    <Card className="shadow-sm border-none">
-                      <CardHeader>
-                        <CardTitle>{editingMerchantId ? 'Update Registration' : 'Merchant Profile'}</CardTitle>
-                        <CardDescription>Capture company details, contact person, and compliance documents. Limits will be set during approval.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                          {/* Basic Info */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                              <Building2 className="w-4 h-4" /> Company Details
-                            </h3>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor="name">Company Name</Label>
-                                <Input 
-                                  id="name" 
-                                  placeholder="Acme Inc." 
-                                  required 
-                                  value={formData.name}
-                                  onChange={e => setFormData({...formData, name: e.target.value})}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="email">Email Address</Label>
+                          <div className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="name" className="text-sm font-medium text-gray-700">Company Name</Label>
+                              <Input 
+                                id="name" 
+                                placeholder="Acme Inc." 
+                                required 
+                                className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                                value={formData.name}
+                                onChange={e => setFormData({...formData, name: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</Label>
+                              <div className="relative group">
+                                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                                 <Input 
                                   id="email" 
                                   type="email" 
                                   placeholder="contact@acme.com" 
                                   required 
+                                  className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
                                   value={formData.email}
                                   onChange={e => setFormData({...formData, email: e.target.value})}
                                 />
                               </div>
                             </div>
                           </div>
+                        </div>
 
-                          <Separator />
-
-                          {/* Contact Person */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                              <User className="w-4 h-4" /> Contact Person
-                            </h3>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor="contactName">Full Name</Label>
-                                <Input 
-                                  id="contactName" 
-                                  placeholder="Authorized Representative" 
-                                  required 
-                                  value={formData.contactName}
-                                  onChange={e => setFormData({...formData, contactName: e.target.value})}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="contactPhone">Phone Number</Label>
-                                <div className="relative">
-                                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                  <Input 
-                                    id="contactPhone" 
-                                    className="pl-9"
-                                    placeholder="+1 (555) 000-0000" 
-                                    required 
-                                    value={formData.contactPhone}
-                                    onChange={e => setFormData({...formData, contactPhone: e.target.value})}
-                                  />
-                                </div>
-                              </div>
+                        {/* Section 2: Contact Person */}
+                        <div className="p-8 space-y-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                              <User className="w-5 h-5 text-gray-400" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Contact Person</h3>
+                              <p className="text-xs text-gray-400">Authorized representative for this merchant</p>
                             </div>
                           </div>
 
-                          <Separator />
-
-                          {/* Registration Branch */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                              <MapPin className="w-4 h-4" /> Registration Branch
-                            </h3>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor="branchName">Branch Name</Label>
-                                <Select 
-                                  value={formData.branchName} 
-                                  onValueChange={(val) => setFormData({...formData, branchName: val})}
-                                >
-                                  <SelectTrigger id="branchName">
-                                    <SelectValue placeholder="Select Branch" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(systemConfig.branches || []).map(branch => (
-                                      <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="district">District</Label>
-                                <Select 
-                                  value={formData.district} 
-                                  onValueChange={(val) => setFormData({...formData, district: val})}
-                                >
-                                  <SelectTrigger id="district">
-                                    <SelectValue placeholder="Select District" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(systemConfig.districts || []).map(district => (
-                                      <SelectItem key={district} value={district}>{district}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-
-                          <Separator />
-
-                          {/* Document Uploads */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                              <FileText className="w-4 h-4" /> Compliance Documents
-                            </h3>
-                            
-                            <div 
-                              className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center bg-muted/5 hover:bg-muted/10 transition-colors cursor-pointer"
-                              onClick={() => fileInputRef.current?.click()}
-                            >
-                              <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                              <p className="text-sm font-medium">Click to upload documents</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Trade License, ID, or Tax Certificates (Max {systemConfig.maxFileSizeMB || 5}MB)
-                              </p>
-                              <input 
-                                type="file" 
-                                multiple 
-                                className="hidden" 
-                                ref={fileInputRef}
-                                onChange={handleFileUpload}
-                                accept={(systemConfig.allowedFileTypes || []).join(',')}
+                          <div className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="contactName" className="text-sm font-medium text-gray-700">Full Name</Label>
+                              <Input 
+                                id="contactName" 
+                                placeholder="Authorized Representative" 
+                                required 
+                                className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                                value={formData.contactName}
+                                onChange={e => setFormData({...formData, contactName: e.target.value})}
                               />
                             </div>
-
-                            {documents.length > 0 && (
-                              <div className="space-y-2">
-                                <Label className="text-xs font-bold text-muted-foreground">Uploaded ({documents.length})</Label>
-                                <div className="grid gap-2">
-                                  {documents.map((doc) => (
-                                    <div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-md border shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
-                                          <FileCheck className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                          <p className="text-sm font-medium truncate max-w-[200px]">{doc.name}</p>
-                                          <p className="text-[10px] text-muted-foreground">{(doc.size / 1024).toFixed(1)} KB</p>
-                                        </div>
-                                      </div>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          removeDoc(doc.id)
-                                        }}
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <Separator />
-
-                          {/* Integration */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                              <LinkIcon className="w-4 h-4" /> Integration Details
-                            </h3>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor="accountNumber">Bank Account Number</Label>
+                            <div className="space-y-2">
+                              <Label htmlFor="contactPhone" className="text-sm font-medium text-gray-700">Phone Number</Label>
+                              <div className="relative group">
+                                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                                 <Input 
-                                  id="accountNumber" 
-                                  placeholder="000123456789" 
+                                  id="contactPhone" 
+                                  className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                                  placeholder="+1 (555) 000-0000" 
                                   required 
-                                  value={formData.accountNumber}
-                                  onChange={e => setFormData({...formData, accountNumber: e.target.value})}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="businessType">Business Type</Label>
-                                <Input 
-                                  id="businessType" 
-                                  placeholder="e.g. Retail, SaaS" 
-                                  value={formData.businessType}
-                                  onChange={e => setFormData({...formData, businessType: e.target.value})}
+                                  value={formData.contactPhone}
+                                  onChange={e => setFormData({...formData, contactPhone: e.target.value})}
                                 />
                               </div>
                             </div>
+                          </div>
+                        </div>
 
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor="websiteUrl">Website URL</Label>
-                                <div className="relative">
-                                  <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                  <Input 
-                                    id="websiteUrl" 
-                                    className="pl-9" 
-                                    placeholder="https://example.com" 
-                                    value={formData.websiteUrl}
-                                    onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
-                                  />
+                        {/* Section 3: Registration Branch */}
+                        <div className="p-8 space-y-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                              <MapPin className="w-5 h-5 text-gray-400" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Registration Branch</h3>
+                              <p className="text-xs text-gray-400">Select regional assignment for review</p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="branchName" className="text-sm font-medium text-gray-700">Branch Name</Label>
+                              <Select 
+                                value={formData.branchName} 
+                                onValueChange={(val) => setFormData({...formData, branchName: val})}
+                              >
+                                <SelectTrigger id="branchName" className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 transition-all">
+                                  <SelectValue placeholder="Select Branch" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl border-gray-100">
+                                  {(systemConfig.branches || []).map(branch => (
+                                    <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="district" className="text-sm font-medium text-gray-700">District</Label>
+                              <Select 
+                                value={formData.district} 
+                                onValueChange={(val) => setFormData({...formData, district: val})}
+                              >
+                                <SelectTrigger id="district" className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 transition-all">
+                                  <SelectValue placeholder="Select District" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl border-gray-100">
+                                  {(systemConfig.districts || []).map(district => (
+                                    <SelectItem key={district} value={district}>{district}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 4: Document Uploads */}
+                        <div className="p-8 space-y-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                              <FileText className="w-5 h-5 text-gray-400" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Compliance Documents</h3>
+                              <p className="text-xs text-gray-400">Trade License, ID, or Tax Certificates</p>
+                            </div>
+                          </div>
+                          
+                          <div 
+                            className="border-2 border-dashed border-gray-100 rounded-2xl p-10 flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer group"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 mb-4 group-hover:scale-110 transition-transform">
+                              <Upload className="w-6 h-6 text-primary" />
+                            </div>
+                            <p className="text-sm font-semibold text-gray-900">Click to upload documents</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Max {systemConfig.maxFileSizeMB || 5}MB per file
+                            </p>
+                            <input 
+                              type="file" 
+                              multiple 
+                              className="hidden" 
+                              ref={fileInputRef}
+                              onChange={handleFileUpload}
+                              accept={(systemConfig.allowedFileTypes || []).join(',')}
+                            />
+                          </div>
+
+                          {documents.length > 0 && (
+                            <div className="grid gap-3">
+                              {documents.map((doc) => (
+                                <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                      <FileCheck className="w-4 h-4 text-primary" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-900 truncate max-w-[250px]">{doc.name}</p>
+                                      <p className="text-[10px] text-gray-400">{(doc.size / 1024).toFixed(1)} KB</p>
+                                    </div>
+                                  </div>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      removeDoc(doc.id)
+                                    }}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
                                 </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Section 5: Integration & Details */}
+                        <div className="p-8 space-y-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                              <LinkIcon className="w-5 h-5 text-gray-400" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Integration Details</h3>
+                              <p className="text-xs text-gray-400">Settlement and technical configurations</p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">Bank Account Number</Label>
+                              <Input 
+                                id="accountNumber" 
+                                placeholder="000123456789" 
+                                required 
+                                className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                                value={formData.accountNumber}
+                                onChange={e => setFormData({...formData, accountNumber: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="businessType" className="text-sm font-medium text-gray-700">Business Type</Label>
+                              <Input 
+                                id="businessType" 
+                                placeholder="e.g. Retail, SaaS" 
+                                className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                                value={formData.businessType}
+                                onChange={e => setFormData({...formData, businessType: e.target.value})}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="websiteUrl" className="text-sm font-medium text-gray-700">Website URL</Label>
+                              <div className="relative group">
+                                <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                <Input 
+                                  id="websiteUrl" 
+                                  className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                                  placeholder="https://example.com" 
+                                  value={formData.websiteUrl}
+                                  onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
+                                />
                               </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="callbackUrl">Callback (Webhook) URL</Label>
-                                <div className="relative">
-                                  <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                  <Input 
-                                    id="callbackUrl" 
-                                    className="pl-9" 
-                                    placeholder="https://api.example.com/webhook" 
-                                    required
-                                    value={formData.callbackUrl}
-                                    onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
-                                  />
-                                </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="callbackUrl" className="text-sm font-medium text-gray-700">Callback (Webhook) URL</Label>
+                              <div className="relative group">
+                                <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                <Input 
+                                  id="callbackUrl" 
+                                  className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                                  placeholder="https://api.example.com/webhook" 
+                                  required
+                                  value={formData.callbackUrl}
+                                  onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
+                                />
                               </div>
                             </div>
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="businessDescription">Business Description</Label>
+                            <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">Business Description</Label>
                             <Textarea 
                               id="businessDescription" 
                               placeholder="Briefly describe the business operations..." 
                               rows={3}
+                              className="rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
                               value={formData.businessDescription}
                               onChange={e => setFormData({...formData, businessDescription: e.target.value})}
                             />
                           </div>
+                        </div>
 
-                          <Button type="submit" className="w-full h-11 bg-primary text-lg">
+                        <div className="p-8 bg-gray-50/50">
+                          <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all">
                             {editingMerchantId ? 'Update & Resubmit' : 'Submit for Approval'}
                           </Button>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* AI Assistant Sidebar */}
-                  <div className="space-y-6">
-                    <Card className="border-accent/20 shadow-sm bg-accent/5">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-accent-foreground">
-                          <Sparkles className="h-5 w-5" />
-                          AI Assistant
-                        </CardTitle>
-                        <CardDescription>
-                          Analyze provided details to pre-fill fields and identify risks.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <Button 
-                          variant="outline" 
-                          className="w-full border-accent/30 text-accent-foreground hover:bg-accent/10"
-                          disabled={isAiLoading}
-                          onClick={handleAiAssistant}
-                        >
-                          {isAiLoading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Analyzing...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="mr-2 h-4 w-4" />
-                              Run Intelligence
-                            </>
-                          )}
-                        </Button>
-
-                        {riskFactors.length > 0 && (
-                          <div className="space-y-3 pt-4 border-t border-accent/20">
-                            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Identified Risk Factors</Label>
-                            <div className="flex flex-wrap gap-2">
-                              {riskFactors.map((risk, i) => (
-                                <Badge key={i} variant="secondary" className="bg-red-100 text-red-700 border-red-200">
-                                  {risk}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-none shadow-sm">
-                      <CardHeader>
-                        <CardTitle className="text-base">Compliance Help</CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-sm text-muted-foreground space-y-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-xs font-bold">1</div>
-                          <p>Ensure Trade License is current and valid.</p>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-xs font-bold">2</div>
-                          <p>Allowed: {(systemConfig.allowedFileTypes || []).join(', ')}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </form>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 
               <TabsContent value="history">
-                <Card className="border-none shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Submission History</CardTitle>
-                    <CardDescription>Track the status of your merchant registrations and view feedback from Checkers.</CardDescription>
+                <Card className="shadow-sm border-gray-200 overflow-hidden bg-white rounded-2xl">
+                  <CardHeader className="border-b border-gray-100 bg-gray-50/30">
+                    <CardTitle className="text-lg font-bold text-gray-900">Submission History</CardTitle>
+                    <CardDescription className="text-gray-500">Track the status of your merchant registrations and view feedback from Checkers.</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-0">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Merchant</TableHead>
-                          <TableHead>Branch</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Feedback / Action</TableHead>
+                      <TableHeader className="bg-gray-50/50">
+                        <TableRow className="border-gray-100">
+                          <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider py-4">Merchant</TableHead>
+                          <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider py-4">Branch</TableHead>
+                          <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider py-4">Date</TableHead>
+                          <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider py-4">Status</TableHead>
+                          <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider py-4 text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {mySubmissions.map((m) => (
-                          <TableRow key={m.id}>
-                            <TableCell className="font-medium">{m.name}</TableCell>
-                            <TableCell className="text-xs">{m.branchName}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
+                          <TableRow key={m.id} className="border-gray-50 hover:bg-gray-50/30 transition-colors">
+                            <TableCell className="py-4">
+                              <div className="font-semibold text-gray-900">{m.name}</div>
+                              <div className="text-[10px] text-gray-400 uppercase tracking-tight">{m.id}</div>
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-600 py-4">{m.branchName}</TableCell>
+                            <TableCell className="text-sm text-gray-500 py-4">
                               {new Date(m.createdAt).toLocaleDateString()}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="py-4">
                               {getStatusBadge(m.status)}
                             </TableCell>
-                            <TableCell>
-                              <div className="space-y-2">
+                            <TableCell className="py-4 text-right">
+                              <div className="flex flex-col items-end gap-2">
                                 {m.status === 'rejected' && m.rejectionReason && (
-                                  <div className="p-2 bg-red-50 text-red-700 text-xs rounded border border-red-100 italic">
+                                  <div className="p-2 bg-red-50 text-red-700 text-[10px] rounded-lg border border-red-100 italic max-w-[200px]">
                                     "{m.rejectionReason}"
                                   </div>
                                 )}
@@ -740,15 +727,15 @@ export default function MakerPortal() {
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
-                                    className="h-8 gap-2"
+                                    className="h-8 gap-2 rounded-lg border-gray-200 text-gray-600 hover:text-primary hover:border-primary/30 transition-all"
                                     onClick={() => startEdit(m)}
                                   >
                                     <Edit2 className="w-3 h-3" />
-                                    Correct & Resubmit
+                                    Correct
                                   </Button>
                                 )}
                                 {m.status !== 'rejected' && (
-                                  <span className="text-xs text-muted-foreground">-</span>
+                                  <span className="text-xs text-gray-300 italic">No action required</span>
                                 )}
                               </div>
                             </TableCell>
@@ -756,7 +743,7 @@ export default function MakerPortal() {
                         ))}
                         {mySubmissions.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">
+                            <TableCell colSpan={5} className="text-center py-16 text-gray-400 italic">
                               No submissions found.
                             </TableCell>
                           </TableRow>

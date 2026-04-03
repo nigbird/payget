@@ -87,7 +87,7 @@ export default function MerchantPortalShell({
 
   return (
     <MerchantPortalRoleContext.Provider value={activeRole}>
-      <div className="min-h-svh bg-[linear-gradient(135deg,#fff9ef_0%,#fdf1d4_45%,#fbe8bc_100%)]">
+      <div className="min-h-svh bg-app-main">
         <header className="sticky top-0 z-50 border-b border-white/50 bg-white/70 backdrop-blur-md">
           <div className="mx-auto w-full max-w-7xl px-4 md:px-8 h-16 flex items-center gap-3">
             <div className="flex items-center gap-3 shrink-0">

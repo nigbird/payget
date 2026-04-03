@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .bg-app-main {
+    @apply bg-[linear-gradient(135deg,#fff9ef_0%,#fdf1d4_45%,#fbe8bc_100%)];
+  }
+}
+
 @layer base {
   :root {
     /* Primary (Merchant): #f8b513 (Amber) -> 43 94% 52% */
