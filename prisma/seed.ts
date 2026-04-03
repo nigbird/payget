@@ -1,4 +1,4 @@
-import { PrismaClient, MerchantStatus, TeamMemberRole, TeamMemberStatus, TransactionStatus } from '@prisma/client'
+import { PrismaClient, MerchantStatus, TeamRole, TeamMemberStatus, TransactionStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -7,10 +7,10 @@ async function main() {
 
   // 1. System Configuration
   const systemConfig = await prisma.systemConfig.upsert({
-    where: { id: 1 },
+    where: { id: '1' },
     update: {},
     create: {
-      id: 1,
+        id: '1',
       maxFileSizeMB: 5,
       allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
       districts: ['Central Business District', 'North Industrial', 'South Residential', 'East Port', 'West Hills'],
@@ -72,7 +72,7 @@ async function main() {
       name: 'Aisha Payments',
       email: 'payments@techgear.io',
       phone: '+1234567890',
-      role: TeamMemberRole.PAYMENT_INITIATOR,
+      role: TeamRole.PAYMENT_INITIATOR,
       status: TeamMemberStatus.ACTIVE,
       createdAt: new Date(),
     },
@@ -86,7 +86,7 @@ async function main() {
       merchantId: 'm1',
       name: 'Morgan Admin',
       email: 'admin@techgear.io',
-      role: TeamMemberRole.ACCOUNT_ADMIN,
+      role: TeamRole.ACCOUNT_ADMIN,
       status: TeamMemberStatus.ACTIVE,
       createdAt: new Date(),
     },
@@ -101,7 +101,7 @@ async function main() {
       merchantId: 'm1',
       amount: 450.00,
       status: TransactionStatus.SUCCESS,
-      userPhone: '+1234567890',
+
       callbackUrl: 'https://techgear.io/api/webhook',
       description: 'Order #8821',
       timestamp: new Date().toISOString(),
@@ -109,9 +109,7 @@ async function main() {
       serviceDescription: 'Order #8821',
       transactionTimestamp: new Date().toISOString(),
       payerPhone: '+1234567890',
-
-      
-      userAuthToken: 'demo_auth_token_tx1',
+      userCredentials: { phone: '+1234567890', authToken: 'demo_auth_token_tx1' },
     },
   })
 
@@ -123,7 +121,7 @@ async function main() {
       merchantId: 'm1',
       amount: 1250.00,
       status: TransactionStatus.PENDING,
-      userPhone: '+1 (555) 987-6543',
+
       callbackUrl: 'https://techgear.io/api/webhook',
       description: 'Invoice for Enterprise Support Package (Q3)',
       timestamp: new Date().toISOString(),
@@ -131,9 +129,7 @@ async function main() {
       serviceDescription: 'Invoice for Enterprise Support Package (Q3)',
       transactionTimestamp: new Date().toISOString(),
       payerPhone: '+1 (555) 987-6543',
-      
-      
-      userAuthToken: 'demo_auth_token_tx2',
+      userCredentials: { phone: '+1 (555) 987-6543', authToken: 'demo_auth_token_tx2' },
     },
   })
 
