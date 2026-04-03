@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MerchantStatus {
+  pending
+  branch_approved
+  approved
+  rejected
+}
+
+enum TeamMemberRole {
+  payment_initiator
+  account_admin
+}
+
+enum TeamMemberStatus {
+  active
+  deactivated
+}
+
+enum TransactionStatus {
+  success
+  failed
+  initiated
+  pending
+  awaiting_pin
+  processing
+}
+
+model Merchant {
+  id                   String               @id @default(cuid())
+  name                 String
+  email                String               @unique
+  password             String?
+  passwordResetToken   String?              @unique
+  passwordResetExpires DateTime?
+  jweSecret            String
+  accountNumber        String
+  dailyLimit           Float
+  transactionLimit     Float
+  dailyCountLimit      Int
+  status               MerchantStatus       @default(pending)
+  rejectionReason      String?
+  businessDescription  String               @db.Text
+  websiteUrl           String
+  callbackUrl          String
+  contactName          String
+  contactPhone         String
+  branchName           String
+  district             String
+  category             String
+  riskFactors          String[]
+  businessType         String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime?            @updatedAt
+  documents            MerchantDocument[]
+  transactions         Transaction[]
+  teamMembers          MerchantTeamMember[]
+
+  @@index([email])
+}
+
+model MerchantDocument {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  name       String
+  type       String
+  size       Int
+  uploadedAt DateTime @default(now())
+
+  @@index([merchantId])
+}
+
+model MerchantTeamMember {
+  id         String           @id @default(cuid())
+  merchantId String
+  merchant   Merchant         @relation(fields: [merchantId], references: [id])
+  name       String
+  email      String
+  phone      String?
+  role       TeamMemberRole   @default(payment_initiator)
+  status     TeamMemberStatus @default(active)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime?        @updatedAt
+
+  @@index([merchantId, email])
+}
+
+model Transaction {
+  id                   String            @id @default(cuid())
+  merchantId           String
+  merchant             Merchant          @relation(fields: [merchantId], references: [id])
+  amount               Float
+  status               TransactionStatus @default(initiated)
+  callbackUrl          String
+  description          String            @db.Text
+  timestamp            DateTime          @default(now())
+  payerPhone           String?
+  transactionReference String            @unique
+  serviceDescription   String            @db.Text
+  transactionTimestamp DateTime
+  userPhone            String
+  userAuthToken        String
+
+  @@index([merchantId, timestamp])
+  @@index([transactionReference])
+}
+
+model SystemConfig {
+  id                  Int      @id @default(1)
+  maxFileSizeMB       Int
+  allowedFileTypes    String[]
+  districts           String[]
+  branches            String[]
+  resetTimeoutSeconds Int
+}
