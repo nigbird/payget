@@ -1,16 +1,19 @@
-import { PrismaClient, MerchantStatus, TeamRole, TeamMemberStatus, TransactionStatus } from '@prisma/client'
+import { PrismaClient, MerchantStatus, TeamRole, TeamMemberStatus, TransactionStatus, UserRole } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('Start seeding...')
 
+  const hashedDefaultPassword = await bcrypt.hash('password123', 10)
+
   // 1. System Configuration
   const systemConfig = await prisma.systemConfig.upsert({
     where: { id: '1' },
     update: {},
     create: {
-        id: '1',
+      id: '1',
       maxFileSizeMB: 5,
       allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
       districts: ['Central Business District', 'North Industrial', 'South Residential', 'East Port', 'West Hills'],
@@ -27,7 +30,7 @@ async function main() {
       id: 'm1',
       name: 'TechGear Solutions',
       email: 'onboarding@techgear.io',
-      password: 'password123',
+      password: hashedDefaultPassword,
       jweSecret: 'demo_jwe_secret_m1',
       accountNumber: '1234567890',
       dailyLimit: 50000,
@@ -48,88 +51,46 @@ async function main() {
     },
   })
 
-  // 3. Merchant Documents
-  await prisma.merchantDocument.upsert({
-    where: { id: 'doc1' },
-    update: {},
-    create: {
-      id: 'doc1',
-      name: 'trade_license.pdf',
-      type: 'application/pdf',
-      size: 1572864, // 1.5MB
-      uploadedAt: new Date(),
-      merchantId: 'm1',
-    },
-  })
+  // 3. Create Users for different portals
+  const users = [
+    { email: 'admin@finflow.io', name: 'Super Admin', role: UserRole.ADMIN },
+    { email: 'maker@finflow.io', name: 'Staff Maker', role: UserRole.MAKER },
+    { email: 'checker@finflow.io', name: 'Staff Checker', role: UserRole.CHECKER },
+    { email: 'ho@finflow.io', name: 'HO Officer', role: UserRole.HEAD_OFFICE },
+    { email: 'onboarding@techgear.io', name: 'TechGear Owner', role: UserRole.MERCHANT, merchantId: 'm1' },
+  ]
 
-  // 4. Team Members
-  await prisma.merchantTeamMember.upsert({
-    where: { id: 'tm1' },
-    update: {},
-    create: {
-      id: 'tm1',
-      merchantId: 'm1',
-      name: 'Aisha Payments',
-      email: 'payments@techgear.io',
-      phone: '+1234567890',
-      role: TeamRole.PAYMENT_INITIATOR,
-      status: TeamMemberStatus.ACTIVE,
-      createdAt: new Date(),
-    },
-  })
+  for (const u of users) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        email: u.email,
+        name: u.name,
+        password: hashedDefaultPassword,
+        role: u.role,
+        merchantId: u.merchantId
+      }
+    })
+  }
 
-  await prisma.merchantTeamMember.upsert({
-    where: { id: 'tm2' },
-    update: {},
-    create: {
-      id: 'tm2',
-      merchantId: 'm1',
-      name: 'Morgan Admin',
-      email: 'admin@techgear.io',
-      role: TeamRole.ACCOUNT_ADMIN,
-      status: TeamMemberStatus.ACTIVE,
-      createdAt: new Date(),
-    },
-  })
-
-  // 5. Transactions
+  // 4. Transactions
   await prisma.transaction.upsert({
-    where: { id: 'tx1' },
+    where: { transactionReference: 'ref_demo_tx1' },
     update: {},
     create: {
       id: 'tx1',
       merchantId: 'm1',
       amount: 450.00,
       status: TransactionStatus.SUCCESS,
-
       callbackUrl: 'https://techgear.io/api/webhook',
       description: 'Order #8821',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       transactionReference: 'ref_demo_tx1',
       serviceDescription: 'Order #8821',
-      transactionTimestamp: new Date().toISOString(),
+      transactionTimestamp: new Date(),
       payerPhone: '+1234567890',
       userCredentials: { phone: '+1234567890', authToken: 'demo_auth_token_tx1' },
-    },
-  })
-
-  await prisma.transaction.upsert({
-    where: { id: '2' },
-    update: {},
-    create: {
-      id: '2',
-      merchantId: 'm1',
-      amount: 1250.00,
-      status: TransactionStatus.PENDING,
-
-      callbackUrl: 'https://techgear.io/api/webhook',
-      description: 'Invoice for Enterprise Support Package (Q3)',
-      timestamp: new Date().toISOString(),
-      transactionReference: 'ref_demo_tx2',
-      serviceDescription: 'Invoice for Enterprise Support Package (Q3)',
-      transactionTimestamp: new Date().toISOString(),
-      payerPhone: '+1 (555) 987-6543',
-      userCredentials: { phone: '+1 (555) 987-6543', authToken: 'demo_auth_token_tx2' },
     },
   })
 
