@@ -328,196 +328,251 @@ export default function MerchantSelfRegistration() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 pb-12">
-      <header className="bg-white border-b h-16 flex items-center px-4 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
+    <div className="min-h-screen pb-20">
+      <header className="bg-white/80 backdrop-blur-md border-b h-16 flex items-center px-4 sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 hover:bg-muted rounded-full">
-              <ArrowLeft className="w-5 h-5" />
+            <Link href="/" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
             </Link>
             <div className="flex items-center gap-2">
-              <CreditCard className="text-primary w-6 h-6" />
-              <h1 className="text-xl font-bold font-headline text-primary">Finflow Onboarding</h1>
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <CreditCard className="text-primary w-5 h-5" />
+              </div>
+              <h1 className="text-lg font-bold text-gray-900">Merchant Onboarding</h1>
             </div>
           </div>
-          <Badge variant="outline" className="border-primary text-primary">Self-Service Portal</Badge>
+          <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-medium">
+            Self-Service Portal
+          </Badge>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-md border-none">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Store className="w-6 h-6 text-primary" />
-                  Merchant Registration
-                </CardTitle>
-                <CardDescription>
-                  Start your journey with Finflow. Complete the form below to initiate the onboarding process.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-8">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                      <Building2 className="w-4 h-4" /> Company Profile
-                    </h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Business Legal Name</Label>
-                        <Input 
-                          id="name" 
-                          placeholder="e.g. Acme Retail Ltd" 
-                          required 
-                          value={formData.name}
-                          onChange={e => setFormData({...formData, name: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Business Email</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            id="email" 
-                            type="email" 
-                            className="pl-9"
-                            placeholder="legal@business.com" 
-                            required 
-                            value={formData.email}
-                            onChange={e => setFormData({...formData, email: e.target.value})}
-                          />
-                        </div>
-                      </div>
+      <main className="max-w-4xl mx-auto px-4 py-12">
+        <div className="space-y-8">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Register Your Business</h2>
+            <p className="text-gray-500 max-w-lg mx-auto">
+              Complete the information below to start processing payments with Finflow.
+            </p>
+          </div>
+
+          <Card className="shadow-sm border-gray-200 overflow-hidden bg-white rounded-2xl">
+            <CardContent className="p-0">
+              <form onSubmit={handleSubmit} className="divide-y divide-gray-100">
+                {/* Section 1: Company Profile */}
+                <div className="p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                      <Building2 className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Company Profile</h3>
+                      <p className="text-xs text-gray-400">Basic information about your legal entity</p>
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                      <User className="w-4 h-4" /> Authorized Contact
-                    </h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="contactName">Primary Contact Name</Label>
-                        <Input 
-                          id="contactName" 
-                          placeholder="Full Name" 
-                          required 
-                          value={formData.contactName}
-                          onChange={e => setFormData({...formData, contactName: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contactPhone">Primary Contact Phone</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            id="contactPhone" 
-                            className="pl-9"
-                            placeholder="+1234567890" 
-                            required 
-                            value={formData.contactPhone}
-                            onChange={e => setFormData({...formData, contactPhone: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                      <MapPin className="w-4 h-4" /> Business Location
-                    </h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="district">District</Label>
-                        <Select 
-                          value={formData.district} 
-                          onValueChange={(val) => setFormData({...formData, district: val})}
-                        >
-                          <SelectTrigger id="district">
-                            <SelectValue placeholder="Select District" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(systemConfig.districts || []).map(district => (
-                              <SelectItem key={district} value={district}>{district}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="branchName">Nearest Serving Branch</Label>
-                        <Select 
-                          value={formData.branchName} 
-                          onValueChange={(val) => setFormData({...formData, branchName: val})}
-                        >
-                          <SelectTrigger id="branchName">
-                            <SelectValue placeholder="Select Branch" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(systemConfig.branches || []).map(branch => (
-                              <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase text-muted-foreground flex items-center gap-2">
-                      <FileText className="w-4 h-4" /> Compliance Documents
-                    </h3>
-                    <div 
-                      className="border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center bg-muted/5 hover:bg-muted/10 transition-colors cursor-pointer"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="w-10 h-10 text-primary mb-3" />
-                      <p className="text-base font-semibold">Upload KYC Documents</p>
-                      <input 
-                        type="file" 
-                        multiple 
-                        className="hidden" 
-                        ref={fileInputRef}
-                        onChange={handleFileUpload}
-                        accept={(systemConfig.allowedFileTypes || []).join(',')}
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-sm font-medium text-gray-700">Business Legal Name</Label>
+                      <Input 
+                        id="name" 
+                        placeholder="e.g. Acme Retail Ltd" 
+                        required 
+                        className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                        value={formData.name}
+                        onChange={e => setFormData({...formData, name: e.target.value})}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-sm font-medium text-gray-700">Business Email</Label>
+                      <div className="relative group">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                          placeholder="legal@business.com" 
+                          required 
+                          value={formData.email}
+                          onChange={e => setFormData({...formData, email: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Authorized Contact */}
+                <div className="p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                      <User className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Authorized Contact</h3>
+                      <p className="text-xs text-gray-400">Person authorized to manage this account</p>
+                    </div>
                   </div>
 
-                  <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Submit Application"}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="contactName" className="text-sm font-medium text-gray-700">Full Name</Label>
+                      <Input 
+                        id="contactName" 
+                        placeholder="Authorized Representative" 
+                        required 
+                        className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                        value={formData.contactName}
+                        onChange={e => setFormData({...formData, contactName: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contactPhone" className="text-sm font-medium text-gray-700">Phone Number</Label>
+                      <div className="relative group">
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                          id="contactPhone" 
+                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                          placeholder="+123 456 7890" 
+                          required 
+                          value={formData.contactPhone}
+                          onChange={e => setFormData({...formData, contactPhone: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-          <div className="space-y-6">
-            <Card className="border-accent/20 bg-accent/5 shadow-sm overflow-hidden">
-              <div className="bg-accent/10 p-4 border-b border-accent/20 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-accent-foreground" />
-                <h3 className="font-bold text-sm text-accent-foreground">AI Onboarding Assistant</h3>
-              </div>
-              <CardContent className="p-4 space-y-4">
-                <Button 
-                  variant="outline" 
-                  className="w-full border-accent/40 text-accent-foreground hover:bg-accent/10"
-                  onClick={handleAiAssistant}
-                  disabled={isAiLoading}
-                >
-                  {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  Auto-fill Profile
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+                {/* Section 3: Business Location */}
+                <div className="p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                      <MapPin className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Business Location</h3>
+                      <p className="text-xs text-gray-400">Where your business is physically located</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="district" className="text-sm font-medium text-gray-700">District</Label>
+                      <Select 
+                        value={formData.district} 
+                        onValueChange={(val) => setFormData({...formData, district: val})}
+                      >
+                        <SelectTrigger id="district" className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 transition-all">
+                          <SelectValue placeholder="Select District" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-gray-100">
+                          {(systemConfig.districts || []).map(district => (
+                            <SelectItem key={district} value={district}>{district}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="branchName" className="text-sm font-medium text-gray-700">Nearest Serving Branch</Label>
+                      <Select 
+                        value={formData.branchName} 
+                        onValueChange={(val) => setFormData({...formData, branchName: val})}
+                      >
+                        <SelectTrigger id="branchName" className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 transition-all">
+                          <SelectValue placeholder="Select Branch" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-gray-100">
+                          {(systemConfig.branches || []).map(branch => (
+                            <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Compliance Documents */}
+                <div className="p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                      <FileText className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Compliance Documents</h3>
+                      <p className="text-xs text-gray-400">Upload required KYC documentation</p>
+                    </div>
+                  </div>
+
+                  <div 
+                    className="border-2 border-dashed border-gray-100 rounded-2xl p-10 flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer group"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 mb-4 group-hover:scale-110 transition-transform">
+                      <Upload className="w-6 h-6 text-primary" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">Upload KYC Documents</p>
+                    <p className="text-xs text-gray-400 mt-1 text-center">
+                      Supported formats: {(systemConfig.allowedFileTypes || []).join(', ')}<br/>
+                      Maximum file size: {systemConfig.maxFileSizeMB}MB
+                    </p>
+                    <input 
+                      type="file" 
+                      multiple 
+                      className="hidden" 
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept={(systemConfig.allowedFileTypes || []).join(',')}
+                    />
+                  </div>
+
+                  {documents.length > 0 && (
+                    <div className="grid gap-3">
+                      {documents.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                              <FileCheck className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                              <p className="text-[10px] text-gray-400">{(doc.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removeDoc(doc.id)
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-8 bg-gray-50/50">
+                  <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Processing...</span>
+                      </div>
+                    ) : (
+                      "Submit Application"
+                    )}
+                  </Button>
+                  <p className="text-[10px] text-center text-gray-400 mt-4">
+                    By submitting, you agree to Finflow's Merchant Service Agreement and Privacy Policy.
+                  </p>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

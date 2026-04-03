@@ -121,7 +121,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fff7e8]">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
@@ -129,7 +129,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
 
   if (!transaction || !merchant) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fff7e8] p-6 text-center space-y-4">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600">
           <XCircle className="w-10 h-10" />
         </div>
@@ -141,7 +141,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(155deg,#fff9ee_0%,#fbe5b2_50%,#f7d588_100%)] p-4">
+    <div className="min-h-screen p-6 sm:p-12">
       <div className="mx-auto w-full max-w-md space-y-4">
         <section className="rounded-3xl border border-white/50 bg-white/70 p-4 shadow-lg backdrop-blur-sm">
           <p className="text-xs uppercase tracking-[0.18em] text-[#754319]/70">Customer Home</p>

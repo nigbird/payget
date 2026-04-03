@@ -57,7 +57,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <header className="h-16 border-b bg-white flex items-center px-6">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">

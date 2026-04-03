@@ -285,7 +285,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                           ) : (
                             <ShieldAlert className="mr-1 h-3 w-3" />
                           )}
-                          {member.role === "account_admin" ? "Account Admin" : "Payment Initiator"}
+                          {member.role === "account_admin" ? "Account Admin" : "Sales"}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-4">
@@ -360,7 +360,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <p className="text-xs text-[#754319]/80 mt-1">Full control over merchant settings, including configuration, profile settings, and team management.</p>
             </div>
             <div className="p-4 rounded-2xl border border-blue-200/50 bg-blue-50/30">
-              <p className="font-bold text-[#5b371f] text-sm">Payment Initiator</p>
+              <p className="font-bold text-[#5b371f] text-sm">Sales</p>
               <p className="text-xs text-[#754319]/80 mt-1">Can generate payment links or trigger push payments. No access to settings or team management.</p>
             </div>
           </div>
@@ -427,7 +427,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-white/60 bg-white/95 backdrop-blur-md">
-                  <SelectItem value="payment_initiator" className="rounded-xl">Payment Initiator</SelectItem>
+                  <SelectItem value="payment_initiator" className="rounded-xl">Sales</SelectItem>
                   <SelectItem value="account_admin" className="rounded-xl">Account Admin</SelectItem>
                 </SelectContent>
               </Select>
@@ -495,7 +495,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-white/60 bg-white/95 backdrop-blur-md">
-                  <SelectItem value="payment_initiator" className="rounded-xl">Payment Initiator</SelectItem>
+                  <SelectItem value="payment_initiator" className="rounded-xl">Sales</SelectItem>
                   <SelectItem value="account_admin" className="rounded-xl">Account Admin</SelectItem>
                 </SelectContent>
               </Select>

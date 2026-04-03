@@ -136,16 +136,16 @@ export default function AdminDashboard() {
     <SidebarProvider>
       <SidebarNav />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sticky top-0 bg-background/95 backdrop-blur z-50">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-white/50 bg-white/70 backdrop-blur-md px-4 sticky top-0 z-50">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2">
-            <Activity className="text-primary w-5 h-5" />
-            <h1 className="text-lg font-semibold font-headline">Admin Oversight</h1>
+            <Activity className="text-[#754319] w-5 h-5" />
+            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight">Admin Oversight</h1>
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 bg-muted/20">
+        <main className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto space-y-6">
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

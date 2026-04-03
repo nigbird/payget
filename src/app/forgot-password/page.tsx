@@ -64,7 +64,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full space-y-4">
         <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary">
           <ArrowLeft className="w-4 h-4 mr-1" /> Back to Login
