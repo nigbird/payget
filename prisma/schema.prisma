@@ -1,126 +1,116 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 enum MerchantStatus {
-  pending
-  branch_approved
-  approved
-  rejected
-}
-
-enum TeamMemberRole {
-  payment_initiator
-  account_admin
-}
-
-enum TeamMemberStatus {
-  active
-  deactivated
+  PENDING
+  BRANCH_APPROVED
+  APPROVED
+  REJECTED
 }
 
 enum TransactionStatus {
-  success
-  failed
-  initiated
-  pending
-  awaiting_pin
-  processing
+  SUCCESS
+  FAILED
+  INITIATED
+  PENDING
+  AWAITING_PIN
+  PROCESSING
+}
+
+enum TeamRole {
+  PAYMENT_INITIATOR
+  ACCOUNT_ADMIN
+}
+
+enum TeamMemberStatus {
+  ACTIVE
+  DEACTIVATED
 }
 
 model Merchant {
-  id                   String               @id @default(cuid())
-  name                 String
-  email                String               @unique
-  password             String?
-  passwordResetToken   String?              @unique
-  passwordResetExpires DateTime?
-  jweSecret            String
-  accountNumber        String
-  dailyLimit           Float
-  transactionLimit     Float
-  dailyCountLimit      Int
-  status               MerchantStatus       @default(pending)
-  rejectionReason      String?
-  businessDescription  String               @db.Text
-  websiteUrl           String
-  callbackUrl          String
-  contactName          String
-  contactPhone         String
-  branchName           String
-  district             String
-  category             String
-  riskFactors          String[]
-  businessType         String
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime?            @updatedAt
-  documents            MerchantDocument[]
-  transactions         Transaction[]
-  teamMembers          MerchantTeamMember[]
-
-  @@index([email])
+  id                    String                @id @default(cuid())
+  name                  String
+  email                 String                @unique
+  password              String?
+  passwordResetToken    String?               @unique
+  passwordResetExpires  DateTime?
+  jweSecret             String
+  accountNumber         String
+  dailyLimit            Float                 @default(0)
+  transactionLimit      Float                 @default(0)
+  dailyCountLimit       Int                   @default(0)
+  status                MerchantStatus        @default(PENDING)
+  rejectionReason       String?
+  businessDescription   String?
+  websiteUrl            String?
+  callbackUrl           String
+  contactName           String
+  contactPhone          String
+  branchName            String
+  district              String
+  category              String
+  businessType          String
+  riskFactors           String[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  documents             MerchantDocument[]
+  transactions          Transaction[]
+  teamMembers           MerchantTeamMember[]
 }
 
 model MerchantDocument {
   id         String   @id @default(cuid())
-  merchantId String
-  merchant   Merchant @relation(fields: [merchantId], references: [id])
   name       String
   type       String
   size       Int
   uploadedAt DateTime @default(now())
-
-  @@index([merchantId])
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  merchantId String
 }
 
 model MerchantTeamMember {
   id         String           @id @default(cuid())
-  merchantId String
-  merchant   Merchant         @relation(fields: [merchantId], references: [id])
   name       String
   email      String
   phone      String?
-  role       TeamMemberRole   @default(payment_initiator)
-  status     TeamMemberStatus @default(active)
+  role       TeamRole         @default(PAYMENT_INITIATOR)
+  status     TeamMemberStatus @default(ACTIVE)
   createdAt  DateTime         @default(now())
-  updatedAt  DateTime?        @updatedAt
-
-  @@index([merchantId, email])
+  updatedAt  DateTime         @updatedAt
+  merchant   Merchant         @relation(fields: [merchantId], references: [id])
+  merchantId String
 }
 
 model Transaction {
-  id                   String            @id @default(cuid())
-  merchantId           String
-  merchant             Merchant          @relation(fields: [merchantId], references: [id])
+  id                   String            @id
   amount               Float
-  status               TransactionStatus @default(initiated)
+  status               TransactionStatus @default(PENDING)
   callbackUrl          String
-  description          String            @db.Text
+  description          String
   timestamp            DateTime          @default(now())
   payerPhone           String?
   transactionReference String            @unique
-  serviceDescription   String            @db.Text
-  transactionTimestamp DateTime
-  userPhone            String
-  userAuthToken        String
-
-  @@index([merchantId, timestamp])
-  @@index([transactionReference])
+  serviceDescription   String
+  transactionTimestamp DateTime          @default(now())
+  userCredentials      Json              // { phone: string, authToken: string }
+  merchant             Merchant          @relation(fields: [merchantId], references: [id])
+  merchantId           String
 }
 
 model SystemConfig {
-  id                  Int      @id @default(1)
-  maxFileSizeMB       Int
+  id                  String   @id @default("default-config")
+  maxFileSizeMB       Int      @default(5)
   allowedFileTypes    String[]
   districts           String[]
   branches            String[]
-  resetTimeoutSeconds Int
+  resetTimeoutSeconds Int      @default(60)
 }
