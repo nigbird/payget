@@ -4,6 +4,7 @@ import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { z } from "zod"
 import { Building2, Cable, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Clock, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, LogOut } from "lucide-react"
+import { useSession } from "next-auth/react"
 
 import type { Merchant } from "@/app/lib/db"
 import { useMerchantPortalRole } from "@/components/merchant/merchant-portal-shell"
@@ -29,6 +30,7 @@ type FormData = {
 
 type ProfileData = {
   email: string
+  phoneNumber: string
   currentPassword: string
   newPassword: string
   confirmPassword: string
@@ -40,6 +42,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const { id } = use(params)
   const role = useMerchantPortalRole()
   const { toast } = useToast()
+  const { update } = useSession()
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
   const [formData, setFormData] = useState<FormData>({
@@ -54,12 +57,14 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   })
   const [profileData, setProfileData] = useState<ProfileData>({
     email: "",
+    phoneNumber: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   })
   const [initialProfileData, setInitialProfileData] = useState<ProfileData>({
     email: "",
+    phoneNumber: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
@@ -77,7 +82,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [editingLimits, setEditingLimits] = useState(false)
   const [transactionLimits, setTransactionLimits] = useState({
     daily: 5000,
-    monthly: 100000,
     maxTransaction: 1000,
   })
 
@@ -97,16 +101,17 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           setInitialFormData(next)
           setTransactionLimits({
             daily: m.dailyLimit || 5000,
-            monthly: m.monthlyLimit || 100000,
             maxTransaction: m.transactionLimit || 1000,
           })
           setProfileData(prev => ({
             ...prev,
             email: m.email || "",
+            phoneNumber: m.contactPhone || "",
           }))
           setInitialProfileData(prev => ({
             ...prev,
             email: m.email || "",
+            phoneNumber: m.contactPhone || "",
           }))
         }
       } catch (error) {
@@ -129,6 +134,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const hasProfileChanges = useMemo(() => {
     return (
       profileData.email !== initialProfileData.email ||
+      profileData.phoneNumber !== initialProfileData.phoneNumber ||
       profileData.currentPassword ||
       profileData.newPassword ||
       profileData.confirmPassword
@@ -164,6 +170,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       nextErrors.email = "Email is required."
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email.trim())) {
       nextErrors.email = "Enter a valid email address."
+    }
+
+    if (!profileData.phoneNumber.trim()) {
+      nextErrors.phoneNumber = "Phone number is required."
+    } else if (!/^\+?[\d\s\-\(\)]+$/.test(profileData.phoneNumber.trim())) {
+      nextErrors.phoneNumber = "Enter a valid phone number."
     }
 
     if (profileData.newPassword) {
@@ -219,7 +231,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           accountNumber: formData.accountNumber.trim(),
           callbackUrl: formData.callbackUrl.trim(),
           dailyLimit: transactionLimits.daily,
-          monthlyLimit: transactionLimits.monthly,
           transactionLimit: transactionLimits.maxTransaction,
         })
       })
@@ -267,6 +278,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
       const updateData: any = {
         email: profileData.email.trim(),
+        phoneNumber: profileData.phoneNumber.trim(),
       }
 
       if (profileData.newPassword) {
@@ -282,9 +294,18 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
       if (response.ok) {
         const refreshed = await response.json()
+        
+        // Update session to reflect new email or name if changed
+        await update({
+          user: {
+            email: refreshed.email,
+          }
+        })
+
         setProfileData(prev => ({
           ...prev,
           email: refreshed.email || prev.email,
+          phoneNumber: refreshed.phoneNumber || refreshed.contactPhone || prev.phoneNumber,
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
@@ -292,6 +313,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         setInitialProfileData(prev => ({
           ...prev,
           email: refreshed.email || prev.email,
+          phoneNumber: refreshed.phoneNumber || refreshed.contactPhone || prev.phoneNumber,
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
@@ -423,13 +445,13 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium text-[#5b371f]">Monthly Limit</Label>
+                          <Label className="text-sm font-medium text-[#5b371f]">Daily Max</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.monthly.toLocaleString()}
+                            ${transactionLimits.daily.toLocaleString()}
                           </span>
                         </div>
                         <Progress 
-                          value={(transactionLimits.monthly / 200000) * 100} 
+                          value={(transactionLimits.daily / 10000) * 100} 
                           className="h-2 bg-white/60"
                         />
                       </div>
@@ -545,6 +567,20 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         />
                         <p className="text-xs text-muted-foreground">Used for notifications and account recovery.</p>
                         {errors.email && <p className="text-xs text-rose-600">{errors.email}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="phoneNumber">Phone Number</Label>
+                        <Input
+                          id="phoneNumber"
+                          type="tel"
+                          value={profileData.phoneNumber}
+                          onChange={(e) => setProfileData((p) => ({ ...p, phoneNumber: e.target.value }))}
+                          placeholder="+1 (555) 000-0000"
+                          className="rounded-2xl border-white/60 bg-white/85"
+                        />
+                        <p className="text-xs text-muted-foreground">Used for account verification and support.</p>
+                        {errors.phoneNumber && <p className="text-xs text-rose-600">{errors.phoneNumber}</p>}
                       </div>
                     </div>
                   </CardContent>
