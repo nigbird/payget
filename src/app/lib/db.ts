@@ -1,4 +1,3 @@
-
 import { prisma } from '@/lib/prisma';
 import { 
   MerchantStatus as PrismaMerchantStatus, 
@@ -7,6 +6,8 @@ import {
   Merchant as PrismaMerchant,
   Transaction as PrismaTransaction,
   MerchantDocument as PrismaMerchantDocument,
+  User as PrismaUser,
+  UserRole
 } from '@prisma/client';
 
 export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected';
@@ -148,6 +149,13 @@ function mapTeamMember(tm: any): MerchantTeamMember {
 }
 
 export const db = {
+  // User Auth Methods
+  findUserByEmail: async (email: string) => {
+    return prisma.user.findUnique({
+      where: { email }
+    });
+  },
+
   getMerchantTeamMembersByMerchantId: async (merchantId: string) => {
     const members = await prisma.merchantTeamMember.findMany({
       where: { merchantId },
@@ -214,15 +222,6 @@ export const db = {
     return mapMerchant(m);
   },
 
-  findMerchantByResetToken: async (token: string) => {
-    const m = await prisma.merchant.findFirst({
-      where: { passwordResetToken: token },
-      include: { documents: true }
-    });
-    if (!m) return null;
-    return mapMerchant(m);
-  },
-
   addMerchant: async (data: any) => {
     const { documents, ...rest } = data;
     return prisma.merchant.create({
@@ -250,16 +249,6 @@ export const db = {
     return prisma.merchant.update({
       where: { id },
       data: rest
-    });
-  },
-
-  updateMerchantStatus: async (id: string, status: MerchantStatus, rejectionReason?: string) => {
-    return prisma.merchant.update({
-      where: { id },
-      data: { 
-        status: mapToPrismaMerchantStatus(status),
-        rejectionReason 
-      }
     });
   },
 
@@ -309,4 +298,3 @@ export const db = {
     return prisma.systemConfig.findFirst();
   }
 };
-

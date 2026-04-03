@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { AuthSessionProvider } from "@/components/auth-session-provider";
 
 export const metadata: Metadata = {
   title: 'Finflow Gateway | Secure Payment Solutions',
@@ -23,8 +24,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        {children}
-        <Toaster />
+        <AuthSessionProvider>
+          {children}
+          <Toaster />
+        </AuthSessionProvider>
       </body>
     </html>
   );
