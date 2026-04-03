@@ -41,7 +41,7 @@ import {
   BadgeCheck
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { db, type Merchant } from "@/app/lib/db"
+import type { Merchant } from "@/app/lib/db"
 
 export default function HeadOfficePortal() {
   const { toast } = useToast()
@@ -51,10 +51,21 @@ export default function HeadOfficePortal() {
   const [isRejecting, setIsRejecting] = useState(false)
 
   useEffect(() => {
-    setPending(db.getMerchants().filter(m => m.status === 'branch_approved'))
+    const fetchMerchants = async () => {
+      try {
+        const response = await fetch('/api/merchants')
+        if (response.ok) {
+          const merchants = await response.json()
+          setPending(merchants.filter((m: Merchant) => m.status === 'branch_approved'))
+        }
+      } catch (error) {
+        console.error('Failed to fetch merchants:', error)
+      }
+    }
+    fetchMerchants()
   }, [])
 
-  const handleAction = (id: string, action: 'approve' | 'reject') => {
+  const handleAction = async (id: string, action: 'approve' | 'reject') => {
     if (action === 'reject' && !rejectionReason.trim()) {
       toast({
         variant: "destructive",
@@ -64,16 +75,36 @@ export default function HeadOfficePortal() {
       return
     }
 
-    db.updateMerchantStatus(id, action === 'approve' ? 'approved' : 'rejected', action === 'reject' ? rejectionReason : undefined)
-    setPending(prev => prev.filter(m => m.id !== id))
-    toast({
-      title: action === 'approve' ? "Merchant Activated" : "HO Rejected",
-      description: `Merchant account has been ${action}d.`,
-      variant: action === 'reject' ? 'destructive' : 'default'
-    })
-    setSelectedMerchant(null)
-    setRejectionReason("")
-    setIsRejecting(false)
+    try {
+      const response = await fetch(`/api/merchants/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: action === 'approve' ? 'approved' : 'rejected',
+          rejectionReason: action === 'reject' ? rejectionReason : undefined
+        })
+      })
+
+      if (response.ok) {
+        setPending(prev => prev.filter(m => m.id !== id))
+        toast({
+          title: action === 'approve' ? "Merchant Activated" : "HO Rejected",
+          description: `Merchant account has been ${action}d.`,
+          variant: action === 'reject' ? 'destructive' : 'default'
+        })
+        setSelectedMerchant(null)
+        setRejectionReason("")
+        setIsRejecting(false)
+      } else {
+        throw new Error('Failed to update status')
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Action Failed",
+        description: "Could not process your request at this time."
+      })
+    }
   }
 
   return (

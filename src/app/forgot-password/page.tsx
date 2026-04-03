@@ -8,30 +8,36 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { ArrowLeft, Clock, Loader2, Mail, Phone, Sparkles } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { db } from "@/app/lib/db"
 
 export default function ForgotPassword() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [identifier, setIdentifier] = useState("")
   const [sentTo, setSentTo] = useState<string | null>(null)
+  const [resetToken, setResetToken] = useState<string | null>(null)
+  const [timeoutSeconds, setTimeoutSeconds] = useState<number>(60)
 
-  const handleRequestReset = (e: FormEvent) => {
+  const handleRequestReset = async (e: FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    setTimeout(() => {
-      const merchant = db.findMerchantByIdentifier(identifier)
-      const config = db.getSystemConfig()
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, action: 'request' })
+      })
 
-      if (merchant) {
-        const token = Math.random().toString(36).substr(2, 12)
-        const expiry = new Date(Date.now() + config.resetTimeoutSeconds * 1000).toISOString()
+      if (response.ok) {
+        const { token } = await response.json()
+        setResetToken(token)
         
-        db.updateMerchant(merchant.id, {
-          passwordResetToken: token,
-          passwordResetExpires: expiry
-        })
+        // Fetch config for timeout display
+        const configRes = await fetch('/api/system-config')
+        if (configRes.ok) {
+          const config = await configRes.json()
+          setTimeoutSeconds(config.resetTimeoutSeconds)
+        }
 
         setSentTo(identifier)
         toast({
@@ -39,14 +45,22 @@ export default function ForgotPassword() {
           description: `A reset link has been simulated for your account.`
         })
       } else {
+        const error = await response.json()
         toast({
           variant: "destructive",
           title: "Account Not Found",
-          description: "No merchant found with that email or phone number."
+          description: error.error || "No merchant found with that email or phone number."
         })
       }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Request Failed",
+        description: "Could not process your request at this time."
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -105,12 +119,12 @@ export default function ForgotPassword() {
                   </p>
                   <Button variant="outline" className="w-full text-xs font-mono" asChild>
                     {/* Look up token from DB for the demo link */}
-                    <Link href={`/reset-password/${db.findMerchantByIdentifier(sentTo)?.passwordResetToken}`}>
+                    <Link href={`/reset-password/${resetToken}`}>
                       Proceed to Reset Form
                     </Link>
                   </Button>
                   <p className="text-[10px] text-orange-600 font-medium">
-                    Link expires in {db.getSystemConfig().resetTimeoutSeconds} seconds.
+                    Link expires in {timeoutSeconds} seconds.
                   </p>
                 </div>
               </div>

@@ -45,7 +45,7 @@ import {
   Hash
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { db, type Merchant } from "@/app/lib/db"
+import type { Merchant } from "@/app/lib/db"
 
 export default function BranchApprovalPortal() {
   const { toast } = useToast()
@@ -62,10 +62,21 @@ export default function BranchApprovalPortal() {
   const [isRejecting, setIsRejecting] = useState(false)
 
   useEffect(() => {
-    setPending(db.getMerchants().filter(m => m.status === 'pending'))
+    const fetchMerchants = async () => {
+      try {
+        const response = await fetch('/api/merchants')
+        if (response.ok) {
+          const merchants = await response.json()
+          setPending(merchants.filter((m: Merchant) => m.status === 'pending'))
+        }
+      } catch (error) {
+        console.error('Failed to fetch merchants:', error)
+      }
+    }
+    fetchMerchants()
   }, [])
 
-  const handleAction = (id: string, action: 'approve' | 'reject') => {
+  const handleAction = async (id: string, action: 'approve' | 'reject') => {
     if (action === 'reject' && !rejectionReason.trim()) {
       toast({
         variant: "destructive",
@@ -75,30 +86,59 @@ export default function BranchApprovalPortal() {
       return
     }
 
-    if (action === 'approve') {
-      db.updateMerchant(id, {
-        dailyLimit: Number(limits.dailyLimit),
-        transactionLimit: Number(limits.transactionLimit),
-        dailyCountLimit: Number(limits.dailyCountLimit),
-        status: 'branch_approved'
-      })
+    try {
+      if (action === 'approve') {
+        const response = await fetch(`/api/merchants/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dailyLimit: Number(limits.dailyLimit),
+            transactionLimit: Number(limits.transactionLimit),
+            dailyCountLimit: Number(limits.dailyCountLimit),
+            status: 'branch_approved'
+          })
+        })
+
+        if (response.ok) {
+          toast({
+            title: "Branch Approved",
+            description: "Application moved to Head Office for final review.",
+          })
+        } else {
+          throw new Error('Failed to approve')
+        }
+      } else {
+        const response = await fetch(`/api/merchants/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'rejected',
+            rejectionReason
+          })
+        })
+
+        if (response.ok) {
+          toast({
+            title: "Registration Rejected",
+            description: `Merchant account has been rejected.`,
+            variant: 'destructive'
+          })
+        } else {
+          throw new Error('Failed to reject')
+        }
+      }
+
+      setPending(prev => prev.filter(m => m.id !== id))
+      setSelectedMerchant(null)
+      setRejectionReason("")
+      setIsRejecting(false)
+    } catch (error) {
       toast({
-        title: "Branch Approved",
-        description: "Application moved to Head Office for final review.",
-      })
-    } else {
-      db.updateMerchantStatus(id, 'rejected', rejectionReason)
-      toast({
-        title: "Registration Rejected",
-        description: `Merchant account has been rejected.`,
-        variant: 'destructive'
+        variant: "destructive",
+        title: "Action Failed",
+        description: "Could not process your request at this time."
       })
     }
-
-    setPending(prev => prev.filter(m => m.id !== id))
-    setSelectedMerchant(null)
-    setRejectionReason("")
-    setIsRejecting(false)
   }
 
   return (

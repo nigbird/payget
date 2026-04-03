@@ -22,10 +22,10 @@ export async function POST(request: Request) {
     const { merchant, tx } = resolved
 
     // Move into processing state (mock provider execution).
-    db.updateTransactionStatus(tx.id, "processing")
+    await db.updateTransactionStatus(tx.id, "processing")
 
     const finalStatus: TransactionStatus = pin === "1234" ? "success" : "failed"
-    db.updateTransactionStatus(tx.id, finalStatus)
+    await db.updateTransactionStatus(tx.id, finalStatus)
 
     // Relay status to merchant callback URL (best-effort).
     try {

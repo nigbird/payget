@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, CheckCircle2, Loader2, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { db } from "@/app/lib/db"
 
 export default function ResetPassword({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -25,21 +24,29 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
   })
 
   useEffect(() => {
-    const merchant = db.findMerchantByResetToken(token)
-    if (merchant && merchant.passwordResetExpires) {
-      const isExpired = new Date() > new Date(merchant.passwordResetExpires)
-      if (!isExpired) {
-        setIsValid(true)
-        setMerchantId(merchant.id)
-      } else {
+    const checkToken = async () => {
+      try {
+        const response = await fetch(`/api/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, action: 'check' }) // I'll need to add 'check' action to the API
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setIsValid(true)
+          setMerchantId(data.merchantId)
+        } else {
+          setIsValid(false)
+        }
+      } catch (error) {
         setIsValid(false)
       }
-    } else {
-      setIsValid(false)
     }
+    checkToken() 
   }, [token])
 
-  const handleReset = (e: React.FormEvent) => {
+  const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (passwords.new !== passwords.confirm) {
@@ -62,20 +69,40 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
 
     setIsLoading(true)
 
-    setTimeout(() => {
-      if (merchantId) {
-        db.updateMerchant(merchantId, {
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
           password: passwords.new,
-          passwordResetToken: undefined,
-          passwordResetExpires: undefined
+          action: 'reset'
         })
+      })
+
+      if (response.ok) {
         toast({
           title: "Password Updated",
           description: "Your new password has been set successfully."
         })
         router.push("/")
+      } else {
+        const error = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Reset Failed",
+          description: error.error || "Could not reset your password."
+        })
       }
-    }, 1000)
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Reset Failed",
+        description: "An error occurred during password reset."
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (isValid === null) return null

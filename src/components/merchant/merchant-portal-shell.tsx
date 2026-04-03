@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, History, Users, Settings2 } from "lucide-react"
 
-import { db, type Merchant, type MerchantTeamRole } from "@/app/lib/db"
+import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 
@@ -35,8 +35,18 @@ export default function MerchantPortalShell({
   const activeRole: MerchantTeamRole = "account_admin"
 
   React.useEffect(() => {
-    const m = db.getMerchantById(merchantId)
-    if (m) setMerchant(m)
+    const fetchMerchant = async () => {
+      try {
+        const response = await fetch(`/api/merchants/${merchantId}`)
+        if (response.ok) {
+          const m = await response.json()
+          setMerchant(m)
+        }
+      } catch (error) {
+        console.error('Failed to fetch merchant:', error)
+      }
+    }
+    fetchMerchant()
   }, [merchantId])
 
   const navItems = React.useMemo(() => {

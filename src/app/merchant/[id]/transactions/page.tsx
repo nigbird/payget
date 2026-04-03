@@ -30,7 +30,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
-import { db, type Merchant, type Transaction } from "@/app/lib/db"
+import type { Merchant, Transaction } from "@/app/lib/db"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
 
@@ -58,23 +58,41 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [maxSlider, setMaxSlider] = useState<number>(5000)
 
   useEffect(() => {
-    const refresh = () => {
-      const m = db.getMerchantById(id)
-      if (m) setMerchant(m)
-
-      setTransactions(
-        [...db.getTransactionsByMerchant(id)].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-      )
+    const fetchMerchant = async () => {
+      try {
+        const response = await fetch(`/api/merchants/${id}`)
+        if (response.ok) {
+          const m = await response.json()
+          setMerchant(m)
+        }
+      } catch (error) {
+        console.error('Failed to fetch merchant:', error)
+      }
     }
 
-    refresh()
+    const fetchTransactions = async () => {
+      try {
+        const response = await fetch(`/api/merchants/${id}/transactions`)
+        if (response.ok) {
+          const txs = await response.json()
+          setTransactions([...txs].sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          ))
+          return txs
+        }
+      } catch (error) {
+        console.error('Failed to fetch transactions:', error)
+      }
+      return []
+    }
 
-    const interval = setInterval(() => {
-      const live = db.getTransactionsByMerchant(id).some((tx) => nonTerminalStatuses.includes(tx.status))
-      if (live) refresh()
-      else clearInterval(interval)
+    fetchMerchant()
+    fetchTransactions()
+
+    const interval = setInterval(async () => {
+      const txs = await fetchTransactions()
+      const live = txs.some((tx: Transaction) => nonTerminalStatuses.includes(tx.status))
+      if (!live) clearInterval(interval)
     }, 2500)
 
     return () => clearInterval(interval)

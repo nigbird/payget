@@ -35,7 +35,7 @@ function extractKidFromJwe(token: string): string | null {
 }
 
 export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
-  const merchant = db.getMerchantById(input.merchantId)
+  const merchant = await db.getMerchantById(input.merchantId)
   if (!merchant) return { ok: false as const, error: "Merchant not found" }
   if (merchant.status !== "approved") return { ok: false as const, error: "Merchant account is not active" }
 
@@ -45,8 +45,8 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
   }
 
   const todayKey = getTodayDateKey(new Date())
-  const todaysSuccess = db
-    .getTransactionsByMerchant(input.merchantId)
+  const merchantTxs = await db.getTransactionsByMerchant(input.merchantId)
+  const todaysSuccess = merchantTxs
     .filter((tx) => getTodayDateKey(new Date(tx.timestamp)) === todayKey && tx.status === "success")
 
   const totalTodayAmount = todaysSuccess.reduce((acc, tx) => acc + tx.amount, 0)
@@ -59,7 +59,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
   }
 
   // Create internal transaction record.
-  const exists = db.getTransactionById(input.transactionId)
+  const exists = await db.getTransactionById(input.transactionId)
   if (exists) return { ok: false as const, error: "Transaction ID already exists" }
 
   const transactionReference = `ref_${Math.random().toString(36).substr(2, 9)}`
@@ -73,7 +73,6 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
     callbackUrl: merchant.callbackUrl,
     description: input.serviceDescription,
     timestamp: input.timestamp,
-    payerPhone: input.userCredentials.phone,
     transactionReference,
     serviceDescription: input.serviceDescription,
     transactionTimestamp: input.timestamp,
@@ -83,7 +82,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
     },
   }
 
-  db.addTransaction(tx)
+  await db.addTransaction(tx)
 
   const payload: PaymentPayload = PaymentPayloadSchema.parse({
     merchantId: input.merchantId,
@@ -113,11 +112,11 @@ export async function resolveEncryptedToken(token: string) {
   const kid = extractKidFromJwe(token)
   if (!kid) return { ok: false as const, error: "Invalid token (missing key id)" }
 
-  const merchant = db.getMerchantById(kid)
+  const merchant = await db.getMerchantById(kid)
   if (!merchant) return { ok: false as const, error: "Merchant not found for token" }
 
   const payload = await decryptPayload(token, merchant.jweSecret)
-  const tx = db.getTransactionById(payload.transactionId)
+  const tx = await db.getTransactionById(payload.transactionId)
 
   if (!tx || tx.merchantId !== payload.merchantId) {
     return { ok: false as const, error: "Transaction not found for token" }

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Merchant Status Check
-    const merchant = db.getMerchantById(merchantId);
+    const merchant = await db.getMerchantById(merchantId);
     if (!merchant) {
       return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
     }
@@ -29,7 +29,8 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const todayTxs = db.getTransactionsByMerchant(merchantId).filter(tx => {
+    const merchantTxs = await db.getTransactionsByMerchant(merchantId);
+    const todayTxs = merchantTxs.filter(tx => {
       const txDate = new Date(tx.timestamp).toDateString();
       const todayDate = new Date().toDateString();
       return txDate === todayDate && tx.status === 'success';
@@ -55,11 +56,11 @@ export async function POST(request: Request) {
     const transactionId = `tx_${Math.random().toString(36).substr(2, 9)}`;
     const isSuccess = Math.random() > 0.1;
 
-    const tx = {
+    const tx: any = {
       id: transactionId,
       merchantId,
       amount,
-      status: isSuccess ? 'success' : 'failed' as any,
+      status: isSuccess ? 'success' : 'failed',
       callbackUrl,
       description: description || 'Payment initiation',
       timestamp: new Date().toISOString(),
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
       }
     };
 
-    db.addTransaction(tx);
+    await db.addTransaction(tx);
 
     return NextResponse.json({
       transactionId: tx.id,

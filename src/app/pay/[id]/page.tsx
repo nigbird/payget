@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Wallet, CheckCircle2, XCircle, Loader2, Clock, Send, QrCode, ChevronRight } from "lucide-react"
-import { db, type Transaction, type Merchant } from "@/app/lib/db"
+import type { Transaction, Merchant } from "@/app/lib/db"
 import { useToast } from "@/hooks/use-toast"
 
 export default function PayerRequestPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,48 +23,100 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
   const [pendingRequests, setPendingRequests] = useState<Transaction[]>([])
   const [showTransactions, setShowTransactions] = useState(false)
 
+  const [completedForPayer, setCompletedForPayer] = useState<Transaction[]>([])
+
   useEffect(() => {
-    const tx = db.getTransactionById(id)
-    if (tx) {
-      setTransaction(tx)
-      const m = db.getMerchantById(tx.merchantId)
-      if (m) setMerchant(m)
+    const fetchData = async () => {
+      try {
+        const txResponse = await fetch(`/api/transactions/${id}`)
+        if (txResponse.ok) {
+          const tx = await txResponse.json()
+          setTransaction(tx)
+          
+          const mResponse = await fetch(`/api/merchants/${tx.merchantId}`)
+          if (mResponse.ok) {
+            const m = await mResponse.json()
+            setMerchant(m)
+          }
 
-      const pending = db
-        .getTransactions()
-        .filter((item) => item.payerPhone === tx.payerPhone && item.status === "pending")
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      setPendingRequests(pending)
+          const pendingResponse = await fetch(`/api/transactions?phone=${tx.userCredentials.phone}&status=pending`)
+          if (pendingResponse.ok) {
+            const pending = await pendingResponse.json()
+            setPendingRequests(pending.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()))
+          }
 
-      if (tx.status === "success") setView("success")
-      if (tx.status === "failed") setView("failed")
+          const historyResponse = await fetch(`/api/transactions?phone=${tx.userCredentials.phone}`)
+          if (historyResponse.ok) {
+            const history = await historyResponse.json()
+            setCompletedForPayer(history.filter((item: any) => item.status !== "pending").slice(0, 4))
+          }
+
+          if (tx.status === "success") setView("success")
+          if (tx.status === "failed") setView("failed")
+        }
+      } catch (error) {
+        console.error('Failed to fetch transaction data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
+    fetchData()
   }, [id])
 
-  const handlePayment = (txId: string) => {
+  const handlePayment = async (txId: string) => {
     setProcessing(true)
-    setTimeout(() => {
-      db.updateTransactionStatus(txId, "success")
-      setPendingRequests((prev) => prev.filter((item) => item.id !== txId))
-      if (txId === id) setView("success")
-      setProcessing(false)
-      toast({
-        title: "Payment Successful",
-        description: "Your transaction has been processed securely."
+    try {
+      const response = await fetch(`/api/transactions/${txId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'success' })
       })
-    }, 1500)
+
+      if (response.ok) {
+        setPendingRequests((prev) => prev.filter((item) => item.id !== txId))
+        if (txId === id) setView("success")
+        toast({
+          title: "Payment Successful",
+          description: "Your transaction has been processed securely."
+        })
+      } else {
+        throw new Error('Payment failed')
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Payment Failed",
+        description: "Could not process your payment at this time."
+      })
+    } finally {
+      setProcessing(false)
+    }
   }
 
-  const handleDecline = (txId: string) => {
-    db.updateTransactionStatus(txId, "failed")
-    setPendingRequests((prev) => prev.filter((item) => item.id !== txId))
-    if (txId === id) setView("failed")
-    toast({
-      variant: "destructive",
-      title: "Request Declined",
-      description: "The payment request has been cancelled."
-    })
+  const handleDecline = async (txId: string) => {
+    try {
+      const response = await fetch(`/api/transactions/${txId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'failed' })
+      })
+
+      if (response.ok) {
+        setPendingRequests((prev) => prev.filter((item) => item.id !== txId))
+        if (txId === id) setView("failed")
+        toast({
+          variant: "destructive",
+          title: "Request Declined",
+          description: "The payment request has been cancelled."
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Action Failed",
+        description: "Could not decline the request at this time."
+      })
+    }
   }
 
   if (loading) {
@@ -87,11 +139,6 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
       </div>
     )
   }
-
-  const completedForPayer = db
-    .getTransactions()
-    .filter((item) => item.payerPhone === transaction.payerPhone && item.status !== "pending")
-    .slice(0, 4)
 
   return (
     <div className="min-h-screen bg-[linear-gradient(155deg,#fff9ee_0%,#fbe5b2_50%,#f7d588_100%)] p-4">

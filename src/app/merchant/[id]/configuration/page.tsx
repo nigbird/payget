@@ -5,7 +5,7 @@ import Link from "next/link"
 import { z } from "zod"
 import { Building2, Cable, CheckCircle2, ChevronLeft, Loader2, Save } from "lucide-react"
 
-import { db, type Merchant } from "@/app/lib/db"
+import type { Merchant } from "@/app/lib/db"
 import { useMerchantPortalRole } from "@/components/merchant/merchant-portal-shell"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -47,16 +47,25 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [saveConfirmed, setSaveConfirmed] = useState(false)
 
   useEffect(() => {
-    const m = db.getMerchantById(id)
-    if (!m) return
-    setMerchant(m)
-    const next = {
-      companyName: m.name ?? "",
-      accountNumber: m.accountNumber ?? "",
-      callbackUrl: m.callbackUrl ?? "",
+    const fetchMerchant = async () => {
+      try {
+        const response = await fetch(`/api/merchants/${id}`)
+        if (response.ok) {
+          const m = await response.json()
+          setMerchant(m)
+          const next = {
+            companyName: m.name ?? "",
+            accountNumber: m.accountNumber ?? "",
+            callbackUrl: m.callbackUrl ?? "",
+          }
+          setForm(next)
+          setInitialForm(next)
+        }
+      } catch (error) {
+        console.error('Failed to fetch merchant:', error)
+      }
     }
-    setForm(next)
-    setInitialForm(next)
+    fetchMerchant()
   }, [id])
 
   const canEdit = role === "account_admin"
@@ -102,14 +111,18 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     try {
       setIsSaving(true)
 
-      db.updateMerchant(id, {
-        name: form.companyName.trim(),
-        accountNumber: form.accountNumber.trim(),
-        callbackUrl: form.callbackUrl.trim(),
+      const response = await fetch(`/api/merchants/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.companyName.trim(),
+          accountNumber: form.accountNumber.trim(),
+          callbackUrl: form.callbackUrl.trim(),
+        })
       })
 
-      const refreshed = db.getMerchantById(id)
-      if (refreshed) {
+      if (response.ok) {
+        const refreshed = await response.json()
         setMerchant(refreshed)
         const synced = {
           companyName: refreshed.name ?? "",
@@ -118,14 +131,21 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         }
         setForm(synced)
         setInitialForm(synced)
+        setSaveConfirmed(true)
+        toast({
+          title: "Configuration saved",
+          description: "Your business and integration settings were updated successfully.",
+        })
+        window.setTimeout(() => setSaveConfirmed(false), 2800)
+      } else {
+        throw new Error('Failed to save configuration')
       }
-
-      setSaveConfirmed(true)
+    } catch (error) {
       toast({
-        title: "Configuration saved",
-        description: "Your business and integration settings were updated successfully.",
+        variant: "destructive",
+        title: "Save Failed",
+        description: "Could not update your configuration at this time."
       })
-      window.setTimeout(() => setSaveConfirmed(false), 2800)
     } finally {
       setIsSaving(false)
     }

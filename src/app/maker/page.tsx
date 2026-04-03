@@ -50,7 +50,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
-import { db, type MerchantDocument, type Merchant } from "@/app/lib/db"
+import type { MerchantDocument, Merchant } from "@/app/lib/db"
 
 export default function MakerPortal() {
   const { toast } = useToast()
@@ -86,17 +86,30 @@ export default function MakerPortal() {
 
   useEffect(() => {
     const fetchConfig = async () => {
-      const config = await db.getSystemConfig()
-      if (config) {
-        setSystemConfig(config)
+      try {
+        const response = await fetch('/api/system-config')
+        if (response.ok) {
+          const config = await response.json()
+          setSystemConfig(config)
+        }
+      } catch (error) {
+        console.error('Failed to fetch config:', error)
       }
     }
     fetchConfig()
     refreshSubmissions()
   }, [])
 
-  const refreshSubmissions = () => {
-    setMySubmissions([...db.getMerchants()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+  const refreshSubmissions = async () => {
+    try {
+      const response = await fetch('/api/merchants')
+      if (response.ok) {
+        const merchants = await response.json()
+        setMySubmissions([...merchants].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+      }
+    } catch (error) {
+      console.error('Failed to fetch merchants:', error)
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,7 +239,7 @@ export default function MakerPortal() {
     setEditingMerchantId(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (documents.length === 0) {
@@ -247,38 +260,65 @@ export default function MakerPortal() {
       return
     }
 
-    if (editingMerchantId) {
-      db.updateMerchant(editingMerchantId, {
-        ...formData,
-        status: 'pending', // Re-submit for review
-        documents,
-        riskFactors
-      })
+    try {
+      if (editingMerchantId) {
+        const response = await fetch(`/api/merchants/${editingMerchantId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            status: 'pending', // Re-submit for review
+            documents,
+            riskFactors
+          })
+        })
+
+        if (response.ok) {
+          toast({
+            title: "Submission Updated",
+            description: "Changes saved and sent back for Branch review."
+          })
+        } else {
+          throw new Error('Failed to update')
+        }
+      } else {
+        const merchantId = `m_${Math.random().toString(36).substr(2, 9)}`
+        const response = await fetch('/api/merchants', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: merchantId,
+            ...formData,
+            dailyLimit: 0,
+            transactionLimit: 0,
+            dailyCountLimit: 0,
+            jweSecret: `demo_jwe_secret_${formData.name || "merchant"}`,
+            status: 'pending',
+            documents,
+            riskFactors,
+            createdAt: new Date().toISOString()
+          })
+        })
+
+        if (response.ok) {
+          toast({
+            title: "Merchant Registered",
+            description: "Successfully submitted to Branch Approval."
+          })
+        } else {
+          throw new Error('Failed to register')
+        }
+      }
+
+      resetForm()
+      refreshSubmissions()
+    } catch (error) {
       toast({
-        title: "Submission Updated",
-        description: "Changes saved and sent back for Branch review."
-      })
-    } else {
-      db.addMerchant({
-        id: `m_${Math.random().toString(36).substr(2, 9)}`,
-        ...formData,
-        dailyLimit: 0,
-        transactionLimit: 0,
-        dailyCountLimit: 0,
-        jweSecret: `demo_jwe_secret_${formData.name || "merchant"}`,
-        status: 'pending',
-        documents,
-        riskFactors,
-        createdAt: new Date().toISOString()
-      })
-      toast({
-        title: "Merchant Registered",
-        description: "Successfully submitted to Branch Approval."
+        variant: "destructive",
+        title: "Submission Failed",
+        description: "Could not process your request at this time."
       })
     }
-
-    resetForm()
-    refreshSubmissions()
   }
 
   const getStatusBadge = (status: string) => {

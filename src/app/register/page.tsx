@@ -39,7 +39,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
-import { db, type MerchantDocument } from "@/app/lib/db"
+import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
 
 export default function MerchantSelfRegistration() {
@@ -80,9 +80,14 @@ export default function MerchantSelfRegistration() {
 
   useEffect(() => {
     const fetchConfig = async () => {
-      const config = await db.getSystemConfig()
-      if (config) {
-        setSystemConfig(config)
+      try {
+        const response = await fetch('/api/system-config')
+        if (response.ok) {
+          const config = await response.json()
+          setSystemConfig(config)
+        }
+      } catch (error) {
+        console.error('Failed to fetch config:', error)
       }
     }
     fetchConfig()
@@ -183,7 +188,7 @@ export default function MerchantSelfRegistration() {
     return retVal
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (documents.length === 0) {
@@ -209,28 +214,44 @@ export default function MerchantSelfRegistration() {
     const merchantId = `m_${Math.random().toString(36).substr(2, 9)}`
     const generatedPass = generatePassword()
     
-    db.addMerchant({
-      id: merchantId,
-      ...formData,
-      password: generatedPass,
-      dailyLimit: Number(formData.dailyLimit),
-      transactionLimit: Number(formData.transactionLimit),
-      dailyCountLimit: 100,
-      jweSecret: `demo_jwe_secret_${merchantId}`,
-      status: 'pending',
-      documents,
-      riskFactors,
-      createdAt: new Date().toISOString()
-    })
+    try {
+      const response = await fetch('/api/merchants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: merchantId,
+          ...formData,
+          password: generatedPass,
+          dailyLimit: Number(formData.dailyLimit),
+          transactionLimit: Number(formData.transactionLimit),
+          dailyCountLimit: 100,
+          jweSecret: `demo_jwe_secret_${merchantId}`,
+          status: 'pending',
+          documents,
+          riskFactors,
+          createdAt: new Date().toISOString()
+        })
+      })
 
-    setCredentials({ id: merchantId, email: formData.email, pass: generatedPass })
-    setIsSuccess(true)
-    setIsSubmitting(false)
-
-    toast({
-      title: "Application Submitted",
-      description: "Please save your credentials to check status later."
-    })
+      if (response.ok) {
+        setCredentials({ id: merchantId, email: formData.email, pass: generatedPass })
+        setIsSuccess(true)
+        toast({
+          title: "Application Submitted",
+          description: "Please save your credentials to check status later."
+        })
+      } else {
+        throw new Error('Failed to register')
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: "Could not submit your application at this time."
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const copyToClipboard = (text: string) => {

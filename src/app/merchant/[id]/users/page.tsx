@@ -53,7 +53,7 @@ import {
   ChevronRight,
   ArrowLeft,
 } from "lucide-react"
-import { db, type Merchant, type MerchantTeamMember, type MerchantTeamRole } from "@/app/lib/db"
+import type { Merchant, MerchantTeamMember, MerchantTeamRole } from "@/app/lib/db"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -75,66 +75,136 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
   })
 
   useEffect(() => {
-    const m = db.getMerchantById(id)
-    if (m) {
-      setMerchant(m)
-      refreshTeam()
+    const fetchMerchant = async () => {
+      try {
+        const response = await fetch(`/api/merchants/${id}`)
+        if (response.ok) {
+          const m = await response.json()
+          setMerchant(m)
+          refreshTeam()
+        }
+      } catch (error) {
+        console.error('Failed to fetch merchant:', error)
+      }
     }
+    fetchMerchant()
   }, [id])
 
-  const refreshTeam = () => {
-    setTeamMembers(db.getMerchantTeamMembersByMerchantId(id))
-  }
-
-  const handleAddMember = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newMember: MerchantTeamMember = {
-      id: `tm_${Math.random().toString(36).slice(2, 10)}`,
-      merchantId: id,
-      name: memberForm.name,
-      email: memberForm.email,
-      phone: memberForm.phone || undefined,
-      role: memberForm.role,
-      status: "active",
-      createdAt: new Date().toISOString(),
+  const refreshTeam = async () => {
+    try {
+      const response = await fetch(`/api/merchants/${id}/team`)
+      if (response.ok) {
+        const members = await response.json()
+        setTeamMembers(members)
+      }
+    } catch (error) {
+      console.error('Failed to fetch team members:', error)
     }
-    db.addMerchantTeamMember(newMember)
-    refreshTeam()
-    setIsAddModalOpen(false)
-    setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
-    toast({
-      title: "Member Added",
-      description: `${newMember.name} has been added to your team.`,
-    })
   }
 
-  const handleEditMember = (e: React.FormEvent) => {
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const newMemberData = {
+        name: memberForm.name,
+        email: memberForm.email,
+        phone: memberForm.phone || undefined,
+        role: memberForm.role,
+        status: "active",
+      }
+      
+      const response = await fetch(`/api/merchants/${id}/team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMemberData)
+      })
+
+      if (response.ok) {
+        const member = await response.json()
+        refreshTeam()
+        setIsAddModalOpen(false)
+        setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
+        toast({
+          title: "Member Added",
+          description: `${member.name} has been added to your team.`,
+        })
+      } else {
+        throw new Error('Failed to add member')
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Add Failed",
+        description: "Could not add team member at this time."
+      })
+    }
+  }
+
+  const handleEditMember = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedMember) return
-    db.updateMerchantTeamMember(selectedMember.id, {
-      name: memberForm.name,
-      email: memberForm.email,
-      phone: memberForm.phone || undefined,
-      role: memberForm.role,
-    })
-    refreshTeam()
-    setIsEditModalOpen(false)
-    setSelectedMember(null)
-    setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
-    toast({
-      title: "Member Updated",
-      description: `Team member details have been updated.`,
-    })
+    try {
+      const response = await fetch(`/api/merchants/${id}/team`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: selectedMember.id,
+          name: memberForm.name,
+          email: memberForm.email,
+          phone: memberForm.phone || undefined,
+          role: memberForm.role,
+        })
+      })
+
+      if (response.ok) {
+        refreshTeam()
+        setIsEditModalOpen(false)
+        setSelectedMember(null)
+        setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
+        toast({
+          title: "Member Updated",
+          description: `Team member details have been updated.`,
+        })
+      } else {
+        throw new Error('Failed to update member')
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Could not update team member at this time."
+      })
+    }
   }
 
-  const toggleMemberStatus = (member: MerchantTeamMember) => {
+  const toggleMemberStatus = async (member: MerchantTeamMember) => {
     const newStatus = member.status === "active" ? "deactivated" : "active"
-    db.setMerchantTeamMemberActive(member.id, newStatus === "active")
-    refreshTeam()
-    toast({
-      title: newStatus === "active" ? "Member Activated" : "Member Deactivated",
-      description: `${member.name} is now ${newStatus}.`,
-    })
+    try {
+      const response = await fetch(`/api/merchants/${id}/team`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: member.id,
+          active: newStatus === "active"
+        })
+      })
+
+      if (response.ok) {
+        refreshTeam()
+        toast({
+          title: newStatus === "active" ? "Member Activated" : "Member Deactivated",
+          description: `${member.name} is now ${newStatus}.`,
+        })
+      } else {
+        throw new Error('Failed to toggle status')
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Action Failed",
+        description: "Could not update member status at this time."
+      })
+    }
   }
 
   const openEditModal = (member: MerchantTeamMember) => {
