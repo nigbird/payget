@@ -18,6 +18,8 @@ import {
   Phone,
   Sparkles,
   AlertCircle,
+  DollarSign,
+  FileText,
 } from "lucide-react"
 
 export function RequestPaymentModal({
@@ -183,16 +185,16 @@ export function RequestPaymentModal({
               </div>
             )}
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Customer Phone</Label>
-                <div className="relative">
-                  <Phone className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+            <div className="space-y-6">
+              <div className="space-y-1.5">
+                <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1">Customer Phone</Label>
+                <div className="relative group transition-all duration-200">
+                  <Phone className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
                   <Input
                     id="phone"
                     type="tel"
                     placeholder="+1 (555) 000-0000"
-                    className="h-12 rounded-2xl border-white/50 bg-white/85 pl-9 shadow-sm focus-visible:ring-amber-500"
+                    className="h-12 rounded-xl border-border/40 bg-white/60 pl-10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] focus-visible:ring-amber-500/20 focus-visible:border-amber-500/30 transition-all"
                     required
                     value={requestForm.payerPhone}
                     onChange={(e) => setRequestForm({ ...requestForm, payerPhone: e.target.value })}
@@ -200,36 +202,42 @@ export function RequestPaymentModal({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="h-16 rounded-2xl border-2 border-[#f8b513]/30 bg-white text-center text-3xl font-black text-[#5b371f] shadow-sm focus-visible:ring-amber-500"
-                  required
-                  value={requestForm.amount}
-                  onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="amount" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1">Amount</Label>
+                <div className="relative group transition-all duration-200">
+                  <DollarSign className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="h-12 rounded-xl border-border/40 bg-white/60 pl-10 text-lg font-medium text-[#5b371f] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] focus-visible:ring-amber-500/20 focus-visible:border-amber-500/30 transition-all"
+                    required
+                    value={requestForm.amount}
+                    onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Order #1022"
-                  className="min-h-[100px] rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
-                  value={requestForm.description}
-                  onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="description" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1">Description</Label>
+                <div className="relative group transition-all duration-200">
+                  <FileText className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
+                  <Textarea
+                    id="description"
+                    placeholder="Order #1022"
+                    className="min-h-[80px] rounded-xl border-border/40 bg-white/60 pl-10 py-2.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] focus-visible:ring-amber-500/20 focus-visible:border-amber-500/30 transition-all resize-none"
+                    value={requestForm.description}
+                    onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4 pt-2">
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("push")}
-                  className="h-12 rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-sm font-bold text-white shadow-lg shadow-amber-600/30"
+                  className="h-12 rounded-xl bg-[#754319] hover:bg-[#5b371f] text-sm font-bold text-white shadow-md shadow-[#754319]/20 active:scale-[0.98] transition-all"
                   disabled={isSubmitting || !isMerchantApproved}
                 >
                   {isSubmitting && lastMode === "push" ? (
@@ -242,7 +250,7 @@ export function RequestPaymentModal({
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("link")}
-                  className="h-12 rounded-2xl bg-white border border-[#f8b513]/30 text-[#754319] text-sm font-bold shadow-sm hover:bg-amber-50/50"
+                  className="h-12 rounded-xl bg-white border border-border/60 hover:bg-amber-50/30 text-[#754319] text-sm font-bold shadow-sm active:scale-[0.98] transition-all"
                   disabled={isSubmitting || !isMerchantApproved}
                 >
                   {isSubmitting && lastMode === "link" ? (
@@ -255,58 +263,57 @@ export function RequestPaymentModal({
               </div>
 
               {generatedResult && (
-                <div className="rounded-2xl border border-white/70 bg-white/80 p-3 space-y-2 shadow-sm">
-                  <p className="text-xs uppercase tracking-wider text-[#754319]/70">
-                    {lastMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
-                  </p>
-
-                  {generatedResult.paymentUrl ? (
-                    <div className="space-y-1">
-                      <p className="text-xs text-[#754319]/70">Shareable URL</p>
-                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
-                        {generatedResult.paymentUrl}
-                      </code>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="text-xs text-[#754319]/70">Customer token (demo)</p>
-                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
-                        {generatedResult.customerPinToken}
-                      </code>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    {generatedResult.paymentUrl ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
-                        onClick={() => generatedResult.paymentUrl && copyText(generatedResult.paymentUrl, "paymentUrl")}
-                      >
-                        {copied === "paymentUrl" ? <CheckCircle2 className="mr-1 h-4 w-4" /> : <Copy className="mr-1 h-4 w-4" />}
-                        {copied === "paymentUrl" ? "Copied" : "Copy URL"}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
-                        onClick={() =>
-                          generatedResult.customerPinToken && copyText(generatedResult.customerPinToken, "customerPinToken")
-                        }
-                      >
-                        {copied === "customerPinToken" ? <CheckCircle2 className="mr-1 h-4 w-4" /> : <Copy className="mr-1 h-4 w-4" />}
-                        {copied === "customerPinToken" ? "Copied" : "Copy Token"}
-                      </Button>
-                    )}
-
+                <div className="rounded-xl border border-border/40 bg-white/60 p-4 space-y-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#754319]/60">
+                      {lastMode === "push" ? "USSD Prompt Sent" : "Payment Link Ready"}
+                    </p>
                     {generatedResult.transactionReference && (
-                      <Badge className="rounded-full bg-amber-100 text-amber-700 border-0">
-                        Ref: {generatedResult.transactionReference}
+                      <Badge className="rounded-full bg-amber-100/50 text-amber-800 text-[10px] font-bold border-0 px-2 py-0 h-5">
+                        REF: {generatedResult.transactionReference}
                       </Badge>
                     )}
                   </div>
+
+                  {generatedResult.paymentUrl ? (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/70 ml-1">Shareable URL</p>
+                      <div className="group relative">
+                        <code className="block break-all rounded-xl bg-white/80 border border-border/30 p-3 text-xs font-mono text-[#5b371f] pr-10">
+                          {generatedResult.paymentUrl}
+                        </code>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-amber-100/50 text-[#754319]"
+                          onClick={() => generatedResult.paymentUrl && copyText(generatedResult.paymentUrl, "paymentUrl")}
+                        >
+                          {copied === "paymentUrl" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground/70 ml-1">Customer token (demo)</p>
+                      <div className="group relative">
+                        <code className="block break-all rounded-xl bg-white/80 border border-border/30 p-3 text-xs font-mono text-[#5b371f] pr-10">
+                          {generatedResult.customerPinToken}
+                        </code>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-amber-100/50 text-[#754319]"
+                          onClick={() =>
+                            generatedResult.customerPinToken && copyText(generatedResult.customerPinToken, "customerPinToken")
+                          }
+                        >
+                          {copied === "customerPinToken" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
