@@ -1,4 +1,4 @@
-import 'server-only';
+
 import { prisma } from '@/lib/prisma';
 import { 
   MerchantStatus as PrismaMerchantStatus, 

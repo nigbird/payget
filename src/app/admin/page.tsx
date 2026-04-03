@@ -102,7 +102,7 @@ export default function AdminDashboard() {
   }, [])
 
   const handleSaveConfig = async () => {
-    const types = config.allowedFileTypes.split(",").map(t => t.trim()).filter(t => t.startsWith("."))
+    const types = (config.allowedFileTypes || "").split(",").map(t => t.trim()).filter(t => t.startsWith("."))
     
     // In a real app, this would be a PATCH to /api/system-config
     toast({

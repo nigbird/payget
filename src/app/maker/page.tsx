@@ -57,7 +57,12 @@ export default function MakerPortal() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState("register")
   const [isAiLoading, setIsAiLoading] = useState(false)
-  const [systemConfig, setSystemConfig] = useState(db.getSystemConfig())
+  const [systemConfig, setSystemConfig] = useState<any>({
+    districts: [],
+    branches: [],
+    allowedFileTypes: [],
+    maxFileSizeMB: 5
+  })
   const [mySubmissions, setMySubmissions] = useState<Merchant[]>([])
   const [editingMerchantId, setEditingMerchantId] = useState<string | null>(null)
   
@@ -80,7 +85,13 @@ export default function MakerPortal() {
   const [riskFactors, setRiskFactors] = useState<string[]>([])
 
   useEffect(() => {
-    setSystemConfig(db.getSystemConfig())
+    const fetchConfig = async () => {
+      const config = await db.getSystemConfig()
+      if (config) {
+        setSystemConfig(config)
+      }
+    }
+    fetchConfig()
     refreshSubmissions()
   }, [])
 
@@ -93,8 +104,8 @@ export default function MakerPortal() {
     if (!files) return
 
     const newDocs: MerchantDocument[] = []
-    const maxSize = systemConfig.maxFileSizeMB * 1024 * 1024
-    const allowedTypes = systemConfig.allowedFileTypes
+    const maxSize = (systemConfig.maxFileSizeMB || 5) * 1024 * 1024
+    const allowedTypes = systemConfig.allowedFileTypes || []
 
     Array.from(files).forEach(file => {
       const extension = `.${file.name.split('.').pop()?.toLowerCase()}`
@@ -112,7 +123,7 @@ export default function MakerPortal() {
         toast({
           variant: "destructive",
           title: "File Too Large",
-          description: `${file.name} exceeds the ${systemConfig.maxFileSizeMB}MB limit.`
+          description: `${file.name} exceeds the ${systemConfig.maxFileSizeMB || 5}MB limit.`
         })
         return
       }
@@ -420,7 +431,7 @@ export default function MakerPortal() {
                                     <SelectValue placeholder="Select Branch" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {systemConfig.branches.map(branch => (
+                                    {(systemConfig.branches || []).map(branch => (
                                       <SelectItem key={branch} value={branch}>{branch}</SelectItem>
                                     ))}
                                   </SelectContent>
@@ -436,7 +447,7 @@ export default function MakerPortal() {
                                     <SelectValue placeholder="Select District" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {systemConfig.districts.map(district => (
+                                    {(systemConfig.districts || []).map(district => (
                                       <SelectItem key={district} value={district}>{district}</SelectItem>
                                     ))}
                                   </SelectContent>
@@ -460,7 +471,7 @@ export default function MakerPortal() {
                               <Upload className="w-8 h-8 text-muted-foreground mb-2" />
                               <p className="text-sm font-medium">Click to upload documents</p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                Trade License, ID, or Tax Certificates (Max {systemConfig.maxFileSizeMB}MB)
+                                Trade License, ID, or Tax Certificates (Max {systemConfig.maxFileSizeMB || 5}MB)
                               </p>
                               <input 
                                 type="file" 
@@ -468,7 +479,7 @@ export default function MakerPortal() {
                                 className="hidden" 
                                 ref={fileInputRef}
                                 onChange={handleFileUpload}
-                                accept={systemConfig.allowedFileTypes.join(',')}
+                                accept={(systemConfig.allowedFileTypes || []).join(',')}
                               />
                             </div>
 
@@ -642,7 +653,7 @@ export default function MakerPortal() {
                         </div>
                         <div className="flex items-start gap-3">
                           <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-xs font-bold">2</div>
-                          <p>Allowed: {systemConfig.allowedFileTypes.join(', ')}</p>
+                          <p>Allowed: {(systemConfig.allowedFileTypes || []).join(', ')}</p>
                         </div>
                       </CardContent>
                     </Card>

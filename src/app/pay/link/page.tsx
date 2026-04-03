@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,7 +23,7 @@ type ResolvedPayment = {
   payerPhone: string
 }
 
-export default function PayLinkPage() {
+function PayLinkContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -143,7 +143,7 @@ export default function PayLinkPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Home
           </Button>
-          <Badge className="rounded-full bg-white/70 text-[#754319] border border-white/60">
+          <Badge className="rounded-full bg-white/70 border border-white/60 text-[#754319]">
             <ShieldCheck className="mr-1 h-3.5 w-3.5" />
             Encrypted
           </Badge>
@@ -266,6 +266,14 @@ export default function PayLinkPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PayLinkPage() {
+  return (
+    <Suspense fallback={<div>Loading payment link...</div>}>
+      <PayLinkContent />
+    </Suspense>
   )
 }
 

@@ -51,7 +51,12 @@ export default function MerchantSelfRegistration() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [credentials, setCredentials] = useState<{ id: string; email: string; pass: string } | null>(null)
-  const [systemConfig, setSystemConfig] = useState(db.getSystemConfig())
+  const [systemConfig, setSystemConfig] = useState<any>({
+    districts: [],
+    branches: [],
+    allowedFileTypes: [],
+    maxFileSizeMB: 5
+  })
   
   const [formData, setFormData] = useState({
     name: "",
@@ -74,7 +79,13 @@ export default function MerchantSelfRegistration() {
   const [riskFactors, setRiskFactors] = useState<string[]>([])
 
   useEffect(() => {
-    setSystemConfig(db.getSystemConfig())
+    const fetchConfig = async () => {
+      const config = await db.getSystemConfig()
+      if (config) {
+        setSystemConfig(config)
+      }
+    }
+    fetchConfig()
   }, [])
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,8 +93,8 @@ export default function MerchantSelfRegistration() {
     if (!files) return
 
     const newDocs: MerchantDocument[] = []
-    const maxSize = systemConfig.maxFileSizeMB * 1024 * 1024
-    const allowedTypes = systemConfig.allowedFileTypes
+    const maxSize = (systemConfig.maxFileSizeMB || 5) * 1024 * 1024
+    const allowedTypes = systemConfig.allowedFileTypes || []
 
     Array.from(files).forEach(file => {
       const extension = `.${file.name.split('.').pop()?.toLowerCase()}`
@@ -411,7 +422,7 @@ export default function MerchantSelfRegistration() {
                             <SelectValue placeholder="Select District" />
                           </SelectTrigger>
                           <SelectContent>
-                            {systemConfig.districts.map(district => (
+                            {(systemConfig.districts || []).map(district => (
                               <SelectItem key={district} value={district}>{district}</SelectItem>
                             ))}
                           </SelectContent>
@@ -427,7 +438,7 @@ export default function MerchantSelfRegistration() {
                             <SelectValue placeholder="Select Branch" />
                           </SelectTrigger>
                           <SelectContent>
-                            {systemConfig.branches.map(branch => (
+                            {(systemConfig.branches || []).map(branch => (
                               <SelectItem key={branch} value={branch}>{branch}</SelectItem>
                             ))}
                           </SelectContent>
@@ -454,7 +465,7 @@ export default function MerchantSelfRegistration() {
                         className="hidden" 
                         ref={fileInputRef}
                         onChange={handleFileUpload}
-                        accept={systemConfig.allowedFileTypes.join(',')}
+                        accept={(systemConfig.allowedFileTypes || []).join(',')}
                       />
                     </div>
                   </div>
