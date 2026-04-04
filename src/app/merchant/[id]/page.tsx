@@ -21,9 +21,7 @@ import {
   Wallet,
   Clock,
   TrendingUp,
-  CircleDollarSign,
   Plus,
-  ShieldCheck,
   AlertCircle,
   Phone,
   UserRound,
@@ -33,8 +31,6 @@ import {
   ArrowUpRight,
   ChevronRight,
   Loader2,
-  ArrowRightLeft,
-  Zap,
   ShieldAlert,
   Info,
 } from "lucide-react"
@@ -372,16 +368,10 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       icon: TrendingUp,
     },
     {
-      title: "Limits",
-      value: `$${merchant.dailyLimit.toLocaleString()}`,
-      hint: "Daily processing cap",
-      icon: CircleDollarSign,
-    },
-    {
       title: "Account Status",
       value: merchant.status === "approved" ? "Verified" : "Reviewing",
       hint: merchant.businessType || "Merchant",
-      icon: ShieldCheck,
+      icon: ShieldAlert,
     },
   ]
 
@@ -430,14 +420,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
-        {metricCards.filter(m => m.title !== "Limits" && m.title !== "Account Status").map((item) => {
+      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+        {metricCards.map((item) => {
           const Icon = item.icon
           return (
             <Card
-                    key={item.title}
-                    className="overflow-hidden rounded-3xl border-white/60 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
-                  >
+              key={item.title}
+              className="overflow-hidden rounded-3xl border-white/60 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
+            >
               <CardContent className="relative p-5 h-full flex items-center justify-between gap-3">
                 <div className="flex flex-col">
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#754319]/70">{item.title}</p>
@@ -451,43 +441,10 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </Card>
           )
         })}
-        
-        <Card
-          className="xl:col-span-2 overflow-hidden rounded-[2.5rem] border-white/60 bg-[#fdf2d5] shadow-md transition-all duration-500 group relative"
-        >
-          <CardContent className="relative p-3 h-full flex items-center">
-            <div className="flex-1 grid grid-cols-3 gap-2">
-              <div className="relative flex flex-col items-center p-2.5 rounded-3xl bg-white/40 border border-white/30 backdrop-blur-sm transition-all hover:bg-white/60">
-                <Zap className="h-3.5 w-3.5 text-[#754319]/80 mb-1" />
-                <p className="text-[8px] uppercase tracking-wider font-bold text-[#754319]/70">Max Tx</p>
-                <p className="text-sm font-black text-[#5b371f]">${merchant.transactionLimit.toLocaleString()}</p>
-              </div>
-
-              <div className="relative flex flex-col items-center p-2.5 rounded-3xl bg-white/40 border border-white/30 backdrop-blur-sm transition-all hover:bg-white/60">
-                <ArrowRightLeft className="h-3.5 w-3.5 text-[#754319]/80 mb-1" />
-                <p className="text-[8px] uppercase tracking-wider font-bold text-[#754319]/70">Daily Cnt</p>
-                <p className="text-sm font-black text-[#5b371f]">{merchant.dailyCountLimit.toLocaleString()}</p>
-              </div>
-
-              <div className="relative flex flex-col items-center p-2.5 rounded-3xl bg-white/60 border border-white/40 backdrop-blur-md transition-all hover:bg-white/80 shadow-sm">
-                <CircleDollarSign className="h-3.5 w-3.5 text-[#754319] mb-1" />
-                <p className="text-[8px] uppercase tracking-wider font-bold text-[#754319]/80">Daily Max</p>
-                <p className="text-sm font-black text-[#5b371f]">${merchant.dailyLimit.toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="shrink-0 flex flex-col items-center pl-4 border-l border-[#754319]/10 ml-2">
-              <div className="flex items-center gap-1 text-[#754319]/70">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Verified</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </section>
 
       <section className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <Card className="xl:col-span-2 rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
+        <Card className="xl:col-span-3 rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
           <CardContent className="p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
