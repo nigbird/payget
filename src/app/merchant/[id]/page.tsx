@@ -527,33 +527,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
-          <CardContent className="p-5">
-            <h2 className="font-semibold text-[#5b371f] text-lg">Integration</h2>
-            <p className="mt-1 text-xs text-[#754319]/70">Copy your credentials for webhooks and API setup.</p>
-            <div className="mt-4 space-y-3">
-              <div className="rounded-2xl border border-white/70 bg-white/80 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Merchant ID</p>
-                <p className="truncate font-mono text-sm text-[#5b371f]">{merchant.id}</p>
-                <Button type="button" variant="ghost" className="mt-2 h-8 px-2 text-xs text-[#754319]" onClick={() => copyText(merchant.id, "id")}>
-                  {copied === "id" ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
-                  {copied === "id" ? "Copied" : "Copy"}
-                </Button>
-              </div>
-              <div className="rounded-2xl border border-white/70 bg-white/80 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Callback URL</p>
-                <p className="truncate font-mono text-sm text-[#5b371f]">{merchant.callbackUrl}</p>
-                <Button type="button" variant="ghost" className="mt-2 h-8 px-2 text-xs text-[#754319]" onClick={() => copyText(merchant.callbackUrl, "callback")}>
-                  {copied === "callback" ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
-                  {copied === "callback" ? "Copied" : "Copy"}
-                </Button>
-              </div>
-            </div>
-            <Link href="/" className="mt-4 inline-flex items-center text-xs font-medium text-[#754319]">
-              Back to overview <ChevronRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </CardContent>
-        </Card>
       </section>
 
       <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>

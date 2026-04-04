@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { z } from "zod"
-import { Building2, Cable, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Clock, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, LogOut } from "lucide-react"
+import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Clock, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, LogOut } from "lucide-react"
 import { useSession } from "next-auth/react"
 
 import type { Merchant } from "@/app/lib/db"
@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
@@ -70,7 +69,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     confirmPassword: "",
   })
   const [activeTab, setActiveTab] = useState<TabValue>("system")
-  const [enforceHttps, setEnforceHttps] = useState(false)
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
@@ -155,9 +153,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     const parsed = callbackUrlSchema.safeParse(formData.callbackUrl.trim())
     if (!parsed.success) {
       nextErrors.callbackUrl = parsed.error.issues[0]?.message ?? "Invalid Callback URL."
-    } else if (enforceHttps) {
-      const url = new URL(formData.callbackUrl.trim())
-      if (url.protocol !== "https:") nextErrors.callbackUrl = "HTTPS is required when enforcement is enabled."
     }
 
     return nextErrors
@@ -507,39 +502,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   </CardContent>
                 </Card>
 
-                {/* Integration Settings Card */}
-                <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
-                      <Cable className="h-5 w-5 text-[#754319]" />
-                      Integration Settings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="callbackUrl">Callback URL (Webhook Endpoint)</Label>
-                      <Input
-                        id="callbackUrl"
-                        value={formData.callbackUrl}
-                        onChange={(e) => setFormData((p) => ({ ...p, callbackUrl: e.target.value }))}
-                        placeholder="https://merchant.example.com/api/payments/webhook"
-                        className="rounded-2xl border-white/60 bg-white/85"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Payment notifications and status updates are delivered to this endpoint.
-                      </p>
-                      {errors.callbackUrl && <p className="text-xs text-rose-600">{errors.callbackUrl}</p>}
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/80 p-4">
-                      <div>
-                        <p className="text-sm font-medium text-[#5b371f]">Enforce HTTPS (optional)</p>
-                        <p className="text-xs text-muted-foreground">Require secure HTTPS callback URLs only.</p>
-                      </div>
-                      <Switch checked={enforceHttps} onCheckedChange={setEnforceHttps} />
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
 
