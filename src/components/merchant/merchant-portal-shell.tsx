@@ -3,7 +3,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, History, Users, Settings2 } from "lucide-react"
+import { LayoutDashboard, History, Users, Settings2, LogOut } from "lucide-react"
+import { signOut } from "next-auth/react"
 
 import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -135,6 +136,18 @@ export default function MerchantPortalShell({
                   })}
                 </div>
               </div>
+            </div>
+
+            <div className="shrink-0 ml-auto md:ml-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="text-[#754319] hover:bg-red-50 hover:text-red-600 rounded-xl gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline text-sm font-semibold">Log Out</span>
+              </Button>
             </div>
           </div>
         </header>

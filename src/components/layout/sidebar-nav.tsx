@@ -30,7 +30,8 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent
 } from "@/components/ui/sidebar"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
+import { User as UserIcon } from "lucide-react"
 
 const mainMenuItems = [
   { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_GLOBAL_VIEW" },
@@ -136,10 +137,24 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-4">
+        {session?.user && (
+          <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-white/5 border border-white/10 group-data-[collapsible=icon]:justify-center">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <UserIcon className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+              <span className="text-sm font-semibold text-white truncate">{session.user.name || 'User'}</span>
+              <span className="text-[10px] text-white/50 truncate">{(session.user as any).role || 'Staff'}</span>
+            </div>
+          </div>
+        )}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="text-red-400 hover:text-red-300">
+            <SidebarMenuButton 
+              className="text-red-400 hover:text-red-300"
+              onClick={() => signOut({ callbackUrl: "/" })}
+            >
               <LogOut className="w-5 h-5" />
               <span>Log Out</span>
             </SidebarMenuButton>
