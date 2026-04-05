@@ -33,15 +33,14 @@ import {
 import { useSession } from "next-auth/react"
 
 const mainMenuItems = [
-  { name: "Merchant Management", href: "/admin", icon: Building2, permission: "DASHBOARD_GLOBAL_VIEW" },
-  { name: "Maker Portal", href: "/maker", icon: UserPlus, permission: "MERCHANT_REGISTER" },
-  { name: "Branch Approval", href: "/checker", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
-  { name: "Head Office Approval", href: "/head-office", icon: BadgeCheck, permission: "MERCHANT_APPROVE" },
+  { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_GLOBAL_VIEW" },
+  { name: "Merchant Onboarding", href: "/admin/onboarding", icon: UserPlus, permission: "MERCHANT_REGISTER" },
+  { name: "Review & Approvals", href: "/admin/review", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
 ]
 
 const adminMenuItems = [
-  { name: "User Management", href: "/admin/users", icon: Users, permission: "USER_CREATE" },
-  { name: "Role Management", href: "/admin/roles", icon: Shield, permission: "ROLE_CREATE" },
+  { name: "Staff Management", href: "/admin/users", icon: Users, permission: "USER_CREATE" },
+  { name: "Permission Governance", href: "/admin/roles", icon: Shield, permission: "ROLE_CREATE" },
 ]
 
 export function SidebarNav() {

@@ -53,20 +53,11 @@ async function main() {
       description: 'Full system access',
       perms: ['DASHBOARD_GLOBAL_VIEW', 'DASHBOARD_USER_VIEW', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE']
     },
+    
     {
-      name: 'Maker',
-      description: 'Can initiate registrations and requests',
-      perms: ['DASHBOARD_USER_VIEW', 'MERCHANT_REGISTER', 'USER_CREATE']
-    },
-    {
-      name: 'Checker',
-      description: 'Can approve and verify actions',
-      perms: ['DASHBOARD_USER_VIEW', 'MERCHANT_APPROVE', 'TRANSACTION_LIMIT_SET']
-    },
-    {
-      name: 'HO Officer',
-      description: 'Head office oversight',
-      perms: ['DASHBOARD_GLOBAL_VIEW', 'DASHBOARD_USER_VIEW']
+      name: 'Final Approver',
+      description: 'Performs final review and activates merchant accounts',
+      perms: ['DASHBOARD_GLOBAL_VIEW', 'DASHBOARD_USER_VIEW', 'MERCHANT_APPROVE']
     },
     {
       name: 'Merchant',
@@ -131,9 +122,7 @@ async function main() {
   // 5. Create Users for different portals
   const usersToSeed = [
     { email: 'admin@finflow.io', name: 'Super Admin', role: UserRole.ADMIN, customRoleName: 'Super Admin' },
-    { email: 'maker@finflow.io', name: 'Staff Maker', role: UserRole.MAKER, customRoleName: 'Maker' },
-    { email: 'checker@finflow.io', name: 'Staff Checker', role: UserRole.CHECKER, customRoleName: 'Checker' },
-    { email: 'ho@finflow.io', name: 'HO Officer', role: UserRole.HEAD_OFFICE, customRoleName: 'HO Officer' },
+    { email: 'approver@finflow.io', name: 'Final Approver', role: UserRole.HEAD_OFFICE, customRoleName: 'Final Approver' },
     { email: 'onboarding@techgear.io', name: 'TechGear Owner', role: UserRole.MERCHANT, merchantId: 'm1', customRoleName: 'Merchant' },
   ]
 

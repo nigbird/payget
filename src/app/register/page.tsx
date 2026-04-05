@@ -473,13 +473,13 @@ export default function MerchantSelfRegistration() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="branchName" className="text-sm font-medium text-gray-700">Nearest Serving Branch</Label>
+                      <Label htmlFor="branchName" className="text-sm font-medium text-gray-700">Processing Hub</Label>
                       <Select 
                         value={formData.branchName} 
                         onValueChange={(val) => setFormData({...formData, branchName: val})}
                       >
                         <SelectTrigger id="branchName" className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 transition-all">
-                          <SelectValue placeholder="Select Branch" />
+                          <SelectValue placeholder="Select Processing Hub" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-gray-100">
                           {(systemConfig.branches || []).map(branch => (

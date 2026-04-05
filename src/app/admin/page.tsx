@@ -125,8 +125,7 @@ export default function AdminDashboard() {
     switch (status) {
       case 'approved':
         return <Badge className="bg-green-500 gap-1"><BadgeCheck className="w-3 h-3" /> Approved</Badge>
-      case 'branch_approved':
-        return <Badge className="bg-blue-500 gap-1"><ShieldCheck className="w-3 h-3" /> Branch OK</Badge>
+      case 'branch_approved': return <Badge className="bg-blue-500 gap-1"><ShieldCheck className="w-3 h-3" /> Initial Review OK</Badge>
       case 'pending':
         return <Badge variant="outline" className="text-orange-500 border-orange-200 gap-1 bg-orange-50"><Clock className="w-3 h-3" /> Pending</Badge>
       case 'rejected':
@@ -153,36 +152,36 @@ export default function AdminDashboard() {
           <div className="max-w-7xl mx-auto space-y-6">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border-none shadow-sm overflow-hidden">
+              <Card className="border-none shadow-sm overflow-hidden group">
                 <CardHeader className="bg-white pb-2">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-primary" />
-                    <CardTitle className="text-lg">Governance</CardTitle>
+                    <UserPlus className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Merchant Onboarding</CardTitle>
                   </div>
-                  <CardDescription>Manage dynamic roles and granular staff permissions</CardDescription>
+                  <CardDescription>Register new merchants and manage submission queue</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <Link href="/admin/roles">
-                    <Button variant="outline" className="w-full justify-between group">
-                      Manage System Roles
+                  <Link href="/admin/onboarding">
+                    <Button variant="outline" className="w-full justify-between">
+                      Onboarding Portal
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
                 </CardContent>
               </Card>
 
-              <Card className="border-none shadow-sm overflow-hidden">
+              <Card className="border-none shadow-sm overflow-hidden group">
                 <CardHeader className="bg-white pb-2">
                   <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-primary" />
-                    <CardTitle className="text-lg">User Access</CardTitle>
+                    <ShieldCheck className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Review & Approvals</CardTitle>
                   </div>
-                  <CardDescription>Provision and audit administrative user accounts</CardDescription>
+                  <CardDescription>Centralized queue for compliance audits and activation</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <Link href="/admin/users">
-                    <Button variant="outline" className="w-full justify-between group">
-                      Manage Staff Accounts
+                  <Link href="/admin/review">
+                    <Button variant="outline" className="w-full justify-between">
+                      Review Queue
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
@@ -352,8 +351,8 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="text-xs">{m.branchName}</span>
-                            <span className="text-[10px] text-muted-foreground">{m.district}</span>
+                            <span className="text-xs font-medium text-foreground">{m.branchName}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase">{m.district}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -380,7 +379,7 @@ export default function AdminDashboard() {
                                   <Building2 className="w-5 h-5" /> {m.name} Details
                                 </DialogTitle>
                                 <DialogDescription>
-                                  Registered on {new Date(m.createdAt).toLocaleDateString()} at {m.branchName} branch.
+                                  Registered on {new Date(m.createdAt).toLocaleDateString()} at {m.branchName} hub.
                                 </DialogDescription>
                               </DialogHeader>
                               

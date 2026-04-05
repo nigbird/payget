@@ -24,6 +24,9 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json();
+
+    // Generate a unique merchant ID if not provided (e.g., m12345)
+    const merchantId = data.id || `m${Math.random().toString(36).substring(2, 9)}`;
     
     // Hash the password before saving
     if (data.password) {
@@ -33,10 +36,12 @@ export async function POST(request: Request) {
     // Create merchant and corresponding user in a transaction
     const merchant = await prisma.$transaction(async (tx) => {
       // Create the merchant record
-      const { documents, ...rest } = data;
+      const { documents, id, ...rest } = data;
       const m = await tx.merchant.create({
         data: {
           ...rest,
+          id: merchantId,
+          jweSecret: rest.jweSecret || Math.random().toString(36).substring(2, 15),
           createdBy: (session.user as any).id,
           status: rest.status === 'approved' ? 'APPROVED' : (rest.status === 'branch_approved' ? 'BRANCH_APPROVED' : (rest.status === 'rejected' ? 'REJECTED' : 'PENDING')),
           documents: documents ? {
