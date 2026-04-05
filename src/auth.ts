@@ -25,7 +25,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
-          merchantId: user.merchantId
+          merchantId: user.merchantId,
+          permissions: (user as any).customRole?.permissions.map((p: any) => p.permission.name) || []
         }
       }
     })
@@ -36,12 +37,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as any).role
         token.merchantId = (user as any).merchantId
         token.id = user.id
+        token.permissions = (user as any).permissions
       }
       if (trigger === "update" && session) {
         // Update token with new session data
         if (session.user?.email) token.email = session.user.email;
         if (session.user?.name) token.name = session.user.name;
         if (session.user?.role) token.role = session.user.role;
+        if (session.user?.permissions) token.permissions = session.user.permissions;
       }
       return token
     },
@@ -50,6 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).role = token.role;
         (session.user as any).id = token.id;
         (session.user as any).merchantId = token.merchantId;
+        (session.user as any).permissions = token.permissions;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
       }

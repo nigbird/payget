@@ -25,6 +25,7 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
+import Link from "next/link"
 import { 
   Activity, 
   Users, 
@@ -44,7 +45,10 @@ import {
   Eye,
   TrendingUp,
   ShieldCheck,
-  BadgeCheck
+  BadgeCheck,
+  Shield,
+  UserPlus,
+  ChevronRight
 } from "lucide-react"
 import { 
   ChartContainer, 
@@ -140,14 +144,52 @@ export default function AdminDashboard() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2">
-            <Activity className="text-[#754319] w-5 h-5" />
-            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight">Admin Oversight</h1>
+            <Building2 className="text-[#754319] w-5 h-5" />
+            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight">Merchant Management Dashboard</h1>
           </div>
         </header>
 
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto space-y-6">
             
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-none shadow-sm overflow-hidden">
+                <CardHeader className="bg-white pb-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Governance</CardTitle>
+                  </div>
+                  <CardDescription>Manage dynamic roles and granular staff permissions</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <Link href="/admin/roles">
+                    <Button variant="outline" className="w-full justify-between group">
+                      Manage System Roles
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-sm overflow-hidden">
+                <CardHeader className="bg-white pb-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">User Access</CardTitle>
+                  </div>
+                  <CardDescription>Provision and audit administrative user accounts</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <Link href="/admin/users">
+                    <Button variant="outline" className="w-full justify-between group">
+                      Manage Staff Accounts
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="border-none shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -293,8 +335,8 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableHead>Merchant</TableHead>
                       <TableHead>Location</TableHead>
+                      <TableHead>Transactions</TableHead>
                       <TableHead>Daily Limit</TableHead>
-                      <TableHead>Tx Count Limit</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Inspect</TableHead>
                     </TableRow>
@@ -305,20 +347,22 @@ export default function AdminDashboard() {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">{m.name}</span>
-                            <span className="text-[10px] font-mono text-muted-foreground uppercase">{m.id}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-mono">{m.id}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell>
                           <div className="flex flex-col">
-                            <span>{m.district}</span>
-                            <span className="text-muted-foreground">{m.branchName}</span>
+                            <span className="text-xs">{m.branchName}</span>
+                            <span className="text-[10px] text-muted-foreground">{m.district}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm font-semibold">
-                          ${m.dailyLimit.toLocaleString()}
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {m._count?.transactions || 0}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {m.dailyCountLimit || 'N/A'}
+                        <TableCell>
+                          <span className="text-xs font-medium">${m.dailyLimit.toLocaleString()}</span>
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(m.status)}
@@ -326,101 +370,76 @@ export default function AdminDashboard() {
                         <TableCell className="text-right">
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setSelectedMerchant(m)}>
-                                <Eye className="w-4 h-4" />
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedMerchant(m)}>
+                                <Eye className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+                            <DialogContent className="max-w-2xl">
                               <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
-                                  <Building2 className="w-5 h-5 text-primary" />
-                                  Merchant Profile: {selectedMerchant?.name}
+                                  <Building2 className="w-5 h-5" /> {m.name} Details
                                 </DialogTitle>
                                 <DialogDescription>
-                                  Detailed business and compliance information.
+                                  Registered on {new Date(m.createdAt).toLocaleDateString()} at {m.branchName} branch.
                                 </DialogDescription>
                               </DialogHeader>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
-                                <div className="space-y-6">
-                                  <div className="space-y-3">
-                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                                      <Building2 className="w-3 h-3" /> Business Details
-                                    </h4>
-                                    <div className="grid gap-2 text-sm">
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Legal Name:</span>
-                                        <span className="font-medium">{selectedMerchant?.name}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Type:</span>
-                                        <span>{selectedMerchant?.businessType}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Category:</span>
-                                        <span>{selectedMerchant?.category}</span>
-                                      </div>
+                              
+                              <div className="grid grid-cols-2 gap-6 py-4">
+                                <div className="space-y-4">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Merchant ID</Label>
+                                    <p className="text-sm font-mono">{m.id}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Email & Phone</Label>
+                                    <div className="flex flex-col gap-1">
+                                      <p className="text-sm flex items-center gap-2"><User className="w-3 h-3" /> {m.email}</p>
+                                      <p className="text-sm flex items-center gap-2"><Phone className="w-3 h-3" /> {m.contactPhone}</p>
                                     </div>
                                   </div>
-
-                                  <div className="space-y-3 p-4 bg-muted/20 rounded-lg border border-primary/10">
-                                    <h4 className="text-xs font-bold uppercase text-primary flex items-center gap-2">
-                                      <TrendingUp className="w-3 h-3" /> Configured Constraints
-                                    </h4>
-                                    <div className="grid gap-2 text-sm">
-                                      <div className="flex justify-between border-b pb-1 border-primary/10">
-                                        <span className="text-muted-foreground">Daily Max ($):</span>
-                                        <span className="font-bold">${selectedMerchant?.dailyLimit.toLocaleString()}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1 border-primary/10">
-                                        <span className="text-muted-foreground">Per Tx Max ($):</span>
-                                        <span className="font-bold">${selectedMerchant?.transactionLimit.toLocaleString()}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1 border-primary/10">
-                                        <span className="text-muted-foreground">Daily Max (Count):</span>
-                                        <span className="font-bold">{selectedMerchant?.dailyCountLimit}</span>
-                                      </div>
-                                    </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Category</Label>
+                                    <p className="text-sm">{m.category} - {m.businessType}</p>
                                   </div>
                                 </div>
-
-                                <div className="space-y-6">
-                                  <div className="space-y-3">
-                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                                      <User className="w-3 h-3" /> Contact Person
-                                    </h4>
-                                    <div className="grid gap-2 text-sm">
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Name:</span>
-                                        <span className="font-medium">{selectedMerchant?.contactName}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Email:</span>
-                                        <span>{selectedMerchant?.email}</span>
-                                      </div>
-                                      <div className="flex justify-between border-b pb-1">
-                                        <span className="text-muted-foreground">Phone:</span>
-                                        <span>{selectedMerchant?.contactPhone}</span>
-                                      </div>
-                                    </div>
+                                <div className="space-y-4">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Current Status</Label>
+                                    <div>{getStatusBadge(m.status)}</div>
                                   </div>
-
-                                  <div className="space-y-3">
-                                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                                      <FileCheck className="w-3 h-3" /> Compliance Vault
-                                    </h4>
-                                    <div className="space-y-2">
-                                      {selectedMerchant?.documents?.map((doc: any) => (
-                                        <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-muted/30 border">
-                                          <div className="flex items-center gap-2">
-                                            <FileCheck className="w-3 h-3 text-primary shrink-0" />
-                                            <span className="text-[10px] truncate">{doc.name}</span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Transaction Volume</Label>
+                                    <p className="text-sm font-bold">{m._count?.transactions || 0} processed</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Daily Limit</Label>
+                                    <p className="text-sm font-bold text-green-600">${m.dailyLimit.toLocaleString()}</p>
                                   </div>
                                 </div>
+                              </div>
+
+                              <div className="bg-slate-50 p-4 rounded-lg space-y-2 border border-slate-100">
+                                <Label className="text-[10px] uppercase text-muted-foreground">Risk Factors</Label>
+                                <div className="flex flex-wrap gap-2">
+                                  {m.riskFactors && m.riskFactors.length > 0 ? (
+                                    m.riskFactors.map((rf: string) => (
+                                      <Badge key={rf} variant="destructive" className="text-[10px]">{rf}</Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <FileCheck className="w-3 h-3" /> No high-risk factors identified.
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-3 pt-4 border-t">
+                                <Button variant="outline">Close</Button>
+                                {m.status === 'pending' && (
+                                  <Link href="/checker">
+                                    <Button className="bg-blue-600 hover:bg-blue-700">Review Application</Button>
+                                  </Link>
+                                )}
                               </div>
                             </DialogContent>
                           </Dialog>

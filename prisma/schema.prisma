@@ -13,10 +13,16 @@ model User {
   email         String?   @unique
   password      String?
   role          UserRole  @default(MERCHANT)
+  customRoleId  String?
+  customRole    Role?     @relation(fields: [customRoleId], references: [id])
   merchantId    String?
   merchant      Merchant? @relation(fields: [merchantId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  auditLogs     AuditLog[]
+  createdRoles  Role[]    @relation("RoleCreator")
+  createdMerchants  Merchant[] @relation("MerchantCreator")
+  approvedMerchants Merchant[] @relation("MerchantApprover")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }
 
 enum UserRole {
@@ -25,6 +31,49 @@ enum UserRole {
   CHECKER
   HEAD_OFFICE
   MERCHANT
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  permissions RolePermission[]
+  users       User[]
+  createdBy   String?
+  creator     User?            @relation("RoleCreator", fields: [createdBy], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  category    String           // e.g., "DASHBOARD", "MERCHANT", "USER_ROLE", "TRANSACTION"
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // e.g., "ROLE_CREATE", "MERCHANT_APPROVE"
+  entityType  String   // e.g., "ROLE", "MERCHANT", "USER"
+  entityId    String?
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
 }
 
 model Merchant {
@@ -49,6 +98,10 @@ model Merchant {
   category            String
   businessType        String
   riskFactors         String[]
+  createdBy           String?
+  creator             User?            @relation("MerchantCreator", fields: [createdBy], references: [id])
+  approvedBy          String?
+  approver            User?            @relation("MerchantApprover", fields: [approvedBy], references: [id])
   createdAt           DateTime         @default(now())
   passwordResetToken  String?          @unique
   passwordResetExpires DateTime?

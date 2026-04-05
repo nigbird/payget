@@ -43,8 +43,13 @@ export interface Merchant {
   category: string;
   businessType: string;
   riskFactors: string[];
+  createdBy?: string | null;
+  approvedBy?: string | null;
   createdAt: string;
   documents?: MerchantDocument[];
+  _count?: {
+    transactions: number;
+  };
 }
 
 export interface Transaction {
@@ -87,15 +92,18 @@ function mapToPrismaTransactionStatus(s: TransactionStatus): PrismaTransactionSt
   return s.toUpperCase() as PrismaTransactionStatus;
 }
 
-function mapMerchant(m: PrismaMerchant & { documents?: PrismaMerchantDocument[] }): Merchant {
+function mapMerchant(m: PrismaMerchant & { documents?: PrismaMerchantDocument[], _count?: { transactions: number } }): Merchant {
   return {
     ...m,
     status: mapMerchantStatus(m.status),
     createdAt: m.createdAt.toISOString(),
+    createdBy: m.createdBy,
+    approvedBy: m.approvedBy,
     documents: m.documents?.map(doc => ({
       ...doc,
       uploadedAt: doc.uploadedAt.toISOString()
-    }))
+    })),
+    _count: m._count
   };
 }
 
@@ -152,7 +160,18 @@ export const db = {
   // User Auth Methods
   findUserByEmail: async (email: string) => {
     return prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      include: {
+        customRole: {
+          include: {
+            permissions: {
+              include: {
+                permission: true
+              }
+            }
+          }
+        }
+      }
     });
   },
 
@@ -192,7 +211,12 @@ export const db = {
 
   getMerchants: async () => {
     const merchants = await prisma.merchant.findMany({
-      include: { documents: true },
+      include: { 
+        documents: true,
+        _count: {
+          select: { transactions: true }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
     return merchants.map(mapMerchant);
@@ -201,7 +225,12 @@ export const db = {
   getMerchantById: async (id: string) => {
     const m = await prisma.merchant.findUnique({
       where: { id },
-      include: { documents: true }
+      include: { 
+        documents: true,
+        _count: {
+          select: { transactions: true }
+        }
+      }
     });
     if (!m) return null;
     return mapMerchant(m);

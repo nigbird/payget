@@ -11,7 +11,10 @@ import {
   History,
   Activity,
   LogOut,
-  BadgeCheck
+  BadgeCheck,
+  Shield,
+  Users,
+  Building2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { 
@@ -22,19 +25,39 @@ import {
   SidebarMenu, 
   SidebarMenuButton, 
   SidebarMenuItem,
-  SidebarSeparator
+  SidebarSeparator,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent
 } from "@/components/ui/sidebar"
+import { useSession } from "next-auth/react"
 
-const menuItems = [
-  { name: "Admin Oversight", href: "/admin", icon: Activity, role: "admin" },
-  { name: "Maker Portal", href: "/maker", icon: UserPlus, role: "maker" },
-  { name: "Branch Approval", href: "/checker", icon: ShieldCheck, role: "checker" },
-  { name: "Head Office Approval", href: "/head-office", icon: BadgeCheck, role: "ho" },
-  { name: "Merchant Dashboard", href: "/merchant/m1", icon: LayoutDashboard, role: "merchant" },
+const mainMenuItems = [
+  { name: "Merchant Management", href: "/admin", icon: Building2, permission: "DASHBOARD_GLOBAL_VIEW" },
+  { name: "Maker Portal", href: "/maker", icon: UserPlus, permission: "MERCHANT_REGISTER" },
+  { name: "Branch Approval", href: "/checker", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
+  { name: "Head Office Approval", href: "/head-office", icon: BadgeCheck, permission: "MERCHANT_APPROVE" },
+]
+
+const adminMenuItems = [
+  { name: "User Management", href: "/admin/users", icon: Users, permission: "USER_CREATE" },
+  { name: "Role Management", href: "/admin/roles", icon: Shield, permission: "ROLE_CREATE" },
 ]
 
 export function SidebarNav() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const userPermissions = (session?.user as any)?.permissions || []
+
+  const filteredMenuItems = mainMenuItems.filter(item => 
+    !item.permission || userPermissions.includes(item.permission)
+  )
+
+  const filteredAdminItems = adminMenuItems.filter(item => 
+    !item.permission || userPermissions.includes(item.permission)
+  )
+
+  const merchantId = (session?.user as any)?.merchantId
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -46,22 +69,73 @@ export function SidebarNav() {
       </SidebarHeader>
       <SidebarSeparator />
       <SidebarContent>
-        <SidebarMenu className="px-2 py-4">
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton 
-                asChild 
-                isActive={pathname === item.href}
-                tooltip={item.name}
-              >
-                <Link href={item.href}>
-                  <item.icon className="w-5 h-5" />
-                  <span>{item.name}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-white/40 px-4 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="px-2">
+              {filteredMenuItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === item.href}
+                    tooltip={item.name}
+                  >
+                    <Link href={item.href}>
+                      <item.icon className="w-5 h-5" />
+                      <span>{item.name}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {merchantId && (
+          <SidebarGroup className="mt-4">
+            <SidebarGroupLabel className="text-white/40 px-4 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="px-2">
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === `/merchant/${merchantId}`}
+                    tooltip="My Dashboard"
+                  >
+                    <Link href={`/merchant/${merchantId}`}>
+                      <LayoutDashboard className="w-5 h-5" />
+                      <span>My Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {filteredAdminItems.length > 0 && (
+          <SidebarGroup className="mt-4">
+            <SidebarGroupLabel className="text-white/40 px-4 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="px-2">
+                {filteredAdminItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={pathname === item.href}
+                      tooltip={item.name}
+                    >
+                      <Link href={item.href}>
+                        <item.icon className="w-5 h-5" />
+                        <span>{item.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-4">
         <SidebarMenu>

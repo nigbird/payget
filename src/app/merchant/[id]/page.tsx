@@ -97,6 +97,44 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     )
   }
 
+  if (merchant.status !== 'approved') {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-6 p-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="relative inline-block">
+            <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-10 h-10 text-orange-600" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm">
+              <Clock className="w-6 h-6 text-orange-500 animate-pulse" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Portal Access Restricted</h2>
+            <p className="text-slate-500">
+              Your merchant account is currently <span className="font-semibold text-orange-600 uppercase text-sm">{merchant.status.replace('_', ' ')}</span>.
+            </p>
+          </div>
+
+          <Card className="border-orange-100 bg-orange-50/30 text-left">
+            <CardContent className="p-4 flex gap-3">
+              <Info className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+              <div className="text-sm text-orange-800">
+                <p className="font-medium mb-1">Onboarding in Progress</p>
+                <p>Full access to the merchant portal and payment features is only granted once your registration has been fully approved by the compliance team.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Button variant="outline" onClick={() => window.location.reload()} className="w-full">
+            Refresh Status
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   const handleRequestPayment = async (mode: "push" | "link") => {
     const amountNum = parseFloat(requestForm.amount)
     if (isNaN(amountNum) || amountNum <= 0) {

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+import { hasPermission } from '@/lib/rbac';
 import bcrypt from 'bcryptjs';
 
 export async function GET() {
@@ -10,6 +12,17 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check for merchant registration permission
+    const canRegister = await hasPermission('MERCHANT_REGISTER');
+    if (!canRegister) {
+      return NextResponse.json({ error: 'Permission denied: MERCHANT_REGISTER required' }, { status: 403 });
+    }
+
     const data = await request.json();
     
     // Hash the password before saving
@@ -24,6 +37,7 @@ export async function POST(request: Request) {
       const m = await tx.merchant.create({
         data: {
           ...rest,
+          createdBy: (session.user as any).id,
           status: rest.status === 'approved' ? 'APPROVED' : (rest.status === 'branch_approved' ? 'BRANCH_APPROVED' : (rest.status === 'rejected' ? 'REJECTED' : 'PENDING')),
           documents: documents ? {
             create: documents.map((doc: any) => ({
