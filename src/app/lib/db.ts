@@ -10,7 +10,7 @@ import {
   UserRole
 } from '@prisma/client';
 
-export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected';
+export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected' | 'active';
 export type TransactionStatus = 'success' | 'failed' | 'initiated' | 'pending' | 'awaiting_pin' | 'processing';
 
 export interface MerchantDocument {
@@ -37,7 +37,7 @@ export interface Merchant {
   websiteUrl?: string | null;
   callbackUrl: string;
   contactName: string;
-  contactPhone: string;
+  contactUsername: string;
   branchName: string;
   district: string;
   category: string;
@@ -74,6 +74,7 @@ function mapMerchantStatus(s: PrismaMerchantStatus): MerchantStatus {
   if (s === 'PENDING') return 'pending';
   if (s === 'BRANCH_APPROVED') return 'branch_approved';
   if (s === 'APPROVED') return 'approved';
+  if (s === 'ACTIVE') return 'active';
   return 'rejected';
 }
 
@@ -81,6 +82,7 @@ function mapToPrismaMerchantStatus(s: MerchantStatus): PrismaMerchantStatus {
   if (s === 'pending') return 'PENDING';
   if (s === 'branch_approved') return 'BRANCH_APPROVED';
   if (s === 'approved') return 'APPROVED';
+  if (s === 'active') return 'ACTIVE';
   return 'REJECTED';
 }
 
@@ -162,6 +164,7 @@ export const db = {
     return prisma.user.findUnique({
       where: { email },
       include: {
+        merchant: true,
         customRole: {
           include: {
             permissions: {
@@ -242,7 +245,7 @@ export const db = {
         OR: [
           { id: identifier },
           { email: identifier },
-          { contactPhone: identifier }
+          { contactUsername: identifier }
         ]
       },
       include: { documents: true }

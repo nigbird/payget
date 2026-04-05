@@ -273,7 +273,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
       const updateData: any = {
         email: profileData.email.trim(),
-        phoneNumber: profileData.phoneNumber.trim(),
+        contactUsername: profileData.phoneNumber.trim(),
       }
 
       if (profileData.newPassword) {
@@ -300,7 +300,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         setProfileData(prev => ({
           ...prev,
           email: refreshed.email || prev.email,
-          phoneNumber: refreshed.phoneNumber || refreshed.contactPhone || prev.phoneNumber,
+          phoneNumber: refreshed.contactUsername || prev.phoneNumber,
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
@@ -308,7 +308,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         setInitialProfileData(prev => ({
           ...prev,
           email: refreshed.email || prev.email,
-          phoneNumber: refreshed.phoneNumber || refreshed.contactPhone || prev.phoneNumber,
+          phoneNumber: refreshed.contactUsername || prev.phoneNumber,
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",

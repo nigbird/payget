@@ -30,8 +30,8 @@ export async function PATCH(
       userUpdateData.email = body.email
     }
     
-    if (body.phoneNumber !== undefined) {
-      updateData.contactPhone = body.phoneNumber // Map to actual database field
+    if (body.contactUsername !== undefined) {
+      updateData.contactUsername = body.contactUsername // Map to actual database field
     }
 
     // Handle password change
@@ -71,10 +71,10 @@ export async function PATCH(
     // Return updated data without sensitive fields
     const { password, ...safeMerchantData } = updatedMerchant
     
-    // Map contactPhone back to phoneNumber for frontend consistency
+    // Map contactUsername back to phoneNumber for frontend consistency
     const response = {
       ...safeMerchantData,
-      phoneNumber: (safeMerchantData as any).contactPhone
+      phoneNumber: (safeMerchantData as any).contactUsername
     }
 
     return NextResponse.json(response)

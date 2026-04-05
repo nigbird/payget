@@ -17,6 +17,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await db.findUserByEmail(credentials.email as string)
         if (!user || !user.password) return null
         
+        // If the user is a merchant, ensure the merchant account is ACTIVE
+        if (user.role === 'MERCHANT' && user.merchantId) {
+          if (user.merchant?.status !== 'ACTIVE') {
+            return null; // Deny login for inactive/pending merchants
+          }
+        }
+        
         const isValid = await bcrypt.compare(credentials.password as string, user.password)
         if (!isValid) return null
         

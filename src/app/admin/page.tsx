@@ -40,7 +40,7 @@ import {
   Search,
   Building2,
   User,
-  Phone,
+  Mail,
   FileCheck,
   Eye,
   TrendingUp,
@@ -390,10 +390,10 @@ export default function AdminDashboard() {
                                     <p className="text-sm font-mono">{m.id}</p>
                                   </div>
                                   <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase text-muted-foreground">Email & Phone</Label>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Identifiers</Label>
                                     <div className="flex flex-col gap-1">
-                                      <p className="text-sm flex items-center gap-2"><User className="w-3 h-3" /> {m.email}</p>
-                                      <p className="text-sm flex items-center gap-2"><Phone className="w-3 h-3" /> {m.contactPhone}</p>
+                                      <p className="text-sm flex items-center gap-2"><Mail className="w-3 h-3" /> {m.email}</p>
+                                      <p className="text-sm flex items-center gap-2"><User className="w-3 h-3" /> {m.contactUsername}</p>
                                     </div>
                                   </div>
                                   <div className="space-y-1">

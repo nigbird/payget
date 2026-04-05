@@ -50,7 +50,6 @@ export default function MerchantSelfRegistration() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [credentials, setCredentials] = useState<{ id: string; email: string; pass: string } | null>(null)
   const [systemConfig, setSystemConfig] = useState<any>({
     districts: [],
     branches: [],
@@ -68,7 +67,7 @@ export default function MerchantSelfRegistration() {
     websiteUrl: "",
     callbackUrl: "",
     contactName: "",
-    contactPhone: "",
+    contactUsername: "",
     branchName: "",
     district: "",
     category: "",
@@ -179,15 +178,6 @@ export default function MerchantSelfRegistration() {
     }
   }
 
-  const generatePassword = () => {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
-    let retVal = ""
-    for (let i = 0, n = charset.length; i < 12; ++i) {
-      retVal += charset.charAt(Math.floor(Math.random() * n))
-    }
-    return retVal
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -212,7 +202,6 @@ export default function MerchantSelfRegistration() {
     setIsSubmitting(true)
     
     const merchantId = `m_${Math.random().toString(36).substr(2, 9)}`
-    const generatedPass = generatePassword()
     
     try {
       const response = await fetch('/api/merchants', {
@@ -221,7 +210,6 @@ export default function MerchantSelfRegistration() {
         body: JSON.stringify({
           id: merchantId,
           ...formData,
-          password: generatedPass,
           dailyLimit: Number(formData.dailyLimit),
           transactionLimit: Number(formData.transactionLimit),
           dailyCountLimit: 100,
@@ -234,11 +222,10 @@ export default function MerchantSelfRegistration() {
       })
 
       if (response.ok) {
-        setCredentials({ id: merchantId, email: formData.email, pass: generatedPass })
         setIsSuccess(true)
         toast({
           title: "Application Submitted",
-          description: "Please save your credentials to check status later."
+          description: "Your application has been submitted successfully."
         })
       } else {
         throw new Error('Failed to register')
@@ -261,7 +248,7 @@ export default function MerchantSelfRegistration() {
     })
   }
 
-  if (isSuccess && credentials) {
+  if (isSuccess) {
     return (
       <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
         <Card className="max-w-md w-full shadow-lg border-none animate-in zoom-in-95">
@@ -269,57 +256,24 @@ export default function MerchantSelfRegistration() {
             <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
               <CheckCircle2 className="w-8 h-8 text-green-600" />
             </div>
-            <CardTitle className="text-2xl font-headline">Application Received!</CardTitle>
+            <CardTitle className="text-2xl font-headline">Application Submitted!</CardTitle>
             <CardDescription>
-              Your registration is now <span className="text-orange-600 font-bold uppercase">Pending Approval</span>.
+              Your application has been submitted successfully.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 py-6">
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-3">
-              <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-3 h-3" /> User Credential Details
-              </p>
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 text-center">
               <p className="text-sm text-blue-700 leading-relaxed">
-                You can log in using your <span className="font-bold">Email</span>, <span className="font-bold">Phone</span>, or <span className="font-bold">Merchant ID</span>.
+                Thank you for applying. Your application is currently <span className="font-bold uppercase">Pending Review</span>.
               </p>
-              
-              <div className="space-y-4 pt-2">
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-blue-600">Email (Primary Identifier)</Label>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-white p-2 rounded border border-blue-200 text-sm font-mono font-bold">{credentials.email}</code>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600" onClick={() => copyToClipboard(credentials.email)}>
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-blue-600">Merchant ID</Label>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-white p-2 rounded border border-blue-200 text-sm font-mono font-bold">{credentials.id}</code>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600" onClick={() => copyToClipboard(credentials.id)}>
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-blue-600">Unique Password</Label>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-white p-2 rounded border border-blue-200 text-sm font-mono font-bold">{credentials.pass}</code>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600" onClick={() => copyToClipboard(credentials.pass)}>
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <p className="text-sm text-blue-700 mt-4">
+                You will receive an email or SMS notification once your account has been approved.
+              </p>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-2">
-            <Button className="w-full" asChild>
+          <CardFooter>
+            <Button className="w-full h-11" asChild>
               <Link href="/">Return to Home</Link>
-            </Button>
-            <Button variant="ghost" className="w-full text-xs" asChild>
-              <Link href={`/merchant/${credentials.id}`}>Preview Dashboard (ReadOnly)</Link>
             </Button>
           </CardFooter>
         </Card>
@@ -427,16 +381,16 @@ export default function MerchantSelfRegistration() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="contactPhone" className="text-sm font-medium text-gray-700">Phone Number</Label>
+                      <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Username (Email or Phone Number)</Label>
                       <div className="relative group">
-                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                         <Input 
-                          id="contactPhone" 
+                          id="contactUsername" 
                           className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                          placeholder="+123 456 7890" 
+                          placeholder="email@example.com or +1234567890" 
                           required 
-                          value={formData.contactPhone}
-                          onChange={e => setFormData({...formData, contactPhone: e.target.value})}
+                          value={formData.contactUsername}
+                          onChange={e => setFormData({...formData, contactUsername: e.target.value})}
                         />
                       </div>
                     </div>

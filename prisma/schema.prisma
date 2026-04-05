@@ -92,7 +92,7 @@ model Merchant {
   websiteUrl          String?
   callbackUrl         String
   contactName         String
-  contactPhone        String
+  contactUsername     String
   branchName          String
   district            String
   category            String
@@ -116,6 +116,7 @@ enum MerchantStatus {
   BRANCH_APPROVED
   APPROVED
   REJECTED
+  ACTIVE
 }
 
 model MerchantDocument {

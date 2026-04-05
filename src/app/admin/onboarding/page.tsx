@@ -101,7 +101,7 @@ export default function MerchantOnboardingPage() {
     websiteUrl: "",
     callbackUrl: "",
     contactName: "",
-    contactPhone: "",
+    contactUsername: "",
     branchName: "",
     district: "",
     category: "",
@@ -272,7 +272,7 @@ export default function MerchantOnboardingPage() {
         // Reset form
         setFormData({
           name: "", email: "", accountNumber: "", businessDescription: "",
-          websiteUrl: "", callbackUrl: "", contactName: "", contactPhone: "",
+          websiteUrl: "", callbackUrl: "", contactName: "", contactUsername: "",
           branchName: "", district: "", category: "", businessType: "",
           dailyLimit: "10000", transactionLimit: "1000", dailyCountLimit: "100"
         })
@@ -474,8 +474,8 @@ export default function MerchantOnboardingPage() {
                             <Input id="contactName" placeholder="John Doe" value={formData.contactName} onChange={handleInputChange} />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="contactPhone">Phone Number</Label>
-                            <Input id="contactPhone" placeholder="+1 (555) 000-0000" value={formData.contactPhone} onChange={handleInputChange} />
+                            <Label htmlFor="contactUsername">Username (Email or Phone)</Label>
+                            <Input id="contactUsername" placeholder="email@example.com or +1234567890" value={formData.contactUsername} onChange={handleInputChange} />
                           </div>
                         </CardContent>
                       </Card>
