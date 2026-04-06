@@ -91,6 +91,6 @@ async function sendSMSNotification(phone: string, message: string): Promise<bool
  * Generates a secure link for password setup.
  */
 export function generatePasswordSetupLink(merchantId: string, token: string): string {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:9003';
+  const baseUrl = process.env.NEXTAUTH_URL;
   return `${baseUrl}/merchant/setup-password?merchantId=${merchantId}&token=${token}`;
 }

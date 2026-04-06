@@ -11,8 +11,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 })
   }
 
-  const teamMember = await db.findMerchantTeamMemberByPhone(phone)
-  if (!teamMember || teamMember.status !== 'ACTIVE' || !teamMember.merchant || teamMember.merchant.status !== 'ACTIVE') {
+  const members = await db.findMerchantTeamMembersByPhone(phone)
+  const activeMembers = members.filter(
+    (member) =>
+      member.status === 'ACTIVE' &&
+      member.merchant &&
+      member.merchant.status === 'ACTIVE'
+  )
+
+  if (activeMembers.length === 0) {
     return NextResponse.json({ error: 'No active sales user found for this phone number.' }, { status: 404 })
   }
 

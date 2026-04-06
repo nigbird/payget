@@ -38,9 +38,9 @@ import {
   Mail
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
 import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
+import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
 
 export default function MerchantSelfRegistration() {
   const { toast } = useToast()
@@ -418,7 +418,7 @@ export default function MerchantSelfRegistration() {
                           <SelectValue placeholder="Select District" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-gray-100">
-                          {(systemConfig.districts || []).map(district => (
+                          {(systemConfig.districts || []).map((district: string) => (
                             <SelectItem key={district} value={district}>{district}</SelectItem>
                           ))}
                         </SelectContent>
@@ -434,7 +434,7 @@ export default function MerchantSelfRegistration() {
                           <SelectValue placeholder="Select Processing Hub" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-gray-100">
-                          {(systemConfig.branches || []).map(branch => (
+                          {(systemConfig.branches || []).map((branch: string) => (
                             <SelectItem key={branch} value={branch}>{branch}</SelectItem>
                           ))}
                         </SelectContent>

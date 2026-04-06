@@ -20,6 +20,7 @@ model User {
   auditLogs     AuditLog[]
   createdRoles  Role[]    @relation("RoleCreator")
   createdMerchants  Merchant[] @relation("MerchantCreator")
+  limitsSetMerchants Merchant[] @relation("MerchantLimitsSetter")
   approvedMerchants Merchant[] @relation("MerchantApprover")
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -100,6 +101,8 @@ model Merchant {
   riskFactors         String[]
   createdBy           String?
   creator             User?            @relation("MerchantCreator", fields: [createdBy], references: [id])
+  limitsSetBy         String?
+  limitsSetter        User?            @relation("MerchantLimitsSetter", fields: [limitsSetBy], references: [id])
   approvedBy          String?
   approver            User?            @relation("MerchantApprover", fields: [approvedBy], references: [id])
   createdAt           DateTime         @default(now())

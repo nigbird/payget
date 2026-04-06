@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Select, 
   SelectContent, 
@@ -60,22 +59,20 @@ import {
   TrendingUp,
   Search,
   Eye,
-  ArrowRight,
   ShieldAlert,
   Lock,
   Plus
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { aiMerchantOnboardingAssistant } from "@/ai/flows/ai-merchant-onboarding-assistant"
 import type { MerchantDocument, Merchant } from "@/app/lib/db"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
+import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
 
 export default function MerchantOnboardingPage() {
   const { data: session } = useSession()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [activeTab, setActiveTab] = useState("register")
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [systemConfig, setSystemConfig] = useState<any>({
     districts: [],
@@ -85,6 +82,9 @@ export default function MerchantOnboardingPage() {
   })
   const [submissions, setSubmissions] = useState<Merchant[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
+  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [selectedForReview, setSelectedForReview] = useState<Merchant | null>(null)
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false)
   const [limits, setLimits] = useState({
@@ -92,6 +92,7 @@ export default function MerchantOnboardingPage() {
     transactionLimit: "1000",
     dailyCountLimit: "100"
   })
+  const [resendLoadingId, setResendLoadingId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -117,6 +118,35 @@ export default function MerchantOnboardingPage() {
   const userPermissions = (session?.user as any)?.permissions || []
   const canRegister = userPermissions.includes('MERCHANT_REGISTER')
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
+  const canApprove = userPermissions.includes('MERCHANT_APPROVE')
+
+  const handleResendSetupLink = async (merchantId: string) => {
+    setResendLoadingId(merchantId)
+    try {
+      const response = await fetch(`/api/merchants/${merchantId}/resend-setup`, {
+        method: 'POST'
+      })
+
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Unable to resend setup link')
+      }
+
+      const result = await response.json()
+      toast({
+        title: 'Setup Link Sent',
+        description: result.message || 'A new setup link was sent to the merchant.'
+      })
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Resend Failed',
+        description: error.message
+      })
+    } finally {
+      setResendLoadingId(null)
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -282,7 +312,7 @@ export default function MerchantOnboardingPage() {
         // Refresh submissions
         const res = await fetch('/api/merchants')
         if (res.ok) setSubmissions(await res.json())
-        setActiveTab("submissions")
+        setIsRegisterDialogOpen(false)
       } else {
         const err = await response.json()
         throw new Error(err.error || 'Failed to submit')
@@ -327,358 +357,492 @@ export default function MerchantOnboardingPage() {
 
         <main className="flex-1 overflow-auto p-6 bg-slate-50/50">
           <div className="max-w-6xl mx-auto space-y-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <div className="flex items-center justify-between mb-6">
-                <TabsList className="bg-white border">
-                  <TabsTrigger value="register" className="data-[state=active]:bg-slate-100">Register New</TabsTrigger>
-                  <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-100">Onboarding Queue</TabsTrigger>
-                </TabsList>
-                
-                {activeTab === "submissions" && (
-                  <div className="relative w-64">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search queue..." 
-                      className="pl-9 bg-white"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                )}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-slate-900">Onboarding Queue</h2>
+                <p className="text-sm text-muted-foreground">Review submitted merchants and manage onboarding in one place.</p>
               </div>
 
-              <TabsContent value="register" className="space-y-6 animate-in fade-in-50 duration-300">
-                {!canRegister ? (
-                  <Card className="border-orange-100 bg-orange-50/30">
-                    <CardContent className="pt-6 flex flex-col items-center text-center gap-4">
-                      <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                        <Lock className="w-6 h-6 text-orange-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-orange-900">Registration Restricted</h3>
-                        <p className="text-orange-800/70 max-w-md">Your account does not have the necessary permissions to register new merchants. Please contact your system administrator.</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
-                      <Card className="border-none shadow-sm">
-                        <CardHeader className="bg-white border-b">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Building2 className="w-5 h-5 text-primary" />
-                            Business Information
-                          </CardTitle>
-                          <CardDescription>Enter the legal and operational details of the merchant.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="name">Business Name</Label>
-                              <Input id="name" placeholder="Legal Entity Name" value={formData.name} onChange={handleInputChange} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="email">Business Email</Label>
-                              <Input id="email" type="email" placeholder="contact@business.com" value={formData.email} onChange={handleInputChange} />
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="businessDescription">Business Description</Label>
-                            <div className="relative">
-                              <Textarea 
-                                id="businessDescription" 
-                                placeholder="Describe the nature of business and products sold..." 
-                                className="min-h-[100px] pr-10"
-                                value={formData.businessDescription}
-                                onChange={handleInputChange}
-                              />
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="absolute right-2 top-2 text-primary hover:text-primary/80 hover:bg-primary/5"
-                                onClick={handleAiAssist}
-                                disabled={isAiLoading}
-                              >
-                                {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                              </Button>
-                            </div>
-                          </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search merchants..."
+                    className="pl-9 bg-white"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
 
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Industry Category</Label>
-                              <Select onValueChange={(v) => handleSelectChange('category', v)} value={formData.category}>
-                                <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="E-commerce">E-commerce</SelectItem>
-                                  <SelectItem value="Retail">Retail</SelectItem>
-                                  <SelectItem value="Services">Services</SelectItem>
-                                  <SelectItem value="Gaming">Gaming/Digital</SelectItem>
-                                  <SelectItem value="Education">Education</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Business Type</Label>
-                              <Select onValueChange={(v) => handleSelectChange('businessType', v)} value={formData.businessType}>
-                                <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
-                                  <SelectItem value="Private Limited">Private Limited</SelectItem>
-                                  <SelectItem value="Public Limited">Public Limited</SelectItem>
-                                  <SelectItem value="Partnership">Partnership</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="justify-center sm:justify-start">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Register New Merchant
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <UserPlus className="w-5 h-5 text-primary" />
+                        Register New Merchant
+                      </DialogTitle>
+                      <DialogDescription>
+                        Create a merchant profile and submit it into the onboarding workflow.
+                      </DialogDescription>
+                    </DialogHeader>
 
-                      {canSetLimits && (
-                        <Card className="border-none shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-                          <CardHeader className="bg-white border-b">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                              <TrendingUp className="w-5 h-5 text-primary" />
-                              Compliance: Initial Limits
-                            </CardTitle>
-                            <CardDescription>Authorize transaction volumes for this merchant.</CardDescription>
-                          </CardHeader>
-                          <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="dailyLimit">Daily Vol. Limit ($)</Label>
-                              <Input id="dailyLimit" placeholder="10000" value={formData.dailyLimit} onChange={handleInputChange} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="transactionLimit">Max Per Tx ($)</Label>
-                              <Input id="transactionLimit" placeholder="1000" value={formData.transactionLimit} onChange={handleInputChange} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="dailyCountLimit">Max Daily Count</Label>
-                              <Input id="dailyCountLimit" placeholder="100" value={formData.dailyCountLimit} onChange={handleInputChange} />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      <Card className="border-none shadow-sm">
-                        <CardHeader className="bg-white border-b">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <User className="w-5 h-5 text-primary" />
-                            Primary Contact
-                          </CardTitle>
-                          <CardDescription>Person responsible for managing this account.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6 grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="contactName">Full Name</Label>
-                            <Input id="contactName" placeholder="John Doe" value={formData.contactName} onChange={handleInputChange} />
+                    {!canRegister ? (
+                      <Card className="border-orange-100 bg-orange-50/30">
+                        <CardContent className="pt-6 flex flex-col items-center text-center gap-4">
+                          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                            <Lock className="w-6 h-6 text-orange-600" />
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="contactUsername">Username (Email or Phone)</Label>
-                            <Input id="contactUsername" placeholder="email@example.com or +1234567890" value={formData.contactUsername} onChange={handleInputChange} />
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-none shadow-sm">
-                        <CardHeader className="bg-white border-b">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-primary" />
-                            Technical & Financial
-                          </CardTitle>
-                          <CardDescription>Integration endpoints and payout information.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="accountNumber">Payout Account #</Label>
-                              <Input id="accountNumber" placeholder="Bank Account Number" value={formData.accountNumber} onChange={handleInputChange} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="websiteUrl">Website URL</Label>
-                              <Input id="websiteUrl" placeholder="https://..." value={formData.websiteUrl} onChange={handleInputChange} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="callbackUrl">Webhook Callback URL</Label>
-                            <Input id="callbackUrl" placeholder="https://api.merchant.com/webhook" value={formData.callbackUrl} onChange={handleInputChange} />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    <div className="space-y-6">
-                      <Card className="border-none shadow-sm">
-                        <CardHeader className="bg-white border-b">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <MapPin className="w-5 h-5 text-primary" />
-                            Organization
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                          <div className="space-y-2">
-                            <Label>District</Label>
-                            <Select onValueChange={(v) => handleSelectChange('district', v)} value={formData.district}>
-                              <SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger>
-                              <SelectContent>
-                                {systemConfig.districts.map((d: string) => (
-                                  <SelectItem key={d} value={d}>{d}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Internal Processing Hub</Label>
-                            <Select onValueChange={(v) => handleSelectChange('branchName', v)} value={formData.branchName}>
-                              <SelectTrigger><SelectValue placeholder="Select Hub" /></SelectTrigger>
-                              <SelectContent>
-                                {systemConfig.branches.map((b: string) => (
-                                  <SelectItem key={b} value={b}>{b}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-none shadow-sm">
-                        <CardHeader className="bg-white border-b">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-primary" />
-                            Documentation
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                          <div 
-                            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                            <p className="text-sm font-medium">Click to upload documents</p>
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              Max {systemConfig.maxFileSizeMB}MB. Allowed: {systemConfig.allowedFileTypes.join(', ')}
+                          <div>
+                            <h3 className="text-lg font-bold text-orange-900">Registration Restricted</h3>
+                            <p className="text-orange-800/70 max-w-md">
+                              Your account does not have the necessary permissions to register new merchants. Please contact your system administrator.
                             </p>
-                            <input 
-                              type="file" 
-                              ref={fileInputRef} 
-                              className="hidden" 
-                              multiple 
-                              onChange={handleFileUpload}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            {documents.map(doc => (
-                              <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-white border text-xs">
-                                <div className="flex items-center gap-2">
-                                  <FileCheck className="w-3 h-3 text-green-500" />
-                                  <span className="truncate max-w-[120px]">{doc.name}</span>
-                                </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveDoc(doc.id)}>
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ))}
                           </div>
                         </CardContent>
                       </Card>
-
-                      {riskFactors.length > 0 && (
-                        <Card className="border-none shadow-sm bg-red-50/50">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-xs font-bold uppercase text-red-800 flex items-center gap-2">
-                              <AlertCircle className="w-3 h-3" /> AI Risk Analysis
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-4 space-y-2">
-                            {riskFactors.map((rf, idx) => (
-                              <div key={idx} className="text-[10px] text-red-700 bg-red-100/50 p-1.5 rounded flex items-center gap-2">
-                                <div className="w-1 h-1 rounded-full bg-red-500" />
-                                {rf}
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-6">
+                          <Card className="border-none shadow-sm">
+                            <CardHeader className="bg-white border-b">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <Building2 className="w-5 h-5 text-primary" />
+                                Business Information
+                              </CardTitle>
+                              <CardDescription>Enter the legal and operational details of the merchant.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="name">Business Name</Label>
+                                  <Input id="name" placeholder="Legal Entity Name" value={formData.name} onChange={handleInputChange} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="email">Business Email</Label>
+                                  <Input id="email" type="email" placeholder="contact@business.com" value={formData.email} onChange={handleInputChange} />
+                                </div>
                               </div>
-                            ))}
-                          </CardContent>
-                        </Card>
-                      )}
 
-                      <Button className="w-full h-12 text-lg shadow-lg shadow-primary/20" onClick={handleSubmit}>
-                        Submit for Review
-                      </Button>
+                              <div className="space-y-2">
+                                <Label htmlFor="businessDescription">Business Description</Label>
+                                <div className="relative">
+                                  <Textarea
+                                    id="businessDescription"
+                                    placeholder="Describe the nature of business and products sold..."
+                                    className="min-h-[100px] pr-10"
+                                    value={formData.businessDescription}
+                                    onChange={handleInputChange}
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-2 top-2 text-primary hover:text-primary/80 hover:bg-primary/5"
+                                    onClick={handleAiAssist}
+                                    disabled={isAiLoading}
+                                  >
+                                    {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Industry Category</Label>
+                                  <Select onValueChange={(v) => handleSelectChange('category', v)} value={formData.category}>
+                                    <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="E-commerce">E-commerce</SelectItem>
+                                      <SelectItem value="Retail">Retail</SelectItem>
+                                      <SelectItem value="Services">Services</SelectItem>
+                                      <SelectItem value="Gaming">Gaming/Digital</SelectItem>
+                                      <SelectItem value="Education">Education</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Business Type</Label>
+                                  <Select onValueChange={(v) => handleSelectChange('businessType', v)} value={formData.businessType}>
+                                    <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
+                                      <SelectItem value="Private Limited">Private Limited</SelectItem>
+                                      <SelectItem value="Public Limited">Public Limited</SelectItem>
+                                      <SelectItem value="Partnership">Partnership</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {canSetLimits && (
+                            <Card className="border-none shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+                              <CardHeader className="bg-white border-b">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                  <TrendingUp className="w-5 h-5 text-primary" />
+                                  Compliance: Initial Limits
+                                </CardTitle>
+                                <CardDescription>Authorize transaction volumes for this merchant.</CardDescription>
+                              </CardHeader>
+                              <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="dailyLimit">Daily Vol. Limit ($)</Label>
+                                  <Input id="dailyLimit" placeholder="10000" value={formData.dailyLimit} onChange={handleInputChange} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="transactionLimit">Max Per Tx ($)</Label>
+                                  <Input id="transactionLimit" placeholder="1000" value={formData.transactionLimit} onChange={handleInputChange} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="dailyCountLimit">Max Daily Count</Label>
+                                  <Input id="dailyCountLimit" placeholder="100" value={formData.dailyCountLimit} onChange={handleInputChange} />
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          <Card className="border-none shadow-sm">
+                            <CardHeader className="bg-white border-b">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <User className="w-5 h-5 text-primary" />
+                                Primary Contact
+                              </CardTitle>
+                              <CardDescription>Person responsible for managing this account.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-6 grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="contactName">Full Name</Label>
+                                <Input id="contactName" placeholder="John Doe" value={formData.contactName} onChange={handleInputChange} />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="contactUsername">Username (Email or Phone)</Label>
+                                <Input id="contactUsername" placeholder="email@example.com or +1234567890" value={formData.contactUsername} onChange={handleInputChange} />
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="border-none shadow-sm">
+                            <CardHeader className="bg-white border-b">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <Globe className="w-5 h-5 text-primary" />
+                                Technical & Financial
+                              </CardTitle>
+                              <CardDescription>Integration endpoints and payout information.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="accountNumber">Payout Account #</Label>
+                                  <Input id="accountNumber" placeholder="Bank Account Number" value={formData.accountNumber} onChange={handleInputChange} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="websiteUrl">Website URL</Label>
+                                  <Input id="websiteUrl" placeholder="https://..." value={formData.websiteUrl} onChange={handleInputChange} />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="callbackUrl">Webhook Callback URL</Label>
+                                <Input id="callbackUrl" placeholder="https://api.merchant.com/webhook" value={formData.callbackUrl} onChange={handleInputChange} />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        <div className="space-y-6">
+                          <Card className="border-none shadow-sm">
+                            <CardHeader className="bg-white border-b">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <MapPin className="w-5 h-5 text-primary" />
+                                Organization
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-4">
+                              <div className="space-y-2">
+                                <Label>District</Label>
+                                <Select onValueChange={(v) => handleSelectChange('district', v)} value={formData.district}>
+                                  <SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger>
+                                  <SelectContent>
+                                    {systemConfig.districts.map((d: string) => (
+                                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Internal Processing Hub</Label>
+                                <Select onValueChange={(v) => handleSelectChange('branchName', v)} value={formData.branchName}>
+                                  <SelectTrigger><SelectValue placeholder="Select Hub" /></SelectTrigger>
+                                  <SelectContent>
+                                    {systemConfig.branches.map((b: string) => (
+                                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="border-none shadow-sm">
+                            <CardHeader className="bg-white border-b">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-primary" />
+                                Documentation
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-4">
+                              <div
+                                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                                <p className="text-sm font-medium">Click to upload documents</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  Max {systemConfig.maxFileSizeMB}MB. Allowed: {systemConfig.allowedFileTypes.join(', ')}
+                                </p>
+                                <input
+                                  type="file"
+                                  ref={fileInputRef}
+                                  className="hidden"
+                                  multiple
+                                  onChange={handleFileUpload}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                {documents.map(doc => (
+                                  <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-white border text-xs">
+                                    <div className="flex items-center gap-2">
+                                      <FileCheck className="w-3 h-3 text-green-500" />
+                                      <span className="truncate max-w-[120px]">{doc.name}</span>
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveDoc(doc.id)}>
+                                      <X className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {riskFactors.length > 0 && (
+                            <Card className="border-none shadow-sm bg-red-50/50">
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-xs font-bold uppercase text-red-800 flex items-center gap-2">
+                                  <AlertCircle className="w-3 h-3" /> AI Risk Analysis
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-4 space-y-2">
+                                {riskFactors.map((rf, idx) => (
+                                  <div key={idx} className="text-[10px] text-red-700 bg-red-100/50 p-1.5 rounded flex items-center gap-2">
+                                    <div className="w-1 h-1 rounded-full bg-red-500" />
+                                    {rf}
+                                  </div>
+                                ))}
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          <Button className="w-full h-12 text-lg shadow-lg shadow-primary/20" onClick={handleSubmit}>
+                            Submit for Review
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+
+            <Card className="border-none shadow-sm overflow-hidden">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-white hover:bg-white">
+                      <TableHead className="pl-6">Merchant</TableHead>
+                      <TableHead>Hub / District</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead className="text-right pr-6">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSubmissions.map((s) => (
+                      <TableRow key={s.id} className="bg-white group hover:bg-slate-50 transition-colors">
+                        <TableCell className="pl-6">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900">{s.name}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground uppercase">{s.id}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-slate-700 font-medium">{s.branchName}</span>
+                            <span className="text-[10px] text-muted-foreground">{s.district}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(s.status)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(s.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                          <div className="flex items-center justify-end gap-2">
+                            {s.status === 'pending' && canSetLimits && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                                onClick={() => {
+                                  setSelectedForReview(s)
+                                  setIsReviewDialogOpen(true)
+                                }}
+                              >
+                                Initial Review
+                              </Button>
+                            )}
+                            {s.status === 'approved' && canApprove && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100"
+                                onClick={() => handleResendSetupLink(s.id)}
+                                disabled={resendLoadingId === s.id}
+                              >
+                                {resendLoadingId === s.id ? (
+                                  <span className="inline-flex items-center gap-2">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Sending
+                                  </span>
+                                ) : (
+                                  'Resend Link'
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => {
+                                setSelectedMerchant(s)
+                                setIsDetailsDialogOpen(true)
+                              }}
+                            >
+                              View Details <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredSubmissions.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
+                          No submissions found in the queue.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    {selectedMerchant?.name ?? "Merchant"} Details
+                  </DialogTitle>
+                  <DialogDescription>
+                    Submitted on{" "}
+                    {selectedMerchant?.createdAt ? new Date(selectedMerchant.createdAt).toLocaleString() : "—"}.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Merchant ID</Label>
+                      <p className="text-sm font-mono">{selectedMerchant?.id ?? "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Identifiers</Label>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm flex items-center gap-2">
+                          <Mail className="w-3 h-3" /> {selectedMerchant?.email ?? "—"}
+                        </p>
+                        <p className="text-sm flex items-center gap-2">
+                          <User className="w-3 h-3" /> {selectedMerchant?.contactUsername ?? "—"}
+                        </p>
+                        {selectedMerchant?.contactName ? (
+                          <p className="text-sm flex items-center gap-2">
+                            <User className="w-3 h-3" /> {selectedMerchant.contactName}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Hub / District</Label>
+                      <p className="text-sm">{selectedMerchant?.branchName ?? "—"} — {selectedMerchant?.district ?? "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Category</Label>
+                      <p className="text-sm">
+                        {(selectedMerchant as any)?.category ?? "—"} — {(selectedMerchant as any)?.businessType ?? "—"}
+                      </p>
                     </div>
                   </div>
-                )}
-              </TabsContent>
 
-              <TabsContent value="submissions" className="animate-in fade-in-50 duration-300">
-                <Card className="border-none shadow-sm overflow-hidden">
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-white hover:bg-white">
-                          <TableHead className="pl-6">Merchant</TableHead>
-                          <TableHead>Hub / District</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Submitted</TableHead>
-                          <TableHead className="text-right pr-6">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredSubmissions.map((s) => (
-                          <TableRow key={s.id} className="bg-white group hover:bg-slate-50 transition-colors">
-                            <TableCell className="pl-6">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-900">{s.name}</span>
-                                <span className="text-[10px] font-mono text-muted-foreground uppercase">{s.id}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="text-xs text-slate-700 font-medium">{s.branchName}</span>
-                                <span className="text-[10px] text-muted-foreground">{s.district}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>{getStatusBadge(s.status)}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {new Date(s.createdAt).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell className="text-right pr-6">
-                              <div className="flex items-center justify-end gap-2">
-                                {s.status === 'pending' && canSetLimits && (
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
-                                    onClick={() => {
-                                      setSelectedForReview(s)
-                                      setIsReviewDialogOpen(true)
-                                    }}
-                                  >
-                                    Initial Review
-                                  </Button>
-                                )}
-                                <Link href={`/admin/review?merchantId=${s.id}`}>
-                                  <Button variant="ghost" size="sm" className="gap-2">
-                                    Full Details <ArrowRight className="w-3 h-3" />
-                                  </Button>
-                                </Link>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {filteredSubmissions.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
-                              No submissions found in the queue.
-                            </TableCell>
-                          </TableRow>
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Status</Label>
+                      <div>{selectedMerchant?.status ? getStatusBadge(selectedMerchant.status) : <Badge variant="secondary">—</Badge>}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Limits</Label>
+                      <div className="text-sm space-y-1">
+                        <p>Daily: <span className="font-semibold">{(selectedMerchant as any)?.dailyLimit ?? "—"}</span></p>
+                        <p>Per Tx: <span className="font-semibold">{(selectedMerchant as any)?.transactionLimit ?? "—"}</span></p>
+                        <p>Daily Count: <span className="font-semibold">{(selectedMerchant as any)?.dailyCountLimit ?? "—"}</span></p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Risk Factors</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {(selectedMerchant as any)?.riskFactors?.length ? (
+                          (selectedMerchant as any).riskFactors.map((rf: string) => (
+                            <Badge key={rf} variant="destructive" className="text-[10px]">{rf}</Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <FileCheck className="w-3 h-3" /> None flagged.
+                          </span>
                         )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>Close</Button>
+                  {selectedMerchant?.status === 'pending' && canSetLimits ? (
+                    <Button
+                      onClick={() => {
+                        setIsDetailsDialogOpen(false)
+                        setSelectedForReview(selectedMerchant)
+                        setIsReviewDialogOpen(true)
+                      }}
+                    >
+                      Initial Review
+                    </Button>
+                  ) : null}
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Initial Review & Limit Setting Dialog */}
             <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>

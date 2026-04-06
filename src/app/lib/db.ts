@@ -26,6 +26,8 @@ export interface Merchant {
   name: string;
   email: string;
   password?: string | null;
+  passwordResetToken?: string | null;
+  passwordResetExpires?: string | null;
   jweSecret: string;
   accountNumber: string;
   dailyLimit: number;
@@ -44,6 +46,7 @@ export interface Merchant {
   businessType: string;
   riskFactors: string[];
   createdBy?: string | null;
+  limitsSetBy?: string | null;
   approvedBy?: string | null;
   createdAt: string;
   documents?: MerchantDocument[];
@@ -101,7 +104,9 @@ function mapMerchant(m: PrismaMerchant & { documents?: PrismaMerchantDocument[],
     ...m,
     status: mapMerchantStatus(m.status),
     createdAt: m.createdAt.toISOString(),
+    passwordResetExpires: (m as any).passwordResetExpires ? (m as any).passwordResetExpires.toISOString() : null,
     createdBy: m.createdBy,
+    limitsSetBy: (m as any).limitsSetBy ?? null,
     approvedBy: m.approvedBy,
     documents: m.documents?.map(doc => ({
       ...doc,
@@ -185,13 +190,32 @@ export const db = {
     });
   },
 
-  findMerchantTeamMemberByPhone: async (phone: string) => {
-    return prisma.merchantTeamMember.findFirst({
+  findMerchantTeamMembersByPhone: async (phone: string) => {
+    return prisma.merchantTeamMember.findMany({
       where: { phone },
       include: {
         merchant: true
       }
     })
+  },
+
+  getAssignedMerchantsForSalesPhone: async (phone: string) => {
+    const members = await prisma.merchantTeamMember.findMany({
+      where: {
+        phone,
+        status: 'ACTIVE',
+        merchant: {
+          status: 'ACTIVE'
+        }
+      },
+      include: {
+        merchant: true
+      }
+    }) as any[]
+
+    return members
+      .filter((member) => member.merchant)
+      .map((member) => ({ id: member.merchantId, name: member.merchant.name }))
   },
 
   getMerchantTeamMembersByMerchantId: async (merchantId: string) => {
@@ -270,6 +294,15 @@ export const db = {
     return mapMerchant(m);
   },
 
+  findMerchantByResetToken: async (token: string) => {
+    const m = await prisma.merchant.findFirst({
+      where: { passwordResetToken: token },
+      include: { documents: true }
+    }) as any
+    if (!m) return null
+    return mapMerchant(m)
+  },
+
   addMerchant: async (data: any) => {
     const { documents, ...rest } = data;
     return prisma.merchant.create({
@@ -292,6 +325,9 @@ export const db = {
   updateMerchant: async (id: string, data: any) => {
     if (data.status) {
       data.status = mapToPrismaMerchantStatus(data.status);
+    }
+    if (typeof data.passwordResetExpires === 'string') {
+      data.passwordResetExpires = new Date(data.passwordResetExpires)
     }
     const { documents, ...rest } = data;
     return prisma.merchant.update({

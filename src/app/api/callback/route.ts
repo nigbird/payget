@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { db } from "@/lib/db"
+import { db } from "@/app/lib/db"
 
 // Assume callback payload is encrypted similarly, but for simplicity, assume it's plain for now
 // In reality, need to decrypt using stored shared secret
