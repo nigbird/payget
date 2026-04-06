@@ -178,6 +178,15 @@ export const db = {
     });
   },
 
+  findMerchantTeamMemberByPhone: async (phone: string) => {
+    return prisma.merchantTeamMember.findFirst({
+      where: { phone },
+      include: {
+        merchant: true
+      }
+    })
+  },
+
   getMerchantTeamMembersByMerchantId: async (merchantId: string) => {
     const members = await prisma.merchantTeamMember.findMany({
       where: { merchantId },

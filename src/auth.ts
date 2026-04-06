@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { db } from "@/app/lib/db"
 import bcrypt from "bcryptjs"
+import { verifySalesOtp } from "@/lib/otp"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -34,6 +35,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           role: user.role,
           merchantId: user.merchantId,
           permissions: (user as any).customRole?.permissions.map((p: any) => p.permission.name) || []
+        }
+      }
+    }),
+    Credentials({
+      id: "sales-otp",
+      name: "Sales OTP",
+      credentials: {
+        phone: { label: "Phone", type: "tel" },
+        otp: { label: "OTP", type: "text" }
+      },
+      authorize: async (credentials) => {
+        const phone = credentials?.phone?.trim()
+        const otp = credentials?.otp?.trim()
+        if (!phone || !otp) return null
+
+        if (!verifySalesOtp(phone, otp)) return null
+
+        const teamMember = await db.findMerchantTeamMemberByPhone(phone)
+        if (!teamMember || teamMember.status !== 'ACTIVE' || !teamMember.merchant || teamMember.merchant.status !== 'ACTIVE') {
+          return null
+        }
+
+        return {
+          id: `sales-${teamMember.id}`,
+          email: teamMember.email,
+          name: teamMember.name,
+          role: 'SALES',
+          merchantId: teamMember.merchantId,
+          permissions: []
         }
       }
     })

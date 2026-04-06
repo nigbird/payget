@@ -33,8 +33,8 @@ export default auth((req) => {
       }
     }
 
-    // Merchant routes require MERCHANT role
-    if (isMerchantRoute && userRole !== 'MERCHANT') {
+    // Merchant routes require MERCHANT or SALES role
+    if (isMerchantRoute && userRole !== 'MERCHANT' && userRole !== 'SALES') {
       return Response.redirect(new URL("/admin", nextUrl))
     }
   }
