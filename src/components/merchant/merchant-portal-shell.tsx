@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, History, Users, Settings2, LogOut } from "lucide-react"
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 
 import { Button } from "@/components/ui/button"
 import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
@@ -29,12 +29,14 @@ export default function MerchantPortalShell({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const isMobile = useIsMobile()
+  const { data: session, status } = useSession()
 
   const [merchant, setMerchant] = React.useState<Merchant | null>(null)
 
-  // Repo has no auth yet. For now, treat the active merchant user as Account Admin (UI-only RBAC).
-  const activeRole: MerchantTeamRole = "account_admin"
+  const isSalesUser = (session?.user as { role?: string } | undefined)?.role === "SALES"
+  const activeRole: MerchantTeamRole = isSalesUser ? "payment_initiator" : "account_admin"
 
   React.useEffect(() => {
     const fetchMerchant = async () => {
@@ -50,6 +52,19 @@ export default function MerchantPortalShell({
     }
     fetchMerchant()
   }, [merchantId])
+
+  const restrictedSalesPaths = React.useMemo(
+    () => [`/merchant/${merchantId}/users`, `/merchant/${merchantId}/configuration`],
+    [merchantId]
+  )
+
+  const isRestrictedSalesPath = isSalesUser && restrictedSalesPaths.some((path) => pathname.startsWith(path))
+
+  React.useEffect(() => {
+    if (status === "authenticated" && isRestrictedSalesPath) {
+      router.replace(`/merchant/${merchantId}`)
+    }
+  }, [isRestrictedSalesPath, merchantId, router, status])
 
   const navItems = React.useMemo(() => {
     return [
@@ -83,6 +98,7 @@ export default function MerchantPortalShell({
   }, [merchantId])
 
   const visibleNavItems = navItems.filter((item) => {
+    if (status === "loading") return !("requiresRole" in item) || item.requiresRole === undefined
     if (!("requiresRole" in item) || item.requiresRole === undefined) return true
     return item.requiresRole === activeRole
   })
@@ -97,7 +113,7 @@ export default function MerchantPortalShell({
                 <span className="text-xs font-black text-[#754319]">FF</span>
               </div>
               <div className="leading-tight">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Merchant Portal</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
                 <p className="text-sm font-semibold text-[#5b371f]">{merchant?.name ?? "—"}</p>
               </div>
             </div>
@@ -105,7 +121,9 @@ export default function MerchantPortalShell({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
                 <div className="hidden md:block">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Management Modules</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">
+                    {isSalesUser ? "Sales Workspace" : "Management Modules"}
+                  </p>
                 </div>
 
                 <div
@@ -154,7 +172,7 @@ export default function MerchantPortalShell({
         </header>
 
         <main className="mx-auto w-full max-w-7xl px-4 md:px-8 pt-5 pb-28">
-          {children}
+          {isRestrictedSalesPath ? null : children}
         </main>
       </div>
     </MerchantPortalRoleContext.Provider>
