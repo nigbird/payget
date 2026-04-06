@@ -77,24 +77,25 @@ function SetupPasswordForm() {
 
   if (isSuccess) {
     return (
-      <Card className="max-w-md w-full shadow-lg border-none animate-in zoom-in-95">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-            <CheckCircle2 className="w-8 h-8 text-green-600" />
+      <Card className="max-w-md w-full shadow-2xl border-none animate-in zoom-in-95 rounded-3xl overflow-hidden">
+        <div className="bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 text-[#3f210f] text-center">
+          <div className="mx-auto w-16 h-16 bg-white/30 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 shadow-sm border border-white/40">
+            <CheckCircle2 className="w-10 h-10 text-[#3f210f]" />
           </div>
-          <CardTitle className="text-2xl font-headline">Account Activated!</CardTitle>
-          <CardDescription>
+          <h3 className="text-2xl font-black tracking-tight uppercase">Account Activated!</h3>
+          <p className="text-[#3f210f]/80 mt-1 text-xs font-bold uppercase tracking-widest">Setup complete</p>
+        </div>
+        <CardContent className="py-8 px-8 text-center space-y-4">
+          <p className="text-sm text-slate-600 leading-relaxed font-medium">
             Your account has been successfully approved and activated.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="py-6 text-center">
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          </p>
+          <p className="text-xs text-slate-500 leading-relaxed">
             You can now log in to the merchant portal using your registered Username (Email/Phone) and the password you just created.
           </p>
         </CardContent>
-        <CardFooter>
-          <Button className="w-full h-11" onClick={() => router.push('/')}>
-            Go to Login
+        <CardFooter className="px-8 pb-8">
+          <Button className="w-full h-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 font-bold" onClick={() => router.push('/')}>
+            Proceed to Login
           </Button>
         </CardFooter>
       </Card>

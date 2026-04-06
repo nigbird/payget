@@ -541,17 +541,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       {/* Success Modal (Link or Push) */}
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
         <DialogContent className="max-w-md border-0 bg-white p-0 rounded-3xl overflow-hidden shadow-2xl">
-          <div className="bg-gradient-to-br from-[#f8b513] to-[#754319] p-8 text-white text-center">
-            <div className="mx-auto w-16 h-16 bg-white/20 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 shadow-inner">
-              <CheckCircle2 className="w-10 h-10 text-white" />
+          <div className="bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 text-[#3f210f] text-center">
+            <div className="mx-auto w-16 h-16 bg-white/30 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 shadow-sm border border-white/40">
+              <CheckCircle2 className="w-10 h-10 text-[#3f210f]" />
             </div>
-            <h3 className="text-2xl font-bold">
+            <h3 className="text-2xl font-black tracking-tight">
               {lastMode === "link" ? "Payment Link Ready" : "Payment Pushed!"}
             </h3>
-            <p className="text-white/80 mt-1 text-sm font-medium">
+            <p className="text-[#3f210f]/80 mt-1 text-sm font-bold uppercase tracking-wider">
               {lastMode === "link" 
-                ? "Your secure checkout link is generated and ready to share." 
-                : `A payment request has been sent to the customer's phone.`}
+                ? "Secure checkout link generated" 
+                : `Sent to customer phone`}
             </p>
           </div>
           
