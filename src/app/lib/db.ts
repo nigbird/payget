@@ -323,6 +323,14 @@ export const db = {
     return mapTransaction(tx);
   },
 
+  getTransactionByReference: async (transactionReference: string) => {
+    const tx = await prisma.transaction.findFirst({
+      where: { transactionReference }
+    });
+    if (!tx) return null;
+    return mapTransaction(tx);
+  },
+
   addTransaction: async (tx: Transaction) => {
     return prisma.transaction.create({
       data: {

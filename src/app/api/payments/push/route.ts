@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
 import { auth } from "@/auth"
+import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
 
 export async function POST(request: Request) {
   try {
@@ -31,16 +32,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, limit: (result as any).limit }, { status })
     }
 
-    // Mock “USSD request” initiation: in this demo the customer token is what the provider would reference.
+    // Prepare payload for provider
+    const providerPayload = ProviderPushPayloadSchema.parse({
+      transactionRef: result.transactionReference,
+      customerPhone: result.tx.userCredentials.phone,
+      creditAccount: result.merchant.accountNumber,
+      amount: result.tx.amount,
+    })
+
+    const baseUrl = process.env.PROVIDER_BASE_URL!
+    const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl)
+
+    // Send to provider using their exact transfer endpoint
+    const username = process.env.PROVIDER_USERNAME!
+    const password = process.env.PROVIDER_PASSWORD!
+    const providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
+
     return NextResponse.json({
       transactionId: result.tx.id,
       transactionReference: result.transactionReference,
       status: result.tx.status,
       customerPinToken: result.customerPinToken,
       ussdInitiatedTo: result.tx.userCredentials.phone,
-      message: "Mock USSD prompt initiated (demo).",
+      message: "Provider push request sent.",
+      providerResponse,
     })
-  } catch {
+  } catch (error) {
+    console.error(error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
