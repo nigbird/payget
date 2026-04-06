@@ -200,26 +200,6 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={loginMode === 'email' ? handleLogin : handleSalesLogin} className="space-y-4">
-                  <div className="flex items-center justify-center gap-2 rounded-full bg-accent/10 p-1 mb-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginMode('email')
-                        resetSalesState()
-                      }}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${loginMode === 'email' ? 'bg-[#f8b513] text-white' : 'text-[#5b371f] hover:bg-white/90'}`}
-                    >
-                      Email Login
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLoginMode('sales')}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${loginMode === 'sales' ? 'bg-[#f8b513] text-white' : 'text-[#5b371f] hover:bg-white/90'}`}
-                    >
-                      Login as Sales
-                    </button>
-                  </div>
-
                   {loginMode === 'email' ? (
                     <>
                       <div className="space-y-2">
@@ -260,9 +240,30 @@ export default function Home() {
                       <Button type="submit" className="w-full h-11" disabled={isLoading}>
                         {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Sign In"}
                       </Button>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setLoginMode('sales')}
+                          className="text-xs font-medium text-muted-foreground transition hover:text-[#754319]"
+                        >
+                          Sales Login
+                        </button>
+                      </div>
                     </>
                   ) : (
                     <>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLoginMode('email')
+                            resetSalesState()
+                          }}
+                          className="text-xs font-medium text-muted-foreground transition hover:text-[#754319]"
+                        >
+                          Back to Email Login
+                        </button>
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="sales-phone">Phone Number</Label>
                         <div className="relative">
@@ -310,9 +311,6 @@ export default function Home() {
                 </form>
               </CardContent>
               <CardFooter className="flex flex-col border-t p-6 gap-4 bg-muted/5">
-                <div className="text-center w-full">
-                  <p className="text-sm text-muted-foreground">Staff credentials provided by System Admin.</p>
-                </div>
                 <Button variant="outline" className="w-full h-11 border-primary text-primary hover:bg-primary/5" asChild>
                   <Link href="/register">
                     Register as New Merchant <ArrowRight className="ml-2 w-4 h-4" />
