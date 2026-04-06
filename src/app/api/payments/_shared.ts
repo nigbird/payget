@@ -18,6 +18,11 @@ export const PaymentInitiateSchema = z.object({
 
 export type PaymentInitiate = z.infer<typeof PaymentInitiateSchema>
 
+type InitiatedBy = {
+  id: string
+  name?: string | null
+}
+
 function getTodayDateKey(d: Date) {
   return d.toDateString()
 }
@@ -34,7 +39,7 @@ function extractKidFromJwe(token: string): string | null {
   }
 }
 
-export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
+export async function createGatewayTransactionAndToken(input: PaymentInitiate, options?: { initiatedBy?: InitiatedBy }) {
   const merchant = await db.getMerchantById(input.merchantId)
   if (!merchant) return { ok: false as const, error: "Merchant not found" }
   if (merchant.status !== "approved" && merchant.status !== "active") return { ok: false as const, error: "Merchant account is not active" }
@@ -79,6 +84,8 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
     userCredentials: {
       phone: input.userCredentials.phone,
       authToken: input.userCredentials.authToken,
+      initiatedById: options?.initiatedBy?.id,
+      initiatedByName: options?.initiatedBy?.name ?? undefined,
     },
   }
 

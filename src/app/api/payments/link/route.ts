@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
+import { auth } from "@/auth"
 
 export async function POST(request: Request) {
   try {
+    const session = await auth()
     const body = await request.json()
     const parsed = PaymentInitiateSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const result = await createGatewayTransactionAndToken(parsed.data)
+    const sessionUser = session?.user as { id?: string; name?: string | null; merchantId?: string | null } | undefined
+    const initiatedBy =
+      sessionUser?.id && sessionUser.merchantId === parsed.data.merchantId
+        ? { id: sessionUser.id, name: sessionUser.name ?? undefined }
+        : undefined
+
+    const result = await createGatewayTransactionAndToken(parsed.data, { initiatedBy })
     if (!result.ok) {
       const status =
         result.error === "Merchant not found"

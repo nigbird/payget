@@ -67,6 +67,8 @@ export interface Transaction {
   userCredentials: {
     phone: string;
     authToken: string;
+    initiatedById?: string;
+    initiatedByName?: string;
   };
 }
 
@@ -115,7 +117,12 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
     status: mapTransactionStatus(tx.status),
     timestamp: tx.timestamp.toISOString(),
     transactionTimestamp: tx.transactionTimestamp.toISOString(),
-    userCredentials: tx.userCredentials as { phone: string; authToken: string }
+    userCredentials: tx.userCredentials as {
+      phone: string;
+      authToken: string;
+      initiatedById?: string;
+      initiatedByName?: string;
+    }
   };
 }
 
@@ -176,6 +183,15 @@ export const db = {
         }
       }
     });
+  },
+
+  findMerchantTeamMemberByPhone: async (phone: string) => {
+    return prisma.merchantTeamMember.findFirst({
+      where: { phone },
+      include: {
+        merchant: true
+      }
+    })
   },
 
   getMerchantTeamMembersByMerchantId: async (merchantId: string) => {

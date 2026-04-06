@@ -418,6 +418,17 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+1234567890"
+                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                value={memberForm.phone}
+                onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
               <Select
                 value={memberForm.role}
@@ -483,6 +494,17 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 required
                 value={memberForm.email}
                 onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <Input
+                id="edit-phone"
+                type="tel"
+                placeholder="+1234567890"
+                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                value={memberForm.phone}
+                onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
               />
             </div>
             <div className="space-y-2">

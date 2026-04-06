@@ -8,17 +8,23 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, Mail } from "lucide-react"
+import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, Mail, Phone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Home() {
   const router = useRouter()
   const { toast } = useToast()
+  const [loginMode, setLoginMode] = useState<'email' | 'sales'>('email')
   const [isLoading, setIsLoading] = useState(false)
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
   const [credentials, setCredentials] = useState({
     email: "",
     password: ""
   })
+  const [salesPhone, setSalesPhone] = useState("")
+  const [salesOtp, setSalesOtp] = useState("")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,6 +60,106 @@ export default function Home() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSendSalesOtp = async () => {
+    if (!salesPhone.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Phone Required",
+        description: "Please provide your sales phone number."
+      })
+      return
+    }
+
+    setIsSendingOtp(true)
+    try {
+      const response = await fetch('/api/merchant/sales-otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: salesPhone })
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        toast({
+          variant: "destructive",
+          title: "OTP Error",
+          description: result.error || 'Unable to send OTP. Please try again.'
+        })
+        return
+      }
+
+      setOtpSent(true)
+      toast({
+        title: "OTP Sent",
+        description: result.message || 'A one-time code has been sent to your phone.'
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "OTP Error",
+        description: "Unable to send OTP. Please check your connection."
+      })
+    } finally {
+      setIsSendingOtp(false)
+    }
+  }
+
+  const handleSalesLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!otpSent) {
+      await handleSendSalesOtp()
+      return
+    }
+
+    if (!salesOtp.trim()) {
+      toast({
+        variant: "destructive",
+        title: "OTP Required",
+        description: "Please enter the one-time code sent to your phone."
+      })
+      return
+    }
+
+    setIsVerifyingOtp(true)
+    try {
+      const result = await signIn("sales-otp", {
+        phone: salesPhone,
+        otp: salesOtp,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        toast({
+          variant: "destructive",
+          title: "Verification Failed",
+          description: "The OTP is invalid or expired. Please request a new code."
+        })
+      } else {
+        toast({
+          title: "Welcome",
+          description: "Sales access granted. Redirecting to your merchant page."
+        })
+        router.refresh()
+        router.push("/merchant")
+      }
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Login Error",
+        description: "Could not verify your OTP at this time."
+      })
+    } finally {
+      setIsVerifyingOtp(false)
+    }
+  }
+
+  const resetSalesState = () => {
+    setSalesPhone("")
+    setSalesOtp("")
+    setOtpSent(false)
   }
 
   return (
@@ -93,45 +199,114 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="email" 
-                        type="email"
-                        placeholder="email@example.com" 
-                        className="pl-9"
-                        required
-                        value={credentials.email}
-                        onChange={(e) => setCredentials({...credentials, email: e.target.value})}
-                      />
-                    </div>
+                <form onSubmit={loginMode === 'email' ? handleLogin : handleSalesLogin} className="space-y-4">
+                  <div className="flex items-center justify-center gap-2 rounded-full bg-accent/10 p-1 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMode('email')
+                        resetSalesState()
+                      }}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${loginMode === 'email' ? 'bg-[#f8b513] text-white' : 'text-[#5b371f] hover:bg-white/90'}`}
+                    >
+                      Email Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLoginMode('sales')}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${loginMode === 'sales' ? 'bg-[#f8b513] text-white' : 'text-[#5b371f] hover:bg-white/90'}`}
+                    >
+                      Login as Sales
+                    </button>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
-                      <Button variant="link" className="px-0 h-auto text-xs" type="button" asChild>
-                        <Link href="/forgot-password">Forgot password?</Link>
+
+                  {loginMode === 'email' ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            id="email" 
+                            type="email"
+                            placeholder="email@example.com" 
+                            className="pl-9"
+                            required
+                            value={credentials.email}
+                            onChange={(e) => setCredentials({...credentials, email: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="password">Password</Label>
+                          <Button variant="link" className="px-0 h-auto text-xs" type="button" asChild>
+                            <Link href="/forgot-password">Forgot password?</Link>
+                          </Button>
+                        </div>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            id="password" 
+                            type="password" 
+                            className="pl-9"
+                            placeholder="••••••••"
+                            required
+                            value={credentials.password}
+                            onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full h-11" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Sign In"}
                       </Button>
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        className="pl-9"
-                        placeholder="••••••••"
-                        required
-                        value={credentials.password}
-                        onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full h-11" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Sign In"}
-                  </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="sales-phone">Phone Number</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="sales-phone"
+                            type="tel"
+                            placeholder="+1234567890"
+                            className="pl-9"
+                            required
+                            value={salesPhone}
+                            onChange={(e) => setSalesPhone(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      {otpSent && (
+                        <div className="space-y-2">
+                          <Label htmlFor="sales-otp">OTP Code</Label>
+                          <Input
+                            id="sales-otp"
+                            type="text"
+                            placeholder="Enter code"
+                            className="h-11"
+                            value={salesOtp}
+                            onChange={(e) => setSalesOtp(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">Enter the code sent to your phone. Code expires in 5 minutes.</p>
+                        </div>
+                      )}
+                      <Button type="submit" className="w-full h-11" disabled={isSendingOtp || isVerifyingOtp}>
+                        {(isSendingOtp || isVerifyingOtp) ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : otpSent ? 'Verify OTP' : 'Send OTP'}
+                      </Button>
+                      {otpSent && (
+                        <button
+                          type="button"
+                          className="text-sm text-[#754319] underline"
+                          onClick={handleSendSalesOtp}
+                          disabled={isSendingOtp}
+                        >
+                          Resend code
+                        </button>
+                      )}
+                    </>
+                  )}
                 </form>
               </CardContent>
               <CardFooter className="flex flex-col border-t p-6 gap-4 bg-muted/5">
