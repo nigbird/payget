@@ -33,6 +33,8 @@ import {
   Loader2,
   ShieldAlert,
   Info,
+  Share2,
+  ExternalLink,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -45,9 +47,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [lastMode, setLastMode] = useState<"push" | "link" | null>(null)
+  const [lastRequestDetails, setLastRequestDetails] = useState<{
+    amount: string
+    phone: string
+  } | null>(null)
   const [generatedResult, setGeneratedResult] = useState<{
     paymentUrl?: string
     customerPinToken?: string
@@ -223,7 +230,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             ? `A customer PIN entry prompt is ready (demo token returned).`
             : `Share the secure payment link with your customer.`,
       })
-      setIsRequestPanelOpen(true)
+      
+      setLastRequestDetails({
+        amount: requestForm.amount,
+        phone: requestForm.payerPhone
+      })
+
+      // Close the request panel
+      setIsRequestPanelOpen(false)
+      
+      // Open the success modal for both modes
+      setIsSuccessModalOpen(true)
 
       setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
     } catch {
@@ -237,8 +254,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     }
   }
 
-  const isPending = merchant.status === "pending"
-  const isApproved = merchant.status === "approved"
+  const isPending = merchant.status === "pending" || merchant.status === "branch_approved"
+  const isApproved = merchant.status === "approved" || merchant.status === "active"
 
   const formContent = (
     <div className="flex flex-col h-full">
@@ -313,70 +330,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   Generate Link
                 </Button>
               </div>
-
-              {generatedResult && (
-                <div className="rounded-2xl border border-white/70 bg-white/80 p-3 space-y-2 shadow-sm">
-                  <p className="text-xs uppercase tracking-wider text-[#754319]/70">
-                    {lastMode === "push" ? "Customer PIN Prompt (Demo)" : "Secure Payment Link"}
-                  </p>
-
-                  {generatedResult.paymentUrl ? (
-                    <div className="space-y-1">
-                      <p className="text-xs text-[#754319]/70">Shareable URL</p>
-                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
-                        {generatedResult.paymentUrl}
-                      </code>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="text-xs text-[#754319]/70">Customer token (demo)</p>
-                      <code className="block break-all rounded-xl bg-white/70 border border-white/60 p-2 text-sm font-mono text-[#5b371f]">
-                        {generatedResult.customerPinToken}
-                      </code>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    {generatedResult.paymentUrl ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
-                        onClick={() => generatedResult.paymentUrl && copyText(generatedResult.paymentUrl, "paymentUrl")}
-                      >
-                        {copied === "paymentUrl" ? (
-                          <CheckCircle2 className="mr-1 h-4 w-4" />
-                        ) : (
-                          <Copy className="mr-1 h-4 w-4" />
-                        )}
-                        {copied === "paymentUrl" ? "Copied" : "Copy URL"}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-9 px-3 rounded-2xl bg-white/70 hover:bg-white/90 text-[#754319] border border-white/60"
-                        onClick={() =>
-                          generatedResult.customerPinToken && copyText(generatedResult.customerPinToken, "customerPinToken")
-                        }
-                      >
-                        {copied === "customerPinToken" ? (
-                          <CheckCircle2 className="mr-1 h-4 w-4" />
-                        ) : (
-                          <Copy className="mr-1 h-4 w-4" />
-                        )}
-                        {copied === "customerPinToken" ? "Copied" : "Copy Token"}
-                      </Button>
-                    )}
-
-                    {generatedResult.transactionReference && (
-                      <Badge className="rounded-full bg-amber-100 text-amber-700 border-0">
-                        Ref: {generatedResult.transactionReference}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </ScrollArea>
@@ -407,7 +360,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     },
     {
       title: "Account Status",
-      value: merchant.status === "approved" ? "Verified" : "Reviewing",
+      value: (merchant.status === "approved" || merchant.status === "active") ? "Verified" : "Reviewing",
       hint: merchant.businessType || "Merchant",
       icon: ShieldAlert,
     },
@@ -418,6 +371,29 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     setCopied(key)
     setTimeout(() => setCopied(null), 1400)
     toast({ title: "Copied", description: "Value copied to clipboard." })
+  }
+
+  const handleShare = async () => {
+    if (!generatedResult?.paymentUrl) return
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Payment for ${merchant.name}`,
+          text: `Pay ${merchant.name} - ${requestForm.description || "Payment Request"}`,
+          url: generatedResult.paymentUrl,
+        })
+        toast({ title: "Shared successfully" })
+      } catch (error) {
+        if ((error as any).name !== "AbortError") {
+          toast({ variant: "destructive", title: "Share failed" })
+        }
+      }
+    } else {
+      // Fallback: Copy to clipboard and show toast
+      copyText(generatedResult.paymentUrl, "shareFallback")
+      toast({ title: "Share not supported", description: "Link copied to clipboard instead." })
+    }
   }
 
   return (
@@ -558,6 +534,118 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           </DialogHeader>
           <div className="max-h-[70vh]">
             {formContent}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Modal (Link or Push) */}
+      <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+        <DialogContent className="max-w-md border-0 bg-white p-0 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-br from-[#f8b513] to-[#754319] p-8 text-white text-center">
+            <div className="mx-auto w-16 h-16 bg-white/20 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 shadow-inner">
+              <CheckCircle2 className="w-10 h-10 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold">
+              {lastMode === "link" ? "Payment Link Ready" : "Payment Pushed!"}
+            </h3>
+            <p className="text-white/80 mt-1 text-sm font-medium">
+              {lastMode === "link" 
+                ? "Your secure checkout link is generated and ready to share." 
+                : `A payment request has been sent to the customer's phone.`}
+            </p>
+          </div>
+          
+          <div className="p-8 space-y-6">
+            {lastMode === "link" ? (
+              <>
+                <div className="space-y-3">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Shareable Payment Link</Label>
+                  <div className="relative group">
+                    <Input 
+                      readOnly
+                      value={generatedResult?.paymentUrl || ""}
+                      className="h-14 pr-24 rounded-2xl bg-slate-50 border-slate-200 font-mono text-sm focus-visible:ring-0 focus-visible:border-amber-500 transition-all"
+                    />
+                    <Button 
+                      onClick={() => generatedResult?.paymentUrl && copyText(generatedResult.paymentUrl, "modalCopy")}
+                      className="absolute right-1.5 top-1.5 h-11 rounded-xl bg-white border border-slate-200 text-[#754319] hover:bg-slate-50 shadow-sm transition-all"
+                    >
+                      {copied === "modalCopy" ? (
+                        <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
+                          <CheckCircle2 className="w-4 h-4" /> Copied
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          <Copy className="w-4 h-4" /> Copy
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Button 
+                    onClick={handleShare}
+                    className="h-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 flex items-center justify-center gap-2 group transition-all"
+                  >
+                    <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="font-bold">Share Link</span>
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    asChild
+                    className="h-14 rounded-2xl border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Link href={generatedResult?.paymentUrl || "#"} target="_blank">
+                      <ExternalLink className="w-5 h-5" />
+                      <span className="font-bold">Open Link</span>
+                    </Link>
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex flex-col items-center justify-center gap-2 p-6 rounded-2xl bg-slate-50 border border-slate-100">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Payment Amount</p>
+                  <p className="text-4xl font-black text-[#5b371f]">${parseFloat(lastRequestDetails?.amount || "0").toFixed(2)}</p>
+                  <div className="flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-sm">
+                    <Phone className="w-3 h-3 text-[#754319]" />
+                    <span className="text-xs font-bold text-[#754319]">{lastRequestDetails?.phone}</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50/50 border border-amber-100">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                    </div>
+                    <div className="text-xs text-amber-800">
+                      <p className="font-bold">Awaiting Customer Action</p>
+                      <p className="opacity-80">The customer has been prompted to enter their PIN to authorize this transaction.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2">
+              <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
+                {lastMode === "link" 
+                  ? "This link will direct your customer to a secure checkout page." 
+                  : "Status updates will appear in your recent activity log."}<br/>
+                Payments are processed instantly upon successful authorization.
+              </p>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-slate-50 border-t flex justify-center">
+            <Button 
+              variant="ghost" 
+              onClick={() => setIsSuccessModalOpen(false)}
+              className="text-muted-foreground hover:text-slate-900 font-semibold"
+            >
+              Done
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

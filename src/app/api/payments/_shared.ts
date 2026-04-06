@@ -37,7 +37,7 @@ function extractKidFromJwe(token: string): string | null {
 export async function createGatewayTransactionAndToken(input: PaymentInitiate) {
   const merchant = await db.getMerchantById(input.merchantId)
   if (!merchant) return { ok: false as const, error: "Merchant not found" }
-  if (merchant.status !== "approved") return { ok: false as const, error: "Merchant account is not active" }
+  if (merchant.status !== "approved" && merchant.status !== "active") return { ok: false as const, error: "Merchant account is not active" }
 
   // Amount limit checks (mirrors legacy /api/pay route semantics).
   if (input.amount > merchant.transactionLimit) {

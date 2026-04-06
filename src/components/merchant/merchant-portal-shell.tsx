@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { LayoutDashboard, History, Users, Settings2, LogOut } from "lucide-react"
 import { signOut } from "next-auth/react"
 
+import { Button } from "@/components/ui/button"
 import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
