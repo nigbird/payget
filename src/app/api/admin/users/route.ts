@@ -12,9 +12,22 @@ export async function GET() {
     }
 
     const users = await prisma.user.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        customRoleId: true,
+        merchantId: true,
+        isHeadOffice: true,
+        district: true,
+        branch: true,
+        status: true,
+        createdAt: true,
         customRole: {
-          include: {
+          select: {
+            id: true,
+            name: true,
             permissions: {
               include: {
                 permission: true
@@ -58,7 +71,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
 
-    const { email, name, password, customRoleId, role: legacyRole, merchantId } = await request.json();
+    const { 
+      email, 
+      name, 
+      password, 
+      customRoleId, 
+      role: legacyRole, 
+      merchantId,
+      isHeadOffice,
+      district,
+      branch
+    } = await request.json();
 
     // Enforce boundary: Admin management users (those with custom roles) 
     // must NOT be tied to a specific merchant.
@@ -94,7 +117,10 @@ export async function POST(request: Request) {
         password: hashedPassword,
         customRoleId,
         role: legacyRole || (customRoleId ? 'ADMIN' : 'MERCHANT'),
-        merchantId: finalMerchantId
+        merchantId: finalMerchantId,
+        isHeadOffice: !!isHeadOffice,
+        district: isHeadOffice ? null : district,
+        branch: isHeadOffice ? null : branch
       },
       include: {
         customRole: true

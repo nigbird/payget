@@ -44,8 +44,12 @@ import {
   Lock,
   MoreVertical,
   Edit,
-  Trash2
+  Trash2,
+  Building,
+  MapPin,
+  GitBranch
 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { useSession } from "next-auth/react"
 
@@ -58,6 +62,10 @@ interface UserRecord {
   customRole: { name: string } | null
   merchantId: string | null
   merchant: { name: string } | null
+  isHeadOffice: boolean
+  district: string | null
+  branch: string | null
+  status: 'ACTIVE' | 'DEACTIVATED'
   createdAt: string
 }
 
@@ -75,12 +83,25 @@ export default function UserManagementPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [selectedUser, setSelectedForEdit] = useState<UserRecord | null>(null)
   
   // Form state
   const [newUserName, setNewUserName] = useState("")
   const [newUserEmail, setNewUserEmail] = useState("")
   const [newUserPassword, setNewUserPassword] = useState("password123")
   const [selectedRoleId, setSelectedRoleId] = useState("")
+  const [isHeadOffice, setIsHeadOffice] = useState(false)
+  const [district, setDistrict] = useState("")
+  const [branch, setBranch] = useState("")
+
+  // Edit form state
+  const [editName, setEditName] = useState("")
+  const [editEmail, setEditEmail] = useState("")
+  const [editRoleId, setEditRoleId] = useState("")
+  const [editIsHeadOffice, setEditIsHeadOffice] = useState(false)
+  const [editDistrict, setEditDistrict] = useState("")
+  const [editBranch, setEditBranch] = useState("")
 
   useEffect(() => {
     fetchData()
@@ -102,9 +123,79 @@ export default function UserManagementPage() {
     }
   }
 
+  const handleEditClick = (user: UserRecord) => {
+    setSelectedForEdit(user)
+    setEditName(user.name)
+    setEditEmail(user.email)
+    setEditRoleId(user.customRoleId || "")
+    setEditIsHeadOffice(user.isHeadOffice)
+    setEditDistrict(user.district || "")
+    setEditBranch(user.branch || "")
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateUser = async () => {
+    if (!selectedUser || !editName || !editEmail || !editRoleId) {
+      toast({ title: "Missing fields", variant: "destructive" })
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          email: editEmail,
+          customRoleId: editRoleId,
+          isHeadOffice: editIsHeadOffice,
+          district: editIsHeadOffice ? null : editDistrict,
+          branch: editIsHeadOffice ? null : editBranch
+        })
+      })
+
+      if (res.ok) {
+        toast({ title: "User updated successfully" })
+        setIsEditDialogOpen(false)
+        fetchData()
+      } else {
+        const error = await res.json()
+        toast({ title: "Failed to update user", description: error.error, variant: "destructive" })
+      }
+    } catch (error) {
+      toast({ title: "Network error", variant: "destructive" })
+    }
+  }
+
+  const handleToggleStatus = async (user: UserRecord) => {
+    const newStatus = user.status === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE'
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (res.ok) {
+        toast({ title: `User ${newStatus.toLowerCase()} successfully` })
+        fetchData()
+      } else {
+        const error = await res.json()
+        toast({ title: "Failed to update status", description: error.error, variant: "destructive" })
+      }
+    } catch (error) {
+      toast({ title: "Network error", variant: "destructive" })
+    }
+  }
+
   const handleCreateUser = async () => {
     if (!newUserName || !newUserEmail || !selectedRoleId) {
       toast({ title: "Missing fields", variant: "destructive" })
+      return
+    }
+
+    if (!isHeadOffice && (!district || !branch)) {
+      toast({ title: "District and Branch are required", variant: "destructive" })
       return
     }
 
@@ -116,7 +207,10 @@ export default function UserManagementPage() {
           name: newUserName,
           email: newUserEmail,
           password: newUserPassword,
-          customRoleId: selectedRoleId
+          customRoleId: selectedRoleId,
+          isHeadOffice,
+          district: isHeadOffice ? null : district,
+          branch: isHeadOffice ? null : branch
         })
       })
 
@@ -127,6 +221,9 @@ export default function UserManagementPage() {
         setNewUserEmail("")
         setNewUserPassword("password123")
         setSelectedRoleId("")
+        setIsHeadOffice(false)
+        setDistrict("")
+        setBranch("")
         fetchData()
       } else {
         const error = await res.json()
@@ -255,6 +352,50 @@ export default function UserManagementPage() {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <Label className="text-base">Head Office</Label>
+                          <div className="text-[10px] text-muted-foreground">
+                            Assign user to Head Office or specific branch.
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isHeadOffice}
+                          onCheckedChange={setIsHeadOffice}
+                        />
+                      </div>
+
+                      {!isHeadOffice && (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="district">District</Label>
+                            <div className="relative">
+                              <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input 
+                                id="district" 
+                                className="pl-9" 
+                                placeholder="District" 
+                                value={district}
+                                onChange={(e) => setDistrict(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="branch">Branch Name</Label>
+                            <div className="relative">
+                              <GitBranch className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input 
+                                id="branch" 
+                                className="pl-9" 
+                                placeholder="Branch" 
+                                value={branch}
+                                onChange={(e) => setBranch(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <DialogFooter>
@@ -287,6 +428,7 @@ export default function UserManagementPage() {
                       <TableHead className="pl-6">User</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Organization</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Joined Date</TableHead>
                       <TableHead className="text-right pr-6">Actions</TableHead>
                     </TableRow>
@@ -296,44 +438,68 @@ export default function UserManagementPage() {
                       <TableRow key={user.id} className="group hover:bg-slate-50/50 transition-colors">
                         <TableCell className="pl-6 py-4">
                           <div className="flex flex-col">
-                            <span className="font-medium">{user.name}</span>
+                            <span className={`font-medium ${user.status === 'DEACTIVATED' ? 'text-muted-foreground line-through' : ''}`}>
+                              {user.name}
+                            </span>
                             <span className="text-xs text-muted-foreground">{user.email}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="gap-1.5 font-normal border-primary/20 bg-primary/5 text-primary">
-                            <Shield className="w-3 h-3" />
-                            {user.customRole?.name || user.role}
+                          <Badge variant="secondary" className="font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-100/50">
+                            {user.customRole?.name || 'Staff'}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="flex flex-col">
                             {user.merchant ? (
-                              <>
-                                <Building2 className="w-4 h-4" />
-                                <span>{user.merchant.name}</span>
-                              </>
+                              <span className="text-sm font-medium">{user.merchant.name}</span>
+                            ) : user.isHeadOffice ? (
+                              <Badge variant="outline" className="w-fit bg-slate-100 text-slate-700 border-slate-200">Head Office</Badge>
                             ) : (
-                              <>
-                                <Shield className="w-4 h-4" />
-                                <span>Super Admin</span>
-                              </>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-xs font-semibold flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" /> {user.district || 'N/A'}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                  <GitBranch className="w-3 h-3" /> {user.branch || 'N/A'}
+                                </span>
+                              </div>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.status === 'ACTIVE' ? 'success' : 'destructive'} className="rounded-full">
+                            {user.status === 'ACTIVE' ? 'Active' : 'Deactivated'}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(user.createdAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right pr-6">
-                          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleEditClick(user)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className={`h-8 w-8 ${user.status === 'ACTIVE' ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}`}
+                              onClick={() => handleToggleStatus(user)}
+                            >
+                              {user.status === 'ACTIVE' ? <Trash2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                     {filteredUsers.length === 0 && !isLoading && (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="h-40 text-center text-muted-foreground">
                           No users found matching your search.
                         </TableCell>
                       </TableRow>
@@ -344,6 +510,108 @@ export default function UserManagementPage() {
             </Card>
           </div>
         </main>
+
+        {/* Edit User Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
+                Update staff account details and organization assignment.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="edit-name" 
+                    className="pl-9" 
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="edit-email" 
+                    type="email" 
+                    className="pl-9" 
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Role Assignment</Label>
+                <Select onValueChange={setEditRoleId} value={editRoleId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Head Office</Label>
+                  <div className="text-[10px] text-muted-foreground">
+                    Assign user to Head Office or specific branch.
+                  </div>
+                </div>
+                <Switch
+                  checked={editIsHeadOffice}
+                  onCheckedChange={setEditIsHeadOffice}
+                />
+              </div>
+
+              {!editIsHeadOffice && (
+                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-district">District</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="edit-district" 
+                        className="pl-9" 
+                        value={editDistrict}
+                        onChange={(e) => setEditDistrict(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-branch">Branch Name</Label>
+                    <div className="relative">
+                      <GitBranch className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="edit-branch" 
+                        className="pl-9" 
+                        value={editBranch}
+                        onChange={(e) => setEditBranch(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleUpdateUser}>Update User</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   )

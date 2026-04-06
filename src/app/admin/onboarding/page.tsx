@@ -119,6 +119,17 @@ export default function MerchantOnboardingPage() {
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
 
   useEffect(() => {
+    if (session?.user) {
+      const user = session.user as any
+      setFormData(prev => ({
+        ...prev,
+        district: user.isHeadOffice ? "Head Office" : (user.district || ""),
+        branchName: user.isHeadOffice ? "Head Office" : (user.branch || "")
+      }))
+    }
+  }, [session])
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [configRes, merchantRes] = await Promise.all([
@@ -517,28 +528,47 @@ export default function MerchantOnboardingPage() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
-                          <div className="space-y-2">
-                            <Label>District</Label>
-                            <Select onValueChange={(v) => handleSelectChange('district', v)} value={formData.district}>
-                              <SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger>
-                              <SelectContent>
-                                {systemConfig.districts.map((d: string) => (
-                                  <SelectItem key={d} value={d}>{d}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Internal Processing Hub</Label>
-                            <Select onValueChange={(v) => handleSelectChange('branchName', v)} value={formData.branchName}>
-                              <SelectTrigger><SelectValue placeholder="Select Hub" /></SelectTrigger>
-                              <SelectContent>
-                                {systemConfig.branches.map((b: string) => (
-                                  <SelectItem key={b} value={b}>{b}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          {formData.district === "Head Office" ? (
+                            <div className="space-y-2">
+                              <Label>Assigned Organization</Label>
+                              <div className="relative">
+                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#754319]" />
+                                <Input 
+                                  value="Head Office" 
+                                  readOnly 
+                                  className="pl-10 bg-amber-50 border-amber-100 font-bold text-[#754319]" 
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                <Label>District</Label>
+                                <div className="relative">
+                                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input 
+                                    value={formData.district} 
+                                    readOnly 
+                                    className="pl-10 bg-slate-50 border-slate-200 font-medium" 
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Branch</Label>
+                                <div className="relative">
+                                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input 
+                                    value={formData.branchName} 
+                                    readOnly 
+                                    className="pl-10 bg-slate-50 border-slate-200 font-medium" 
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          <p className="text-[10px] text-muted-foreground italic">
+                            * Organization details are automatically assigned based on your account profile.
+                          </p>
                         </CardContent>
                       </Card>
 

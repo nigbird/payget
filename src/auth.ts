@@ -34,6 +34,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           role: user.role,
           merchantId: user.merchantId,
+          isHeadOffice: user.isHeadOffice,
+          district: user.district,
+          branch: user.branch,
           permissions: (user as any).customRole?.permissions.map((p: any) => p.permission.name) || []
         }
       }
@@ -75,6 +78,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.merchantId = (user as any).merchantId
         token.id = user.id
         token.permissions = (user as any).permissions
+        token.isHeadOffice = (user as any).isHeadOffice
+        token.district = (user as any).district
+        token.branch = (user as any).branch
       }
       if (trigger === "update" && session) {
         // Update token with new session data
@@ -82,6 +88,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session.user?.name) token.name = session.user.name;
         if (session.user?.role) token.role = session.user.role;
         if (session.user?.permissions) token.permissions = session.user.permissions;
+        if (session.user?.isHeadOffice !== undefined) token.isHeadOffice = session.user.isHeadOffice;
+        if (session.user?.district !== undefined) token.district = session.user.district;
+        if (session.user?.branch !== undefined) token.branch = session.user.branch;
       }
       return token
     },
@@ -91,6 +100,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).id = token.id;
         (session.user as any).merchantId = token.merchantId;
         (session.user as any).permissions = token.permissions;
+        (session.user as any).isHeadOffice = token.isHeadOffice;
+        (session.user as any).district = token.district;
+        (session.user as any).branch = token.branch;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
       }

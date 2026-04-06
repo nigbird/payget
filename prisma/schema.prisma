@@ -17,6 +17,10 @@ model User {
   customRole    Role?     @relation(fields: [customRoleId], references: [id])
   merchantId    String?
   merchant      Merchant? @relation(fields: [merchantId], references: [id])
+  isHeadOffice  Boolean   @default(false)
+  district      String?
+  branch        String?
+  status        UserStatus @default(ACTIVE)
   auditLogs     AuditLog[]
   createdRoles  Role[]    @relation("RoleCreator")
   createdMerchants  Merchant[] @relation("MerchantCreator")
@@ -31,6 +35,11 @@ enum UserRole {
   CHECKER
   HEAD_OFFICE
   MERCHANT
+}
+
+enum UserStatus {
+  ACTIVE
+  DEACTIVATED
 }
 
 model Role {
