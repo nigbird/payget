@@ -69,6 +69,7 @@ export interface Transaction {
     authToken: string;
     initiatedById?: string;
     initiatedByName?: string;
+    providerSharedSecret?: string;
   };
 }
 
@@ -323,7 +324,15 @@ export const db = {
     return mapTransaction(tx);
   },
 
-  addTransaction: async (tx: Transaction) => {
+  getTransactionByReference: async (transactionReference: string) => {
+    const tx = await prisma.transaction.findUnique({
+      where: { transactionReference }
+    });
+    if (!tx) return null;
+    return mapTransaction(tx);
+  },
+
+  getTransactionsByMerchant: async (merchantId: string) => {
     return prisma.transaction.create({
       data: {
         ...tx,
@@ -332,6 +341,16 @@ export const db = {
         transactionTimestamp: new Date(tx.transactionTimestamp),
         userCredentials: tx.userCredentials as any
       }
+    });
+  },
+
+  updateTransaction: async (id: string, data: any) => {
+    if (data.status) {
+      data.status = mapToPrismaTransactionStatus(data.status);
+    }
+    return prisma.transaction.update({
+      where: { id },
+      data
     });
   },
 
