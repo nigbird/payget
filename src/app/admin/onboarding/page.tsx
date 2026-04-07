@@ -93,11 +93,13 @@ export default function MerchantOnboardingPage() {
     dailyCountLimit: "100"
   })
   const [resendLoadingId, setResendLoadingId] = useState<string | null>(null)
+  const [isLogoUploading, setIsLogoUploading] = useState(false)
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     accountNumber: "",
+    logoUrl: "",
     businessDescription: "",
     websiteUrl: "",
     callbackUrl: "",
@@ -195,6 +197,25 @@ export default function MerchantOnboardingPage() {
 
   const handleRemoveDoc = (id: string) => {
     setDocuments(prev => prev.filter(doc => doc.id !== id))
+  }
+
+  const handleLogoUpload = async (file: File) => {
+    setIsLogoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/uploads/merchant-logo", { method: "POST", body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error || "Logo upload failed")
+      }
+      setFormData((prev) => ({ ...prev, logoUrl: data.url }))
+      toast({ title: "Logo uploaded", description: "Merchant logo has been attached to this onboarding." })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: e?.message || "Could not upload logo." })
+    } finally {
+      setIsLogoUploading(false)
+    }
   }
 
   const handleInitialReview = async (id: string) => {
@@ -302,6 +323,7 @@ export default function MerchantOnboardingPage() {
         // Reset form
         setFormData({
           name: "", email: "", accountNumber: "", businessDescription: "",
+          logoUrl: "",
           websiteUrl: "", callbackUrl: "", contactName: "", contactUsername: "",
           branchName: "", district: "", category: "", businessType: "",
           dailyLimit: "10000", transactionLimit: "1000", dailyCountLimit: "100"
@@ -418,6 +440,27 @@ export default function MerchantOnboardingPage() {
                               <CardDescription>Enter the legal and operational details of the merchant.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-6 space-y-4">
+                            <div className="space-y-2">
+                              <Label>Merchant Logo</Label>
+                              <div className="flex items-center gap-3">
+                                <Input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                                  className="bg-white"
+                                  disabled={isLogoUploading}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0]
+                                    if (f) void handleLogoUpload(f)
+                                  }}
+                                />
+                              </div>
+                              {formData.logoUrl ? (
+                                <p className="text-xs text-muted-foreground">Uploaded: <span className="font-mono">{formData.logoUrl}</span></p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Optional. This will appear on hosted payment pages.</p>
+                              )}
+                            </div>
+
                               <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                   <Label htmlFor="name">Business Name</Label>

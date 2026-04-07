@@ -82,6 +82,7 @@ model Merchant {
   name                String
   email               String           @unique
   password            String?
+  logoUrl             String?
   jweSecret           String
   accountNumber       String
   dailyLimit          Float            @default(0)

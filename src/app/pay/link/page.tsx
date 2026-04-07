@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 type ResolvedPayment = {
   merchantId: string
   merchantName: string
+  merchantLogoUrl?: string | null
   merchantAccountNumber: string
   transactionId: string
   transactionReference: string
@@ -24,6 +26,7 @@ type ResolvedPayment = {
 const gatewayBrand = {
   name: "Finflow Gateway",
   initials: "FG",
+  logoUrl: "/bank-logo.jpg",
 }
 
 function getInitials(value: string) {
@@ -150,7 +153,17 @@ function PayLinkContent() {
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#f4e4be] via-[#f2d38a] to-[#bb8748] ring-1 ring-[#754319]/10">
-                <span className="text-xs font-black tracking-[0.16em] text-[#5b371f]">{gatewayBrand.initials}</span>
+                {gatewayBrand.logoUrl ? (
+                  <Image
+                    src={gatewayBrand.logoUrl}
+                    alt={gatewayBrand.name}
+                    width={28}
+                    height={28}
+                    className="rounded-lg"
+                  />
+                ) : (
+                  <span className="text-xs font-black tracking-[0.16em] text-[#5b371f]">{gatewayBrand.initials}</span>
+                )}
               </div>
               <p className="truncate text-sm font-medium text-[#5b371f]">{gatewayBrand.name}</p>
             </div>
@@ -163,7 +176,17 @@ function PayLinkContent() {
 
             <div className="flex min-w-0 items-center justify-end gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#f6dfc0] via-[#f0c98d] to-[#9f6f39] ring-1 ring-[#754319]/10">
-                <span className="text-xs font-black tracking-[0.16em] text-[#5b371f]">{getInitials(payment.merchantName)}</span>
+                {payment.merchantLogoUrl ? (
+                  <Image
+                    src={payment.merchantLogoUrl}
+                    alt={payment.merchantName}
+                    width={28}
+                    height={28}
+                    className="rounded-lg object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-black tracking-[0.16em] text-[#5b371f]">{getInitials(payment.merchantName)}</span>
+                )}
               </div>
               <p className="truncate text-right text-sm font-medium text-[#5b371f]">{payment.merchantName}</p>
             </div>

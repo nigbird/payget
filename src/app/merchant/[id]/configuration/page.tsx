@@ -2,6 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { z } from "zod"
 import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Clock, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, LogOut } from "lucide-react"
 import { useSession } from "next-auth/react"
@@ -44,6 +45,8 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const { update } = useSession()
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
+  const [isLogoUploading, setIsLogoUploading] = useState(false)
+  const [logoInputKey, setLogoInputKey] = useState(0)
   const [formData, setFormData] = useState<FormData>({
     companyName: "",
     accountNumber: "",
@@ -333,6 +336,35 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     }
   }
 
+  const handleLogoUpload = async (file: File) => {
+    if (!merchant) return
+    setIsLogoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const up = await fetch("/api/uploads/merchant-logo", { method: "POST", body: fd })
+      const upData = await up.json().catch(() => ({}))
+      if (!up.ok) throw new Error(upData?.error || "Logo upload failed")
+
+      const logoUrl = upData.url as string
+      const res = await fetch(`/api/merchants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Could not save logo")
+
+      setMerchant(data)
+      toast({ title: "Logo updated", description: "Your merchant logo will appear on hosted payment pages." })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Logo upload failed", description: e?.message || "Try again." })
+    } finally {
+      setIsLogoUploading(false)
+      setLogoInputKey((k) => k + 1)
+    }
+  }
+
   const handleLogoutOtherSessions = async () => {
     try {
       const response = await fetch(`/api/merchants/${id}/logout-sessions`, {
@@ -516,7 +548,8 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid gap-4">
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
                         <Input
@@ -543,6 +576,45 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         />
                         <p className="text-xs text-muted-foreground">Used for account verification and support.</p>
                         {errors.phoneNumber && <p className="text-xs text-rose-600">{errors.phoneNumber}</p>}
+                      </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-[#754319]/10 bg-white/70 p-4">
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#754319]/70">Merchant logo</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Displayed on hosted payment pages and receipts.</p>
+
+                        <div className="mt-4 flex items-center gap-4">
+                          <div className="h-14 w-14 rounded-2xl bg-white ring-1 ring-[#754319]/10 overflow-hidden flex items-center justify-center">
+                            {merchant?.logoUrl ? (
+                              <Image
+                                src={merchant.logoUrl}
+                                alt={merchant.name ?? "Merchant logo"}
+                                width={56}
+                                height={56}
+                                className="h-14 w-14 object-cover"
+                              />
+                            ) : (
+                              <span className="text-sm font-black tracking-wide text-[#5b371f]">—</span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 space-y-2">
+                            <Input
+                              key={logoInputKey}
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp"
+                              disabled={!canEdit || isLogoUploading}
+                              className="rounded-2xl border-white/60 bg-white/85"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0]
+                                if (f) void handleLogoUpload(f)
+                              }}
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                              {canEdit ? "PNG / JPG / WEBP, up to 2MB." : "Only account admins can update the logo."}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </CardContent>

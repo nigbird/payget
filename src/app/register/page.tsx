@@ -46,10 +46,12 @@ export default function MerchantSelfRegistration() {
   const { toast } = useToast()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isLogoUploading, setIsLogoUploading] = useState(false)
   const [systemConfig, setSystemConfig] = useState<any>({
     districts: [],
     branches: [],
@@ -61,6 +63,7 @@ export default function MerchantSelfRegistration() {
     name: "",
     email: "",
     accountNumber: "",
+    logoUrl: "",
     dailyLimit: "10000",
     transactionLimit: "1000",
     businessDescription: "",
@@ -136,6 +139,24 @@ export default function MerchantSelfRegistration() {
 
   const removeDoc = (id: string) => {
     setDocuments(prev => prev.filter(d => d.id !== id))
+  }
+
+  const handleLogoUpload = async (file: File) => {
+    setIsLogoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/uploads/merchant-logo", { method: "POST", body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Logo upload failed")
+      setFormData(prev => ({ ...prev, logoUrl: data.url }))
+      toast({ title: "Logo uploaded", description: "Your logo will appear on hosted payment pages." })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: e?.message || "Could not upload logo." })
+    } finally {
+      setIsLogoUploading(false)
+      if (logoInputRef.current) logoInputRef.current.value = ""
+    }
   }
 
   const handleAiAssistant = async () => {
@@ -227,6 +248,7 @@ export default function MerchantSelfRegistration() {
           title: "Application Submitted",
           description: "Your application has been submitted successfully."
         })
+        setFormData(prev => ({ ...prev, logoUrl: "" }))
       } else {
         throw new Error('Failed to register')
       }
@@ -325,6 +347,37 @@ export default function MerchantSelfRegistration() {
                   </div>
 
                   <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-sm font-medium text-gray-700">Business Logo (optional)</Label>
+                      <div
+                        className="border-2 border-dashed border-gray-100 rounded-2xl p-6 flex flex-col gap-1 bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer"
+                        onClick={() => logoInputRef.current?.click()}
+                      >
+                        <p className="text-sm font-semibold text-gray-900">
+                          {isLogoUploading ? "Uploading..." : "Click to upload your logo"}
+                        </p>
+                        <p className="text-xs text-gray-400">PNG, JPG, WEBP, or SVG.</p>
+                        <input
+                          ref={logoInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                          className="hidden"
+                          disabled={isLogoUploading}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0]
+                            if (f) void handleLogoUpload(f)
+                          }}
+                        />
+                      </div>
+                      {formData.logoUrl ? (
+                        <p className="text-xs text-gray-500">
+                          Uploaded: <span className="font-mono">{formData.logoUrl}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400">No logo uploaded.</p>
+                      )}
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="name" className="text-sm font-medium text-gray-700">Business Legal Name</Label>
                       <Input 

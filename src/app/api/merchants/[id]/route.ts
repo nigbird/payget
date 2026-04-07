@@ -5,6 +5,12 @@ import { hasPermission } from '@/lib/rbac';
 import { sendNotification, generatePasswordSetupLink } from '@/lib/notifications';
 import crypto from 'crypto';
 
+function isSafeLogoUrl(value: unknown) {
+  if (typeof value !== "string") return false
+  // Only allow logos served by our API (prevents injecting arbitrary remote URLs)
+  return /^\/api\/uploads\/merchant-logos\/[a-zA-Z0-9._-]+$/.test(value)
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -33,6 +39,27 @@ export async function PATCH(
     const currentMerchant = await db.getMerchantById(id);
     if (!currentMerchant) {
       return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
+    }
+
+    // Restrict logo updates:
+    // - merchant can update their own logo
+    // - staff can update if they have merchant permissions
+    if (body.logoUrl !== undefined) {
+      if (!isSafeLogoUrl(body.logoUrl)) {
+        return NextResponse.json({ error: "Invalid logoUrl" }, { status: 400 })
+      }
+
+      const sessionUser = session.user as any
+      const isOwnMerchant =
+        sessionUser?.role === "MERCHANT" && sessionUser?.merchantId && sessionUser.merchantId === id
+
+      if (!isOwnMerchant) {
+        const canStaffUpdate =
+          (await hasPermission("MERCHANT_REGISTER")) || (await hasPermission("MERCHANT_APPROVE"))
+        if (!canStaffUpdate) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        }
+      }
     }
 
     const incomingStatus = body.status as string | undefined
