@@ -26,6 +26,7 @@ export interface Merchant {
   name: string;
   email: string;
   password?: string | null;
+  logoUrl?: string | null;
   passwordResetToken?: string | null;
   passwordResetExpires?: string | null;
   jweSecret: string;
@@ -107,6 +108,7 @@ function mapMerchant(m: PrismaMerchant & { documents?: PrismaMerchantDocument[],
     createdAt: m.createdAt.toISOString(),
     passwordResetExpires: (m as any).passwordResetExpires ? (m as any).passwordResetExpires.toISOString() : null,
     createdBy: m.createdBy,
+    logoUrl: (m as any).logoUrl ?? null,
     limitsSetBy: (m as any).limitsSetBy ?? null,
     approvedBy: m.approvedBy,
     documents: m.documents?.map(doc => ({

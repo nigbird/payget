@@ -15,9 +15,15 @@ export async function GET(request: Request) {
     }
 
     const { merchant, payload, tx } = result
+    const rawLogo = (merchant as any).logoUrl as string | null | undefined
+    const normalizedLogo =
+      typeof rawLogo === "string" && rawLogo.startsWith("/uploads/merchant-logos/")
+        ? `/api${rawLogo}`
+        : rawLogo ?? null
     return NextResponse.json({
       merchantId: merchant.id,
       merchantName: merchant.name,
+      merchantLogoUrl: normalizedLogo,
       merchantAccountNumber: merchant.accountNumber,
       transactionId: payload.transactionId,
       transactionReference: payload.transactionReference,
