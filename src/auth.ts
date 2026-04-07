@@ -4,6 +4,12 @@ import { db } from "@/app/lib/db"
 import bcrypt from "bcryptjs"
 import { verifySalesOtp } from "@/lib/otp"
 
+function normalizeLoginIdentifier(value: string) {
+  const v = value.trim()
+  if (v.includes("@")) return v.toLowerCase()
+  return v.replace(/[\s\-\(\)]/g, "")
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   providers: [
@@ -14,8 +20,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       authorize: async (credentials) => {
         if (!credentials?.email || !credentials?.password) return null
-        
-        const user = await db.findUserByEmail(credentials.email as string)
+
+        const identifier = String(credentials.email).trim()
+        let user = await db.findUserByEmail(identifier)
+
+        // Fallback: allow merchant login by contact username (email or phone).
+        if (!user) {
+          const merchant = await db.findMerchantByIdentifier(identifier)
+          if (merchant?.id) {
+            user = await db.findMerchantUserByMerchantId(merchant.id)
+          }
+        }
+
         if (!user || !user.password) return null
         
         // If the user is a merchant, ensure the merchant account is ACTIVE
@@ -23,6 +39,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (user.merchant?.status !== 'ACTIVE') {
             return null; // Deny login for inactive/pending merchants
           }
+
+          // Merchant login must match the current configured username only.
+          const currentUsername = user.merchant?.contactUsername
+          if (!currentUsername) return null
+          const provided = normalizeLoginIdentifier(identifier)
+          const expected = normalizeLoginIdentifier(currentUsername)
+          if (provided !== expected) return null
         }
         
         const isValid = await bcrypt.compare(credentials.password as string, user.password)

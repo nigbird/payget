@@ -46,8 +46,17 @@ export async function POST(request: Request) {
     // allow: public self-registration OR admin/staff with merchant permissions
     const session = await auth()
     if (session?.user) {
-      const ok = await hasAnyPermission(["MERCHANT_REGISTER", "TRANSACTION_LIMIT_SET", "TRANSACTION_LIMIT_OVERRIDE", "MERCHANT_APPROVE"])
-      if (!ok) {
+      const sessionUser = session.user as { role?: string } | undefined
+      const isMerchantUser = sessionUser?.role === "MERCHANT"
+      const hasStaffPermission = await hasAnyPermission([
+        "MERCHANT_REGISTER",
+        "TRANSACTION_LIMIT_SET",
+        "TRANSACTION_LIMIT_OVERRIDE",
+        "MERCHANT_APPROVE",
+      ])
+
+      // Merchant account admins should be able to upload their own logo in configuration.
+      if (!isMerchantUser && !hasStaffPermission) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
     }

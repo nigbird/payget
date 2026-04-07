@@ -41,7 +41,7 @@ export default function Home() {
         toast({
           variant: "destructive",
           title: "Authentication Failed",
-          description: "Invalid email or password. Please try again."
+          description: "Invalid username or password. Please try again."
         })
       } else {
         toast({
@@ -203,13 +203,16 @@ export default function Home() {
                   {loginMode === 'email' ? (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email">Username (Email or Phone)</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                           <Input 
                             id="email" 
-                            type="email"
-                            placeholder="email@example.com" 
+                            type="text"
+                            inputMode="text"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            placeholder="email@example.com or +1234567890" 
                             className="pl-9"
                             required
                             value={credentials.email}
@@ -261,7 +264,7 @@ export default function Home() {
                           }}
                           className="text-xs font-medium text-muted-foreground transition hover:text-[#754319]"
                         >
-                          Back to Email Login
+                          Back to Username Login
                         </button>
                       </div>
                       <div className="space-y-2">

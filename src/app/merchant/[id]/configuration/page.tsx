@@ -29,8 +29,7 @@ type FormData = {
 }
 
 type ProfileData = {
-  email: string
-  phoneNumber: string
+  username: string
   currentPassword: string
   newPassword: string
   confirmPassword: string
@@ -58,15 +57,13 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     callbackUrl: "",
   })
   const [profileData, setProfileData] = useState<ProfileData>({
-    email: "",
-    phoneNumber: "",
+    username: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   })
   const [initialProfileData, setInitialProfileData] = useState<ProfileData>({
-    email: "",
-    phoneNumber: "",
+    username: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
@@ -106,13 +103,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           })
           setProfileData(prev => ({
             ...prev,
-            email: m.email || "",
-            phoneNumber: m.contactPhone || "",
+            username: m.contactUsername || "",
           }))
           setInitialProfileData(prev => ({
             ...prev,
-            email: m.email || "",
-            phoneNumber: m.contactPhone || "",
+            username: m.contactUsername || "",
           }))
         }
       } catch (error) {
@@ -134,8 +129,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
   const hasProfileChanges = useMemo(() => {
     return (
-      profileData.email !== initialProfileData.email ||
-      profileData.phoneNumber !== initialProfileData.phoneNumber ||
+      profileData.username !== initialProfileData.username ||
       profileData.currentPassword ||
       profileData.newPassword ||
       profileData.confirmPassword
@@ -167,16 +161,15 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const validateProfile = () => {
     const nextErrors: Partial<Record<keyof ProfileData, string>> = {}
 
-    if (!profileData.email.trim()) {
-      nextErrors.email = "Email is required."
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email.trim())) {
-      nextErrors.email = "Enter a valid email address."
-    }
-
-    if (!profileData.phoneNumber.trim()) {
-      nextErrors.phoneNumber = "Phone number is required."
-    } else if (!/^\+?[\d\s\-\(\)]+$/.test(profileData.phoneNumber.trim())) {
-      nextErrors.phoneNumber = "Enter a valid phone number."
+    const username = profileData.username.trim()
+    if (!username) {
+      nextErrors.username = "Username is required."
+    } else {
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username)
+      const isPhone = /^\+?[\d\s\-\(\)]+$/.test(username)
+      if (!isEmail && !isPhone) {
+        nextErrors.username = "Use a valid email address or phone number."
+      }
     }
 
     if (profileData.newPassword) {
@@ -281,8 +274,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       setIsSaving(true)
 
       const updateData: any = {
-        email: profileData.email.trim(),
-        contactUsername: profileData.phoneNumber.trim(),
+        contactUsername: profileData.username.trim(),
       }
 
       if (profileData.newPassword) {
@@ -302,22 +294,20 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         // Update session to reflect new email or name if changed
         await update({
           user: {
-            email: refreshed.email,
+            email: refreshed.email || undefined,
           }
         })
 
         setProfileData(prev => ({
           ...prev,
-          email: refreshed.email || prev.email,
-          phoneNumber: refreshed.contactUsername || prev.phoneNumber,
+          username: refreshed.contactUsername || prev.username,
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
         }))
         setInitialProfileData(prev => ({
           ...prev,
-          email: refreshed.email || prev.email,
-          phoneNumber: refreshed.contactUsername || prev.phoneNumber,
+          username: refreshed.contactUsername || prev.username,
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
@@ -557,31 +547,16 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     <div className="grid gap-6 md:grid-cols-2">
                       <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="username">Username (Email or Phone)</Label>
                         <Input
-                          id="email"
-                          type="email"
-                          value={profileData.email}
-                          onChange={(e) => setProfileData((p) => ({ ...p, email: e.target.value }))}
-                          placeholder="john@example.com"
+                          id="username"
+                          value={profileData.username}
+                          onChange={(e) => setProfileData((p) => ({ ...p, username: e.target.value }))}
+                          placeholder="email@example.com or +1234567890"
                           className="rounded-2xl border-white/60 bg-white/85"
                         />
-                        <p className="text-xs text-muted-foreground">Used for notifications and account recovery.</p>
-                        {errors.email && <p className="text-xs text-rose-600">{errors.email}</p>}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <Input
-                          id="phoneNumber"
-                          type="tel"
-                          value={profileData.phoneNumber}
-                          onChange={(e) => setProfileData((p) => ({ ...p, phoneNumber: e.target.value }))}
-                          placeholder="+1 (555) 000-0000"
-                          className="rounded-2xl border-white/60 bg-white/85"
-                        />
-                        <p className="text-xs text-muted-foreground">Used for account verification and support.</p>
-                        {errors.phoneNumber && <p className="text-xs text-rose-600">{errors.phoneNumber}</p>}
+                        <p className="text-xs text-muted-foreground">This is your login username and can be either email or phone.</p>
+                        {errors.username && <p className="text-xs text-rose-600">{errors.username}</p>}
                       </div>
                       </div>
 

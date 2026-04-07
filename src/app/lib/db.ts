@@ -193,6 +193,24 @@ export const db = {
     });
   },
 
+  findMerchantUserByMerchantId: async (merchantId: string) => {
+    return prisma.user.findFirst({
+      where: { merchantId, role: UserRole.MERCHANT },
+      include: {
+        merchant: true,
+        customRole: {
+          include: {
+            permissions: {
+              include: {
+                permission: true
+              }
+            }
+          }
+        }
+      }
+    });
+  },
+
   findMerchantTeamMembersByPhone: async (phone: string) => {
     return prisma.merchantTeamMember.findMany({
       where: { phone },
