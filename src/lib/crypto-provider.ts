@@ -30,7 +30,7 @@ export function generateECDHKeyPair() {
 export function deriveSharedSecret(serverPublicKeyBase64: string, clientPrivateKey: Buffer): Buffer {
   const ecdh = crypto.createECDH('secp256k1');
   ecdh.setPrivateKey(clientPrivateKey);
-  return ecdh.computeSecret(serverPublicKeyBase64, 'base64');
+  return ecdh.computeSecret(serverPublicKeyBase64.trim(), 'base64');
 }
 
 /**
@@ -45,8 +45,8 @@ export function encryptProviderPayload(
   // 1. Convert payload to string
   const plaintext = JSON.stringify(payload);
 
-  // 2. Derive a 256-bit key from the shared secret (using SHA-256 to ensure exactly 32 bytes)
-  const encryptionKey = crypto.createHash('sha256').update(sharedSecret).digest();
+  // 2. Use the raw ECDH secret as AES-256 key (provider-compatible); fallback-safe to first 32 bytes.
+  const encryptionKey = sharedSecret.length >= 32 ? sharedSecret.subarray(0, 32) : crypto.createHash('sha256').update(sharedSecret).digest();
 
   // 3. Generate a unique 16-byte IV (salt) - based on 32-char hex in Postman
   const iv = crypto.randomBytes(16);
@@ -81,7 +81,7 @@ export function decryptProviderPayload(
   encryptedData: { payload: string, salt: string, tag: string },
   sharedSecret: Buffer
 ): any {
-  const encryptionKey = crypto.createHash('sha256').update(sharedSecret).digest();
+  const encryptionKey = sharedSecret.length >= 32 ? sharedSecret.subarray(0, 32) : crypto.createHash('sha256').update(sharedSecret).digest();
   const iv = Buffer.from(encryptedData.salt, 'hex');
   const tag = Buffer.from(encryptedData.tag, 'hex');
 

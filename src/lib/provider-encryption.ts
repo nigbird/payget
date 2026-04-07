@@ -72,13 +72,13 @@ export function generateECDHKeyPair(): { publicKey: string; privateKey: crypto.E
 
 // Derive shared secret from server public key and client private key
 export function deriveSharedSecret(serverPublicKeyBase64: string, clientPrivateKey: crypto.ECDH): Buffer {
-  return clientPrivateKey.computeSecret(serverPublicKeyBase64, "base64")
+  return clientPrivateKey.computeSecret(serverPublicKeyBase64.trim(), "base64")
 }
 
 // Encrypt payload using AES-256-GCM and encode required values as hex
 export function encryptPayloadForProvider(payload: ProviderPushPayload, sharedSecret: Buffer): EncryptedPushRequest {
   const iv = crypto.randomBytes(16) // Updated to 16 bytes to match Postman collection and legacy flow
-  const encryptionKey = crypto.createHash('sha256').update(sharedSecret).digest()
+  const encryptionKey = sharedSecret.length >= 32 ? sharedSecret.subarray(0, 32) : crypto.createHash('sha256').update(sharedSecret).digest()
   const cipher = crypto.createCipheriv("aes-256-gcm", encryptionKey, iv)
   
   const ciphertext = Buffer.concat([
