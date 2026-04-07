@@ -378,18 +378,6 @@ export const db = {
     return mapTransaction(tx);
   },
 
-  getTransactionsByMerchant: async (merchantId: string) => {
-    return prisma.transaction.create({
-      data: {
-        ...tx,
-        status: mapToPrismaTransactionStatus(tx.status),
-        timestamp: new Date(tx.timestamp),
-        transactionTimestamp: new Date(tx.transactionTimestamp),
-        userCredentials: tx.userCredentials as any
-      }
-    });
-  },
-
   updateTransaction: async (id: string, data: any) => {
     if (data.status) {
       data.status = mapToPrismaTransactionStatus(data.status);
@@ -409,5 +397,17 @@ export const db = {
 
   getSystemConfig: async () => {
     return prisma.systemConfig.findFirst();
+  },
+
+  addTransaction: async (tx: Transaction) => {
+    return prisma.transaction.create({
+      data: {
+        ...tx,
+        status: mapToPrismaTransactionStatus(tx.status),
+        timestamp: new Date(tx.timestamp),
+        transactionTimestamp: new Date(tx.transactionTimestamp),
+        userCredentials: tx.userCredentials as any
+      }
+    });
   }
 };
