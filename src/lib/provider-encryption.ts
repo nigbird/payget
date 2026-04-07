@@ -1,5 +1,6 @@
 import { z } from "zod"
 import crypto from "crypto"
+import { safeJsonParse } from "./json-utils"
 
 // Provider's payload schema for push (before encryption)
 export const ProviderPushPayloadSchema = z.object({
@@ -27,11 +28,39 @@ function toHex(buffer: Buffer): string {
 }
 
 // Fetch server public key from provider path matched to your Postman collection
-export async function fetchServerPublicKey(baseUrl: string): Promise<string> {
-  const response = await fetch(`${baseUrl}/nib-push-payment/api/get-pub-key`)
-  if (!response.ok) throw new Error("Failed to fetch server public key from provider")
-  const data = await response.json()
-  return data.serverPublicKey
+export async function fetchServerPublicKey(baseUrl: string, username?: string, password?: string): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  
+  if (username && password) {
+    const auth = Buffer.from(`${username}:${password}`).toString("base64")
+    headers["Authorization"] = `Basic ${auth}`
+  }
+
+  const response = await fetch(`${baseUrl}/nib-push-payment/api/get-pub-key`, {
+    method: "GET",
+    headers,
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch server public key from provider: ${response.statusText}`)
+  }
+  
+  const text = await response.text()
+  let data: any
+  try {
+    data = safeJsonParse(text)
+  } catch (e: any) {
+    console.error(`Failed to parse JSON from provider public key endpoint (encryption flow). Raw response: ${text}`)
+    throw new Error(`Failed to parse JSON from provider: ${e.message}`)
+  }
+  const serverPublicKey = data.nibServerPublicKey || data.serverPublicKey || data.publicKey || data.pubkey
+
+  if (!serverPublicKey) {
+    console.error('Provider response body missing public key (encryption flow):', JSON.stringify(data));
+    throw new Error("Provider response did not contain nibServerPublicKey, serverPublicKey, or pubkey")
+  }
+  
+  return serverPublicKey
 }
 
 // Generate ECDH key pair (secp256k1)
@@ -48,8 +77,10 @@ export function deriveSharedSecret(serverPublicKeyBase64: string, clientPrivateK
 
 // Encrypt payload using AES-256-GCM and encode required values as hex
 export function encryptPayloadForProvider(payload: ProviderPushPayload, sharedSecret: Buffer): EncryptedPushRequest {
-  const iv = crypto.randomBytes(12)
-  const cipher = crypto.createCipheriv("aes-256-gcm", sharedSecret, iv)
+  const iv = crypto.randomBytes(16) // Updated to 16 bytes to match Postman collection and legacy flow
+  const encryptionKey = crypto.createHash('sha256').update(sharedSecret).digest()
+  const cipher = crypto.createCipheriv("aes-256-gcm", encryptionKey, iv)
+  
   const ciphertext = Buffer.concat([
     cipher.update(JSON.stringify(payload), "utf8"),
     cipher.final(),
@@ -68,9 +99,11 @@ export function encryptPayloadForProvider(payload: ProviderPushPayload, sharedSe
 // Full workflow: prepare encrypted request
 export async function prepareEncryptedPushRequest(
   payload: ProviderPushPayload,
-  baseUrl: string
+  baseUrl: string,
+  username?: string,
+  password?: string
 ): Promise<{ request: EncryptedPushRequest; clientPublicKey: string }> {
-  const serverPublicKey = await fetchServerPublicKey(baseUrl)
+  const serverPublicKey = await fetchServerPublicKey(baseUrl, username, password)
   const { publicKey: clientPublicKey, privateKey } = generateECDHKeyPair()
   const sharedSecret = deriveSharedSecret(serverPublicKey, privateKey)
   const encryptedRequest = encryptPayloadForProvider(payload, sharedSecret)
@@ -94,5 +127,15 @@ export async function sendPushToProvider(
     },
     body: JSON.stringify(encryptedRequest),
   })
-  return response.json()
+  const text = await response.text()
+  try {
+    return safeJsonParse(text)
+  } catch (e: any) {
+    console.error(`Failed to parse JSON from provider transfer endpoint (encryption flow). Raw response: ${text}`)
+    return {
+      message: "Failed to parse provider response",
+      statusCode: response.status,
+      error: e.message
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { safeJsonParse } from './json-utils';
 
 /**
  * Cryptographic utility for Provider Push Payment API integration.
@@ -90,5 +91,5 @@ export function decryptProviderPayload(
   let decrypted = decipher.update(encryptedData.payload, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
 
-  return JSON.parse(decrypted);
+  return safeJsonParse(decrypted);
 }

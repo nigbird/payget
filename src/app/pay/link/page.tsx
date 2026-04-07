@@ -6,7 +6,7 @@ import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Lock, CheckCircle2, Loader2, Wallet, XCircle } from "lucide-react"
+import { Lock, CheckCircle2, Loader2, XCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 type ResolvedPayment = {
@@ -149,61 +149,60 @@ function PayLinkContent() {
   return (
     <div className="min-h-screen bg-[linear-gradient(155deg,#fff9ee_0%,#fbe5b2_50%,#f7d588_100%)] p-4">
       <div className="mx-auto w-full max-w-md space-y-4">
-        <section className="rounded-full border border-white/65 bg-white/60 px-4 py-3 backdrop-blur-sm">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#f4e4be] via-[#f2d38a] to-[#bb8748] ring-1 ring-[#754319]/10">
-                {gatewayBrand.logoUrl ? (
-                  <Image
-                    src={gatewayBrand.logoUrl}
-                    alt={gatewayBrand.name}
-                    width={28}
-                    height={28}
-                    className="rounded-lg"
-                  />
-                ) : (
-                  <span className="text-xs font-black tracking-[0.16em] text-[#5b371f]">{gatewayBrand.initials}</span>
-                )}
-              </div>
-              <p className="truncate text-sm font-medium text-[#5b371f]">{gatewayBrand.name}</p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="h-px w-4 bg-[#754319]/15" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#754319]/55">Powered by</span>
-              <div className="h-px w-4 bg-[#754319]/15" />
-            </div>
-
-            <div className="flex min-w-0 items-center justify-end gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#f6dfc0] via-[#f0c98d] to-[#9f6f39] ring-1 ring-[#754319]/10">
-                {payment.merchantLogoUrl ? (
-                  <Image
-                    src={payment.merchantLogoUrl}
-                    alt={payment.merchantName}
-                    width={28}
-                    height={28}
-                    className="rounded-lg object-cover"
-                  />
-                ) : (
-                  <span className="text-xs font-black tracking-[0.16em] text-[#5b371f]">{getInitials(payment.merchantName)}</span>
-                )}
-              </div>
-              <p className="truncate text-right text-sm font-medium text-[#5b371f]">{payment.merchantName}</p>
-            </div>
-          </div>
-        </section>
-
-        <Card className="overflow-hidden rounded-[30px] border border-white/65 bg-white/80 shadow-[0_24px_65px_-34px_rgba(91,55,31,0.5)] backdrop-blur-sm">
+        <Card className="relative overflow-hidden rounded-[30px] border border-white/65 bg-white/80 shadow-[0_24px_65px_-34px_rgba(91,55,31,0.5)] backdrop-blur-sm">
           <CardContent className="p-0">
-            <div className="bg-gradient-to-br from-[#f6e6bf] via-[#efcb73] to-[#9c6b32] px-6 py-6 text-[#3f210f]">
-              <div className="flex items-start justify-between gap-4">
+            <div className="bg-gradient-to-br from-[#f6e6bf] via-[#efcb73] to-[#9c6b32] px-6 pb-8 pt-6 text-[#3f210f]">
+              <div className="flex flex-col gap-6">
+                <div className="rounded-[24px] border border-white/20 bg-white/15 px-4 py-3 shadow-[0_14px_35px_-18px_rgba(91,55,31,0.45)]">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/25 ring-1 ring-white/35">
+                        {gatewayBrand.logoUrl ? (
+                          <Image
+                            src={gatewayBrand.logoUrl}
+                            alt={gatewayBrand.name}
+                            width={32}
+                            height={32}
+                            className="rounded-lg"
+                          />
+                        ) : (
+                          <span className="text-[11px] font-black tracking-[0.16em] text-[#5b371f]">{gatewayBrand.initials}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-[#754319]/65">Powered by</p>
+                        <p className="truncate text-sm font-semibold text-[#3f210f]">{gatewayBrand.name}</p>
+                      </div>
+                    </div>
+
+                    <div className="h-10 w-px bg-white/30" />
+
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/25 ring-1 ring-white/35">
+                        {payment.merchantLogoUrl ? (
+                          <Image
+                            src={payment.merchantLogoUrl}
+                            alt={payment.merchantName}
+                            width={32}
+                            height={32}
+                            className="rounded-lg object-cover"
+                          />
+                        ) : (
+                          <span className="text-[11px] font-black tracking-[0.16em] text-[#5b371f]">{getInitials(payment.merchantName)}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-[#754319]/65">Merchant</p>
+                        <p className="truncate text-sm font-semibold text-[#3f210f]">{payment.merchantName}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#754319]/80">Payment</p>
                   <p className="mt-3 text-4xl font-black tracking-tight">${payment.amount.toFixed(2)}</p>
                   <p className="mt-2 max-w-[14rem] text-sm text-[#5b371f]/80">{payment.serviceDescription}</p>
-                </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/18 ring-1 ring-white/25">
-                  <Wallet className="h-5 w-5" />
                 </div>
               </div>
             </div>
@@ -317,7 +316,11 @@ function PayLinkContent() {
 
 export default function PayLinkPage() {
   return (
-    <Suspense fallback={<div>Loading payment link...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#fff7e8] p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
       <PayLinkContent />
     </Suspense>
   )

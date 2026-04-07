@@ -71,11 +71,11 @@ export async function POST(request: Request) {
       })
 
       const baseUrl = process.env.PROVIDER_BASE_URL!
-      const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl)
-
-      // Send to provider using their exact transfer endpoint
       const username = process.env.PROVIDER_USERNAME!
       const password = process.env.PROVIDER_PASSWORD!
+      const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl, username, password)
+
+      // Send to provider using their exact transfer endpoint
       providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
     }
 
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       await db.updateTransactionStatus(result.tx.id, "failed")
       return NextResponse.json({ 
         error: providerResponse.message || "Provider rejected the request",
-        details: providerResponse.details,
+        details: providerResponse.details || providerResponse.error,
         statusCode: providerResponse.statusCode
       }, { status: 400 })
     }

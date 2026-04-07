@@ -1,4 +1,5 @@
 import { generateECDHKeyPair, deriveSharedSecret, encryptProviderPayload } from './crypto-provider';
+import { safeJsonParse } from './json-utils';
 
 /**
  * Client for interacting with the external Payment Provider API.
@@ -29,21 +30,35 @@ export interface ProviderResponse {
  * Endpoint updated from Postman: /nib-push-payment/api/get-pub-key
  */
 async function fetchServerPublicKey(): Promise<string> {
+  const authHeader = `Basic ${Buffer.from(`${PROVIDER_USERNAME}:${PROVIDER_PASSWORD}`).toString('base64')}`;
   const response = await fetch(`${PROVIDER_BASE_URL}/nib-push-payment/api/get-pub-key`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': authHeader
+    }
   });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch server public key: ${response.statusText}`);
   }
 
-  const data = await response.json();
-  if (!data.serverPublicKey) {
-    throw new Error('Provider response did not contain serverPublicKey');
+  const text = await response.text();
+  let data: any;
+  try {
+    data = safeJsonParse(text);
+  } catch (e: any) {
+    console.error(`Failed to parse JSON from provider public key endpoint. Raw response: ${text}`);
+    throw new Error(`Failed to parse JSON from provider: ${e.message}`);
+  }
+  const serverPublicKey = data.nibServerPublicKey || data.serverPublicKey || data.publicKey || data.pubkey;
+
+  if (!serverPublicKey) {
+    console.error('Provider response body missing public key:', JSON.stringify(data));
+    throw new Error('Provider response did not contain nibServerPublicKey, serverPublicKey, or publicKey');
   }
 
-  return data.serverPublicKey;
+  return serverPublicKey;
 }
 
 /**
@@ -77,7 +92,18 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
       body: JSON.stringify(encryptedData)
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    let data: any;
+    try {
+      data = safeJsonParse(text);
+    } catch (e: any) {
+      console.error(`Failed to parse JSON from provider transfer endpoint. Raw response: ${text}`);
+      return {
+        message: 'Failed to parse provider response',
+        statusCode: response.status,
+        error: e.message
+      };
+    }
 
     if (!response.ok) {
       return {
