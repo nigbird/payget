@@ -404,6 +404,20 @@ export default function MerchantSelfRegistration() {
                         />
                       </div>
                     </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">Settlement Account Number</Label>
+                      <Input
+                        id="accountNumber"
+                        inputMode="numeric"
+                        placeholder="e.g. 1234567890"
+                        required
+                        className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                        value={formData.accountNumber}
+                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                      />
+                      <p className="text-xs text-gray-400">Payments will be settled to this account number.</p>
+                    </div>
                   </div>
                 </div>
 

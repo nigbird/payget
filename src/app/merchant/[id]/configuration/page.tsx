@@ -153,9 +153,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       nextErrors.accountNumber = "Use 6-34 characters (letters, numbers, or hyphen)."
     }
 
-    const parsed = callbackUrlSchema.safeParse(formData.callbackUrl.trim())
-    if (!parsed.success) {
-      nextErrors.callbackUrl = parsed.error.issues[0]?.message ?? "Invalid Callback URL."
+    // callbackUrl is optional for this page and not currently editable in the UI.
+    if (formData.callbackUrl.trim()) {
+      const parsed = callbackUrlSchema.safeParse(formData.callbackUrl.trim())
+      if (!parsed.success) {
+        nextErrors.callbackUrl = parsed.error.issues[0]?.message ?? "Invalid Callback URL."
+      }
     }
 
     return nextErrors
@@ -221,16 +224,19 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     try {
       setIsSaving(true)
 
+      const updatePayload: any = {
+        name: formData.companyName.trim(),
+        accountNumber: formData.accountNumber.trim(),
+      }
+
+      if (formData.callbackUrl.trim()) {
+        updatePayload.callbackUrl = formData.callbackUrl.trim()
+      }
+
       const response = await fetch(`/api/merchants/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.companyName.trim(),
-          accountNumber: formData.accountNumber.trim(),
-          callbackUrl: formData.callbackUrl.trim(),
-          dailyLimit: transactionLimits.daily,
-          transactionLimit: transactionLimits.maxTransaction,
-        })
+        body: JSON.stringify(updatePayload)
       })
 
       if (response.ok) {
