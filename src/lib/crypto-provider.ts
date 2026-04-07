@@ -61,8 +61,8 @@ export function encryptProviderPayload(
   // 6. Get Auth Tag
   const tag = cipher.getAuthTag().toString('hex');
 
-  // 7. Compute SHA-256 Checksum of the encrypted payload (hex)
-  const cksum = crypto.createHash('sha256').update(ciphertext).digest('hex');
+  // 7. Compute SHA-256 checksum over ciphertext bytes (matches provider/Postman)
+  const cksum = crypto.createHash('sha256').update(Buffer.from(ciphertext, 'hex')).digest('hex');
 
   return {
     payload: ciphertext,

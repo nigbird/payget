@@ -91,7 +91,7 @@ export function encryptPayloadForProvider(payload: ProviderPushPayload, sharedSe
   return {
     payload: hexCiphertext,
     pubkey: "",
-    cksum: crypto.createHash("sha256").update(hexCiphertext).digest("hex"),
+    cksum: crypto.createHash("sha256").update(Buffer.from(hexCiphertext, "hex")).digest("hex"),
     salt: toHex(iv),
     tag: toHex(tag),
   }
