@@ -85,12 +85,13 @@ export function encryptPayloadForProvider(payload: ProviderPushPayload, sharedSe
     cipher.update(JSON.stringify(payload), "utf8"),
     cipher.final(),
   ])
+  const hexCiphertext = toHex(ciphertext)
   const tag = cipher.getAuthTag()
 
   return {
-    payload: toHex(ciphertext),
+    payload: hexCiphertext,
     pubkey: "",
-    cksum: toHex(crypto.createHash("sha256").update(ciphertext).digest()),
+    cksum: crypto.createHash("sha256").update(hexCiphertext).digest("hex"),
     salt: toHex(iv),
     tag: toHex(tag),
   }
@@ -119,6 +120,13 @@ export async function sendPushToProvider(
   password: string
 ): Promise<any> {
   const auth = Buffer.from(`${username}:${password}`).toString('base64')
+  console.log('Sending encrypted request to provider:', {
+    baseUrl,
+    url: `${baseUrl}/push-payment/transfer`,
+    payload: encryptedRequest.payload.substring(0, 20) + '...',
+    cksum: encryptedRequest.cksum,
+    pubkey: encryptedRequest.pubkey.substring(0, 20) + '...'
+  })
   const response = await fetch(`${baseUrl}/push-payment/transfer`, {
     method: "POST",
     headers: {
@@ -128,8 +136,10 @@ export async function sendPushToProvider(
     body: JSON.stringify(encryptedRequest),
   })
   const text = await response.text()
+  console.log('Provider raw response (encryption flow):', text)
   try {
-    return safeJsonParse(text)
+    const data = safeJsonParse(text)
+    return { ...data, statusCode: response.status }
   } catch (e: any) {
     console.error(`Failed to parse JSON from provider transfer endpoint (encryption flow). Raw response: ${text}`)
     return {

@@ -58,10 +58,17 @@ export async function POST(request: Request) {
     }
 
     // 2. Call the external provider API (legacy flow)
+    console.log('Starting legacy provider push request...')
     let providerResponse = await sendProviderPushRequest(providerRequest)
+    console.log('Legacy provider response status:', providerResponse.statusCode)
 
     // If legacy provider fails, try the new encrypted provider flow
     if (providerResponse.statusCode !== 200) {
+      console.log('Legacy flow failed. Trying new encrypted provider flow...', {
+        message: providerResponse.message,
+        error: providerResponse.error,
+        details: providerResponse.details
+      })
       // Prepare payload for provider (new flow)
       const providerPayload = ProviderPushPayloadSchema.parse({
         transactionRef: result.transactionReference,
@@ -77,9 +84,11 @@ export async function POST(request: Request) {
 
       // Send to provider using their exact transfer endpoint
       providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
+      console.log('New encrypted provider flow response status:', providerResponse.statusCode || (providerResponse as any).status)
     }
 
-    if (providerResponse.statusCode !== 200) {
+    if (providerResponse.statusCode !== 200 && (providerResponse as any).status !== 200) {
+      console.error('All provider flows failed:', providerResponse)
       // Update local transaction status to failed if provider rejected it
       await db.updateTransactionStatus(result.tx.id, "failed")
       return NextResponse.json({ 

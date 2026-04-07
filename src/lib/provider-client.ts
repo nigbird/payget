@@ -83,6 +83,12 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
     const authHeader = `Basic ${Buffer.from(`${PROVIDER_USERNAME}:${PROVIDER_PASSWORD}`).toString('base64')}`;
 
     // 6. Send POST /push-payment/transfer
+    console.log('Sending legacy push request to provider:', {
+      url: `${PROVIDER_BASE_URL}/push-payment/transfer`,
+      payload: encryptedData.payload.substring(0, 20) + '...',
+      cksum: encryptedData.cksum,
+      pubkey: encryptedData.pubkey.substring(0, 20) + '...'
+    });
     const response = await fetch(`${PROVIDER_BASE_URL}/push-payment/transfer`, {
       method: 'POST',
       headers: {
@@ -93,6 +99,7 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
     });
 
     const text = await response.text();
+    console.log('Provider raw response (legacy flow):', text);
     let data: any;
     try {
       data = safeJsonParse(text);
@@ -116,7 +123,7 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
 
     return {
       message: data.message,
-      statusCode: data.statusCode || response.status,
+      statusCode: response.status,
       details: data.details,
       sharedSecret: sharedSecret.toString('base64')
     };
