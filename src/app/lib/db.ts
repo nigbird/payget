@@ -388,14 +388,6 @@ export const db = {
     return mapTransaction(tx);
   },
 
-  getTransactionByReference: async (transactionReference: string) => {
-    const tx = await prisma.transaction.findUnique({
-      where: { transactionReference }
-    });
-    if (!tx) return null;
-    return mapTransaction(tx);
-  },
-
   updateTransaction: async (id: string, data: any) => {
     if (data.status) {
       data.status = mapToPrismaTransactionStatus(data.status);
