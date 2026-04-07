@@ -92,19 +92,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.role = (user as any).role
-        token.merchantId = (user as any).merchantId
-        token.id = user.id
-        token.permissions = (user as any).permissions
-<<<<<<< HEAD
-        token.isHeadOffice = (user as any).isHeadOffice
-        token.district = (user as any).district
-        token.branch = (user as any).branch
-=======
-        token.assignedMerchantIds = (user as any).assignedMerchantIds
-        token.assignedMerchants = (user as any).assignedMerchants
->>>>>>> 34896daf9ee3ac3d904f5aa2aa583d131295b4f5
+            if (user) {
+        token.role = (user as any).role;
+        token.merchantId = (user as any).merchantId;
+        token.id = user.id;
+        token.permissions = (user as any).permissions;
+        token.isHeadOffice = (user as any).isHeadOffice;
+        token.district = (user as any).district;
+        token.branch = (user as any).branch;
+        token.assignedMerchantIds = (user as any).assignedMerchantIds;
+        token.assignedMerchants = (user as any).assignedMerchants;
       }
       if (trigger === "update" && session) {
         // Update token with new session data
@@ -112,14 +109,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session.user?.name) token.name = session.user.name;
         if (session.user?.role) token.role = session.user.role;
         if (session.user?.permissions) token.permissions = session.user.permissions;
-<<<<<<< HEAD
         if (session.user?.isHeadOffice !== undefined) token.isHeadOffice = session.user.isHeadOffice;
         if (session.user?.district !== undefined) token.district = session.user.district;
         if (session.user?.branch !== undefined) token.branch = session.user.branch;
-=======
         if ((session.user as any).assignedMerchantIds) token.assignedMerchantIds = (session.user as any).assignedMerchantIds;
         if ((session.user as any).assignedMerchants) token.assignedMerchants = (session.user as any).assignedMerchants;
->>>>>>> 34896daf9ee3ac3d904f5aa2aa583d131295b4f5
       }
       return token
     },

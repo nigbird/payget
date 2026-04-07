@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
 import { auth } from "@/auth"
-<<<<<<< HEAD
 import { sendProviderPushRequest } from "@/lib/provider-client"
 import { db } from "@/app/lib/db"
-=======
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
->>>>>>> 34896daf9ee3ac3d904f5aa2aa583d131295b4f5
 
 export async function POST(request: Request) {
   try {
@@ -52,8 +49,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, limit: (result as any).limit }, { status })
     }
 
-<<<<<<< HEAD
-    // 1. Prepare request for the external provider
+    // 1. Prepare request for the external provider (legacy flow)
     const providerRequest = {
       transactionRef: result.transactionReference,
       customerPhone: parsed.data.userCredentials.phone,
@@ -61,13 +57,31 @@ export async function POST(request: Request) {
       amount: parsed.data.amount
     }
 
-    // 2. Call the external provider API
-    const providerResponse = await sendProviderPushRequest(providerRequest)
+    // 2. Call the external provider API (legacy flow)
+    let providerResponse = await sendProviderPushRequest(providerRequest)
+
+    // If legacy provider fails, try the new encrypted provider flow
+    if (providerResponse.statusCode !== 200) {
+      // Prepare payload for provider (new flow)
+      const providerPayload = ProviderPushPayloadSchema.parse({
+        transactionRef: result.transactionReference,
+        customerPhone: result.tx.userCredentials.phone,
+        creditAccount: result.merchant.accountNumber,
+        amount: result.tx.amount,
+      })
+
+      const baseUrl = process.env.PROVIDER_BASE_URL!
+      const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl)
+
+      // Send to provider using their exact transfer endpoint
+      const username = process.env.PROVIDER_USERNAME!
+      const password = process.env.PROVIDER_PASSWORD!
+      providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
+    }
 
     if (providerResponse.statusCode !== 200) {
       // Update local transaction status to failed if provider rejected it
       await db.updateTransactionStatus(result.tx.id, "failed")
-      
       return NextResponse.json({ 
         error: providerResponse.message || "Provider rejected the request",
         details: providerResponse.details,
@@ -84,26 +98,6 @@ export async function POST(request: Request) {
         }
       })
     }
-
-    // 4. Return success to the merchant
-=======
-    // Prepare payload for provider
-    const providerPayload = ProviderPushPayloadSchema.parse({
-      transactionRef: result.transactionReference,
-      customerPhone: result.tx.userCredentials.phone,
-      creditAccount: result.merchant.accountNumber,
-      amount: result.tx.amount,
-    })
-
-    const baseUrl = process.env.PROVIDER_BASE_URL!
-    const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl)
-
-    // Send to provider using their exact transfer endpoint
-    const username = process.env.PROVIDER_USERNAME!
-    const password = process.env.PROVIDER_PASSWORD!
-    const providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
-
->>>>>>> 34896daf9ee3ac3d904f5aa2aa583d131295b4f5
     return NextResponse.json({
       transactionId: result.tx.id,
       transactionReference: result.transactionReference,
