@@ -7,6 +7,7 @@ import { LayoutDashboard, History, Users, Settings2, LogOut } from "lucide-react
 import { signOut, useSession } from "next-auth/react"
 
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -34,9 +35,33 @@ export default function MerchantPortalShell({
   const { data: session, status } = useSession()
 
   const [merchant, setMerchant] = React.useState<Merchant | null>(null)
+  const [assignedMerchants, setAssignedMerchants] = React.useState<{ id: string; name: string }[]>([])
 
   const isSalesUser = (session?.user as { role?: string } | undefined)?.role === "SALES"
   const activeRole: MerchantTeamRole = isSalesUser ? "payment_initiator" : "account_admin"
+
+  const assignedMerchantsFromSession = (session?.user as any)?.assignedMerchants as { id: string; name: string }[] | undefined
+
+  React.useEffect(() => {
+    if (!isSalesUser) return
+    if (assignedMerchantsFromSession?.length) {
+      setAssignedMerchants(assignedMerchantsFromSession)
+      return
+    }
+
+    const fetchAssignedMerchants = async () => {
+      try {
+        const response = await fetch('/api/merchant/assigned')
+        if (!response.ok) return
+        const data = await response.json()
+        setAssignedMerchants(data.merchants ?? [])
+      } catch (error) {
+        console.error('Failed to load assigned merchants:', error)
+      }
+    }
+
+    fetchAssignedMerchants()
+  }, [isSalesUser, assignedMerchantsFromSession])
 
   React.useEffect(() => {
     const fetchMerchant = async () => {
@@ -114,7 +139,6 @@ export default function MerchantPortalShell({
               </div>
               <div className="leading-tight">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
-                <p className="text-sm font-semibold text-[#5b371f]">{merchant?.name ?? "—"}</p>
               </div>
             </div>
 
@@ -157,7 +181,25 @@ export default function MerchantPortalShell({
               </div>
             </div>
 
-            <div className="shrink-0 ml-auto md:ml-0">
+            <div className="shrink-0 ml-auto md:ml-0 flex items-center gap-3">
+              <div className="min-w-[220px]">
+                {isSalesUser && assignedMerchants.length > 1 ? (
+                  <Select value={merchantId} onValueChange={(value) => router.push(`/merchant/${value}`)}>
+                    <SelectTrigger className="w-full rounded-xl border border-[#E5E7EB] bg-white text-sm text-[#5b371f] shadow-sm">
+                      <SelectValue placeholder={merchant?.name ?? "Select merchant"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignedMerchants.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm font-semibold text-[#5b371f]">{merchant?.name ?? "—"}</p>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 size="sm"

@@ -26,6 +26,7 @@ import {
   DialogTrigger 
 } from "@/components/ui/dialog"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
 import { 
   Activity, 
   Users, 
@@ -48,7 +49,8 @@ import {
   BadgeCheck,
   Shield,
   UserPlus,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react"
 import { 
   ChartContainer, 
@@ -77,6 +79,7 @@ const chartConfig = {
 
 export default function AdminDashboard() {
   const { toast } = useToast()
+  const { data: session } = useSession()
   const [merchants, setMerchants] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedMerchant, setSelectedMerchant] = useState<any | null>(null)
@@ -85,6 +88,7 @@ export default function AdminDashboard() {
     allowedFileTypes: ".pdf, .jpg, .jpeg, .png",
     resetTimeoutSeconds: 60
   })
+  const [isResending, setIsResending] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -104,6 +108,37 @@ export default function AdminDashboard() {
     }
     fetchData();
   }, [])
+
+  const userPermissions = (session?.user as any)?.permissions || []
+  const canApprove = userPermissions.includes('MERCHANT_APPROVE')
+
+  const handleResendSetupLink = async (id: string) => {
+    setIsResending(true)
+    try {
+      const response = await fetch(`/api/merchants/${id}/resend-setup`, {
+        method: 'POST'
+      })
+
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to resend setup link')
+      }
+
+      const result = await response.json()
+      toast({
+        title: 'Setup Link Resent',
+        description: result.message || 'The password setup link has been sent again to the merchant.'
+      })
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Resend Failed',
+        description: error.message
+      })
+    } finally {
+      setIsResending(false)
+    }
+  }
 
   const handleSaveConfig = async () => {
     const types = (config.allowedFileTypes || "").split(",").map(t => t.trim()).filter(t => t.startsWith("."))
@@ -440,6 +475,22 @@ export default function AdminDashboard() {
                                   <Link href="/checker">
                                     <Button className="bg-blue-600 hover:bg-blue-700">Review Application</Button>
                                   </Link>
+                                )}
+                                {m.status === 'approved' && canApprove && (
+                                  <Button 
+                                    className="bg-yellow-500 text-slate-950 hover:bg-yellow-600"
+                                    disabled={isResending}
+                                    onClick={() => handleResendSetupLink(m.id)}
+                                  >
+                                    {isResending ? (
+                                      <span className="inline-flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Resending...
+                                      </span>
+                                    ) : (
+                                      'Resend Setup Link'
+                                    )}
+                                  </Button>
                                 )}
                               </div>
                             </DialogContent>

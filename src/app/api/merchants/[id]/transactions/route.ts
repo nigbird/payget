@@ -8,13 +8,17 @@ export async function GET(
 ) {
   const { id } = await params;
   const session = await auth();
-  const user = session?.user as { id?: string; role?: string; merchantId?: string | null } | undefined;
+  const user = session?.user as { id?: string; role?: string; merchantId?: string | null; assignedMerchantIds?: string[] } | undefined;
 
   if (!user?.id || !user.role) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if ((user.role === 'MERCHANT' || user.role === 'SALES') && user.merchantId !== id) {
+  if (user.role === 'MERCHANT' && user.merchantId !== id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  if (user.role === 'SALES' && !user.assignedMerchantIds?.includes(id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

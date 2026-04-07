@@ -11,11 +11,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const sessionUser = session?.user as { id?: string; name?: string | null; merchantId?: string | null } | undefined
-    const initiatedBy =
-      sessionUser?.id && sessionUser.merchantId === parsed.data.merchantId
-        ? { id: sessionUser.id, name: sessionUser.name ?? undefined }
-        : undefined
+    const sessionUser = session?.user as { id?: string; name?: string | null; role?: string; merchantId?: string | null; assignedMerchantIds?: string[] } | undefined
+    const isAssignedMerchant =
+      sessionUser?.merchantId === parsed.data.merchantId ||
+      sessionUser?.assignedMerchantIds?.includes(parsed.data.merchantId)
+
+    if (!sessionUser?.id || !sessionUser?.role) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (
+      (sessionUser.role === 'MERCHANT' && sessionUser.merchantId !== parsed.data.merchantId) ||
+      (sessionUser.role === 'SALES' && !isAssignedMerchant)
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const initiatedBy = {
+      id: sessionUser.id,
+      name: sessionUser.name ?? undefined,
+    }
 
     const result = await createGatewayTransactionAndToken(parsed.data, { initiatedBy })
     if (!result.ok) {

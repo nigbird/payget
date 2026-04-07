@@ -35,40 +35,72 @@ export async function PATCH(
       return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
     }
 
-    // Check for merchant approval permission if status is being changed to approved
-    if (body.status === 'approved' || body.status === 'APPROVED' || body.status === 'branch_approved' || body.status === 'BRANCH_APPROVED') {
-      const canApprove = await hasPermission('MERCHANT_APPROVE');
+    const incomingStatus = body.status as string | undefined
+    const isFinalApprovalStatus =
+      incomingStatus === "approved" ||
+      incomingStatus === "APPROVED" ||
+      incomingStatus === "rejected" ||
+      incomingStatus === "REJECTED" ||
+      incomingStatus === "active" ||
+      incomingStatus === "ACTIVE"
+
+    const isInitialReviewStatus =
+      incomingStatus === "branch_approved" || incomingStatus === "BRANCH_APPROVED"
+
+    // Final approval actions require MERCHANT_APPROVE
+    if (isFinalApprovalStatus) {
+      const canApprove = await hasPermission("MERCHANT_APPROVE")
       if (!canApprove) {
-        return NextResponse.json({ error: 'Permission denied: MERCHANT_APPROVE required' }, { status: 403 });
+        return NextResponse.json({ error: "Permission denied: MERCHANT_APPROVE required" }, { status: 403 })
       }
 
-      // Maker-Checker principle: creator cannot approve
+      // Maker-Checker principle: creator cannot approve/reject/activate
       if (currentMerchant.createdBy === (session.user as any).id) {
-        return NextResponse.json({ 
-          error: 'Maker-Checker violation: The user who registered this merchant cannot approve it.' 
-        }, { status: 403 });
+        return NextResponse.json(
+          { error: "Maker-Checker violation: The user who registered this merchant cannot perform final approval actions." },
+          { status: 403 }
+        )
       }
 
-      // Record who approved it
-      body.approvedBy = (session.user as any).id;
-      
+      // Maker-Checker principle: initial reviewer / limit setter cannot perform final approval actions
+      if ((currentMerchant as any).limitsSetBy === (session.user as any).id) {
+        return NextResponse.json(
+          { error: "Maker-Checker violation: The user who performed initial limit-setting cannot perform final approval actions." },
+          { status: 403 }
+        )
+      }
+
+      body.approvedBy = (session.user as any).id
+
       // If fully approved, generate setup token
-      if (body.status === 'approved' || body.status === 'APPROVED') {
-        const token = crypto.randomBytes(32).toString('hex');
-        body.passwordResetToken = token;
-        body.passwordResetExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      if (incomingStatus === "approved" || incomingStatus === "APPROVED") {
+        const token = crypto.randomBytes(32).toString("hex")
+        body.passwordResetToken = token
+        body.passwordResetExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
       }
     }
 
-    // Check for transaction limit permissions
-    if (body.dailyLimit !== undefined || body.transactionLimit !== undefined || body.dailyCountLimit !== undefined) {
-      const canSetLimits = await hasPermission('TRANSACTION_LIMIT_SET');
-      const canOverrideLimits = await hasPermission('TRANSACTION_LIMIT_OVERRIDE');
-      
+    const isLimitChange =
+      body.dailyLimit !== undefined ||
+      body.transactionLimit !== undefined ||
+      body.dailyCountLimit !== undefined
+
+    // Initial review requires limit permissions (not MERCHANT_APPROVE)
+    if (isInitialReviewStatus || isLimitChange) {
+      const canSetLimits = await hasPermission("TRANSACTION_LIMIT_SET")
+      const canOverrideLimits = await hasPermission("TRANSACTION_LIMIT_OVERRIDE")
+
       if (!canSetLimits && !canOverrideLimits) {
-        return NextResponse.json({ 
-          error: 'Permission denied: You do not have permission to modify transaction limits.' 
-        }, { status: 403 });
+        return NextResponse.json(
+          { error: "Permission denied: You do not have permission to modify transaction limits." },
+          { status: 403 }
+        )
+      }
+
+      // Record maker for maker/checker enforcement on final approval.
+      // Keep the first limits setter as the maker for this merchant's onboarding.
+      if (!(currentMerchant as any).limitsSetBy) {
+        body.limitsSetBy = (session.user as any).id
       }
     }
 

@@ -49,23 +49,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         otp: { label: "OTP", type: "text" }
       },
       authorize: async (credentials) => {
-        const phone = credentials?.phone?.trim()
-        const otp = credentials?.otp?.trim()
+        const rawPhone = credentials?.phone
+        const rawOtp = credentials?.otp
+        const phone = typeof rawPhone === 'string' ? rawPhone.trim() : ''
+        const otp = typeof rawOtp === 'string' ? rawOtp.trim() : ''
         if (!phone || !otp) return null
 
         if (!verifySalesOtp(phone, otp)) return null
 
-        const teamMember = await db.findMerchantTeamMemberByPhone(phone)
-        if (!teamMember || teamMember.status !== 'ACTIVE' || !teamMember.merchant || teamMember.merchant.status !== 'ACTIVE') {
+        const members = (await db.findMerchantTeamMembersByPhone(phone)) as any[]
+        const activeMembers = members.filter(
+          (member) =>
+            member.status === 'ACTIVE' &&
+            member.merchant &&
+            member.merchant.status === 'ACTIVE'
+        )
+
+        if (activeMembers.length === 0) {
           return null
         }
 
+        const assignedMerchantIds = Array.from(
+          new Set(activeMembers.map((member) => member.merchantId))
+        )
+
+        const assignedMerchants = activeMembers
+          .filter((member) => member.merchant)
+          .map((member) => ({ id: member.merchantId, name: member.merchant.name }))
+
         return {
-          id: `sales-${teamMember.id}`,
-          email: teamMember.email,
-          name: teamMember.name,
+          id: `sales-${phone}`,
+          email: activeMembers[0].email,
+          name: activeMembers[0].name,
           role: 'SALES',
-          merchantId: teamMember.merchantId,
+          merchantId: activeMembers[0].merchantId,
+          assignedMerchantIds,
+          assignedMerchants,
           permissions: []
         }
       }
@@ -78,9 +97,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.merchantId = (user as any).merchantId
         token.id = user.id
         token.permissions = (user as any).permissions
+<<<<<<< HEAD
         token.isHeadOffice = (user as any).isHeadOffice
         token.district = (user as any).district
         token.branch = (user as any).branch
+=======
+        token.assignedMerchantIds = (user as any).assignedMerchantIds
+        token.assignedMerchants = (user as any).assignedMerchants
+>>>>>>> 34896daf9ee3ac3d904f5aa2aa583d131295b4f5
       }
       if (trigger === "update" && session) {
         // Update token with new session data
@@ -88,9 +112,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session.user?.name) token.name = session.user.name;
         if (session.user?.role) token.role = session.user.role;
         if (session.user?.permissions) token.permissions = session.user.permissions;
+<<<<<<< HEAD
         if (session.user?.isHeadOffice !== undefined) token.isHeadOffice = session.user.isHeadOffice;
         if (session.user?.district !== undefined) token.district = session.user.district;
         if (session.user?.branch !== undefined) token.branch = session.user.branch;
+=======
+        if ((session.user as any).assignedMerchantIds) token.assignedMerchantIds = (session.user as any).assignedMerchantIds;
+        if ((session.user as any).assignedMerchants) token.assignedMerchants = (session.user as any).assignedMerchants;
+>>>>>>> 34896daf9ee3ac3d904f5aa2aa583d131295b4f5
       }
       return token
     },
