@@ -69,6 +69,8 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
 
   const transactionReference = `ref_${Math.random().toString(36).substr(2, 9)}`
   const createdAt = new Date().toISOString()
+  const ttlMinutes = Number(process.env.PAYMENT_LINK_TTL_MINUTES ?? 10)
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60_000).toISOString()
 
   const tx: Transaction = {
     id: input.transactionId,
@@ -86,6 +88,10 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
       authToken: input.userCredentials.authToken,
       initiatedById: options?.initiatedBy?.id,
       initiatedByName: options?.initiatedBy?.name ?? undefined,
+      link: {
+        expiresAt,
+        status: "PENDING"
+      }
     },
   }
 
@@ -100,6 +106,8 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     timestamp: input.timestamp,
     transactionReference,
     status: "awaiting_pin",
+    expiresAt,
+    linkStatus: "PENDING",
   })
 
   const token = await encryptPayload(payload, merchant.jweSecret, merchant.id)
@@ -133,6 +141,30 @@ export async function resolveEncryptedToken(token: string) {
     return { ok: false as const, error: "Transaction reference mismatch" }
   }
 
+  const linkMeta = (tx.userCredentials as any)?.link as { expiresAt?: string; status?: "PENDING" | "USED" | "EXPIRED" } | undefined
+  const effectiveExpiresAt = linkMeta?.expiresAt ?? (payload as any)?.expiresAt
+  const linkStatus = linkMeta?.status ?? (payload as any)?.linkStatus ?? "PENDING"
+
+  if (linkStatus === "USED") {
+    return { ok: false as const, error: "Payment link already used" }
+  }
+
+  if (effectiveExpiresAt) {
+    const now = Date.now()
+    const expMs = Date.parse(effectiveExpiresAt)
+    if (!Number.isNaN(expMs) && now > expMs) {
+      try {
+        await db.updateTransaction(tx.id, {
+          userCredentials: {
+            ...tx.userCredentials,
+            link: { ...(linkMeta || {}), status: "EXPIRED", expiresAt: effectiveExpiresAt }
+          }
+        })
+      } catch {}
+      return { ok: false as const, error: "Payment link expired" }
+    }
+  }
+
   return {
     ok: true as const,
     merchant,
@@ -140,4 +172,3 @@ export async function resolveEncryptedToken(token: string) {
     tx,
   }
 }
-

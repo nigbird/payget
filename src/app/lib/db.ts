@@ -74,6 +74,11 @@ export interface Transaction {
     initiatedById?: string;
     initiatedByName?: string;
     providerSharedSecret?: string;
+    link?: {
+      expiresAt: string;
+      status: 'PENDING' | 'USED' | 'EXPIRED';
+      usedAt?: string;
+    };
   };
 }
 
@@ -130,6 +135,12 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
       authToken: string;
       initiatedById?: string;
       initiatedByName?: string;
+      providerSharedSecret?: string;
+      link?: {
+        expiresAt: string;
+        status: 'PENDING' | 'USED' | 'EXPIRED';
+        usedAt?: string;
+      };
     }
   };
 }

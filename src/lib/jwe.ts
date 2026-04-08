@@ -19,6 +19,8 @@ export const PaymentPayloadSchema = z.object({
   status: z
     .enum(["initiated", "pending", "awaiting_pin", "processing", "success", "failed"])
     .default("awaiting_pin"),
+  expiresAt: z.string().optional(),
+  linkStatus: z.enum(["PENDING", "USED", "EXPIRED"]).optional(),
 })
 
 export type PaymentPayload = z.infer<typeof PaymentPayloadSchema>

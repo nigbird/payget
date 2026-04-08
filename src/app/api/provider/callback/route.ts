@@ -50,6 +50,18 @@ export async function POST(request: Request) {
     // Expected fields in decryptedData: status (success/failed), etc.
     const finalStatus = decryptedData.status === 'success' ? 'success' : 'failed';
     await db.updateTransactionStatus(tx.id, finalStatus);
+    if (finalStatus === 'success') {
+      await db.updateTransaction(tx.id, {
+        userCredentials: {
+          ...tx.userCredentials,
+          link: {
+            ...((tx.userCredentials as any).link || {}),
+            status: 'USED',
+            usedAt: new Date().toISOString()
+          }
+        }
+      })
+    }
 
     // 5. Notify the merchant (via their registered callback)
     const merchant = await db.getMerchantById(tx.merchantId);

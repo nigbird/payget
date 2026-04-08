@@ -47,8 +47,8 @@ export async function POST(request: Request) {
     }
 
     const token = result.token
-    const baseUrl = new URL(request.url)
-    const paymentUrl = `${baseUrl.origin}/pay/link?token=${encodeURIComponent(token)}`
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
+    const paymentUrl = `${baseUrl}/pay/link?token=${encodeURIComponent(token)}`
 
     return NextResponse.json({
       transactionId: result.tx.id,
