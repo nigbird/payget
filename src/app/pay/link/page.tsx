@@ -299,26 +299,16 @@ function PayLinkContent() {
                         <h3 className="text-base font-bold text-[#5b371f]">USSD Push Sent</h3>
                         <p className="mt-1 text-sm text-[#754319]/80">
                           Please check your phone (<strong>{payment.payerPhone}</strong>) and enter your PIN to authorize the payment.
-                        </p>
-                      </div>
-                      
-                      <Button
-                        variant="outline"
-                        className="h-12 w-full rounded-[22px] border-[#754319]/10 bg-white text-[#754319]"
-                        onClick={handleExecute}
-                        disabled={processing}
-                      >
-                        {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Didn't receive it? Re-send Push
-                      </Button>
-                      
-                      <p className="text-center text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                        Awaiting authorization...
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+                         </p>
+                       </div>
+                       
+                       <p className="text-center text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                         Awaiting authorization...
+                       </p>
+                     </div>
+                   )}
+                 </div>
+               )}
 
               {view !== "checkout" && (
                 <div className="space-y-3 pt-1 text-center">

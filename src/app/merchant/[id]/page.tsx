@@ -35,6 +35,7 @@ import {
   Info,
   Share2,
   ExternalLink,
+  SendHorizontal,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -49,6 +50,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isResending, setIsResending] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [lastMode, setLastMode] = useState<"push" | "link" | null>(null)
   const [lastRequestDetails, setLastRequestDetails] = useState<{
@@ -251,6 +253,40 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleResendPush = async (txId: string) => {
+    setIsResending(txId)
+    try {
+      const response = await fetch(`/api/transactions/${txId}/resend-push`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) {
+        toast({
+          title: "Push re-sent",
+          description: data.message || "The USSD push was successfully re-sent to the customer."
+        })
+        // Refresh transactions list
+        const tRes = await fetch(`/api/merchants/${id}/transactions`)
+        if (tRes.ok) setTransactions(await tRes.json())
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Failed to re-send",
+          description: data.error || "Please check the transaction status and try again."
+        })
+      }
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Unexpected Error",
+        description: "Could not communicate with the payment provider."
+      })
+    } finally {
+      setIsResending(null)
     }
   }
 
@@ -476,20 +512,38 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     <p className="text-sm font-medium text-[#5b371f]">{tx.description}</p>
                     <p className="text-xs text-[#754319]/70">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-[#5b371f]">${tx.amount.toFixed(2)}</p>
-                    <Badge
-                      variant="outline"
-                      className={`mt-1 text-[10px] capitalize ${
-                        tx.status === "success"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status)
-                            ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : "border-rose-200 bg-rose-50 text-rose-700"
-                      }`}
-                    >
-                      {tx.status}
-                    </Badge>
+                  <div className="text-right flex items-center gap-3">
+                    <div>
+                      <p className="font-semibold text-[#5b371f]">${tx.amount.toFixed(2)}</p>
+                      <Badge
+                        variant="outline"
+                        className={`mt-1 text-[10px] capitalize ${
+                          tx.status === "success"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status)
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700"
+                        }`}
+                      >
+                        {tx.status}
+                      </Badge>
+                    </div>
+                    {tx.status !== "success" && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#754319]"
+                        onClick={() => handleResendPush(tx.id)}
+                        disabled={isResending === tx.id}
+                        title="Re-send USSD Push"
+                      >
+                        {isResending === tx.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <SendHorizontal className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
