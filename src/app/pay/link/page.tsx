@@ -6,7 +6,7 @@ import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Lock, CheckCircle2, Loader2, XCircle } from "lucide-react"
+import { Lock, CheckCircle2, Loader2, XCircle, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 type ResolvedPayment = {
@@ -52,6 +52,7 @@ function PayLinkContent() {
   const [pin, setPin] = useState("")
   const [showPinEntry, setShowPinEntry] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [pushSent, setPushSent] = useState(false)
   const [view, setView] = useState<"checkout" | "success" | "failed">("checkout")
 
   useEffect(() => {
@@ -75,9 +76,12 @@ function PayLinkContent() {
         }
 
         setPayment(data)
-
+        
+        // If it's already success or failed, update view
         if (data?.status === "success") setView("success")
-        if (data?.status === "failed") setView("failed")
+        else if (data?.status === "failed") setView("failed")
+        // If it was already awaiting pin, maybe a push was already sent by merchant
+        else if (data?.status === "awaiting_pin") setPushSent(true)
       } catch {
         setError("Could not resolve payment link")
       } finally {
@@ -88,19 +92,43 @@ function PayLinkContent() {
     run()
   }, [token])
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (pushSent && view === "checkout") {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
+          const data = await res.json().catch(() => ({}))
+          if (res.ok) {
+            if (data?.status === "success") {
+              setPayment(data)
+              setView("success")
+              clearInterval(interval)
+            } else if (data?.status === "failed") {
+              setPayment(data)
+              setView("failed")
+              clearInterval(interval)
+            }
+          }
+        } catch (err) {
+          console.error("Polling error:", err)
+        }
+      }, 3000) // Poll every 3 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [pushSent, view, token])
+
   const handleExecute = async () => {
     if (!payment) return
-    if (pin.trim().length < 4) {
-      toast({ variant: "destructive", title: "Invalid PIN", description: "Enter your USSD PIN." })
-      return
-    }
-
+    // USSD Push flow: No PIN entry needed in web UI, customer enters PIN on their phone.
     setProcessing(true)
     try {
       const res = await fetch("/api/provider/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, pin }),
+        body: JSON.stringify({ token }),
       })
 
       const data = await res.json().catch(() => ({}))
@@ -110,10 +138,19 @@ function PayLinkContent() {
         return
       }
 
-      if (data?.status === "success") setView("success")
-      else setView("failed")
+      // If successful, the provider has initiated the push.
+      setPushSent(true)
+      
+      toast({ 
+        title: "USSD Push Sent", 
+        description: "Please check your phone and enter your PIN to authorize the payment." 
+      })
+      
+      // Update local status to reflect it's awaiting PIN
+      setPayment(prev => prev ? { ...prev, status: "awaiting_pin" } : null)
+
     } catch {
-      toast({ variant: "destructive", title: "Payment error", description: "Could not execute USSD payment." })
+      toast({ variant: "destructive", title: "Payment error", description: "Could not initiate USSD push." })
     } finally {
       setProcessing(false)
     }
@@ -240,53 +277,48 @@ function PayLinkContent() {
               </div>
 
               {view === "checkout" && (
-                <>
-                  {!showPinEntry ? (
+                <div className="space-y-4">
+                  {!pushSent ? (
                     <Button
                       className="h-14 w-full rounded-[22px] bg-gradient-to-r from-[#e5ae37] to-[#8f5c2d] text-base text-white shadow-lg shadow-amber-700/25"
-                      onClick={() => setShowPinEntry(true)}
+                      onClick={handleExecute}
                       disabled={processing}
                     >
-                      <Lock className="mr-2 h-4 w-4" />
-                      Pay with USSD (Enter PIN)
+                      {processing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Lock className="mr-2 h-4 w-4" />
+                      )}
+                      Pay with USSD (Send Push)
                     </Button>
                   ) : (
                     <div className="space-y-4">
-                      <div className="rounded-[22px] border border-[#754319]/10 bg-white/90 p-4 shadow-sm">
-                        <p className="text-xs uppercase tracking-[0.18em] text-[#754319]/65">USSD prompt simulation</p>
-                        <p className="text-sm font-semibold text-[#5b371f]">Enter your PIN to authorize payment</p>
+                      <div className="rounded-[22px] border border-amber-200 bg-amber-50/50 p-6 text-center">
+                        <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-3">
+                          <Clock className="w-6 h-6 text-amber-600 animate-pulse" />
+                        </div>
+                        <h3 className="text-base font-bold text-[#5b371f]">USSD Push Sent</h3>
+                        <p className="mt-1 text-sm text-[#754319]/80">
+                          Please check your phone (<strong>{payment.payerPhone}</strong>) and enter your PIN to authorize the payment.
+                        </p>
                       </div>
-                      <Input
-                        type="password"
-                        inputMode="numeric"
-                        placeholder="••••"
-                        className="h-14 rounded-[22px] border-2 border-[#e5ae37]/25 bg-white text-center text-2xl font-black text-[#5b371f]"
-                        value={pin}
-                        onChange={(e) => setPin(e.target.value)}
-                        autoFocus
-                      />
+                      
                       <Button
-                        className="h-14 w-full rounded-[22px] bg-gradient-to-r from-[#e5ae37] to-[#8f5c2d] text-white shadow-lg shadow-amber-700/25"
+                        variant="outline"
+                        className="h-12 w-full rounded-[22px] border-[#754319]/10 bg-white text-[#754319]"
                         onClick={handleExecute}
                         disabled={processing}
                       >
                         {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Confirm Payment
+                        Didn't receive it? Re-send Push
                       </Button>
-                      <Button
-                        variant="outline"
-                        className="h-12 w-full rounded-[22px] border-[#754319]/10 bg-white"
-                        onClick={() => setShowPinEntry(false)}
-                        disabled={processing}
-                      >
-                        Cancel
-                      </Button>
-                      <p className="text-center text-xs text-muted-foreground">
-                        Demo PIN: <span className="font-mono">1234</span>
+                      
+                      <p className="text-center text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                        Awaiting authorization...
                       </p>
                     </div>
                   )}
-                </>
+                </div>
               )}
 
               {view !== "checkout" && (
