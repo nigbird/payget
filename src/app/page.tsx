@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, Mail, Phone } from "lucide-react"
+import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, Mail, Phone, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Home() {
@@ -19,6 +19,7 @@ export default function Home() {
   const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [credentials, setCredentials] = useState({
     email: "",
     password: ""
@@ -231,13 +232,21 @@ export default function Home() {
                           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                           <Input 
                             id="password" 
-                            type="password" 
-                            className="pl-9"
+                            type={showPassword ? "text" : "password"} 
+                            className="pr-11 pl-9"
                             placeholder="••••••••"
                             required
                             value={credentials.password}
                             onChange={(e) => setCredentials({...credentials, password: e.target.value})}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((visible) => !visible)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
                         </div>
                       </div>
                       <Button type="submit" className="w-full h-11" disabled={isLoading}>
@@ -328,7 +337,7 @@ export default function Home() {
 
       <footer className="border-t py-8 bg-white text-center">
         <p className="text-xs text-muted-foreground">
-          © 2024 Finflow Gateway Solution. Authenticated by Auth.js & Prisma.
+          © 2024 Finflow Gateway Solution.
         </p>
       </footer>
     </div>

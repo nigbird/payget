@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, CheckCircle2, Loader2, Lock } from "lucide-react"
+import { AlertCircle, CheckCircle2, Loader2, Lock, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function ResetPassword({ params }: { params: Promise<{ token: string }> }) {
@@ -18,6 +18,7 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
   const [isLoading, setIsLoading] = useState(false)
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [merchantId, setMerchantId] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [passwords, setPasswords] = useState({
     new: "",
     confirm: ""
@@ -147,12 +148,20 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
                   id="new" 
-                  type="password" 
-                  className="pl-9"
+                  type={showPassword ? "text" : "password"} 
+                  className="pr-11 pl-9"
                   required
                   value={passwords.new}
                   onChange={(e) => setPasswords({...passwords, new: e.target.value})}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
             <div className="space-y-2">
@@ -161,12 +170,20 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
                   id="confirm" 
-                  type="password" 
-                  className="pl-9"
+                  type={showPassword ? "text" : "password"} 
+                  className="pr-11 pl-9"
                   required
                   value={passwords.confirm}
                   onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>

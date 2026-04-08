@@ -108,7 +108,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(password || 'password123', 10);
+    if (!password) {
+      return NextResponse.json({ error: 'Password is required to create a user.' }, { status: 400 });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
       data: {

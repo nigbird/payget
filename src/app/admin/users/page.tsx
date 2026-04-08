@@ -42,6 +42,8 @@ import {
   Shield, 
   Building2, 
   Lock,
+  Eye,
+  EyeOff,
   MoreVertical,
   Edit,
   Trash2,
@@ -89,7 +91,8 @@ export default function UserManagementPage() {
   // Form state
   const [newUserName, setNewUserName] = useState("")
   const [newUserEmail, setNewUserEmail] = useState("")
-  const [newUserPassword, setNewUserPassword] = useState("password123")
+  const [newUserPassword, setNewUserPassword] = useState("")
+  const [newUserPasswordVisible, setNewUserPasswordVisible] = useState(false)
   const [selectedRoleId, setSelectedRoleId] = useState("")
   const [isHeadOffice, setIsHeadOffice] = useState(false)
   const [district, setDistrict] = useState("")
@@ -189,7 +192,7 @@ export default function UserManagementPage() {
   }
 
   const handleCreateUser = async () => {
-    if (!newUserName || !newUserEmail || !selectedRoleId) {
+    if (!newUserName || !newUserEmail || !selectedRoleId || !newUserPassword) {
       toast({ title: "Missing fields", variant: "destructive" })
       return
     }
@@ -219,7 +222,7 @@ export default function UserManagementPage() {
         setIsCreateDialogOpen(false)
         setNewUserName("")
         setNewUserEmail("")
-        setNewUserPassword("password123")
+        setNewUserPassword("")
         setSelectedRoleId("")
         setIsHeadOffice(false)
         setDistrict("")
@@ -316,11 +319,19 @@ export default function UserManagementPage() {
                           <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                           <Input 
                             id="password" 
-                            type="password" 
-                            className="pl-9" 
+                            type={newUserPasswordVisible ? "text" : "password"} 
+                            className="pr-11 pl-9" 
                             value={newUserPassword}
                             onChange={(e) => setNewUserPassword(e.target.value)}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setNewUserPasswordVisible((visible) => !visible)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                            aria-label={newUserPasswordVisible ? "Hide password" : "Show password"}
+                          >
+                            {newUserPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
                         </div>
                       </div>
                       <div className="grid gap-2">

@@ -8,6 +8,7 @@ export const ProviderPushPayloadSchema = z.object({
   customerPhone: z.string().min(1),
   creditAccount: z.string().min(1), // Merchant's account number
   amount: z.number().finite().positive(),
+  company: z.string().min(1),
 })
 
 export type ProviderPushPayload = z.infer<typeof ProviderPushPayloadSchema>

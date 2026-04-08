@@ -15,6 +15,7 @@ export interface PushPaymentRequest {
   customerPhone: string;
   creditAccount: string;
   amount: number;
+  company: string;
 }
 
 export interface ProviderResponse {
