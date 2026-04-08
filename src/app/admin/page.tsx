@@ -233,7 +233,7 @@ export default function AdminDashboard() {
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$1.24M</div>
+                  <div className="text-2xl font-bold">1.24M ETB</div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <ArrowUpRight className="w-3 h-3 text-green-500" />
                     +18.4% from last period
@@ -398,7 +398,7 @@ export default function AdminDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs font-medium">${m.dailyLimit.toLocaleString()}</span>
+                          <span className="text-xs font-medium">{m.dailyLimit.toLocaleString()} ETB</span>
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(m.status)}
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
                                   </div>
                                   <div className="space-y-1">
                                     <Label className="text-[10px] uppercase text-muted-foreground">Daily Limit</Label>
-                                    <p className="text-sm font-bold text-green-600">${m.dailyLimit.toLocaleString()}</p>
+                                    <p className="text-sm font-bold text-green-600">{m.dailyLimit.toLocaleString()} ETB</p>
                                   </div>
                                 </div>
                               </div>

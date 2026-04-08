@@ -18,7 +18,7 @@ import {
   Phone,
   Sparkles,
   AlertCircle,
-  DollarSign,
+  Wallet,
   FileText,
 } from "lucide-react"
 
@@ -205,7 +205,7 @@ export function RequestPaymentModal({
               <div className="space-y-1.5">
                 <Label htmlFor="amount" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1">Amount</Label>
                 <div className="relative group transition-all duration-200">
-                  <DollarSign className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
+                  <Wallet className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
                   <Input
                     id="amount"
                     type="number"

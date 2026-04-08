@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   Calendar as CalendarIcon,
   ChevronRight,
-  CircleDollarSign,
+  Wallet,
   Clock,
   Search,
   ShieldCheck,
@@ -257,10 +257,10 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
           <div className="hidden md:flex items-center gap-3">
             <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2 shadow-sm flex items-center gap-3">
-              <CircleDollarSign className="h-4 w-4 text-[#754319]" />
+              <Wallet className="h-4 w-4 text-[#754319]" />
               <div className="text-right">
                 <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Received</p>
-                <p className="font-black text-[#5b371f]">${totalReceived.toFixed(2)}</p>
+                <p className="font-black text-[#5b371f]">{totalReceived.toFixed(2)} ETB</p>
               </div>
             </div>
             <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2 shadow-sm flex items-center gap-3">
@@ -370,7 +370,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     }}
                     className="mt-2"
                   />
-                  <p className="text-[10px] text-muted-foreground mt-1">Quick cap: ${amountMax || maxSlider}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Quick cap: {amountMax || maxSlider} ETB</p>
                 </div>
               </div>
 
@@ -478,7 +478,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       <TableCell className={densityCellClass}>{tx.payerPhone || tx.userCredentials.phone}</TableCell>
                       <TableCell className={densityCellClass}>{tx.serviceDescription}</TableCell>
                       <TableCell className={densityCellClass}>
-                        <span className="font-semibold text-[#5b371f]">${tx.amount.toFixed(2)}</span>
+                        <span className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</span>
                       </TableCell>
                       <TableCell className={densityCellClass}>
                         <Badge variant="outline" className={cn("rounded-full text-[10px] capitalize", badgeFor(tx.status))}>

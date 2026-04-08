@@ -155,7 +155,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
               <p className="text-xs font-semibold uppercase tracking-wider">Wallet Balance</p>
               <Wallet className="h-4 w-4" />
             </div>
-            <p className="mt-2 text-3xl font-black">$2,840.50</p>
+            <p className="mt-2 text-3xl font-black">2,840.50 ETB</p>
             <p className="text-xs opacity-80">Available for instant checkout</p>
           </CardContent>
         </Card>
@@ -179,7 +179,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
                       <Clock className="mr-1 h-3 w-3" /> Pending
                     </Badge>
                   </div>
-                  <p className="mt-3 text-3xl font-black tracking-tight text-[#5b371f]">${request.amount.toFixed(2)}</p>
+                  <p className="mt-3 text-3xl font-black tracking-tight text-[#5b371f]">{request.amount.toFixed(2)} ETB</p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <Button
                       className="rounded-2xl bg-[#754319] text-white"

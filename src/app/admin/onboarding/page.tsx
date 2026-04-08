@@ -535,11 +535,11 @@ export default function MerchantOnboardingPage() {
                               </CardHeader>
                               <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
-                                  <Label htmlFor="dailyLimit">Daily Vol. Limit ($)</Label>
+                                  <Label htmlFor="dailyLimit">Daily Vol. Limit (ETB)</Label>
                                   <Input id="dailyLimit" placeholder="10000" value={formData.dailyLimit} onChange={handleInputChange} />
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="transactionLimit">Max Per Tx ($)</Label>
+                                  <Label htmlFor="transactionLimit">Max Per Tx (ETB)</Label>
                                   <Input id="transactionLimit" placeholder="1000" value={formData.transactionLimit} onChange={handleInputChange} />
                                 </div>
                                 <div className="space-y-2">
@@ -922,7 +922,7 @@ export default function MerchantOnboardingPage() {
                 
                 <div className="space-y-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="dailyLimit">Daily Transaction Volume ($)</Label>
+                    <Label htmlFor="dailyLimit">Daily Transaction Volume (ETB)</Label>
                     <Input 
                       id="dailyLimit" 
                       placeholder="e.g. 10000" 
@@ -931,7 +931,7 @@ export default function MerchantOnboardingPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="transactionLimit">Maximum Per-Transaction Amount ($)</Label>
+                    <Label htmlFor="transactionLimit">Maximum Per-Transaction Amount (ETB)</Label>
                     <Input 
                       id="transactionLimit" 
                       placeholder="e.g. 1000" 

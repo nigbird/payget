@@ -384,13 +384,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const metricCards = [
     {
       title: "Balance",
-      value: `$${(totalReceived * 0.98).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      value: `${(totalReceived * 0.98).toLocaleString(undefined, { minimumFractionDigits: 2 })} ETB`,
       hint: "Net of fees",
       icon: Wallet,
     },
     {
       title: "Volume",
-      value: `$${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      value: `${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })} ETB`,
       hint: `${transactions.filter((tx) => tx.status === "success").length} successful`,
       icon: TrendingUp,
     },
@@ -514,7 +514,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   </div>
                   <div className="text-right flex items-center gap-3">
                     <div>
-                      <p className="font-semibold text-[#5b371f]">${tx.amount.toFixed(2)}</p>
+                      <p className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</p>
                       <Badge
                         variant="outline"
                         className={`mt-1 text-[10px] capitalize ${
@@ -661,7 +661,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               <div className="space-y-6">
                 <div className="flex flex-col items-center justify-center gap-2 p-6 rounded-2xl bg-slate-50 border border-slate-100">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Payment Amount</p>
-                  <p className="text-4xl font-black text-[#5b371f]">${parseFloat(lastRequestDetails?.amount || "0").toFixed(2)}</p>
+                  <p className="text-4xl font-black text-[#5b371f]">{parseFloat(lastRequestDetails?.amount || "0").toFixed(2)} ETB</p>
                   <div className="flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-sm">
                     <Phone className="w-3 h-3 text-[#754319]" />
                     <span className="text-xs font-bold text-[#754319]">{lastRequestDetails?.phone}</span>

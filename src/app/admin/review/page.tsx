@@ -352,7 +352,7 @@ function MerchantReviewContent() {
                               </Label>
                               <div className="space-y-2">
                                 <div className="grid gap-1">
-                                  <Label htmlFor="dailyLimit" className="text-[10px]">Daily Volume ($)</Label>
+                                  <Label htmlFor="dailyLimit" className="text-[10px]">Daily Volume (ETB)</Label>
                                   <Input 
                                     id="dailyLimit" 
                                     className="h-8 text-sm" 
@@ -362,7 +362,7 @@ function MerchantReviewContent() {
                                   />
                                 </div>
                                 <div className="grid gap-1">
-                                  <Label htmlFor="transactionLimit" className="text-[10px]">Per Tx Limit ($)</Label>
+                                  <Label htmlFor="transactionLimit" className="text-[10px]">Per Tx Limit (ETB)</Label>
                                   <Input 
                                     id="transactionLimit" 
                                     className="h-8 text-sm" 

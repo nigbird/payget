@@ -235,7 +235,7 @@ function PayLinkContent() {
 
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#754319]/80">Payment</p>
-                  <p className="mt-3 text-4xl font-black tracking-tight">${payment.amount.toFixed(2)}</p>
+                  <p className="mt-3 text-4xl font-black tracking-tight">{payment.amount.toFixed(2)} ETB</p>
                   <p className="mt-2 max-w-[14rem] text-sm text-[#5b371f]/80">{payment.serviceDescription}</p>
                 </div>
               </div>
