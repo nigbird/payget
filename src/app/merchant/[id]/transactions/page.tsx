@@ -481,9 +481,16 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                         <span className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</span>
                       </TableCell>
                       <TableCell className={densityCellClass}>
-                        <Badge variant="outline" className={cn("rounded-full text-[10px] capitalize", badgeFor(tx.status))}>
-                          {statusLabel(tx.status)}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge variant="outline" className={cn("rounded-full text-[10px] capitalize", badgeFor(tx.status))}>
+                            {statusLabel(tx.status)}
+                          </Badge>
+                          {tx.status === 'failed' && (tx.userCredentials as any).providerDetails && (
+                            <span className="text-[10px] text-rose-500 font-medium italic max-w-[120px] truncate" title={(tx.userCredentials as any).providerDetails}>
+                              {(tx.userCredentials as any).providerDetails}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className={densityCellClass + " text-right"}>
                         {tx.status !== "success" && (

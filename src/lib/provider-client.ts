@@ -16,6 +16,7 @@ export interface PushPaymentRequest {
   creditAccount: string;
   amount: number;
   company: string;
+  callbackUrl?: string;
 }
 
 export interface ProviderResponse {

@@ -9,47 +9,85 @@ import crypto from 'crypto';
  */
 export async function POST(request: Request) {
   try {
+    // 0. Authenticate the provider request (Auth)
+    const authHeader = request.headers.get('Authorization');
+    const expectedToken = process.env.PROVIDER_CALLBACK_TOKEN;
+
+    if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+      console.error('[CALLBACK] Unauthorized: Invalid or missing PROVIDER_CALLBACK_TOKEN');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { payload, salt, tag, cksum, transactionRef } = body;
+    console.log('[CALLBACK] Received raw body:', JSON.stringify(body, null, 2));
+    
+    const { payload, salt, tag, cksum } = body;
+    // The provider might send transactionRef under different names
+    const transactionRef = body.transactionRef || body.transactionReference || body.externalReference || body.requestId;
 
     if (!payload || !salt || !tag || !cksum) {
+      console.error('[CALLBACK] Malformed payload. Missing one of: payload, salt, tag, cksum');
       return NextResponse.json({ error: 'Malformed callback payload' }, { status: 400 });
     }
 
     // 1. Verify Integrity (SHA-256 checksum of encrypted payload)
     const computedCksum = crypto.createHash('sha256').update(payload).digest('hex');
     if (computedCksum !== cksum) {
+      console.error('[CALLBACK] Integrity check failed. Expected:', cksum, 'Computed:', computedCksum);
       return NextResponse.json({ error: 'Integrity check failed' }, { status: 400 });
     }
 
     // 2. Identify the transaction
-    // Note: The provider should include a reference (e.g., our transactionReference) in the callback.
-    // If it's not in the root, it might be in the decrypted payload, but we need the secret first.
-    // We assume the provider sends 'transactionRef' as per the push request.
     if (!transactionRef) {
+       console.error('[CALLBACK] Missing transactionRef in root of request. Cannot identify transaction.');
        return NextResponse.json({ error: 'Missing transactionRef' }, { status: 400 });
     }
 
     const tx = await db.getTransactionByReference(transactionRef);
     if (!tx) {
+      console.error('[CALLBACK] Transaction not found for reference:', transactionRef);
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
     const sharedSecretBase64 = tx.userCredentials.providerSharedSecret;
     if (!sharedSecretBase64) {
+      console.error('[CALLBACK] Shared secret not found for transaction:', tx.id);
       return NextResponse.json({ error: 'Shared secret not found for this transaction' }, { status: 400 });
     }
 
     // 3. Decrypt the payload
     const sharedSecret = Buffer.from(sharedSecretBase64, 'base64');
-    const decryptedData = decryptProviderPayload({ payload, salt, tag }, sharedSecret);
-
-    console.log('[CALLBACK] Decrypted data:', decryptedData);
+    let decryptedData: any;
+    try {
+      decryptedData = decryptProviderPayload({ payload, salt, tag }, sharedSecret);
+      console.log('[CALLBACK] Decrypted data:', decryptedData);
+    } catch (err) {
+      console.error('[CALLBACK] Decryption failed:', err);
+      // Even if decryption fails, if we got a callback, something happened.
+      // But we can't be sure of the status without decryption.
+      return NextResponse.json({ error: 'Decryption failed' }, { status: 400 });
+    }
 
     // 4. Update transaction status
-    // Expected fields in decryptedData: status (success/failed), etc.
-    const finalStatus = decryptedData.status === 'success' ? 'success' : 'failed';
+    // If decryptedData has a status, use it. Otherwise, if we got here, maybe it's failed if it wasn't successful.
+    // Some providers send error details in decryptedData.details or decryptedData.message
+    const providerStatus = decryptedData.status || decryptedData.state || decryptedData.result;
+    const finalStatus = providerStatus === 'success' || providerStatus === 'SUCCESS' ? 'success' : 'failed';
+    
+    console.log(`[CALLBACK] Updating transaction ${tx.id} status to: ${finalStatus} (Provider status: ${providerStatus})`);
+    
     await db.updateTransactionStatus(tx.id, finalStatus);
+    
+    // Also update provider details if available
+    if (decryptedData.details || decryptedData.message || decryptedData.error) {
+       await db.updateTransaction(tx.id, {
+         userCredentials: {
+           ...tx.userCredentials,
+           providerDetails: decryptedData.details || decryptedData.message || decryptedData.error
+         }
+       });
+    }
+
     if (finalStatus === 'success') {
       await db.updateTransaction(tx.id, {
         userCredentials: {

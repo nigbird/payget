@@ -85,6 +85,24 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       }
     }
     fetchData();
+
+    // Polling for updates every 5 seconds
+    const interval = setInterval(async () => {
+      try {
+        const tRes = await fetch(`/api/merchants/${id}/transactions`);
+        if (tRes.ok) {
+          const newTransactions = await tRes.json();
+          // Sort transactions by timestamp descending
+          setTransactions(newTransactions.sort((a: any, b: any) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          ));
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [id]);
 
   if (loading) {

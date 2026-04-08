@@ -26,7 +26,8 @@ export async function POST(request: Request) {
       customerPhone: tx.userCredentials.phone,
       creditAccount: merchant.accountNumber,
       amount: tx.amount,
-      company: merchant.name
+      company: merchant.name,
+      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
 
     // 2. Call the external provider API (legacy flow)
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
         creditAccount: merchant.accountNumber,
         amount: tx.amount,
         company: merchant.name,
+        callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
       })
 
       const baseUrl = process.env.PROVIDER_BASE_URL!
