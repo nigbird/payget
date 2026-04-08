@@ -208,7 +208,7 @@ function PayLinkContent() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-[#754319]/65">Powered by</p>
-                        <p className="truncate text-sm font-semibold text-[#3f210f]">{gatewayBrand.name}</p>
+                        <p className="truncate text-sm font-semibold text-[#3f210f]">Nib International Bank</p>
                       </div>
                     </div>
 
@@ -229,7 +229,6 @@ function PayLinkContent() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-[#754319]/65">Merchant</p>
                         <p className="truncate text-sm font-semibold text-[#3f210f]">{payment.merchantName}</p>
                       </div>
                     </div>
@@ -289,7 +288,7 @@ function PayLinkContent() {
                       ) : (
                         <Lock className="mr-2 h-4 w-4" />
                       )}
-                      Pay with USSD (Send Push)
+                      Pay Now
                     </Button>
                   ) : (
                     <div className="space-y-4">

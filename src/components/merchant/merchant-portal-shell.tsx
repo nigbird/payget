@@ -182,8 +182,8 @@ export default function MerchantPortalShell({
             </div>
 
             <div className="shrink-0 ml-auto md:ml-0 flex items-center gap-3">
-              <div className="min-w-[220px]">
-                {isSalesUser && assignedMerchants.length > 1 ? (
+              {isSalesUser && assignedMerchants.length > 1 ? (
+                <div className="min-w-[220px]">
                   <Select value={merchantId} onValueChange={(value) => router.push(`/merchant/${value}`)}>
                     <SelectTrigger className="w-full rounded-xl border border-[#E5E7EB] bg-white text-sm text-[#5b371f] shadow-sm">
                       <SelectValue placeholder={merchant?.name ?? "Select merchant"} />
@@ -196,10 +196,8 @@ export default function MerchantPortalShell({
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <p className="text-sm font-semibold text-[#5b371f]">{merchant?.name ?? "—"}</p>
-                )}
-              </div>
+                </div>
+              ) : null}
               <Button
                 variant="ghost"
                 size="sm"
