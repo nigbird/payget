@@ -133,12 +133,12 @@ export default function MerchantPortalShell({
       <div className="min-h-svh bg-app-main">
         <header className="sticky top-0 z-50 border-b border-white/50 bg-white/70 backdrop-blur-md">
           <div className="mx-auto w-full max-w-7xl px-4 md:px-8 h-16 flex items-center gap-3">
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center">
-                <span className="text-xs font-black text-[#754319]">FF</span>
+            <div className="flex items-center gap-2 md:gap-3 shrink-0">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center">
+                <span className="text-[10px] md:text-xs font-black text-[#754319]">FF</span>
               </div>
-              <div className="leading-tight">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
+              <div className="leading-tight hidden sm:block">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
               </div>
             </div>
 
@@ -153,7 +153,7 @@ export default function MerchantPortalShell({
                 <div
                   className={cn(
                     "flex items-center gap-1 rounded-2xl bg-white/65 border border-white/60 backdrop-blur-sm px-1 py-1",
-                    isMobile && "w-full overflow-x-auto"
+                    isMobile ? "w-auto" : "w-auto"
                   )}
                 >
                   {visibleNavItems.map((item) => {
@@ -171,9 +171,10 @@ export default function MerchantPortalShell({
                             ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-md shadow-amber-600/25"
                             : "text-[#754319] hover:bg-white/90"
                         )}
+                        title={item.label}
                       >
                         <Icon className={cn("h-4 w-4", isActive ? "text-white" : "text-[#754319]")} />
-                        <span className="text-sm font-semibold">{item.label}</span>
+                        <span className="hidden md:inline text-sm font-semibold">{item.label}</span>
                       </Link>
                     )
                   })}
@@ -181,11 +182,11 @@ export default function MerchantPortalShell({
               </div>
             </div>
 
-            <div className="shrink-0 ml-auto md:ml-0 flex items-center gap-3">
+            <div className="shrink-0 ml-auto md:ml-0 flex items-center gap-2 md:gap-3">
               {isSalesUser && assignedMerchants.length > 1 ? (
-                <div className="min-w-[220px]">
+                <div className="min-w-[140px] md:min-w-[220px]">
                   <Select value={merchantId} onValueChange={(value) => router.push(`/merchant/${value}`)}>
-                    <SelectTrigger className="w-full rounded-xl border border-[#E5E7EB] bg-white text-sm text-[#5b371f] shadow-sm">
+                    <SelectTrigger className="w-full rounded-xl border border-[#E5E7EB] bg-white text-xs md:text-sm text-[#5b371f] shadow-sm">
                       <SelectValue placeholder={merchant?.name ?? "Select merchant"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -198,14 +199,16 @@ export default function MerchantPortalShell({
                   </Select>
                 </div>
               ) : null}
+
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="text-[#754319] hover:bg-red-50 hover:text-red-600 rounded-xl gap-2"
+                className="text-[#754319] hover:bg-red-50 hover:text-red-600 rounded-xl gap-2 px-2 md:px-3"
+                title="Log Out"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm font-semibold">Log Out</span>
+                <span className="hidden md:inline text-sm font-semibold">Log Out</span>
               </Button>
             </div>
           </div>

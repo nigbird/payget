@@ -80,8 +80,6 @@ function PayLinkContent() {
         // If it's already success or failed, update view
         if (data?.status === "success") setView("success")
         else if (data?.status === "failed") setView("failed")
-        // If it was already awaiting pin, maybe a push was already sent by merchant
-        else if (data?.status === "awaiting_pin") setPushSent(true)
       } catch {
         setError("Could not resolve payment link")
       } finally {

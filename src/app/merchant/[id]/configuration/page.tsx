@@ -409,32 +409,34 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       <Card className="rounded-3xl border-white/60 bg-white/70 shadow-xl backdrop-blur-sm overflow-hidden">
         <CardContent className="p-0">
           {/* Tab Navigation */}
-          <div className="border-b border-white/40 bg-gradient-to-r from-white/80 to-white/60 px-6 py-4">
+          <div className="border-b border-white/40 bg-gradient-to-r from-white/80 to-white/60 px-4 md:px-6 py-4">
             <div className="flex space-x-1">
               <button
                 onClick={() => setActiveTab("system")}
-                className={`relative px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
+                className={`relative px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   activeTab === "system"
                     ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-600/30"
                     : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
                 }`}
+                title="System Configuration"
               >
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
-                  System Configuration
+                  <span className="hidden sm:inline">System Configuration</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab("profile")}
-                className={`relative px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
+                className={`relative px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   activeTab === "profile"
                     ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-600/30"
                     : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
                 }`}
+                title="Profile & Security"
               >
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Profile & Security
+                  <span className="hidden sm:inline">Profile & Security</span>
                 </div>
               </button>
             </div>

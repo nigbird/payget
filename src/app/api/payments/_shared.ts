@@ -76,7 +76,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     id: input.transactionId,
     merchantId: input.merchantId,
     amount: input.amount,
-    status: "awaiting_pin",
+    status: "initiated",
     callbackUrl: merchant.callbackUrl,
     description: input.serviceDescription,
     timestamp: input.timestamp,
@@ -105,7 +105,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     serviceDescription: input.serviceDescription,
     timestamp: input.timestamp,
     transactionReference,
-    status: "awaiting_pin",
+    status: "initiated",
     expiresAt,
     linkStatus: "PENDING",
   })

@@ -79,6 +79,9 @@ export async function POST(request: Request) {
       })
     }
 
+    // 4. Mark transaction as awaiting PIN after successful push initiation
+    await db.updateTransactionStatus(tx.id, "awaiting_pin")
+
     return NextResponse.json({
       transactionId: tx.id,
       transactionReference: tx.transactionReference,
