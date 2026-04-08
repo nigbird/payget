@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 
 export const metadata: Metadata = {
-  title: 'Finflow Gateway | Secure Payment Solutions',
-  description: 'Maker Checker Payment Gateway Solution',
+  title: 'NibTeraMerchant APP',
+  description: 'Secure Payment Gateway',
   icons: {
     icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4b3.png',
   },
