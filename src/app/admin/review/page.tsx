@@ -371,6 +371,16 @@ function MerchantReviewContent() {
                                     disabled={!canSetLimits}
                                   />
                                 </div>
+                                <div className="grid gap-1">
+                                  <Label htmlFor="dailyCountLimit" className="text-[10px]">Daily Count</Label>
+                                  <Input 
+                                    id="dailyCountLimit" 
+                                    className="h-8 text-sm" 
+                                    value={limits.dailyCountLimit}
+                                    onChange={(e) => setLimits({...limits, dailyCountLimit: e.target.value})}
+                                    disabled={!canSetLimits}
+                                  />
+                                </div>
                               </div>
                             </div>
                             
