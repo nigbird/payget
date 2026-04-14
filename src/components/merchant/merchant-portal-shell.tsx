@@ -131,7 +131,7 @@ export default function MerchantPortalShell({
   return (
     <MerchantPortalRoleContext.Provider value={activeRole}>
       <div className="min-h-svh bg-app-main">
-        <header className="sticky top-0 z-50 border-b border-white/50 bg-white/70 backdrop-blur-md">
+        <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur-md shadow-sm">
           <div className="mx-auto w-full max-w-7xl px-4 md:px-8 h-16 flex items-center gap-3">
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center">
@@ -152,7 +152,7 @@ export default function MerchantPortalShell({
 
                 <div
                   className={cn(
-                    "flex items-center gap-1 rounded-2xl bg-white/65 border border-white/60 backdrop-blur-sm px-1 py-1",
+                    "flex items-center gap-1 rounded-2xl bg-card border border-border/40 px-1 py-1",
                     isMobile ? "w-auto" : "w-auto"
                   )}
                 >
@@ -162,19 +162,19 @@ export default function MerchantPortalShell({
                       pathname === item.href ||
                       (item.key === "dashboard" && pathname === `/merchant/${merchantId}`)
                     return (
-                      <Link
+                  <Link
                         key={item.key}
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-xl transition-all whitespace-nowrap",
+                          "flex items-center gap-2 px-3 py-2 rounded-xl transition-all whitespace-nowrap text-sm font-semibold",
                           isActive
-                            ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-md shadow-amber-600/25"
-                            : "text-[#754319] hover:bg-white/90"
+                            ? "gradient-honey text-[#2a1410] shadow-sm"
+                            : "text-foreground hover:bg-accent/20"
                         )}
                         title={item.label}
                       >
-                        <Icon className={cn("h-4 w-4", isActive ? "text-white" : "text-[#754319]")} />
-                        <span className="hidden md:inline text-sm font-semibold">{item.label}</span>
+                        <Icon className={cn("h-4 w-4")} />
+                        <span className="hidden md:inline">{item.label}</span>
                       </Link>
                     )
                   })}
@@ -204,11 +204,11 @@ export default function MerchantPortalShell({
                 variant="ghost"
                 size="sm"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="text-[#754319] hover:bg-red-50 hover:text-red-600 rounded-xl gap-2 px-2 md:px-3"
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-xl gap-2 px-2 md:px-3 font-semibold text-sm"
                 title="Log Out"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden md:inline text-sm font-semibold">Log Out</span>
+                <span className="hidden md:inline">Log Out</span>
               </Button>
             </div>
           </div>

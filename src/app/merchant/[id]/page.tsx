@@ -36,6 +36,9 @@ import {
   Share2,
   ExternalLink,
   SendHorizontal,
+  Send,
+  ArrowDownLeft,
+  MoreHorizontal,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -452,33 +455,36 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
-      {/* Hero Balance Section */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 md:p-12 shadow-2xl">
-        {/* Honeycomb pattern overlay */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="honeycomb" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                <polygon points="30,0 40,10 40,30 30,40 20,30 20,10" fill="none" stroke="currentColor" strokeWidth="0.5"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#honeycomb)" />
-          </svg>
+      {/* Header with User Greeting and Notification */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">Welcome back</p>
+          <h1 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">{merchant?.name || "Merchant"}</h1>
         </div>
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] flex items-center justify-center text-white font-bold text-lg">
+          {merchant?.name?.charAt(0).toUpperCase()}
+        </div>
+      </div>
+
+      {/* Hero Balance Section */}
+      <section className="relative overflow-hidden rounded-3xl gradient-honey p-8 md:p-12 shadow-2xl border border-[#f8b513]/20">
+        {/* Honeycomb pattern overlay */}
+        <div className="absolute inset-0 honeycomb-pattern opacity-100 pointer-events-none" />
         
-        <div className="relative z-10 flex flex-col items-start justify-between gap-6">
+        <div className="relative z-10 flex flex-col gap-8">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] font-semibold text-[#3f210f]/70">Account Balance</p>
-            <h1 className="mt-3 text-5xl md:text-6xl font-black text-[#3f210f] tracking-tight">
-              {merchant?.balance?.toFixed(2) || "0.00"} ETB
-            </h1>
-            <p className="mt-2 text-base md:text-lg text-[#3f210f]/80">Available for withdrawal</p>
+            <p className="text-sm uppercase tracking-[0.2em] font-bold text-[#3f210f]/70">Available Balance</p>
+            <h2 className="mt-4 text-6xl md:text-7xl font-black text-[#2a1410] tracking-tight">
+              {merchant?.balance?.toFixed(2) || "0.00"}
+            </h2>
+            <p className="mt-3 text-base md:text-lg text-[#3f210f]/75 font-medium">ETB</p>
+            <p className="mt-1 text-sm text-[#3f210f]/65">Your balance up 12.2% from last month</p>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <Button
               disabled={!isApproved}
-              className="h-12 px-6 rounded-2xl bg-white text-[#754319] font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
+              className="h-12 px-6 rounded-2xl bg-white text-[#754319] font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
               onClick={() => setIsRequestPanelOpen(true)}
             >
               <Plus className="mr-2 h-5 w-5" />
@@ -486,23 +492,42 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </Button>
             <Button
               variant="outline"
-              className="h-12 px-6 rounded-2xl border-white/40 text-white hover:bg-white/10 font-bold shadow-lg"
-              onClick={() => setIsRequestPanelOpen(true)}
+              className="h-12 px-6 rounded-2xl border-2 border-white/60 text-[#2a1410] hover:bg-white/20 font-bold shadow-md bg-white/30"
             >
-              Generate Link
+              Withdraw Funds
             </Button>
           </div>
         </div>
       </section>
 
+      {/* Quick Action Pills */}
+      <section className="flex flex-wrap gap-3">
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-pink-100 hover:bg-pink-200 text-pink-700 font-semibold transition-colors shadow-sm hover:shadow-md">
+          <Plus className="h-4 w-4" />
+          <span>Top Up</span>
+        </button>
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-semibold transition-colors shadow-sm hover:shadow-md">
+          <ArrowDownLeft className="h-4 w-4" />
+          <span>Receive</span>
+        </button>
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold transition-colors shadow-sm hover:shadow-md">
+          <Send className="h-4 w-4" />
+          <span>Send</span>
+        </button>
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold transition-colors shadow-sm hover:shadow-md">
+          <MoreHorizontal className="h-4 w-4" />
+          <span>More</span>
+        </button>
+      </section>
+
       {!isApproved && (
-        <Card className={`rounded-2xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"} shadow-md`}>
-          <CardContent className="relative p-5">
-            <div className="relative flex items-start justify-between">
+        <Card className={`rounded-2xl border shadow-sm ${isPending ? "border-amber-200 bg-amber-50/50" : "border-rose-200 bg-rose-50/50"}`}>
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
               {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />}
-              <div className="ml-3 flex-1">
+              <div className="flex-1">
                 <p className="font-semibold text-sm">Account status: {merchant.status}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-1">
                   {isPending ? "Payment requests unlock once your account is approved." : merchant.rejectionReason || "Application requires updates."}
                 </p>
               </div>
@@ -512,22 +537,22 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       )}
 
       {/* Key Metrics */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {metricCards.map((item) => {
           const Icon = item.icon
           return (
             <Card
               key={item.title}
-              className="overflow-hidden rounded-2xl border border-white/50 shadow-lg backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
+              className="overflow-hidden rounded-2xl card-gradient border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5"
             >
-              <CardContent className="relative p-6 h-full flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#754319]/70">{item.title}</p>
-                  <p className="text-3xl font-black text-[#5b371f]">{item.value}</p>
-                  <p className="text-xs text-[#754319]/60 font-medium">{item.hint}</p>
+              <CardContent className="p-5 flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{item.title}</p>
+                  <p className="mt-2 text-3xl font-black text-foreground">{item.value}</p>
+                  <p className="mt-1 text-xs text-muted-foreground font-medium">{item.hint}</p>
                 </div>
-                <div className="shrink-0 p-3 rounded-xl bg-white/80 shadow-sm border border-white/40 transition-transform">
-                  <Icon className="h-5 w-5 text-[#754319]" />
+                <div className="shrink-0 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                  <Icon className="h-5 w-5 text-primary" />
                 </div>
               </CardContent>
             </Card>
@@ -536,26 +561,26 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </section>
 
       {/* Recent Activity */}
-      <section className="rounded-2xl border border-white/50 bg-white/70 shadow-lg backdrop-blur-sm p-6">
+      <section className="rounded-2xl card-gradient border border-border/40 shadow-sm p-6">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="font-bold text-xl text-[#5b371f]">Recent Activity</h2>
-            <p className="text-sm text-[#754319]/70 mt-1">{pendingRequests.length} pending • {todayActivity.length} today</p>
+            <h2 className="font-bold text-2xl text-foreground">Recent Transactions</h2>
+            <p className="text-sm text-muted-foreground mt-1">{pendingRequests.length} pending • {todayActivity.length} today</p>
           </div>
-          <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-semibold text-[#754319] hover:text-[#5b371f] transition-colors">
+          <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
             View All <ArrowUpRight className="ml-1 h-4 w-4" />
           </Link>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {recentTransactions.map((tx) => (
-            <div key={tx.id} className="group flex items-center justify-between rounded-xl border border-white/70 bg-white/80 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-[#5b371f]">{tx.description}</p>
-                <p className="text-xs text-[#754319]/70 mt-1">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
+            <div key={tx.id} className="group flex items-center justify-between rounded-xl border border-border/50 bg-background/50 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-background/80">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">{tx.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
               </div>
-              <div className="text-right flex items-center gap-4 ml-4">
+              <div className="text-right flex items-center gap-3 ml-4 flex-shrink-0">
                 <div>
-                  <p className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</p>
+                  <p className="font-semibold text-foreground">{tx.amount.toFixed(2)} ETB</p>
                   <Badge
                     variant="outline"
                     className={`mt-1.5 text-xs capitalize font-medium ${
@@ -573,7 +598,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-9 w-9 rounded-lg bg-amber-50 hover:bg-amber-100 text-[#754319] flex-shrink-0"
+                    className="h-8 w-8 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary flex-shrink-0"
                     onClick={() => handleResendPush(tx.id)}
                     disabled={isResending === tx.id}
                     title="Re-send USSD Push"
@@ -595,7 +620,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
         <SheetContent
             side="bottom"
-            className="max-h-[88vh] overflow-y-auto rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-8"
+            className="max-h-[88vh] overflow-y-auto rounded-t-3xl border-0 gradient-honey px-4 pb-8"
           >
           <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
           <SheetHeader className="text-left mb-4">
