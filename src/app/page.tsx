@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, Mail, Phone, Eye, EyeOff } from "lucide-react"
+import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, Mail, Phone, Eye, EyeOff, Sparkles } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Home() {
@@ -164,182 +164,243 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="h-16 border-b bg-white flex items-center px-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            <CreditCard size={20} />
-          </div>
-          <span className="text-xl font-bold font-headline tracking-tight text-primary">Finflow Gateway</span>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#FFFEFA]">
+      {/* Left Panel - Marketing & Branding */}
+      <div className="relative hidden md:flex md:w-1/2 lg:w-[55%] flex-col justify-between p-12 overflow-hidden">
+        {/* Multi-layered Vertical Honey Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#F4DB9F] via-[#f8b513] to-[#754319] z-0" />
+        
+        {/* Dynamic Light Rays / Shimmer Overlay */}
+        <div className="absolute inset-0 opacity-30 z-0 bg-[radial-gradient(circle_at_50%_-20%,#ffffff,transparent_70%)]" />
 
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          
-          <div className="space-y-6 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/20 text-accent-foreground text-sm font-medium border border-accent/30">
-              <ShieldCheck size={16} />
-              Enterprise Auth Infrastructure
+        {/* Branding */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg shadow-black/5">
+            <CreditCard className="text-white w-6 h-6" />
+          </div>
+          <span className="text-2xl font-bold font-headline tracking-tight text-white">NibTera</span>
+        </div>
+
+        {/* Floating Frosted Cards with Golden Shimmer */}
+        <div className="relative z-10 flex-1 flex items-center justify-center py-20">
+          <div className="relative w-full max-w-lg aspect-[1.4/1]">
+            {/* Card 1 */}
+            <div className="absolute top-[10%] left-[5%] w-[65%] aspect-[1.58/1] rounded-[2rem] bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl rotate-[-12deg] flex flex-col justify-between p-8 transform hover:scale-105 transition-transform duration-700 group">
+              <div className="flex justify-between items-start">
+                <div className="w-12 h-10 bg-white/20 rounded-lg backdrop-blur-md border border-white/10" />
+                <div className="text-white/40"><Sparkles className="w-6 h-6 animate-pulse" /></div>
+              </div>
+              <div className="space-y-4">
+                <div className="h-4 w-3/4 bg-white/20 rounded-full" />
+                <div className="flex gap-4">
+                  <div className="h-3 w-1/4 bg-white/10 rounded-full" />
+                  <div className="h-3 w-1/4 bg-white/10 rounded-full" />
+                </div>
+              </div>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold font-headline text-foreground tracking-tight leading-tight">
-              One Secure Entry. <br />
-              <span className="text-primary">Infinite Possibilities.</span>
+            
+            {/* Card 2 */}
+            <div className="absolute bottom-[15%] right-[5%] w-[65%] aspect-[1.58/1] rounded-[2rem] bg-white/15 backdrop-blur-3xl border border-white/30 shadow-2xl rotate-[8deg] flex flex-col justify-between p-8 transform translate-z-10 hover:scale-105 transition-transform duration-700 delay-150">
+              <div className="flex justify-between items-start">
+                <div className="w-12 h-10 bg-white/30 rounded-lg backdrop-blur-md border border-white/20 shadow-inner" />
+                <div className="text-white/60"><ShieldCheck className="w-6 h-6" /></div>
+              </div>
+              <div className="space-y-4">
+                <div className="h-4 w-2/3 bg-white/25 rounded-full shadow-sm" />
+                <div className="flex gap-4">
+                  <div className="h-3 w-1/3 bg-white/15 rounded-full" />
+                  <div className="h-3 w-1/5 bg-white/15 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Marketing Content */}
+        <div className="relative z-10 space-y-8">
+          <div className="space-y-4">
+            <h1 className="text-4xl lg:text-5xl font-bold font-headline text-white leading-tight tracking-tight">
+              Say goodbye to financial stress <br />
+              with the help of NibTera.
             </h1>
-            <p className="text-lg text-muted-foreground max-w-md mx-auto md:mx-0">
-              Sign in to manage your gateway operations with enterprise-grade security.
+            <p className="text-lg text-white/80 max-w-md font-medium">
+              Take control of your finances with NibTera the quickest and simplest way.
             </p>
           </div>
 
-          <div className="space-y-6">
-            <Card className="shadow-xl border-none">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-2xl font-headline">Portal Access</CardTitle>
-                <CardDescription>
-                  Enter your credentials to access your dashboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={loginMode === 'email' ? handleLogin : handleSalesLogin} className="space-y-4">
-                  {loginMode === 'email' ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Username (Email or Phone)</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            id="email" 
-                            type="text"
-                            inputMode="text"
-                            autoCapitalize="none"
-                            autoCorrect="off"
-                            placeholder="email@example.com or +1234567890" 
-                            className="pl-9"
-                            required
-                            value={credentials.email}
-                            onChange={(e) => setCredentials({...credentials, email: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="password">Password</Label>
-                          <Button variant="link" className="px-0 h-auto text-xs" type="button" asChild>
-                            <Link href="/forgot-password">Forgot password?</Link>
-                          </Button>
-                        </div>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            id="password" 
-                            type={showPassword ? "text" : "password"} 
-                            className="pr-11 pl-9"
-                            placeholder="••••••••"
-                            required
-                            value={credentials.password}
-                            onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((visible) => !visible)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                            aria-label={showPassword ? "Hide password" : "Show password"}
-                          >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <Button type="submit" className="w-full h-11" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Sign In"}
-                      </Button>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setLoginMode('sales')}
-                          className="text-xs font-medium text-muted-foreground transition hover:text-[#754319]"
-                        >
-                          Sales Login
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLoginMode('email')
-                            resetSalesState()
-                          }}
-                          className="text-xs font-medium text-muted-foreground transition hover:text-[#754319]"
-                        >
-                          Back to Username Login
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sales-phone">Phone Number</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="sales-phone"
-                            type="tel"
-                            placeholder="+1234567890"
-                            className="pl-9"
-                            required
-                            value={salesPhone}
-                            onChange={(e) => setSalesPhone(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      {otpSent && (
-                        <div className="space-y-2">
-                          <Label htmlFor="sales-otp">OTP Code</Label>
-                          <Input
-                            id="sales-otp"
-                            type="text"
-                            placeholder="Enter code"
-                            className="h-11"
-                            value={salesOtp}
-                            onChange={(e) => setSalesOtp(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">Enter the code sent to your phone. Code expires in 5 minutes.</p>
-                        </div>
-                      )}
-                      <Button type="submit" className="w-full h-11" disabled={isSendingOtp || isVerifyingOtp}>
-                        {(isSendingOtp || isVerifyingOtp) ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : otpSent ? 'Verify OTP' : 'Send OTP'}
-                      </Button>
-                      {otpSent && (
-                        <button
-                          type="button"
-                          className="text-sm text-[#754319] underline"
-                          onClick={handleSendSalesOtp}
-                          disabled={isSendingOtp}
-                        >
-                          Resend code
-                        </button>
-                      )}
-                    </>
-                  )}
-                </form>
-              </CardContent>
-              <CardFooter className="flex flex-col border-t p-6 gap-4 bg-muted/5">
-                <Button variant="outline" className="w-full h-11 border-primary text-primary hover:bg-primary/5" asChild>
-                  <Link href="/register">
-                    Register as New Merchant <ArrowRight className="ml-2 w-4 h-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
+          {/* Pagination / Status Dots */}
+          <div className="flex gap-2.5 items-center">
+            <div className="w-8 h-2 rounded-full bg-white shadow-sm" />
+            <div className="w-2 h-2 rounded-full bg-white/40" />
+            <div className="w-2 h-2 rounded-full bg-white/40" />
           </div>
-
         </div>
-      </main>
+      </div>
 
-      <footer className="border-t py-8 bg-white text-center">
-        <p className="text-xs text-muted-foreground">
-          © 2024 Finflow Gateway Solution.
-        </p>
-      </footer>
+      {/* Right Panel - Login Form */}
+      <div className="flex-1 flex flex-col bg-[#FFFEFA] relative">
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center gap-2 p-6 border-b">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
+            <CreditCard size={20} />
+          </div>
+          <span className="text-xl font-bold font-headline tracking-tight text-primary">NibTera Merchants</span>
+        </div>
+
+        <main className="flex-1 flex items-center justify-center p-8 lg:p-16">
+          <div className="w-full max-w-md space-y-10">
+            <div className="space-y-3">
+              <h2 className="text-4xl font-bold text-[#1F2937] tracking-tight">Log In</h2>
+              <p className="text-muted-foreground font-medium">Welcome back! Please enter your details.</p>
+            </div>
+
+            <form onSubmit={loginMode === 'email' ? handleLogin : handleSalesLogin} className="space-y-6">
+              {loginMode === 'email' ? (
+                <>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Email Address</Label>
+                    <div className="relative group transition-all">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="email" 
+                        type="text"
+                        placeholder="Random@gmail.com" 
+                        className="h-12 pl-10 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all bg-white"
+                        required
+                        value={credentials.email}
+                        onChange={(e) => setCredentials({...credentials, email: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password" title="Password" className="text-sm font-semibold text-[#374151]">Password</Label>
+                    </div>
+                    <div className="relative group transition-all">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="password" 
+                        type={showPassword ? "text" : "password"} 
+                        className="h-12 pl-10 pr-12 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all bg-white"
+                        placeholder="Placeholder"
+                        required
+                        value={credentials.password}
+                        onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="remember" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/20" />
+                      <label htmlFor="remember" className="text-sm font-medium text-slate-600">Remember information</label>
+                    </div>
+                    <Link href="/forgot-password" title="Forgot password?" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}
+                  </Button>
+
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setLoginMode('sales')}
+                      className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      Use Sales Access Instead
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-semibold text-[#374151]">Sales OTP Login</Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMode('email')
+                        resetSalesState()
+                      }}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Username Login
+                    </button>
+                  </div>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="sales-phone" className="text-sm font-semibold">Phone Number</Label>
+                    <div className="relative group">
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input
+                        id="sales-phone"
+                        type="tel"
+                        placeholder="+1234567890"
+                        className="h-12 pl-10 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all"
+                        required
+                        value={salesPhone}
+                        onChange={(e) => setSalesPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  {otpSent && (
+                    <div className="space-y-2.5">
+                      <Label htmlFor="sales-otp" className="text-sm font-semibold">OTP Code</Label>
+                      <Input
+                        id="sales-otp"
+                        type="text"
+                        placeholder="Enter 6-digit code"
+                        className="h-12 rounded-xl text-center text-lg tracking-widest font-bold border-gray-200 focus:ring-primary/20 transition-all"
+                        value={salesOtp}
+                        onChange={(e) => setSalesOtp(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground font-medium">Code expires in 5 minutes.</p>
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={isSendingOtp || isVerifyingOtp}>
+                    {(isSendingOtp || isVerifyingOtp) ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : otpSent ? 'Verify OTP' : 'Send OTP'}
+                  </Button>
+                  {otpSent && (
+                    <button
+                      type="button"
+                      className="w-full text-sm font-semibold text-primary hover:underline"
+                      onClick={handleSendSalesOtp}
+                      disabled={isSendingOtp}
+                    >
+                      Resend verification code
+                    </button>
+                  )}
+                </>
+              )}
+            </form>
+
+            <div className="text-center pt-4">
+              <p className="text-sm font-medium text-slate-600">
+                Don't have an account?{" "}
+                <Link href="/register" className="text-primary font-bold hover:underline">
+                  Sign up
+                </Link>
+              </p>
+            </div>
+          </div>
+        </main>
+
+        <footer className="p-8 text-center mt-auto">
+          <p className="text-xs text-muted-foreground font-medium">
+            © 2024 NibTera Merchants Solution. Secure Enterprise Infrastructure.
+          </p>
+        </footer>
+      </div>
     </div>
   )
 }

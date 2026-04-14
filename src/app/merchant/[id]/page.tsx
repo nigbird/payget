@@ -452,17 +452,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
+      <section className="rounded-3xl border border-amber-200/30 bg-white/80 p-5 md:p-7 shadow-xl backdrop-blur-md">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Merchant Dashboard</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-amber-700/70">Merchant Dashboard</p>
             <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">Welcome back, {merchant.name}</h1>
-            <p className="mt-1 text-sm md:text-base text-[#754319]/70">A premium view of your requests, activity, and settlements.</p>
+            <p className="mt-1 text-sm md:text-base text-amber-800/60">A premium view of your requests, activity, and settlements.</p>
           </div>
           <div className="hidden md:flex items-center gap-3">
             <Button
               disabled={!isApproved}
-              className="h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-700/30 hover:-translate-y-0.5 transition-all"
+              className="h-11 rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all"
               onClick={() => setIsRequestPanelOpen(true)}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -494,16 +494,16 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           return (
             <Card
               key={item.title}
-              className="overflow-hidden rounded-3xl border-white/60 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
+              className="card-honey-glass overflow-hidden rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
             >
               <CardContent className="relative p-5 h-full flex items-center justify-between gap-3">
                 <div className="flex flex-col">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#754319]/70">{item.title}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-800/70">{item.title}</p>
                   <p className="mt-1 text-2xl font-black text-[#5b371f]">{item.value}</p>
-                  <p className="mt-0.5 text-[10px] text-[#754319]/60 font-semibold">{item.hint}</p>
+                  <p className="mt-0.5 text-[10px] text-amber-900/60 font-semibold">{item.hint}</p>
                 </div>
-                <div className="shrink-0 p-2.5 rounded-2xl bg-white/90 shadow-sm border border-white/40 group-hover:scale-110 transition-transform">
-                  <Icon className="h-4 w-4 text-[#754319]" />
+                <div className="shrink-0 p-2.5 rounded-2xl bg-gradient-to-br from-amber-100/80 to-amber-200/60 shadow-sm border border-amber-300/30 group-hover:scale-110 transition-transform">
+                  <Icon className="h-4 w-4 text-amber-700" />
                 </div>
               </CardContent>
             </Card>
@@ -512,23 +512,23 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <Card className="xl:col-span-3 rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
+        <Card className="xl:col-span-3 rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-sm">
           <CardContent className="p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-[#5b371f] text-lg">Recent Activity</h2>
-                <p className="text-xs text-[#754319]/70">{pendingRequests.length} pending requests, {todayActivity.length} today</p>
+                <p className="text-xs text-amber-800/60">{pendingRequests.length} pending requests, {todayActivity.length} today</p>
               </div>
-              <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-medium text-[#754319]">
+              <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-medium text-amber-700">
                 View All Transactions <ArrowUpRight className="ml-1 h-4 w-4" />
               </Link>
             </div>
             <div className="space-y-2">
               {recentTransactions.map((tx) => (
-                <div key={tx.id} className="group flex items-center justify-between rounded-2xl border border-white/70 bg-white/80 p-3 transition-all hover:-translate-y-0.5 hover:shadow-md">
+                <div key={tx.id} className="group flex items-center justify-between rounded-2xl border border-amber-200/30 bg-gradient-to-r from-amber-50/50 to-white/50 p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/20">
                   <div>
                     <p className="text-sm font-medium text-[#5b371f]">{tx.description}</p>
-                    <p className="text-xs text-[#754319]/70">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
+                    <p className="text-xs text-amber-800/60">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right flex items-center gap-3">
                     <div>

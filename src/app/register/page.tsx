@@ -327,7 +327,7 @@ export default function MerchantSelfRegistration() {
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Register Your Business</h2>
             <p className="text-gray-500 max-w-lg mx-auto">
-              Complete the information below to start processing payments with Finflow.
+              Complete the information below to start processing payments with NibTera Merchants.
             </p>
           </div>
 
@@ -586,7 +586,7 @@ export default function MerchantSelfRegistration() {
                     )}
                   </Button>
                   <p className="text-[10px] text-center text-gray-400 mt-4">
-                    By submitting, you agree to Finflow's Merchant Service Agreement and Privacy Policy.
+                    By submitting, you agree to NibTera Merchants' Merchant Service Agreement and Privacy Policy.
                   </p>
                 </div>
               </form>

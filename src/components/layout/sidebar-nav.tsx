@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   LayoutDashboard, 
@@ -12,8 +13,8 @@ import {
   Shield,
   Users,
   Building2,
-  Sparkles
 } from "lucide-react"
+import logo from "../../app/admin/logo/niblogo.png"
 import { cn } from "@/lib/utils"
 import { 
   Sidebar, 
@@ -61,41 +62,36 @@ export function SidebarNav() {
     <Sidebar
       variant="floating"
       collapsible="icon"
-      className={cn(
-        "border-0",
-        "[&_[data-sidebar=sidebar]]:bg-[#FFFDF7]",
-        "[&_[data-sidebar=sidebar]]:border [&_[data-sidebar=sidebar]]:border-[#F1E7D0]",
-        "[&_[data-sidebar=sidebar]]:shadow-sm [&_[data-sidebar=sidebar]]:shadow-black/5"
-      )}
+      className="sidebar-dark-glass"
     >
-      <SidebarHeader className="p-3 flex items-center gap-2">
-        <div className="w-9 h-9 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_50%,#754319_115%)] flex items-center justify-center shadow-sm shadow-amber-900/20">
-          <Sparkles className="text-white w-5 h-5" />
+      <SidebarHeader className="p-4 flex items-center gap-2">
+        <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-lg shadow-black/20 overflow-hidden">
+          <Image 
+            src={logo} 
+            alt="NibTera Logo" 
+            width={40} 
+            height={40} 
+            className="object-cover w-full h-full"
+          />
         </div>
         <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-          <div className="font-semibold tracking-tight text-slate-900">NibTera merchants</div>
-          <div className="text-[10px] text-slate-600">Admin console</div>
+          <div className="font-bold tracking-tight text-[#F8E8C8]">NibTera Merchants</div>
+          <div className="text-[10px] text-amber-200/60">Admin console</div>
         </div>
       </SidebarHeader>
-      <SidebarSeparator />
+      <SidebarSeparator className="bg-amber-700/20" />
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/50 px-4 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-amber-200/40 px-4 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="px-2">
               {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton 
-                    asChild 
+                  <SidebarMenuButton
+                    asChild
                     isActive={pathname === item.href}
                     tooltip={item.name}
-                    className={cn(
-                      "rounded-2xl",
-                      "text-[#6B7280] hover:text-[#1F2937]",
-                      "hover:bg-amber-50/50",
-                      "data-[active=true]:bg-amber-100/70 data-[active=true]:text-[#754319]",
-                      "data-[active=true]:shadow-none"
-                    )}
+                    className="rounded-xl text-amber-100/70 hover:text-amber-100 hover:bg-amber-700/30 data-[active=true]:bg-gradient-to-r data-[active=true]:from-amber-500 data-[active=true]:to-amber-600 data-[active=true]:text-slate-900 data-[active=true]:shadow-lg data-[active=true]:shadow-amber-900/40"
                   >
                     <Link href={item.href}>
                       <item.icon className="w-5 h-5" />
@@ -110,21 +106,15 @@ export function SidebarNav() {
 
         {merchantId && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="text-sidebar-foreground/50 px-4 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-amber-200/40 px-4 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="px-2">
                 <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    asChild 
+                  <SidebarMenuButton
+                    asChild
                     isActive={pathname === `/merchant/${merchantId}`}
                     tooltip="My Dashboard"
-                    className={cn(
-                      "rounded-2xl",
-                      "text-[#6B7280] hover:text-[#1F2937]",
-                      "hover:bg-amber-50/50",
-                      "data-[active=true]:bg-amber-100/70 data-[active=true]:text-[#754319]",
-                      "data-[active=true]:shadow-none"
-                    )}
+                    className="rounded-xl text-amber-100/70 hover:text-amber-100 hover:bg-amber-700/30 data-[active=true]:bg-gradient-to-r data-[active=true]:from-amber-500 data-[active=true]:to-amber-600 data-[active=true]:text-slate-900 data-[active=true]:shadow-lg data-[active=true]:shadow-amber-900/40"
                   >
                     <Link href={`/merchant/${merchantId}`}>
                       <LayoutDashboard className="w-5 h-5" />
@@ -139,22 +129,16 @@ export function SidebarNav() {
 
         {filteredAdminItems.length > 0 && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="text-sidebar-foreground/50 px-4 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-amber-200/40 px-4 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="px-2">
                 {filteredAdminItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={pathname === item.href}
                       tooltip={item.name}
-                      className={cn(
-                        "rounded-2xl",
-                      "text-[#6B7280] hover:text-[#1F2937]",
-                      "hover:bg-amber-50/50",
-                      "data-[active=true]:bg-amber-100/70 data-[active=true]:text-[#754319]",
-                      "data-[active=true]:shadow-none"
-                      )}
+                      className="rounded-xl text-amber-100/70 hover:text-amber-100 hover:bg-amber-700/30 data-[active=true]:bg-gradient-to-r data-[active=true]:from-amber-500 data-[active=true]:to-amber-600 data-[active=true]:text-slate-900 data-[active=true]:shadow-lg data-[active=true]:shadow-amber-900/40"
                     >
                       <Link href={item.href}>
                         <item.icon className="w-5 h-5" />
@@ -170,20 +154,20 @@ export function SidebarNav() {
       </SidebarContent>
       <SidebarFooter className="p-4 space-y-4">
         {session?.user && (
-          <div className="flex items-center gap-3 px-2 py-2 rounded-2xl bg-white border border-[#F1E7D0] group-data-[collapsible=icon]:justify-center">
-            <div className="w-8 h-8 rounded-2xl bg-amber-100/60 flex items-center justify-center shrink-0">
-              <UserIcon className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-amber-900/30 border border-amber-700/30 group-data-[collapsible=icon]:justify-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0 shadow-sm shadow-amber-900/40">
+              <UserIcon className="w-4 h-4 text-slate-900" />
             </div>
             <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-semibold text-[#1F2937] truncate">{session.user.name || 'User'}</span>
-              <span className="text-[10px] text-[#6B7280] truncate">{(session.user as any).role || 'Staff'}</span>
+              <span className="text-sm font-semibold text-amber-50 truncate">{session.user.name || 'User'}</span>
+              <span className="text-[10px] text-amber-300/60 truncate">{(session.user as any).role || 'Staff'}</span>
             </div>
           </div>
         )}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton 
-              className="rounded-2xl text-rose-700 hover:text-rose-800 hover:bg-rose-50/70"
+            <SidebarMenuButton
+              className="rounded-xl text-rose-300 hover:text-rose-200 hover:bg-rose-900/30"
               onClick={() => signOut({ callbackUrl: "/" })}
             >
               <LogOut className="w-5 h-5" />

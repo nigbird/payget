@@ -56,7 +56,7 @@ async function sendEmailNotification(email: string, subject: string, message: st
     });
 
     const info = await transporter.sendMail({
-      from: `"Finflow Gateway" <${process.env.SMTP_EMAIL_USER}>`,
+      from: `"NibTera Merchants" <${process.env.SMTP_EMAIL_USER}>`,
       to: email,
       subject: subject,
       text: message,
@@ -64,7 +64,7 @@ async function sendEmailNotification(email: string, subject: string, message: st
         <h2 style="color: #754319;">${subject}</h2>
         <p style="font-size: 16px; line-height: 1.5; color: #333;">${message.replace(/\n/g, '<br>')}</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999;">This is an automated message from Finflow Gateway. Please do not reply directly to this email.</p>
+        <p style="font-size: 12px; color: #999;">This is an automated message from NibTera Merchants. Please do not reply directly to this email.</p>
       </div>`,
     });
 

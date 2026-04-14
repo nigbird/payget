@@ -24,8 +24,8 @@ type ResolvedPayment = {
 }
 
 const gatewayBrand = {
-  name: "Finflow Gateway",
-  initials: "FG",
+  name: "NibTera Merchants",
+  initials: "NT",
   logoUrl: "/bank-logo.jpg",
 }
 

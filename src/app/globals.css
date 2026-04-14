@@ -4,8 +4,75 @@
 
 @layer components {
   .bg-app-main {
-    /* Deprecated: large-surface gradient removed for readability */
     background: #fffdf7;
+  }
+
+  /* Premium Honey Glassmorphism Card - Liquid Gold Effect */
+  .card-honey-glass {
+    background: linear-gradient(
+      145deg,
+      rgba(248, 181, 19, 0.15) 0%,
+      rgba(117, 67, 25, 0.25) 50%,
+      rgba(248, 181, 19, 0.1) 100%
+    );
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(248, 181, 19, 0.3);
+    box-shadow:
+      0 8px 32px rgba(117, 67, 25, 0.12),
+      0 2px 8px rgba(248, 181, 19, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  /* Thick Liquid Honey Gradient */
+  .card-honey-thick {
+    background: linear-gradient(
+      180deg,
+      #FFF8E7 0%,
+      #F8E8C8 20%,
+      #F0D4A8 40%,
+      #E8C088 60%,
+      #DCAF70 80%,
+      #C99A58 100%
+    );
+    border: 1px solid rgba(117, 67, 25, 0.2);
+    box-shadow:
+      0 4px 24px rgba(117, 67, 25, 0.15),
+      0 2px 8px rgba(201, 154, 88, 0.1),
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(117, 67, 25, 0.05);
+  }
+
+  /* Amber Glow Card */
+  .card-amber-glow {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 248, 231, 0.95) 0%,
+      rgba(248, 220, 159, 0.9) 30%,
+      rgba(240, 196, 128, 0.85) 70%,
+      rgba(232, 176, 96, 0.9) 100%
+    );
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(248, 181, 19, 0.25);
+    box-shadow:
+      0 8px 32px rgba(201, 154, 88, 0.15),
+      0 2px 16px rgba(248, 181, 19, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  /* Dark Luxury Sidebar Glass */
+  .sidebar-dark-glass {
+    background: linear-gradient(
+      180deg,
+      rgba(58, 35, 15, 0.95) 0%,
+      rgba(45, 28, 10, 0.98) 50%,
+      rgba(35, 20, 5, 0.99) 100%
+    );
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(248, 181, 19, 0.15);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -40,13 +107,13 @@
     --chart-3: 215 28% 17%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --sidebar-background: 45 33% 97%; /* light neutral, no gradient */
-    --sidebar-foreground: 220 9% 46%;
-    --sidebar-primary: 43 94% 52%;
-    --sidebar-primary-foreground: 215 28% 17%;
-    --sidebar-accent: 43 90% 92%;
-    --sidebar-accent-foreground: 215 28% 17%;
-    --sidebar-border: 40 56% 88%;
+    --sidebar-background: 29 65% 14%; /* Deep copper brown - luxury grounding base */
+    --sidebar-foreground: 45 92% 88%; /* Warm cream text */
+    --sidebar-primary: 43 94% 52%; /* Bright amber accent */
+    --sidebar-primary-foreground: 29 65% 14%; /* Dark copper on amber */
+    --sidebar-accent: 36 80% 55%; /* Rich amber highlight */
+    --sidebar-accent-foreground: 29 65% 14%;
+    --sidebar-border: 29 50% 25%; /* Subtle copper border */
     --sidebar-ring: 43 94% 52%;
   }
 
