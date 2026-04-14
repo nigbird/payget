@@ -61,7 +61,9 @@ import {
   Eye,
   ShieldAlert,
   Lock,
-  Plus
+  Plus,
+  ChevronRight,
+  SlidersHorizontal
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument, Merchant } from "@/app/lib/db"
@@ -355,41 +357,45 @@ export default function MerchantOnboardingPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'approved': return <Badge className="bg-green-500 gap-1"><CheckCircle className="w-3 h-3" /> Approved</Badge>
-      case 'active': return <Badge className="bg-emerald-500 gap-1"><CheckCircle className="w-3 h-3" /> Active</Badge>
-      case 'branch_approved': return <Badge className="bg-blue-500 gap-1"><ShieldCheck className="w-3 h-3" /> Initial OK</Badge>
-      case 'pending': return <Badge variant="outline" className="text-orange-500 border-orange-200 bg-orange-50 gap-1"><Clock className="w-3 h-3" /> Pending Review</Badge>
-      case 'rejected': return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
+      case 'approved':
+        return <Badge className="rounded-full bg-blue-50 text-blue-700 border border-blue-100 font-medium gap-1.5"><CheckCircle className="w-3 h-3" /> Approved</Badge>
+      case 'active':
+        return <Badge className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium gap-1.5"><CheckCircle className="w-3 h-3" /> Active</Badge>
+      case 'branch_approved':
+        return <Badge className="rounded-full bg-blue-50 text-blue-700 border border-blue-100 font-medium gap-1.5"><ShieldCheck className="w-3 h-3" /> Approved</Badge>
+      case 'pending':
+        return <Badge className="rounded-full bg-amber-50 text-amber-800 border border-amber-100 font-medium gap-1.5"><Clock className="w-3 h-3" /> Pending</Badge>
+      case 'rejected':
+        return <Badge className="rounded-full bg-rose-50 text-rose-700 border border-rose-100 font-medium gap-1.5"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
       default: return <Badge variant="secondary">{status}</Badge>
     }
   }
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">Merchant onboarding</h2>
-        <p className="text-sm text-slate-600">Review submitted merchants and manage onboarding in one place.</p>
-      </div>
+      <div className="rounded-2xl border border-white/25 bg-white/30 backdrop-blur-xl shadow-sm shadow-amber-950/10">
+        <div className="relative overflow-hidden rounded-2xl px-5 py-4">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(244,219,159,0.55),rgba(248,181,19,0.28),rgba(117,67,25,0.18))]" />
+          <div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0 space-y-1">
+              <div className="flex items-center gap-2 text-xs text-slate-700">
+                <Link href="/admin" className="hover:text-slate-900 transition-colors">Admin</Link>
+                <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+                <span className="font-medium text-slate-800">Merchant onboarding</span>
+              </div>
+              <h2 className="truncate text-lg font-semibold tracking-tight text-slate-950">Merchant onboarding</h2>
+              <p className="text-sm text-slate-700/80">Lightweight queue management with high readability.</p>
+            </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <div className="relative w-full sm:w-72">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search merchants..."
-                    className="pl-9 bg-white"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-
-                <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="justify-center sm:justify-start">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Register New Merchant
-                    </Button>
-                  </DialogTrigger>
+            <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Register merchant
+                </Button>
+              </DialogTrigger>
                   <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
@@ -705,47 +711,80 @@ export default function MerchantOnboardingPage() {
                     )}
                   </DialogContent>
                 </Dialog>
-              </div>
+          </div>
+        </div>
+      </div>
+
+      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+        <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-base tracking-tight">Onboarding queue</CardTitle>
+              <CardDescription className="text-slate-600">
+                Search, filter, and inspect merchant submissions quickly.
+              </CardDescription>
             </div>
 
-            <Card className="border-none shadow-sm overflow-hidden">
-              <CardContent className="p-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Input
+                  placeholder="Search merchants..."
+                  className="h-10 rounded-2xl border-black/10 bg-white pl-9 focus-visible:ring-2 focus-visible:ring-[#f8b513]/30"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                className="h-10 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors"
+              >
+                <SlidersHorizontal className="h-4 w-4 mr-2 text-[#754319]" />
+                Filters
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-white hover:bg-white">
-                      <TableHead className="pl-6">Merchant</TableHead>
-                      <TableHead>Hub / District</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead className="text-right pr-6">Action</TableHead>
+                    <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+                      <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Merchant</TableHead>
+                      <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Hub / District</TableHead>
+                      <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Status</TableHead>
+                      <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Submitted</TableHead>
+                      <TableHead className="py-4 text-right pr-6 text-xs font-semibold tracking-wide text-slate-700">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSubmissions.map((s) => (
-                      <TableRow key={s.id} className="bg-white group hover:bg-primary/5 transition-colors">
-                        <TableCell className="pl-6">
+                      <TableRow
+                        key={s.id}
+                        className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm hover:-translate-y-[1px]"
+                      >
+                        <TableCell className="pl-6 py-5 align-middle">
                           <div className="flex flex-col">
-                            <span className="font-bold text-slate-900">{s.name}</span>
-                            <span className="text-[10px] font-mono text-muted-foreground uppercase">{s.id}</span>
+                            <span className="font-semibold text-slate-950">{s.name}</span>
+                            <span className="mt-0.5 text-[10px] font-mono uppercase text-slate-500">{s.id}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-5 align-middle">
                           <div className="flex flex-col">
-                            <span className="text-xs text-slate-700 font-medium">{s.branchName}</span>
-                            <span className="text-[10px] text-muted-foreground">{s.district}</span>
+                            <span className="text-xs font-medium text-slate-800">{s.branchName}</span>
+                            <span className="mt-0.5 text-[10px] text-slate-500">{s.district}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(s.status)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="py-5 align-middle">{getStatusBadge(s.status)}</TableCell>
+                        <TableCell className="py-5 align-middle text-xs text-slate-600">
                           {new Date(s.createdAt).toLocaleDateString()}
                         </TableCell>
-                        <TableCell className="text-right pr-6">
+                        <TableCell className="py-5 align-middle text-right pr-6">
                           <div className="flex items-center justify-end gap-2">
                             {s.status === 'pending' && canSetLimits && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                                className="h-9 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors"
                                 onClick={() => {
                                   setSelectedForReview(s)
                                   setIsReviewDialogOpen(true)
@@ -758,7 +797,7 @@ export default function MerchantOnboardingPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100"
+                                className="h-9 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors"
                                 onClick={() => handleResendSetupLink(s.id)}
                                 disabled={resendLoadingId === s.id}
                               >
@@ -775,7 +814,7 @@ export default function MerchantOnboardingPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="gap-2"
+                              className="h-9 rounded-2xl gap-2 hover:bg-amber-50/50 transition-colors"
                               onClick={() => {
                                 setSelectedMerchant(s)
                                 setIsDetailsDialogOpen(true)
@@ -796,8 +835,8 @@ export default function MerchantOnboardingPage() {
                     )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
+        </CardContent>
+      </Card>
 
             <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
               <DialogContent className="max-w-3xl">
