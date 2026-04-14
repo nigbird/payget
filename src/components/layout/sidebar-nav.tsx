@@ -63,9 +63,9 @@ export function SidebarNav() {
       collapsible="icon"
       className={cn(
         "border-0",
-        "[&_[data-sidebar=sidebar]]:bg-white/35 [&_[data-sidebar=sidebar]]:backdrop-blur-xl",
-        "[&_[data-sidebar=sidebar]]:border [&_[data-sidebar=sidebar]]:border-white/25",
-        "[&_[data-sidebar=sidebar]]:shadow-sm [&_[data-sidebar=sidebar]]:shadow-amber-900/10"
+        "[&_[data-sidebar=sidebar]]:bg-[#FFFDF7]",
+        "[&_[data-sidebar=sidebar]]:border [&_[data-sidebar=sidebar]]:border-[#F1E7D0]",
+        "[&_[data-sidebar=sidebar]]:shadow-sm [&_[data-sidebar=sidebar]]:shadow-black/5"
       )}
     >
       <SidebarHeader className="p-3 flex items-center gap-2">
@@ -91,9 +91,10 @@ export function SidebarNav() {
                     tooltip={item.name}
                     className={cn(
                       "rounded-2xl",
-                      "hover:bg-white/45 hover:text-slate-900",
-                      "data-[active=true]:bg-amber-200/55 data-[active=true]:text-[#754319]",
-                      "data-[active=true]:shadow-sm data-[active=true]:shadow-amber-900/10"
+                      "text-[#6B7280] hover:text-[#1F2937]",
+                      "hover:bg-amber-50/50",
+                      "data-[active=true]:bg-amber-100/70 data-[active=true]:text-[#754319]",
+                      "data-[active=true]:shadow-none"
                     )}
                   >
                     <Link href={item.href}>
@@ -119,9 +120,10 @@ export function SidebarNav() {
                     tooltip="My Dashboard"
                     className={cn(
                       "rounded-2xl",
-                      "hover:bg-white/45 hover:text-slate-900",
-                      "data-[active=true]:bg-amber-200/55 data-[active=true]:text-[#754319]",
-                      "data-[active=true]:shadow-sm data-[active=true]:shadow-amber-900/10"
+                      "text-[#6B7280] hover:text-[#1F2937]",
+                      "hover:bg-amber-50/50",
+                      "data-[active=true]:bg-amber-100/70 data-[active=true]:text-[#754319]",
+                      "data-[active=true]:shadow-none"
                     )}
                   >
                     <Link href={`/merchant/${merchantId}`}>
@@ -148,9 +150,10 @@ export function SidebarNav() {
                       tooltip={item.name}
                       className={cn(
                         "rounded-2xl",
-                        "hover:bg-white/45 hover:text-slate-900",
-                        "data-[active=true]:bg-amber-200/55 data-[active=true]:text-[#754319]",
-                        "data-[active=true]:shadow-sm data-[active=true]:shadow-amber-900/10"
+                      "text-[#6B7280] hover:text-[#1F2937]",
+                      "hover:bg-amber-50/50",
+                      "data-[active=true]:bg-amber-100/70 data-[active=true]:text-[#754319]",
+                      "data-[active=true]:shadow-none"
                       )}
                     >
                       <Link href={item.href}>
@@ -167,20 +170,20 @@ export function SidebarNav() {
       </SidebarContent>
       <SidebarFooter className="p-4 space-y-4">
         {session?.user && (
-          <div className="flex items-center gap-3 px-2 py-2 rounded-2xl bg-white/35 border border-white/25 group-data-[collapsible=icon]:justify-center">
-            <div className="w-8 h-8 rounded-2xl bg-[#f8b513]/15 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-2xl bg-white border border-[#F1E7D0] group-data-[collapsible=icon]:justify-center">
+            <div className="w-8 h-8 rounded-2xl bg-amber-100/60 flex items-center justify-center shrink-0">
               <UserIcon className="w-4 h-4 text-primary" />
             </div>
             <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-semibold text-slate-900 truncate">{session.user.name || 'User'}</span>
-              <span className="text-[10px] text-slate-600 truncate">{(session.user as any).role || 'Staff'}</span>
+              <span className="text-sm font-semibold text-[#1F2937] truncate">{session.user.name || 'User'}</span>
+              <span className="text-[10px] text-[#6B7280] truncate">{(session.user as any).role || 'Staff'}</span>
             </div>
           </div>
         )}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton 
-              className="rounded-2xl text-red-700 hover:text-red-800 hover:bg-red-50/70"
+              className="rounded-2xl text-rose-700 hover:text-rose-800 hover:bg-rose-50/70"
               onClick={() => signOut({ callbackUrl: "/" })}
             >
               <LogOut className="w-5 h-5" />

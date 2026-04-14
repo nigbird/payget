@@ -76,29 +76,30 @@ function MetricCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-white/30 bg-white/45 backdrop-blur-xl",
-        "rounded-2xl shadow-sm shadow-amber-950/10",
+        "relative overflow-hidden rounded-2xl",
+        "bg-white",
+        "border border-[#F1E7D0]",
+        "shadow-sm shadow-black/5",
         "transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-md hover:shadow-amber-950/15"
+        "hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10"
       )}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(350px_120px_at_20%_0%,rgba(248,181,19,0.22),transparent_60%)]" />
       <CardHeader className="relative flex flex-row items-start justify-between gap-3 pb-2">
         <div className="space-y-1">
-          <CardTitle className="text-xs font-semibold tracking-wide text-slate-700">
+          <CardTitle className="text-xs font-semibold tracking-wide text-[#6B7280]">
             {title}
           </CardTitle>
-          <div className="text-2xl font-semibold tracking-tight text-slate-950">
+          <div className="text-2xl font-semibold tracking-tight text-[#1F2937]">
             {value}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/30 bg-white/40 p-2 text-slate-700 shadow-sm shadow-amber-950/5">
+        <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-2 text-[#754319] shadow-sm shadow-black/5">
           {icon}
         </div>
       </CardHeader>
       <CardContent className="relative pt-2">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-slate-600">{hint}</div>
+          <div className="text-xs text-[#6B7280]">{hint}</div>
           {trend ? (
             <div className={cn("flex items-center gap-1 text-xs font-medium", trendColor)}>
               <TrendIcon className="h-3.5 w-3.5" />
@@ -183,19 +184,19 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="group rounded-2xl border-white/30 bg-white/45 backdrop-blur-xl shadow-sm shadow-amber-950/10 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-amber-950/15">
+        <Card className="group rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
           <CardHeader className="pb-2">
-            <div className="flex items-center gap-2 text-slate-900">
+            <div className="flex items-center gap-2 text-[#1F2937]">
               <UserPlus className="h-5 w-5 text-[#754319]" />
               <CardTitle className="text-base tracking-tight">Merchant onboarding</CardTitle>
             </div>
-            <CardDescription>Register new merchants and manage submissions.</CardDescription>
+            <CardDescription className="text-[#6B7280]">Register new merchants and manage submissions.</CardDescription>
           </CardHeader>
           <CardContent className="pt-2">
             <Link href="/admin/onboarding">
               <Button
                 variant="outline"
-                className="w-full justify-between rounded-2xl border-white/40 bg-white/40 hover:bg-white/60"
+                className="w-full justify-between rounded-2xl border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
               >
                 Open onboarding portal
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -204,19 +205,19 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="group rounded-2xl border-white/30 bg-white/45 backdrop-blur-xl shadow-sm shadow-amber-950/10 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-amber-950/15">
+        <Card className="group rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
           <CardHeader className="pb-2">
-            <div className="flex items-center gap-2 text-slate-900">
+            <div className="flex items-center gap-2 text-[#1F2937]">
               <ShieldCheck className="h-5 w-5 text-[#754319]" />
               <CardTitle className="text-base tracking-tight">Review & approvals</CardTitle>
             </div>
-            <CardDescription>Compliance queue for audits and activation.</CardDescription>
+            <CardDescription className="text-[#6B7280]">Compliance queue for audits and activation.</CardDescription>
           </CardHeader>
           <CardContent className="pt-2">
             <Link href="/admin/review">
               <Button
                 variant="outline"
-                className="w-full justify-between rounded-2xl border-white/40 bg-white/40 hover:bg-white/60"
+                className="w-full justify-between rounded-2xl border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
               >
                 Open review queue
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -251,10 +252,10 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 rounded-2xl border-white/30 bg-white/45 backdrop-blur-xl shadow-sm shadow-amber-950/10">
+        <Card className="lg:col-span-2 rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5">
           <CardHeader>
             <CardTitle className="text-base tracking-tight">Processing insights</CardTitle>
-            <CardDescription>Transactional volume with smooth curves and warm fills.</CardDescription>
+            <CardDescription className="text-[#6B7280]">Transactional volume with smooth curves and warm fills.</CardDescription>
           </CardHeader>
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -278,10 +279,10 @@ export default function AdminDashboard() {
                     if (!active || !payload?.length) return null
                     const v = Number(payload[0]?.value ?? 0)
                     return (
-                      <div className="rounded-2xl border border-white/30 bg-white/65 px-3 py-2 text-xs shadow-md shadow-amber-950/10 backdrop-blur-xl">
-                        <div className="font-semibold text-slate-900">{label}</div>
-                        <div className="mt-0.5 text-slate-600">
-                          Volume: <span className="font-mono font-semibold text-slate-900">{v.toLocaleString()}</span>
+                      <div className="rounded-2xl border border-[#F1E7D0] bg-white px-3 py-2 text-xs shadow-md shadow-black/10">
+                        <div className="font-semibold text-[#1F2937]">{label}</div>
+                        <div className="mt-0.5 text-[#6B7280]">
+                          Volume: <span className="font-mono font-semibold text-[#1F2937]">{v.toLocaleString()}</span>
                         </div>
                       </div>
                     )
@@ -301,19 +302,19 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-white/30 bg-white/45 backdrop-blur-xl shadow-sm shadow-amber-950/10">
+        <Card className="rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5">
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
                 <CardTitle className="text-base tracking-tight">System settings</CardTitle>
-                <CardDescription>Modular controls with inline validation.</CardDescription>
+                <CardDescription className="text-[#6B7280]">Modular controls with inline validation.</CardDescription>
               </div>
               <Sheet>
                 <SheetTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="rounded-2xl border-white/40 bg-white/40 hover:bg-white/60"
+                    className="rounded-2xl border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
                   >
                     <Settings2 className="mr-2 h-4 w-4" />
                     Manage
@@ -389,7 +390,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/30 bg-white/35 p-4">
+                    <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-sm font-semibold text-slate-900">Require 2FA</div>
@@ -402,7 +403,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/30 bg-white/35 p-4">
+                    <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-sm font-semibold text-slate-900">Maintenance mode</div>
@@ -424,7 +425,7 @@ export default function AdminDashboard() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-2xl border border-white/30 bg-white/35 p-4">
+            <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
               <div className="text-xs font-semibold text-slate-700">Approval queue</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
                 {totals.queue}
@@ -432,7 +433,7 @@ export default function AdminDashboard() {
               <div className="mt-1 text-xs text-slate-600">Across all stages</div>
             </div>
 
-            <div className="rounded-2xl border border-white/30 bg-white/35 p-4">
+            <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
               <div className="text-xs font-semibold text-slate-700">Active merchants</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
                 {totals.active}
@@ -443,16 +444,16 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <Card className="rounded-2xl border-white/30 bg-white/45 backdrop-blur-xl shadow-sm shadow-amber-950/10">
+      <Card className="rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5">
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle className="text-base tracking-tight">Merchant registry</CardTitle>
-            <CardDescription>Search and inspect merchants across the gateway.</CardDescription>
+            <CardDescription className="text-[#6B7280]">Search and inspect merchants across the gateway.</CardDescription>
           </div>
           <div className="w-full md:w-80">
             <Input
               placeholder="Search by name, id, email…"
-              className="h-10 rounded-2xl border-white/30 bg-white/40"
+              className="h-10 rounded-2xl border-[#F1E7D0] bg-[#FFFDF7]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -464,9 +465,9 @@ export default function AdminDashboard() {
               <div
                 key={m.id}
                 className={cn(
-                  "rounded-2xl border border-white/30 bg-white/40 p-4",
-                  "shadow-sm shadow-amber-950/5 transition-all duration-200",
-                  "hover:-translate-y-0.5 hover:bg-white/55"
+                  "rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4",
+                  "shadow-sm shadow-black/5 transition-all duration-200",
+                  "hover:-translate-y-0.5 hover:bg-amber-50/30"
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -479,7 +480,7 @@ export default function AdminDashboard() {
                     className={cn(
                       "rounded-full",
                       m.status === "approved" || m.status === "active"
-                        ? "bg-emerald-50 text-emerald-700"
+                        ? "bg-blue-50 text-blue-700"
                         : m.status === "pending" || m.status === "branch_approved"
                         ? "bg-amber-50 text-amber-800"
                         : "bg-slate-100 text-slate-700"
@@ -502,7 +503,7 @@ export default function AdminDashboard() {
                     Txns: <span className="font-mono text-slate-700">{m._count?.transactions ?? 0}</span>
                   </div>
                   {m.status === "approved" && canApprove ? (
-                    <Button variant="outline" size="sm" className="h-8 rounded-2xl border-white/40 bg-white/45 hover:bg-white/65">
+                    <Button variant="outline" size="sm" className="h-8 rounded-2xl border-[#F1E7D0] bg-white hover:bg-amber-50/40">
                       Resend setup
                     </Button>
                   ) : null}
@@ -510,7 +511,7 @@ export default function AdminDashboard() {
               </div>
             ))}
             {filteredMerchants.length === 0 ? (
-              <div className="col-span-full rounded-2xl border border-dashed border-white/40 bg-white/30 p-10 text-center text-sm text-slate-600">
+              <div className="col-span-full rounded-2xl border border-dashed border-[#F1E7D0] bg-[#FFFDF7] p-10 text-center text-sm text-slate-600">
                 No merchants match your search.
               </div>
             ) : null}

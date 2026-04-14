@@ -4,12 +4,8 @@
 
 @layer components {
   .bg-app-main {
-    /* Warm honey-inspired gradient theme (subtle, premium) */
-    background:
-      radial-gradient(900px 480px at 16% 0%, rgba(248, 181, 19, 0.18) 0%, rgba(248, 181, 19, 0) 60%),
-      radial-gradient(700px 420px at 92% 18%, rgba(117, 67, 25, 0.16) 0%, rgba(117, 67, 25, 0) 58%),
-      linear-gradient(135deg, rgba(244, 219, 159, 0.42) 0%, rgba(248, 181, 19, 0.22) 45%, rgba(117, 67, 25, 0.16) 100%),
-      linear-gradient(180deg, #ffffff 0%, #fffaf0 100%);
+    /* Deprecated: large-surface gradient removed for readability */
+    background: #fffdf7;
   }
 }
 
@@ -17,40 +13,40 @@
   :root {
     /* Primary (Merchant): #f8b513 (Amber) -> 43 94% 52% */
     /* Gradient companion: #754319 (Copper Brown) -> ~29 65% 28% */
-    /* Background: #F0F2F4 (Cool Off-white) -> 210 15% 95% */
+    /* Background: warm off-white for readability (#FFFDF7) */
     /* Accent (Merchant): soft amber highlight */
-    --background: 210 15% 95%;
-    --foreground: 222 47% 11%;
+    --background: 45 100% 99%;
+    --foreground: 215 28% 17%; /* #1F2937 */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 215 28% 17%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 215 28% 17%;
     --primary: 43 94% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 47% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 40%;
-    --accent: 43 90% 90%;
-    --accent-foreground: 222 47% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary: 45 33% 97%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 45 25% 96%;
+    --muted-foreground: 220 9% 46%; /* #6B7280 */
+    --accent: 43 90% 92%;
+    --accent-foreground: 215 28% 17%;
+    --destructive: 0 72% 58%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 43 94% 52%;
+    --border: 40 56% 88%; /* ~ #F1E7D0 */
+    --input: 40 56% 88%;
+    --ring: 43 94% 52%; /* amber focus */
     --radius: 0.75rem;
     --chart-1: 43 94% 52%;
     --chart-2: 29 65% 28%;
-    --chart-3: 222 47% 11%;
+    --chart-3: 215 28% 17%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --sidebar-background: 210 40% 98% / 0.5;
-    --sidebar-foreground: 215.4 16.3% 40.9%;
+    --sidebar-background: 45 33% 97%; /* light neutral, no gradient */
+    --sidebar-foreground: 220 9% 46%;
     --sidebar-primary: 43 94% 52%;
-    --sidebar-primary-foreground: 29 65% 28%;
-    --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-primary-foreground: 215 28% 17%;
+    --sidebar-accent: 43 90% 92%;
+    --sidebar-accent-foreground: 215 28% 17%;
+    --sidebar-border: 40 56% 88%;
     --sidebar-ring: 43 94% 52%;
   }
 

@@ -50,13 +50,13 @@ export function AdminTopbar({ className }: { className?: string }) {
     <header
       className={cn(
         "sticky top-0 z-40",
-        "border-b border-white/20",
-        "bg-white/35 backdrop-blur-xl",
+        "border-b border-[#F1E7D0]",
+        "bg-[#FFFDF7]/95 supports-[backdrop-filter]:backdrop-blur-sm",
         className
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-6">
-        <SidebarTrigger className="text-[#754319] hover:bg-white/50" />
+        <SidebarTrigger className="text-[#754319] hover:bg-amber-50/60" />
 
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold tracking-tight text-slate-900">
@@ -74,9 +74,9 @@ export function AdminTopbar({ className }: { className?: string }) {
               placeholder="Search merchants, users, transactions…"
               className={cn(
                 "h-10 pl-9",
-                "rounded-2xl border-white/30 bg-white/45 backdrop-blur",
-                "shadow-sm shadow-amber-900/5",
-                "focus-visible:ring-2 focus-visible:ring-[#f8b513]/40"
+                "rounded-2xl border-[#F1E7D0] bg-white",
+                "shadow-sm shadow-black/5",
+                "focus-visible:ring-2 focus-visible:ring-[#f8b513]/25"
               )}
             />
           </div>
@@ -86,19 +86,19 @@ export function AdminTopbar({ className }: { className?: string }) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-2xl bg-white/35 hover:bg-white/55"
+            className="h-10 w-10 rounded-2xl bg-white hover:bg-amber-50/50 border border-[#F1E7D0]"
             aria-label="Notifications"
           >
-            <Bell className="h-4 w-4 text-slate-700" />
+            <Bell className="h-4 w-4 text-[#6B7280]" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-2xl bg-white/35 hover:bg-white/55"
+            className="h-10 w-10 rounded-2xl bg-white hover:bg-amber-50/50 border border-[#F1E7D0]"
             aria-label="Quick settings"
           >
-            <Settings2 className="h-4 w-4 text-slate-700" />
+            <Settings2 className="h-4 w-4 text-[#6B7280]" />
           </Button>
 
           <DropdownMenu>
@@ -107,8 +107,8 @@ export function AdminTopbar({ className }: { className?: string }) {
                 type="button"
                 className={cn(
                   "group flex items-center gap-2 rounded-2xl",
-                  "bg-white/35 px-2 py-1.5 hover:bg-white/55",
-                  "border border-white/20 shadow-sm shadow-amber-900/5",
+                  "bg-white px-2 py-1.5 hover:bg-amber-50/50",
+                  "border border-[#F1E7D0] shadow-sm shadow-black/5",
                   "transition-colors"
                 )}
                 aria-label="Profile"
