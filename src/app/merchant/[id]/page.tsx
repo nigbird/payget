@@ -451,33 +451,56 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
-        <div className="flex items-start justify-between gap-4">
+    <div className="space-y-6">
+      {/* Hero Balance Section */}
+      <section className="relative overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 md:p-12 shadow-2xl">
+        {/* Honeycomb pattern overlay */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="honeycomb" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <polygon points="30,0 40,10 40,30 30,40 20,30 20,10" fill="none" stroke="currentColor" strokeWidth="0.5"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#honeycomb)" />
+          </svg>
+        </div>
+        
+        <div className="relative z-10 flex flex-col items-start justify-between gap-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Merchant Dashboard</p>
-            <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">Welcome back, {merchant.name}</h1>
-            <p className="mt-1 text-sm md:text-base text-[#754319]/70">A premium view of your requests, activity, and settlements.</p>
+            <p className="text-sm uppercase tracking-[0.2em] font-semibold text-[#3f210f]/70">Account Balance</p>
+            <h1 className="mt-3 text-5xl md:text-6xl font-black text-[#3f210f] tracking-tight">
+              {merchant?.balance?.toFixed(2) || "0.00"} ETB
+            </h1>
+            <p className="mt-2 text-base md:text-lg text-[#3f210f]/80">Available for withdrawal</p>
           </div>
-          <div className="hidden md:flex items-center gap-3">
+          
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <Button
               disabled={!isApproved}
-              className="h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-700/30 hover:-translate-y-0.5 transition-all"
+              className="h-12 px-6 rounded-2xl bg-white text-[#754319] font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
               onClick={() => setIsRequestPanelOpen(true)}
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Request Payment
+              <Plus className="mr-2 h-5 w-5" />
+              Push Payment
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 px-6 rounded-2xl border-white/40 text-white hover:bg-white/10 font-bold shadow-lg"
+              onClick={() => setIsRequestPanelOpen(true)}
+            >
+              Generate Link
             </Button>
           </div>
         </div>
       </section>
 
       {!isApproved && (
-        <Card className={`mt-4 rounded-3xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"}`}>
-          <CardContent className="relative p-4">
-                    <div className="relative flex items-start justify-between">
-              {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />}
-              <div>
+        <Card className={`rounded-2xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"} shadow-md`}>
+          <CardContent className="relative p-5">
+            <div className="relative flex items-start justify-between">
+              {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />}
+              <div className="ml-3 flex-1">
                 <p className="font-semibold text-sm">Account status: {merchant.status}</p>
                 <p className="text-xs text-muted-foreground">
                   {isPending ? "Payment requests unlock once your account is approved." : merchant.rejectionReason || "Application requires updates."}
@@ -488,22 +511,23 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+      {/* Key Metrics */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {metricCards.map((item) => {
           const Icon = item.icon
           return (
             <Card
               key={item.title}
-              className="overflow-hidden rounded-3xl border-white/60 shadow-md backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
+              className="overflow-hidden rounded-2xl border border-white/50 shadow-lg backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
             >
-              <CardContent className="relative p-5 h-full flex items-center justify-between gap-3">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#754319]/70">{item.title}</p>
-                  <p className="mt-1 text-2xl font-black text-[#5b371f]">{item.value}</p>
-                  <p className="mt-0.5 text-[10px] text-[#754319]/60 font-semibold">{item.hint}</p>
+              <CardContent className="relative p-6 h-full flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#754319]/70">{item.title}</p>
+                  <p className="text-3xl font-black text-[#5b371f]">{item.value}</p>
+                  <p className="text-xs text-[#754319]/60 font-medium">{item.hint}</p>
                 </div>
-                <div className="shrink-0 p-2.5 rounded-2xl bg-white/90 shadow-sm border border-white/40 group-hover:scale-110 transition-transform">
-                  <Icon className="h-4 w-4 text-[#754319]" />
+                <div className="shrink-0 p-3 rounded-xl bg-white/80 shadow-sm border border-white/40 transition-transform">
+                  <Icon className="h-5 w-5 text-[#754319]" />
                 </div>
               </CardContent>
             </Card>
@@ -511,65 +535,61 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         })}
       </section>
 
-      <section className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <Card className="xl:col-span-3 rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm">
-          <CardContent className="p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="font-semibold text-[#5b371f] text-lg">Recent Activity</h2>
-                <p className="text-xs text-[#754319]/70">{pendingRequests.length} pending requests, {todayActivity.length} today</p>
+      {/* Recent Activity */}
+      <section className="rounded-2xl border border-white/50 bg-white/70 shadow-lg backdrop-blur-sm p-6">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="font-bold text-xl text-[#5b371f]">Recent Activity</h2>
+            <p className="text-sm text-[#754319]/70 mt-1">{pendingRequests.length} pending • {todayActivity.length} today</p>
+          </div>
+          <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-semibold text-[#754319] hover:text-[#5b371f] transition-colors">
+            View All <ArrowUpRight className="ml-1 h-4 w-4" />
+          </Link>
+        </div>
+        <div className="space-y-3">
+          {recentTransactions.map((tx) => (
+            <div key={tx.id} className="group flex items-center justify-between rounded-xl border border-white/70 bg-white/80 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-[#5b371f]">{tx.description}</p>
+                <p className="text-xs text-[#754319]/70 mt-1">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
               </div>
-              <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-medium text-[#754319]">
-                View All Transactions <ArrowUpRight className="ml-1 h-4 w-4" />
-              </Link>
-            </div>
-            <div className="space-y-2">
-              {recentTransactions.map((tx) => (
-                <div key={tx.id} className="group flex items-center justify-between rounded-2xl border border-white/70 bg-white/80 p-3 transition-all hover:-translate-y-0.5 hover:shadow-md">
-                  <div>
-                    <p className="text-sm font-medium text-[#5b371f]">{tx.description}</p>
-                    <p className="text-xs text-[#754319]/70">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
-                  </div>
-                  <div className="text-right flex items-center gap-3">
-                    <div>
-                      <p className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</p>
-                      <Badge
-                        variant="outline"
-                        className={`mt-1 text-[10px] capitalize ${
-                          tx.status === "success"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status)
-                              ? "border-amber-200 bg-amber-50 text-amber-700"
-                              : "border-rose-200 bg-rose-50 text-rose-700"
-                        }`}
-                      >
-                        {tx.status}
-                      </Badge>
-                    </div>
-                    {tx.status !== "success" && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#754319]"
-                        onClick={() => handleResendPush(tx.id)}
-                        disabled={isResending === tx.id}
-                        title="Re-send USSD Push"
-                      >
-                        {isResending === tx.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <SendHorizontal className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
+              <div className="text-right flex items-center gap-4 ml-4">
+                <div>
+                  <p className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</p>
+                  <Badge
+                    variant="outline"
+                    className={`mt-1.5 text-xs capitalize font-medium ${
+                      tx.status === "success"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status)
+                          ? "border-amber-200 bg-amber-50 text-amber-700"
+                          : "border-rose-200 bg-rose-50 text-rose-700"
+                    }`}
+                  >
+                    {tx.status}
+                  </Badge>
                 </div>
-              ))}
-              {transactions.length === 0 && <p className="text-sm text-muted-foreground">No transactions yet.</p>}
+                {tx.status !== "success" && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 rounded-lg bg-amber-50 hover:bg-amber-100 text-[#754319] flex-shrink-0"
+                    onClick={() => handleResendPush(tx.id)}
+                    disabled={isResending === tx.id}
+                    title="Re-send USSD Push"
+                  >
+                    {isResending === tx.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <SendHorizontal className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
-
+          ))}
+          {transactions.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No transactions yet.</p>}
+        </div>
       </section>
 
       <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
