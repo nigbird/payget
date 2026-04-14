@@ -178,7 +178,7 @@ export default function Home() {
           <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg shadow-black/5">
             <CreditCard className="text-white w-6 h-6" />
           </div>
-          <span className="text-2xl font-bold font-headline tracking-tight text-white">NibTera</span>
+          <span className="text-2xl font-bold font-headline tracking-tight text-white">NibTera Merchants</span>
         </div>
 
         {/* Floating Frosted Cards with Golden Shimmer */}
@@ -220,11 +220,11 @@ export default function Home() {
         <div className="relative z-10 space-y-8">
           <div className="space-y-4">
             <h1 className="text-4xl lg:text-5xl font-bold font-headline text-white leading-tight tracking-tight">
-              Say goodbye to financial stress <br />
-              with the help of NibTera.
+              Fast and Easy <br />
+              Payment Gateway.
             </h1>
             <p className="text-lg text-white/80 max-w-md font-medium">
-              Take control of your finances with NibTera the quickest and simplest way.
+              Start processing payments instantly with NibTera Merchants, the quickest and simplest way to make your transactions seamless.
             </p>
           </div>
 
@@ -258,7 +258,7 @@ export default function Home() {
               {loginMode === 'email' ? (
                 <>
                   <div className="space-y-2.5">
-                    <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Email Address</Label>
+                    <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Username (Email or Phone)</Label>
                     <div className="relative group transition-all">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                       <Input 
@@ -300,26 +300,22 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" id="remember" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/20" />
-                      <label htmlFor="remember" className="text-sm font-medium text-slate-600">Remember information</label>
-                    </div>
                     <Link href="/forgot-password" title="Forgot password?" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
                       Forgot password?
                     </Link>
                   </div>
 
                   <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Sign In"}
                   </Button>
 
-                  <div className="flex justify-center">
+                  <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => setLoginMode('sales')}
                       className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
                     >
-                      Use Sales Access Instead
+                      Sales Login
                     </button>
                   </div>
                 </>
@@ -384,13 +380,12 @@ export default function Home() {
               )}
             </form>
 
-            <div className="text-center pt-4">
-              <p className="text-sm font-medium text-slate-600">
-                Don't have an account?{" "}
-                <Link href="/register" className="text-primary font-bold hover:underline">
-                  Sign up
+            <div className="text-center pt-4 space-y-4">
+              <Button variant="outline" className="w-full h-12 border-primary text-primary hover:bg-primary/5 rounded-xl font-bold" asChild>
+                <Link href="/register">
+                  Register as New Merchant <ArrowRight className="ml-2 w-4 h-4" />
                 </Link>
-              </p>
+              </Button>
             </div>
           </div>
         </main>
