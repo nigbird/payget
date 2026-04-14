@@ -17,9 +17,9 @@ export async function PATCH(
     const body = await request.json();
 
     // Check for user management permission
-    const canManage = await hasPermission('USER_MANAGE');
+    const canManage = await hasPermission('USER_CREATE');
     if (!canManage) {
-      return NextResponse.json({ error: 'Permission denied: USER_MANAGE required' }, { status: 403 });
+      return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
 
     // Prepare update data
@@ -57,9 +57,9 @@ export async function DELETE(
     const { id } = await params;
 
     // Check for user management permission
-    const canManage = await hasPermission('USER_MANAGE');
+    const canManage = await hasPermission('USER_CREATE');
     if (!canManage) {
-      return NextResponse.json({ error: 'Permission denied: USER_MANAGE required' }, { status: 403 });
+      return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
 
     // We prefer deactivation over hard deletion for audit purposes

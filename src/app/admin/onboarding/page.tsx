@@ -365,27 +365,14 @@ export default function MerchantOnboardingPage() {
   }
 
   return (
-    <SidebarProvider>
-      <SidebarNav />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-white/50 bg-white/70 backdrop-blur-md px-4 sticky top-0 z-50">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <div className="flex items-center gap-2">
-            <UserPlus className="text-[#754319] w-5 h-5" />
-            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight">Merchant Onboarding</h1>
-          </div>
-        </header>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight text-slate-950">Merchant onboarding</h2>
+        <p className="text-sm text-slate-600">Review submitted merchants and manage onboarding in one place.</p>
+      </div>
 
-        <main className="flex-1 overflow-auto p-6 bg-slate-50/50">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-lg font-bold text-slate-900">Onboarding Queue</h2>
-                <p className="text-sm text-muted-foreground">Review submitted merchants and manage onboarding in one place.</p>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <div className="relative w-full sm:w-72">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -627,7 +614,7 @@ export default function MerchantOnboardingPage() {
                                   <Input 
                                     value={formData.district} 
                                     readOnly 
-                                    className="pl-10 bg-slate-50 border-slate-200 font-medium" 
+                                    className="pl-10 bg-primary/5 border-primary/10 font-medium" 
                                   />
                                 </div>
                               </div>
@@ -638,7 +625,7 @@ export default function MerchantOnboardingPage() {
                                   <Input 
                                     value={formData.branchName} 
                                     readOnly 
-                                    className="pl-10 bg-slate-50 border-slate-200 font-medium" 
+                                    className="pl-10 bg-primary/5 border-primary/10 font-medium" 
                                   />
                                 </div>
                               </div>
@@ -735,7 +722,7 @@ export default function MerchantOnboardingPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredSubmissions.map((s) => (
-                      <TableRow key={s.id} className="bg-white group hover:bg-slate-50 transition-colors">
+                      <TableRow key={s.id} className="bg-white group hover:bg-primary/5 transition-colors">
                         <TableCell className="pl-6">
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900">{s.name}</span>
@@ -965,9 +952,6 @@ export default function MerchantOnboardingPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    </div>
   )
 }

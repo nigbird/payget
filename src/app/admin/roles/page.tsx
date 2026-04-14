@@ -215,26 +215,13 @@ export default function RoleManagementPage() {
   }, {} as Record<string, Permission[]>)
 
   return (
-    <SidebarProvider>
-      <SidebarNav />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-white/50 bg-white/70 backdrop-blur-md px-4 sticky top-0 z-50">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <div className="flex items-center gap-2">
-            <Shield className="text-[#754319] w-5 h-5" />
-            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight text-white">Role Management</h1>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto p-6 bg-slate-50/50">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">System Roles</h2>
-                <p className="text-muted-foreground">Manage dynamic roles and granular permissions for your team.</p>
-              </div>
-              {canCreateRole && (
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight text-slate-950">Permission governance</h2>
+        <p className="text-sm text-slate-600">Manage dynamic roles and granular permissions for your team.</p>
+      </div>
+      <div className="flex justify-end">
+        {canCreateRole && (
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
@@ -323,7 +310,7 @@ export default function RoleManagementPage() {
                   </DialogContent>
                 </Dialog>
               )}
-            </div>
+      </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {roles.map((role) => {
@@ -335,7 +322,7 @@ export default function RoleManagementPage() {
                     <CardHeader className="bg-white pb-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
-                          <div className="p-2 bg-slate-100 rounded-lg">
+                          <div className="p-2 bg-primary/5 rounded-lg border border-primary/10">
                             <ShieldCheck className="w-5 h-5 text-primary" />
                           </div>
                           {(canEditRole || canDeleteRole) && (
@@ -389,7 +376,7 @@ export default function RoleManagementPage() {
                             </Badge>
                           ))}
                           {rolePerms.length > 3 && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-50">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/5 border-primary/10">
                               +{rolePerms.length - 3} more
                             </Badge>
                           )}
@@ -570,9 +557,6 @@ export default function RoleManagementPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    </div>
   )
 }

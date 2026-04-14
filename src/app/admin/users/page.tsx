@@ -251,26 +251,13 @@ export default function UserManagementPage() {
   const canCreateUser = isSuperAdmin || userPermissions.includes('USER_CREATE')
 
   return (
-    <SidebarProvider>
-      <SidebarNav />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-white/50 bg-white/70 backdrop-blur-md px-4 sticky top-0 z-50">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <div className="flex items-center gap-2">
-            <Users className="text-[#754319] w-5 h-5" />
-            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight">User Management</h1>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto p-6 bg-slate-50/50">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">User Accounts</h2>
-                <p className="text-muted-foreground">Manage administrative and merchant user access levels.</p>
-              </div>
-              {canCreateUser && (
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight text-slate-950">Staff management</h2>
+        <p className="text-sm text-slate-600">Manage administrative and merchant user access levels.</p>
+      </div>
+      <div className="flex justify-end">
+        {canCreateUser && (
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
@@ -327,7 +314,7 @@ export default function UserManagementPage() {
                           <button
                             type="button"
                             onClick={() => setNewUserPasswordVisible((visible) => !visible)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-primary/10 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
                             aria-label={newUserPasswordVisible ? "Hide password" : "Show password"}
                           >
                             {newUserPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -416,7 +403,7 @@ export default function UserManagementPage() {
                   </DialogContent>
                 </Dialog>
               )}
-            </div>
+      </div>
 
             <Card className="border-none shadow-sm overflow-hidden">
               <CardHeader className="bg-white border-b space-y-4">
@@ -435,7 +422,7 @@ export default function UserManagementPage() {
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50/50">
+                    <TableRow className="bg-primary/5">
                       <TableHead className="pl-6">User</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Organization</TableHead>
@@ -446,7 +433,7 @@ export default function UserManagementPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user) => (
-                      <TableRow key={user.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <TableRow key={user.id} className="group hover:bg-primary/5 transition-colors">
                         <TableCell className="pl-6 py-4">
                           <div className="flex flex-col">
                             <span className={`font-medium ${user.status === 'DEACTIVATED' ? 'text-muted-foreground line-through' : ''}`}>
@@ -465,7 +452,7 @@ export default function UserManagementPage() {
                             {user.merchant ? (
                               <span className="text-sm font-medium">{user.merchant.name}</span>
                             ) : user.isHeadOffice ? (
-                              <Badge variant="outline" className="w-fit bg-slate-100 text-slate-700 border-slate-200">Head Office</Badge>
+                              <Badge variant="outline" className="w-fit bg-primary/10 text-primary-foreground border-primary/20">Head Office</Badge>
                             ) : (
                               <div className="flex flex-col gap-0.5">
                                 <span className="text-xs font-semibold flex items-center gap-1">
@@ -519,11 +506,8 @@ export default function UserManagementPage() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
-        </main>
-
-        {/* Edit User Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Edit User</DialogTitle>
@@ -623,7 +607,6 @@ export default function UserManagementPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </SidebarInset>
-    </SidebarProvider>
+    </div>
   )
 }

@@ -173,31 +173,11 @@ function MerchantReviewContent() {
   }
 
   return (
-    <SidebarProvider>
-      <SidebarNav />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-white/50 bg-white/70 backdrop-blur-md px-4 sticky top-0 z-50">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="text-[#754319] w-5 h-5" />
-            <h1 className="text-lg font-bold text-[#5b371f] font-headline tracking-tight">Review & Approvals</h1>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto p-6 bg-slate-50/50">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">Centralized Review Queue</h2>
-                <p className="text-muted-foreground">Approve new registrations, adjust limits, and perform final audits.</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="bg-white gap-2">
-                  <Filter className="w-4 h-4" /> Filter Queue
-                </Button>
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight text-slate-950">Review & approvals</h2>
+        <p className="text-sm text-slate-600">Approve registrations, adjust limits, and perform final audits.</p>
+      </div>
 
             <Card className="border-none shadow-sm overflow-hidden">
               <CardContent className="p-0">
@@ -213,8 +193,8 @@ function MerchantReviewContent() {
                   </TableHeader>
                   <TableBody>
                     {pending.map((m) => (
-                      <TableRow key={m.id} className="bg-white group hover:bg-slate-50 transition-colors">
-                        <TableCell className="pl-6">
+                      <TableRow key={m.id} className="bg-white group hover:bg-primary/5 transition-colors">
+                        <TableCell className="py-4 pl-6">
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900">{m.name}</span>
                             <span className="text-[10px] font-mono text-muted-foreground uppercase">{m.id}</span>
@@ -222,8 +202,8 @@ function MerchantReviewContent() {
                         </TableCell>
                         <TableCell>{getStatusBadge(m.status)}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 text-xs">
-                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold">
+                          <div className="flex items-center gap-3 text-xs">
+                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
                               {m.contactName.charAt(0)}
                             </div>
                             <span>{m.contactName}</span>
@@ -261,10 +241,8 @@ function MerchantReviewContent() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Unified Review Modal */}
-          <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+      {/* Unified Review Modal */}
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-xl">
@@ -296,7 +274,7 @@ function MerchantReviewContent() {
                       <h4 className="text-sm font-bold flex items-center gap-2">
                         <FileCheck className="w-4 h-4 text-primary" /> Business Profile
                       </h4>
-                      <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <p className="text-sm text-slate-600 bg-primary/5 p-3 rounded-lg border border-primary/10">
                         {selectedMerchant.businessDescription}
                       </p>
                       <div className="grid grid-cols-2 gap-4 text-xs">
@@ -470,9 +448,7 @@ function MerchantReviewContent() {
               )}
             </DialogContent>
           </Dialog>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    </div>
   )
 }
 

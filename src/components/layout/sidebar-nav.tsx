@@ -6,15 +6,13 @@ import {
   LayoutDashboard, 
   UserPlus, 
   ShieldCheck, 
-  Settings, 
   CreditCard, 
-  History,
   Activity,
   LogOut,
-  BadgeCheck,
   Shield,
   Users,
-  Building2
+  Building2,
+  Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { 
@@ -60,17 +58,29 @@ export function SidebarNav() {
   const merchantId = (session?.user as any)?.merchantId
 
   return (
-    <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className="p-4 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <CreditCard className="text-primary-foreground w-5 h-5" />
+    <Sidebar
+      variant="floating"
+      collapsible="icon"
+      className={cn(
+        "border-0",
+        "[&_[data-sidebar=sidebar]]:bg-white/35 [&_[data-sidebar=sidebar]]:backdrop-blur-xl",
+        "[&_[data-sidebar=sidebar]]:border [&_[data-sidebar=sidebar]]:border-white/25",
+        "[&_[data-sidebar=sidebar]]:shadow-sm [&_[data-sidebar=sidebar]]:shadow-amber-900/10"
+      )}
+    >
+      <SidebarHeader className="p-3 flex items-center gap-2">
+        <div className="w-9 h-9 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_50%,#754319_115%)] flex items-center justify-center shadow-sm shadow-amber-900/20">
+          <Sparkles className="text-white w-5 h-5" />
         </div>
-        <span className="font-bold text-xl tracking-tight text-white group-data-[collapsible=icon]:hidden">Finflow</span>
+        <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+          <div className="font-semibold tracking-tight text-slate-900">NibTera merchants</div>
+          <div className="text-[10px] text-slate-600">Admin console</div>
+        </div>
       </SidebarHeader>
       <SidebarSeparator />
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-white/40 px-4 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-sidebar-foreground/50 px-4 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="px-2">
               {filteredMenuItems.map((item) => (
@@ -79,6 +89,12 @@ export function SidebarNav() {
                     asChild 
                     isActive={pathname === item.href}
                     tooltip={item.name}
+                    className={cn(
+                      "rounded-2xl",
+                      "hover:bg-white/45 hover:text-slate-900",
+                      "data-[active=true]:bg-amber-200/55 data-[active=true]:text-[#754319]",
+                      "data-[active=true]:shadow-sm data-[active=true]:shadow-amber-900/10"
+                    )}
                   >
                     <Link href={item.href}>
                       <item.icon className="w-5 h-5" />
@@ -93,7 +109,7 @@ export function SidebarNav() {
 
         {merchantId && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="text-white/40 px-4 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-sidebar-foreground/50 px-4 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="px-2">
                 <SidebarMenuItem>
@@ -101,6 +117,12 @@ export function SidebarNav() {
                     asChild 
                     isActive={pathname === `/merchant/${merchantId}`}
                     tooltip="My Dashboard"
+                    className={cn(
+                      "rounded-2xl",
+                      "hover:bg-white/45 hover:text-slate-900",
+                      "data-[active=true]:bg-amber-200/55 data-[active=true]:text-[#754319]",
+                      "data-[active=true]:shadow-sm data-[active=true]:shadow-amber-900/10"
+                    )}
                   >
                     <Link href={`/merchant/${merchantId}`}>
                       <LayoutDashboard className="w-5 h-5" />
@@ -115,7 +137,7 @@ export function SidebarNav() {
 
         {filteredAdminItems.length > 0 && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="text-white/40 px-4 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-sidebar-foreground/50 px-4 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="px-2">
                 {filteredAdminItems.map((item) => (
@@ -124,6 +146,12 @@ export function SidebarNav() {
                       asChild 
                       isActive={pathname === item.href}
                       tooltip={item.name}
+                      className={cn(
+                        "rounded-2xl",
+                        "hover:bg-white/45 hover:text-slate-900",
+                        "data-[active=true]:bg-amber-200/55 data-[active=true]:text-[#754319]",
+                        "data-[active=true]:shadow-sm data-[active=true]:shadow-amber-900/10"
+                      )}
                     >
                       <Link href={item.href}>
                         <item.icon className="w-5 h-5" />
@@ -139,20 +167,20 @@ export function SidebarNav() {
       </SidebarContent>
       <SidebarFooter className="p-4 space-y-4">
         {session?.user && (
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-white/5 border border-white/10 group-data-[collapsible=icon]:justify-center">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-2xl bg-white/35 border border-white/25 group-data-[collapsible=icon]:justify-center">
+            <div className="w-8 h-8 rounded-2xl bg-[#f8b513]/15 flex items-center justify-center shrink-0">
               <UserIcon className="w-4 h-4 text-primary" />
             </div>
             <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-semibold text-white truncate">{session.user.name || 'User'}</span>
-              <span className="text-[10px] text-white/50 truncate">{(session.user as any).role || 'Staff'}</span>
+              <span className="text-sm font-semibold text-slate-900 truncate">{session.user.name || 'User'}</span>
+              <span className="text-[10px] text-slate-600 truncate">{(session.user as any).role || 'Staff'}</span>
             </div>
           </div>
         )}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton 
-              className="text-red-400 hover:text-red-300"
+              className="rounded-2xl text-red-700 hover:text-red-800 hover:bg-red-50/70"
               onClick={() => signOut({ callbackUrl: "/" })}
             >
               <LogOut className="w-5 h-5" />
