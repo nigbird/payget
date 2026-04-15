@@ -322,14 +322,14 @@ export default function AdminDashboard() {
               </div>
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     className="rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
                   >
                     <Settings2 className="mr-2 h-4 w-4" />
                     Manage
-                  </Button>
+                  </Button> */}
                 </SheetTrigger>
                 <SheetContent className="w-full sm:max-w-md">
                   <SheetHeader>

@@ -84,7 +84,7 @@ export function AdminTopbar({ className }: { className?: string }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
+          {/* <Button
             variant="ghost"
             size="icon"
             className="h-10 w-10 rounded-2xl bg-white hover:bg-amber-50/50 border border-[#F1E7D0]"
@@ -100,7 +100,7 @@ export function AdminTopbar({ className }: { className?: string }) {
             aria-label="Quick settings"
           >
             <Settings2 className="h-4 w-4 text-[#6B7280]" />
-          </Button>
+          </Button> */}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
