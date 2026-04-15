@@ -25,6 +25,7 @@ const routeTitles: Array<{ href: string; title: string; subtitle?: string }> = [
   { href: "/admin/review", title: "Review & Approvals", subtitle: "Compliance queue and activation" },
   { href: "/admin/users", title: "Staff Management", subtitle: "Teams, access, and assignments" },
   { href: "/admin/roles", title: "Permission Governance", subtitle: "Roles and granular permissions" },
+  { href: "/admin/configuration", title: "Master Data Config", subtitle: "Manage dropdown values across the system" },
 ]
 
 export function AdminTopbar({ className }: { className?: string }) {

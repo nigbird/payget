@@ -82,6 +82,8 @@ export default function MerchantOnboardingPage() {
     allowedFileTypes: [],
     maxFileSizeMB: 5
   })
+  const [categories, setCategories] = useState<{ name: string; code?: string; active: boolean }[]>([])
+  const [businessTypes, setBusinessTypes] = useState<{ name: string; code?: string; active: boolean }[]>([])
   const [submissions, setSubmissions] = useState<Merchant[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
@@ -155,13 +157,19 @@ export default function MerchantOnboardingPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [configRes, merchantRes] = await Promise.all([
+        const [configRes, merchantRes, masterDataRes] = await Promise.all([
           fetch('/api/system-config'),
-          fetch('/api/merchants')
+          fetch('/api/merchants'),
+          fetch('/api/master-data')
         ])
-        
+
         if (configRes.ok) setSystemConfig(await configRes.json())
         if (merchantRes.ok) setSubmissions(await merchantRes.json())
+        if (masterDataRes.ok) {
+          const masterData = await masterDataRes.json()
+          setCategories(masterData.categories || [])
+          setBusinessTypes(masterData.businessTypes || [])
+        }
       } catch (error) {
         console.error('Failed to fetch data:', error)
       }
@@ -493,11 +501,18 @@ export default function MerchantOnboardingPage() {
                                   <Select onValueChange={(v) => handleSelectChange('category', v)} value={formData.category}>
                                     <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="E-commerce">E-commerce</SelectItem>
-                                      <SelectItem value="Retail">Retail</SelectItem>
-                                      <SelectItem value="Services">Services</SelectItem>
-                                      <SelectItem value="Gaming">Gaming/Digital</SelectItem>
-                                      <SelectItem value="Education">Education</SelectItem>
+                                      {categories.filter(c => c.active).map((cat, i) => (
+                                        <SelectItem key={i} value={cat.name}>{cat.name}</SelectItem>
+                                      ))}
+                                      {categories.length === 0 && (
+                                        <>
+                                          <SelectItem value="E-commerce">E-commerce</SelectItem>
+                                          <SelectItem value="Retail">Retail</SelectItem>
+                                          <SelectItem value="Services">Services</SelectItem>
+                                          <SelectItem value="Gaming">Gaming/Digital</SelectItem>
+                                          <SelectItem value="Education">Education</SelectItem>
+                                        </>
+                                      )}
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -506,10 +521,17 @@ export default function MerchantOnboardingPage() {
                                   <Select onValueChange={(v) => handleSelectChange('businessType', v)} value={formData.businessType}>
                                     <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
-                                      <SelectItem value="Private Limited">Private Limited</SelectItem>
-                                      <SelectItem value="Public Limited">Public Limited</SelectItem>
-                                      <SelectItem value="Partnership">Partnership</SelectItem>
+                                      {businessTypes.filter(bt => bt.active).map((bt, i) => (
+                                        <SelectItem key={i} value={bt.name}>{bt.name}</SelectItem>
+                                      ))}
+                                      {businessTypes.length === 0 && (
+                                        <>
+                                          <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
+                                          <SelectItem value="Private Limited">Private Limited</SelectItem>
+                                          <SelectItem value="Public Limited">Public Limited</SelectItem>
+                                          <SelectItem value="Partnership">Partnership</SelectItem>
+                                        </>
+                                      )}
                                     </SelectContent>
                                   </Select>
                                 </div>

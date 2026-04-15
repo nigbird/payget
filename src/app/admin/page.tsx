@@ -24,7 +24,6 @@ import {
   TrendingUp,
   UserPlus,
   Users,
-  Zap,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -62,12 +61,14 @@ function MetricCard({
   hint,
   trend,
   icon,
+  highlight = false,
 }: {
   title: string
   value: string
   hint: string
   trend?: { direction: "up" | "down"; label: string }
   icon: React.ReactNode
+  highlight?: boolean
 }) {
   const TrendIcon = trend?.direction === "down" ? ArrowDownRight : ArrowUpRight
   const trendColor =
@@ -76,10 +77,8 @@ function MetricCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden rounded-2xl",
-        "bg-white",
-        "border border-[#F1E7D0]",
-        "shadow-sm shadow-black/5",
+        "relative overflow-hidden rounded-[20px] border border-[#F1E7D0] shadow-sm shadow-black/5",
+        highlight ? "card-liquid-honey" : "card-soft-cream",
         "transition-all duration-200",
         "hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10"
       )}
@@ -93,7 +92,14 @@ function MetricCard({
             {value}
           </div>
         </div>
-        <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-2 text-[#754319] shadow-sm shadow-black/5">
+        <div
+          className={cn(
+            "rounded-[18px] border p-2 text-[#754319] shadow-sm shadow-black/5",
+            highlight
+              ? "border-[#754319]/10 bg-white/70 text-[#4e2a12]"
+              : "border-[#F1E7D0] bg-[#FFFDF7]"
+          )}
+        >
           {icon}
         </div>
       </CardHeader>
@@ -171,7 +177,11 @@ export default function AdminDashboard() {
   const totals = useMemo(() => {
     const active = merchants.filter((m) => m.status === "approved" || m.status === "active").length
     const queue = merchants.filter((m) => m.status === "pending" || m.status === "branch_approved").length
-    return { active, queue }
+    const activeUsers = merchants.reduce((sum, merchant) => {
+      const teamCount = Number(merchant?._count?.users ?? merchant?.users?.length ?? 0)
+      return sum + teamCount
+    }, 0)
+    return { active, queue, activeUsers }
   }, [merchants])
 
   const handleSaveConfig = () => {
@@ -182,9 +192,9 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-[#fffdf9]">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="group rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
+        <Card className="card-soft-cream group rounded-[20px] transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2 text-[#1F2937]">
               <UserPlus className="h-5 w-5 text-[#754319]" />
@@ -195,8 +205,7 @@ export default function AdminDashboard() {
           <CardContent className="pt-2">
             <Link href="/admin/onboarding">
               <Button
-                variant="outline"
-                className="w-full justify-between rounded-2xl border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
+                className="button-honey-solid w-full justify-between rounded-[18px] px-4"
               >
                 Open onboarding portal
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -205,7 +214,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="group rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
+        <Card className="card-soft-cream group rounded-[20px] transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2 text-[#1F2937]">
               <ShieldCheck className="h-5 w-5 text-[#754319]" />
@@ -216,8 +225,7 @@ export default function AdminDashboard() {
           <CardContent className="pt-2">
             <Link href="/admin/review">
               <Button
-                variant="outline"
-                className="w-full justify-between rounded-2xl border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
+                className="button-honey-solid w-full justify-between rounded-[18px] px-4"
               >
                 Open review queue
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -234,6 +242,7 @@ export default function AdminDashboard() {
           hint="Warm seasonality holding steady"
           trend={{ direction: "up", label: "+18.4%" }}
           icon={<TrendingUp className="h-4 w-4" />}
+          highlight
         />
         <MetricCard
           title="Merchants"
@@ -241,18 +250,20 @@ export default function AdminDashboard() {
           hint={`${totals.active} active`}
           trend={{ direction: "up", label: "+2.1%" }}
           icon={<Users className="h-4 w-4" />}
+          highlight
         />
         <MetricCard
-          title="System uptime"
-          value="99.98%"
-          hint="Normal operations"
-          trend={{ direction: "up", label: "+0.02%" }}
-          icon={<Zap className="h-4 w-4" />}
+          title="Active system users"
+          value={`${totals.activeUsers}`}
+          hint="Across merchant teams"
+          trend={{ direction: "up", label: "+4.8%" }}
+          icon={<Users className="h-4 w-4" />}
+          highlight
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5">
+        <Card className="card-soft-cream lg:col-span-2 rounded-[20px]">
           <CardHeader>
             <CardTitle className="text-base tracking-tight">Processing insights</CardTitle>
             <CardDescription className="text-[#6B7280]">Transactional volume with smooth curves and warm fills.</CardDescription>
@@ -279,7 +290,7 @@ export default function AdminDashboard() {
                     if (!active || !payload?.length) return null
                     const v = Number(payload[0]?.value ?? 0)
                     return (
-                      <div className="rounded-2xl border border-[#F1E7D0] bg-white px-3 py-2 text-xs shadow-md shadow-black/10">
+                      <div className="rounded-[18px] border border-[#F1E7D0] bg-white px-3 py-2 text-xs shadow-md shadow-black/10">
                         <div className="font-semibold text-[#1F2937]">{label}</div>
                         <div className="mt-0.5 text-[#6B7280]">
                           Volume: <span className="font-mono font-semibold text-[#1F2937]">{v.toLocaleString()}</span>
@@ -302,7 +313,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5">
+        <Card className="card-soft-cream rounded-[20px]">
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
@@ -314,7 +325,7 @@ export default function AdminDashboard() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="rounded-2xl border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
+                    className="rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7] hover:bg-amber-50/40"
                   >
                     <Settings2 className="mr-2 h-4 w-4" />
                     Manage
@@ -355,7 +366,7 @@ export default function AdminDashboard() {
                         value={config.allowedFileTypes}
                         onChange={(e) => setConfig((p) => ({ ...p, allowedFileTypes: e.target.value }))}
                         className={cn(
-                          "rounded-2xl",
+                          "rounded-[18px]",
                           allowedTypesValidation.invalid.length ? "border-rose-300 focus-visible:ring-rose-300/40" : ""
                         )}
                         placeholder=".pdf, .png, .jpg"
@@ -384,13 +395,13 @@ export default function AdminDashboard() {
                           onChange={(e) =>
                             setConfig((p) => ({ ...p, resetTimeoutSeconds: Number(e.target.value || 0) }))
                           }
-                          className="w-32 rounded-2xl"
+                          className="w-32 rounded-[18px]"
                         />
                         <div className="text-xs text-slate-600">seconds</div>
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
+                    <div className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-sm font-semibold text-slate-900">Require 2FA</div>
@@ -403,7 +414,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
+                    <div className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-sm font-semibold text-slate-900">Maintenance mode</div>
@@ -416,7 +427,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <Button className="w-full rounded-2xl" onClick={handleSaveConfig}>
+                    <Button className="w-full rounded-[18px]" onClick={handleSaveConfig}>
                       Save changes
                     </Button>
                   </div>
@@ -425,7 +436,7 @@ export default function AdminDashboard() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
+            <div className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
               <div className="text-xs font-semibold text-slate-700">Approval queue</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
                 {totals.queue}
@@ -433,7 +444,7 @@ export default function AdminDashboard() {
               <div className="mt-1 text-xs text-slate-600">Across all stages</div>
             </div>
 
-            <div className="rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4">
+            <div className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
               <div className="text-xs font-semibold text-slate-700">Active merchants</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
                 {totals.active}
@@ -444,7 +455,7 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <Card className="rounded-2xl border border-[#F1E7D0] bg-white shadow-sm shadow-black/5">
+      <Card className="card-soft-cream rounded-[20px]">
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle className="text-base tracking-tight">Merchant registry</CardTitle>
@@ -453,7 +464,7 @@ export default function AdminDashboard() {
           <div className="w-full md:w-80">
             <Input
               placeholder="Search by name, id, email…"
-              className="h-10 rounded-2xl border-[#F1E7D0] bg-[#FFFDF7]"
+              className="h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -465,7 +476,7 @@ export default function AdminDashboard() {
               <div
                 key={m.id}
                 className={cn(
-                  "rounded-2xl border border-[#F1E7D0] bg-[#FFFDF7] p-4",
+                  "rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4",
                   "shadow-sm shadow-black/5 transition-all duration-200",
                   "hover:-translate-y-0.5 hover:bg-amber-50/30"
                 )}
@@ -503,7 +514,7 @@ export default function AdminDashboard() {
                     Txns: <span className="font-mono text-slate-700">{m._count?.transactions ?? 0}</span>
                   </div>
                   {m.status === "approved" && canApprove ? (
-                    <Button variant="outline" size="sm" className="h-8 rounded-2xl border-[#F1E7D0] bg-white hover:bg-amber-50/40">
+                    <Button variant="outline" size="sm" className="h-8 rounded-[16px] border-[#F1E7D0] bg-white hover:bg-amber-50/40">
                       Resend setup
                     </Button>
                   ) : null}
@@ -511,7 +522,7 @@ export default function AdminDashboard() {
               </div>
             ))}
             {filteredMerchants.length === 0 ? (
-              <div className="col-span-full rounded-2xl border border-dashed border-[#F1E7D0] bg-[#FFFDF7] p-10 text-center text-sm text-slate-600">
+              <div className="col-span-full rounded-[20px] border border-dashed border-[#F1E7D0] bg-[#FFFDF7] p-10 text-center text-sm text-slate-600">
                 No merchants match your search.
               </div>
             ) : null}

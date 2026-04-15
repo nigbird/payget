@@ -4,75 +4,171 @@
 
 @layer components {
   .bg-app-main {
-    @apply bg-[linear-gradient(135deg,#fff9ef_0%,#fdf1d4_45%,#fbe8bc_100%)];
+    background: #fffdf9;
   }
 
-  /* Premium Honey Glassmorphism Card - Liquid Gold Effect */
-  .card-honey-glass {
-    background: linear-gradient(
-      145deg,
-      rgba(248, 181, 19, 0.15) 0%,
-      rgba(117, 67, 25, 0.25) 50%,
-      rgba(248, 181, 19, 0.1) 100%
-    );
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(248, 181, 19, 0.3);
+  .card-soft-cream {
+    background: #fffbf2;
+    border: 1px solid rgba(117, 67, 25, 0.12);
     box-shadow:
-      0 8px 32px rgba(117, 67, 25, 0.12),
-      0 2px 8px rgba(248, 181, 19, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      0 10px 30px rgba(117, 67, 25, 0.05),
+      0 2px 10px rgba(117, 67, 25, 0.03);
   }
 
-  /* Thick Liquid Honey Gradient */
-  .card-honey-thick {
-    background: linear-gradient(
-      180deg,
-      #FFF8E7 0%,
-      #F8E8C8 20%,
-      #F0D4A8 40%,
-      #E8C088 60%,
-      #DCAF70 80%,
-      #C99A58 100%
-    );
-    border: 1px solid rgba(117, 67, 25, 0.2);
+  .card-liquid-honey {
+    background: linear-gradient(135deg, #fffdf9 0%, #e7b86a 58%, #c7893a 100%);
+    border: 1px solid rgba(117, 67, 25, 0.12);
     box-shadow:
-      0 4px 24px rgba(117, 67, 25, 0.15),
-      0 2px 8px rgba(201, 154, 88, 0.1),
-      inset 0 2px 4px rgba(255, 255, 255, 0.6),
-      inset 0 -2px 4px rgba(117, 67, 25, 0.05);
+      0 14px 32px rgba(117, 67, 25, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
 
-  /* Amber Glow Card */
-  .card-amber-glow {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 248, 231, 0.95) 0%,
-      rgba(248, 220, 159, 0.9) 30%,
-      rgba(240, 196, 128, 0.85) 70%,
-      rgba(232, 176, 96, 0.9) 100%
-    );
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(248, 181, 19, 0.25);
+  .sidebar-warm-shell {
+    background: linear-gradient(180deg, #fffbf2 0%, #fff8ea 100%);
+    border-right: 1px solid rgba(117, 67, 25, 0.08);
+    box-shadow: 14px 0 40px rgba(117, 67, 25, 0.06);
+  }
+
+  .sidebar-proportional {
+    transition:
+      width 220ms ease,
+      padding 220ms ease,
+      gap 220ms ease,
+      transform 220ms ease,
+      opacity 180ms ease;
+  }
+
+  .sidebar-logo-orb {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 30% 30%, #fff6dc 0%, #f4db9f 58%, #e8b85d 100%);
     box-shadow:
-      0 8px 32px rgba(201, 154, 88, 0.15),
-      0 2px 16px rgba(248, 181, 19, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      inset 0 1px 1px rgba(255, 255, 255, 0.7),
+      0 10px 20px rgba(117, 67, 25, 0.12);
   }
 
-  /* Dark Luxury Sidebar Glass */
-  .sidebar-dark-glass {
-    background: linear-gradient(
-      180deg,
-      rgba(58, 35, 15, 0.95) 0%,
-      rgba(45, 28, 10, 0.98) 50%,
-      rgba(35, 20, 5, 0.99) 100%
-    );
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-right: 1px solid rgba(248, 181, 19, 0.15);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  .sidebar-logo-image {
+    width: 2.35rem;
+    height: 2.35rem;
+    object-fit: contain;
+    object-position: center;
+  }
+
+  .sidebar-hex-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    flex-shrink: 0;
+    color: #754319;
+    background: rgba(244, 219, 159, 0.34);
+    border: 1px solid rgba(117, 67, 25, 0.12);
+    clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+    transition:
+      transform 200ms ease,
+      background 200ms ease,
+      color 200ms ease,
+      box-shadow 200ms ease,
+      border-color 200ms ease;
+  }
+
+  .sidebar-hex-icon > svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    stroke-width: 2;
+  }
+
+  .sidebar-menu-item {
+    position: relative;
+    border-radius: 14px;
+    color: #754319;
+    transition:
+      background-color 200ms ease,
+      color 200ms ease,
+      box-shadow 200ms ease;
+  }
+
+  .sidebar-menu-item::before {
+    content: "";
+    position: absolute;
+    left: 0.35rem;
+    top: 50%;
+    width: 3px;
+    height: 56%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #f4db9f 0%, #f8b513 100%);
+    transform: translateY(-50%) scaleY(0);
+    transform-origin: center;
+    opacity: 0;
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+
+  .sidebar-menu-item:hover {
+    background: rgba(244, 219, 159, 0.18);
+    color: #754319;
+  }
+
+  .sidebar-menu-item[data-active="true"] {
+    background: rgba(244, 219, 159, 0.2);
+    color: #4e2a12;
+    box-shadow: inset 0 0 0 1px rgba(117, 67, 25, 0.06);
+  }
+
+  .sidebar-menu-item[data-active="true"]::before {
+    transform: translateY(-50%) scaleY(1);
+    opacity: 1;
+  }
+
+  .sidebar-menu-item[data-active="true"] .sidebar-hex-icon,
+  .sidebar-menu-item:hover .sidebar-hex-icon {
+    transform: translateY(-1px);
+  }
+
+  .sidebar-menu-item[data-active="true"] .sidebar-hex-icon {
+    color: #4e2a12;
+    background: linear-gradient(135deg, #f4db9f 0%, #f8b513 100%);
+    border-color: rgba(117, 67, 25, 0.08);
+    box-shadow:
+      0 10px 18px rgba(248, 181, 19, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+
+  .group[data-collapsible="icon"] .sidebar-menu-item {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .group[data-collapsible="icon"] .sidebar-menu-item::before {
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0);
+  }
+
+  .group[data-collapsible="icon"] .sidebar-menu-item[data-active="true"] {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .sidebar-profile-chip {
+    background: #fff8ea;
+    border: 1px solid rgba(117, 67, 25, 0.1);
+    border-radius: 20px;
+  }
+
+  .button-honey-solid {
+    background: linear-gradient(135deg, #f4db9f 0%, #f8b513 100%);
+    color: #4e2a12;
+    border: 1px solid rgba(117, 67, 25, 0.08);
+    box-shadow:
+      0 12px 24px rgba(248, 181, 19, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+
+  .button-honey-solid:hover {
+    filter: saturate(1.02) brightness(0.99);
   }
 }
 
@@ -82,9 +178,9 @@
     /* Gradient companion: #754319 (Copper Brown) -> ~29 65% 28% */
     /* Background: warm off-white for readability (#FFFDF7) */
     /* Accent (Merchant): soft amber highlight */
-    --background: 45 100% 99%;
+    --background: 40 100% 99%;
     --foreground: 215 28% 17%; /* #1F2937 */
-    --card: 0 0% 100%;
+    --card: 40 100% 98%;
     --card-foreground: 215 28% 17%;
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 17%;
@@ -101,19 +197,19 @@
     --border: 40 56% 88%; /* ~ #F1E7D0 */
     --input: 40 56% 88%;
     --ring: 43 94% 52%; /* amber focus */
-    --radius: 0.75rem;
+    --radius: 1.125rem;
     --chart-1: 43 94% 52%;
     --chart-2: 29 65% 28%;
     --chart-3: 215 28% 17%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --sidebar-background: 29 65% 14%; /* Deep copper brown - luxury grounding base */
-    --sidebar-foreground: 45 92% 88%; /* Warm cream text */
-    --sidebar-primary: 43 94% 52%; /* Bright amber accent */
-    --sidebar-primary-foreground: 29 65% 14%; /* Dark copper on amber */
-    --sidebar-accent: 36 80% 55%; /* Rich amber highlight */
-    --sidebar-accent-foreground: 29 65% 14%;
-    --sidebar-border: 29 50% 25%; /* Subtle copper border */
+    --sidebar-background: 40 100% 98%;
+    --sidebar-foreground: 29 65% 28%;
+    --sidebar-primary: 43 94% 52%;
+    --sidebar-primary-foreground: 24 60% 18%;
+    --sidebar-accent: 42 73% 79%;
+    --sidebar-accent-foreground: 24 60% 18%;
+    --sidebar-border: 31 44% 78%;
     --sidebar-ring: 43 94% 52%;
   }
 

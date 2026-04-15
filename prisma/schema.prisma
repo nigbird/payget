@@ -193,7 +193,9 @@ model SystemConfig {
   id                  String   @id @default("1")
   maxFileSizeMB       Int      @default(5)
   allowedFileTypes    String[]
-  districts           String[]
-  branches            String[]
+  districts           Json     @default("[]")
+  branches            Json     @default("[]")
+  categories          Json     @default("[]")
+  businessTypes       Json     @default("[]")
   resetTimeoutSeconds Int      @default(60)
 }

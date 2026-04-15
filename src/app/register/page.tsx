@@ -58,6 +58,8 @@ export default function MerchantSelfRegistration() {
     allowedFileTypes: [],
     maxFileSizeMB: 5
   })
+  const [categories, setCategories] = useState<{ name: string; code?: string; active: boolean }[]>([])
+  const [businessTypes, setBusinessTypes] = useState<{ name: string; code?: string; active: boolean }[]>([])
   
   const [formData, setFormData] = useState({
     name: "",
@@ -83,10 +85,18 @@ export default function MerchantSelfRegistration() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch('/api/system-config')
-        if (response.ok) {
-          const config = await response.json()
+        const [configRes, masterDataRes] = await Promise.all([
+          fetch('/api/system-config'),
+          fetch('/api/master-data')
+        ])
+        if (configRes.ok) {
+          const config = await configRes.json()
           setSystemConfig(config)
+        }
+        if (masterDataRes.ok) {
+          const masterData = await masterDataRes.json()
+          setCategories(masterData.categories || [])
+          setBusinessTypes(masterData.businessTypes || [])
         }
       } catch (error) {
         console.error('Failed to fetch config:', error)

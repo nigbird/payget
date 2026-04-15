@@ -18,6 +18,8 @@ async function main() {
       allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
       districts: ['Central Business District', 'North Industrial', 'South Residential', 'East Port', 'West Hills'],
       branches: ['Downtown HQ', 'North Hub', 'South Plaza', 'East Wing', 'West Station'],
+      categories: ['Retail', 'E-commerce', 'Services', 'Healthcare', 'Education', 'Hospitality', 'Technology', 'Manufacturing'],
+      businessTypes: ['Sole Proprietorship', 'Partnership', 'Private Limited', 'Public Limited', 'Non-Profit Organization'],
       resetTimeoutSeconds: 60,
     },
   })

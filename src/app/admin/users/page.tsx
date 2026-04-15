@@ -97,6 +97,8 @@ export default function UserManagementPage() {
   const [isHeadOffice, setIsHeadOffice] = useState(false)
   const [district, setDistrict] = useState("")
   const [branch, setBranch] = useState("")
+  const [availableDistricts, setAvailableDistricts] = useState<{ name: string; code?: string; active: boolean }[]>([])
+  const [availableBranches, setAvailableBranches] = useState<{ name: string; code?: string; active: boolean }[]>([])
 
   // Edit form state
   const [editName, setEditName] = useState("")
@@ -113,14 +115,23 @@ export default function UserManagementPage() {
   async function fetchData() {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/admin/users')
-      if (res.ok) {
-        const data = await res.json()
+      const [usersRes, masterDataRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/master-data')
+      ])
+
+      if (usersRes.ok) {
+        const data = await usersRes.json()
         setUsers(data.users)
         setRoles(data.roles)
       }
+      if (masterDataRes.ok) {
+        const masterData = await masterDataRes.json()
+        setAvailableDistricts(masterData.districts || [])
+        setAvailableBranches(masterData.branches || [])
+      }
     } catch (error) {
-      console.error("Failed to fetch users:", error)
+      console.error("Failed to fetch data:", error)
     } finally {
       setIsLoading(false)
     }
@@ -368,29 +379,29 @@ export default function UserManagementPage() {
                         <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                           <div className="grid gap-2">
                             <Label htmlFor="district">District</Label>
-                            <div className="relative">
-                              <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input 
-                                id="district" 
-                                className="pl-9" 
-                                placeholder="District" 
-                                value={district}
-                                onChange={(e) => setDistrict(e.target.value)}
-                              />
-                            </div>
+                            <Select onValueChange={setDistrict} value={district}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select District" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableDistricts.filter(d => d.active).map((d, i) => (
+                                  <SelectItem key={i} value={d.name}>{d.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="branch">Branch Name</Label>
-                            <div className="relative">
-                              <GitBranch className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input 
-                                id="branch" 
-                                className="pl-9" 
-                                placeholder="Branch" 
-                                value={branch}
-                                onChange={(e) => setBranch(e.target.value)}
-                              />
-                            </div>
+                            <Select onValueChange={setBranch} value={branch}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Branch" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableBranches.filter(b => b.active).map((b, i) => (
+                                  <SelectItem key={i} value={b.name}>{b.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                       )}

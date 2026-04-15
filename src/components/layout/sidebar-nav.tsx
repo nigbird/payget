@@ -7,15 +7,15 @@ import {
   LayoutDashboard, 
   UserPlus, 
   ShieldCheck, 
-  CreditCard, 
   Activity,
   LogOut,
   Shield,
   Users,
-  Building2,
+  Settings,
+  User as UserIcon,
+  type LucideIcon,
 } from "lucide-react"
 import logo from "../../app/admin/logo/niblogo.png"
-import { cn } from "@/lib/utils"
 import { 
   Sidebar, 
   SidebarContent, 
@@ -30,7 +30,6 @@ import {
   SidebarGroupContent
 } from "@/components/ui/sidebar"
 import { useSession, signOut } from "next-auth/react"
-import { User as UserIcon } from "lucide-react"
 
 const mainMenuItems = [
   { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_GLOBAL_VIEW" },
@@ -41,7 +40,14 @@ const mainMenuItems = [
 const adminMenuItems = [
   { name: "Staff Management", href: "/admin/users", icon: Users, permission: "USER_CREATE" },
   { name: "Permission Governance", href: "/admin/roles", icon: Shield, permission: "ROLE_CREATE" },
+  { name: "Master Data Config", href: "/admin/configuration", icon: Settings, permission: "USER_CREATE" },
 ]
+
+type MenuItem = {
+  name: string
+  href: string
+  icon: LucideIcon
+}
 
 export function SidebarNav() {
   const pathname = usePathname()
@@ -58,67 +64,76 @@ export function SidebarNav() {
 
   const merchantId = (session?.user as any)?.merchantId
 
+  const renderSection = (items: MenuItem[]) =>
+    items.map((item) => (
+      <SidebarMenuItem key={item.href}>
+        <SidebarMenuButton
+          asChild
+          isActive={pathname === item.href}
+          tooltip={item.name}
+          className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium tracking-[0.01em] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
+        >
+          <Link href={item.href} className="flex min-w-0 items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
+            <span className="sidebar-hex-icon">
+              <item.icon />
+            </span>
+            <span className="truncate text-[13px] text-current group-data-[collapsible=icon]:hidden">{item.name}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    ))
+
   return (
     <Sidebar
       variant="floating"
       collapsible="icon"
-      className="sidebar-dark-glass"
+      className="sidebar-warm-shell"
     >
-      <SidebarHeader className="p-4 flex items-center gap-2">
-        <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-lg shadow-black/20 overflow-hidden">
-          <Image 
-            src={logo} 
-            alt="NibTera Logo" 
-            width={40} 
-            height={40} 
-            className="object-cover w-full h-full"
-          />
-        </div>
-        <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-          <div className="font-bold tracking-tight text-[#F8E8C8]">NibTera Merchants</div>
-          <div className="text-[10px] text-amber-200/60">Admin console</div>
+      <SidebarHeader className="sidebar-proportional px-3.5 py-4">
+        <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
+          <div className="sidebar-logo-orb overflow-hidden">
+            <Image 
+              src={logo} 
+              alt="NibTera Logo" 
+              width={38} 
+              height={38} 
+              className="sidebar-logo-image"
+            />
+          </div>
+          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <div className="text-[14px] font-semibold tracking-tight text-[#754319]">NibTera Merchants</div>
+            <div className="text-[11px] text-[#754319]/60">Admin console</div>
+          </div>
         </div>
       </SidebarHeader>
-      <SidebarSeparator className="bg-amber-700/20" />
+      <SidebarSeparator className="mx-4 bg-[#754319]/10" />
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-amber-200/40 px-4 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-[#754319]/52 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="px-2">
-              {filteredMenuItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={item.name}
-                    className="rounded-xl text-amber-100/70 hover:text-amber-100 hover:bg-amber-700/30 data-[active=true]:bg-gradient-to-r data-[active=true]:from-amber-500 data-[active=true]:to-amber-600 data-[active=true]:text-slate-900 data-[active=true]:shadow-lg data-[active=true]:shadow-amber-900/40"
-                  >
-                    <Link href={item.href}>
-                      <item.icon className="w-5 h-5" />
-                      <span>{item.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="space-y-1 px-2">
+              {renderSection(filteredMenuItems)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         {merchantId && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="text-amber-200/40 px-4 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-[#754319]/52 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="px-2">
+              <SidebarMenu className="space-y-1 px-2">
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === `/merchant/${merchantId}`}
                     tooltip="My Dashboard"
-                    className="rounded-xl text-amber-100/70 hover:text-amber-100 hover:bg-amber-700/30 data-[active=true]:bg-gradient-to-r data-[active=true]:from-amber-500 data-[active=true]:to-amber-600 data-[active=true]:text-slate-900 data-[active=true]:shadow-lg data-[active=true]:shadow-amber-900/40"
+                    className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium tracking-[0.01em] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
                   >
-                    <Link href={`/merchant/${merchantId}`}>
-                      <LayoutDashboard className="w-5 h-5" />
-                      <span>My Dashboard</span>
+                    <Link href={`/merchant/${merchantId}`} className="flex min-w-0 items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
+                      <span className="sidebar-hex-icon">
+                        <LayoutDashboard />
+                      </span>
+                      <span className="truncate text-[13px] text-current group-data-[collapsible=icon]:hidden">My Dashboard</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -129,49 +144,37 @@ export function SidebarNav() {
 
         {filteredAdminItems.length > 0 && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="text-amber-200/40 px-4 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-[#754319]/52 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="px-2">
-                {filteredAdminItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href}
-                      tooltip={item.name}
-                      className="rounded-xl text-amber-100/70 hover:text-amber-100 hover:bg-amber-700/30 data-[active=true]:bg-gradient-to-r data-[active=true]:from-amber-500 data-[active=true]:to-amber-600 data-[active=true]:text-slate-900 data-[active=true]:shadow-lg data-[active=true]:shadow-amber-900/40"
-                    >
-                      <Link href={item.href}>
-                        <item.icon className="w-5 h-5" />
-                        <span>{item.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+              <SidebarMenu className="space-y-1 px-2">
+                {renderSection(filteredAdminItems)}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className="p-4 space-y-4">
+      <SidebarFooter className="space-y-4 p-4">
         {session?.user && (
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-amber-900/30 border border-amber-700/30 group-data-[collapsible=icon]:justify-center">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0 shadow-sm shadow-amber-900/40">
-              <UserIcon className="w-4 h-4 text-slate-900" />
+          <div className="sidebar-profile-chip sidebar-proportional flex items-center gap-2.5 px-2.5 py-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <div className="sidebar-hex-icon">
+              <UserIcon className="text-[#4e2a12]" />
             </div>
             <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-semibold text-amber-50 truncate">{session.user.name || 'User'}</span>
-              <span className="text-[10px] text-amber-300/60 truncate">{(session.user as any).role || 'Staff'}</span>
+              <span className="truncate text-[13px] font-semibold text-[#754319]">{session.user.name || 'User'}</span>
+              <span className="truncate text-[9px] uppercase tracking-[0.15em] text-[#754319]/55">{(session.user as any).role || 'Staff'}</span>
             </div>
           </div>
         )}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              className="rounded-xl text-rose-300 hover:text-rose-200 hover:bg-rose-900/30"
+              className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium text-[#754319] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
               onClick={() => signOut({ callbackUrl: "/" })}
             >
-              <LogOut className="w-5 h-5" />
-              <span>Log Out</span>
+              <span className="sidebar-hex-icon">
+                <LogOut />
+              </span>
+              <span className="group-data-[collapsible=icon]:hidden">Log Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
