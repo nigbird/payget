@@ -88,6 +88,7 @@ export default function MerchantSelfRegistration() {
         }
         if (masterDataRes.ok) {
           const masterData = await masterDataRes.json()
+          console.log("Master Data:", masterData);
           setCategories(masterData.categories || [])
           setBusinessTypes(masterData.businessTypes || [])
         }
@@ -129,13 +130,21 @@ export default function MerchantSelfRegistration() {
         return
       }
 
-      newDocs.push({
-        id: Math.random().toString(36).substr(2, 9),
+      const docId = Math.random().toString(36).substr(2, 9)
+      const newDoc: MerchantDocument = {
+        id: docId,
         name: file.name,
         type: file.type,
         size: file.size,
         uploadedAt: new Date().toISOString()
-      })
+      }
+
+      // If it's an image, create a preview URL
+      if (file.type.startsWith('image/')) {
+        newDoc.url = URL.createObjectURL(file)
+      }
+
+      newDocs.push(newDoc)
     })
 
     setDocuments(prev => [...prev, ...newDocs])
@@ -143,7 +152,13 @@ export default function MerchantSelfRegistration() {
   }
 
   const removeDoc = (id: string) => {
-    setDocuments(prev => prev.filter(d => d.id !== id))
+    setDocuments(prev => {
+      const doc = prev.find(d => d.id === id)
+      if (doc?.url && doc.url.startsWith('blob:')) {
+        URL.revokeObjectURL(doc.url)
+      }
+      return prev.filter(d => d.id !== id)
+    })
   }
 
   const handleLogoUpload = async (file: File) => {
@@ -352,13 +367,35 @@ export default function MerchantSelfRegistration() {
                     <div className="space-y-2 sm:col-span-2">
                       <Label className="text-sm font-medium text-gray-700">Business Logo (optional)</Label>
                       <div
-                        className="border-2 border-dashed border-gray-100 rounded-2xl p-6 flex flex-col gap-1 bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer"
+                        className="relative border-2 border-dashed border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-1 bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group"
                         onClick={() => logoInputRef.current?.click()}
                       >
-                        <p className="text-sm font-semibold text-gray-900">
-                          {isLogoUploading ? "Uploading..." : "Click to upload your logo"}
-                        </p>
-                        <p className="text-xs text-gray-400">PNG, JPG, WEBP, or SVG.</p>
+                        {formData.logoUrl ? (
+                          <div className="relative w-32 h-32 rounded-xl overflow-hidden shadow-sm border border-gray-200">
+                            <img 
+                              src={formData.logoUrl} 
+                              alt="Business Logo" 
+                              className="w-full h-full object-contain bg-white"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <p className="text-white text-[10px] font-bold uppercase">Change Logo</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 mb-2 group-hover:scale-110 transition-transform">
+                              {isLogoUploading ? (
+                                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                              ) : (
+                                <Upload className="w-5 h-5 text-primary" />
+                              )}
+                            </div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {isLogoUploading ? "Uploading..." : "Click to upload your logo"}
+                            </p>
+                            <p className="text-xs text-gray-400 text-center">PNG, JPG, WEBP, or SVG.</p>
+                          </>
+                        )}
                         <input
                           ref={logoInputRef}
                           type="file"
@@ -371,12 +408,19 @@ export default function MerchantSelfRegistration() {
                           }}
                         />
                       </div>
-                      {formData.logoUrl ? (
-                        <p className="text-xs text-gray-500">
-                          Uploaded: <span className="font-mono">{formData.logoUrl}</span>
-                        </p>
-                      ) : (
-                        <p className="text-xs text-gray-400">No logo uploaded.</p>
+                      {formData.logoUrl && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 text-[10px] px-2 py-0.5">
+                            Logo Uploaded
+                          </Badge>
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({...formData, logoUrl: ""})}
+                            className="text-[10px] text-red-500 hover:underline font-medium"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -527,7 +571,6 @@ export default function MerchantSelfRegistration() {
                           {categories.filter(c => c.active).map((cat, i) => (
                             <SelectItem key={i} value={cat.name}>{cat.name}</SelectItem>
                           ))}
-
                         </SelectContent>
                       </Select>
                     </div>
@@ -541,34 +584,8 @@ export default function MerchantSelfRegistration() {
                           {businessTypes.filter(bt => bt.active).map((bt, i) => (
                             <SelectItem key={i} value={bt.name}>{bt.name}</SelectItem>
                           ))}
-
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label className="text-sm font-medium text-gray-700">AI Assistant Suggestions</Label>
-                      <Textarea 
-                        placeholder="AI will suggest categories, business types, and risk factors based on your description and website." 
-                        rows={3} 
-                        readOnly 
-                        className="rounded-xl border-gray-200 bg-gray-50/50 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                        value={riskFactors.join(', ')}
-                      />
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="w-full rounded-xl gap-2"
-                        onClick={handleAiAssistant}
-                        disabled={isAiLoading || (!formData.businessDescription && !formData.websiteUrl)}
-                      >
-                        {isAiLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-4 w-4" />
-                        )}
-                        Analyze with AI
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -607,34 +624,46 @@ export default function MerchantSelfRegistration() {
                     />
                   </div>
 
-                  {documents.length > 0 && (
-                    <div className="grid gap-3">
-                      {documents.map((doc) => (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                              <FileCheck className="w-4 h-4 text-green-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                              <p className="text-[10px] text-gray-400">{(doc.size / 1024).toFixed(1)} KB</p>
-                            </div>
+                  <div className="grid gap-3">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-100">
+                            {doc.type.startsWith('image/') ? (
+                              <img 
+                                src={doc.url || ""} 
+                                alt={doc.name} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback if URL is not available yet
+                                  (e.target as any).src = "";
+                                  (e.target as any).className = "hidden";
+                                }}
+                              />
+                            ) : (
+                              <FileText className="w-5 h-5 text-gray-400" />
+                            )}
+                            {!doc.url && doc.type.startsWith('image/') && <FileText className="w-5 h-5 text-gray-400" />}
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removeDoc(doc.id)
-                            }}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{doc.name}</p>
+                            <p className="text-[10px] text-gray-400">{(doc.size / 1024).toFixed(1)} KB • {doc.type.split('/')[1].toUpperCase()}</p>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeDoc(doc.id)
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="p-8 bg-gray-50/50">
