@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, History, Users, Settings2, LogOut } from "lucide-react"
 import { signOut, useSession } from "next-auth/react"
@@ -134,8 +135,20 @@ export default function MerchantPortalShell({
         <header className="sticky top-0 z-50 border-b border-white/50 bg-white/70 backdrop-blur-md">
           <div className="mx-auto w-full max-w-7xl px-4 md:px-8 h-16 flex items-center gap-3">
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center">
-                <span className="text-[10px] md:text-xs font-black text-[#754319]">FF</span>
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden">
+                {merchant?.logoUrl ? (
+                  <Image
+                    src={merchant.logoUrl}
+                    alt={merchant.name}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-[10px] md:text-xs font-black text-[#754319]">
+                    {merchant?.name?.substring(0, 2).toUpperCase() || "FF"}
+                  </span>
+                )}
               </div>
               <div className="leading-tight hidden sm:block">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>

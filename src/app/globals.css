@@ -4,7 +4,7 @@
 
 @layer components {
   .bg-app-main {
-    background: #fffdf7;
+    @apply bg-[linear-gradient(135deg,#fff9ef_0%,#fdf1d4_45%,#fbe8bc_100%)];
   }
 
   /* Premium Honey Glassmorphism Card - Liquid Gold Effect */

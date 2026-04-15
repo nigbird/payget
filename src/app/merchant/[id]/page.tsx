@@ -35,7 +35,6 @@ import {
   Info,
   Share2,
   ExternalLink,
-  SendHorizontal,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -50,7 +49,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isResending, setIsResending] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [lastMode, setLastMode] = useState<"push" | "link" | null>(null)
   const [lastRequestDetails, setLastRequestDetails] = useState<{
@@ -274,39 +272,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     }
   }
 
-  const handleResendPush = async (txId: string) => {
-    setIsResending(txId)
-    try {
-      const response = await fetch(`/api/transactions/${txId}/resend-push`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-      const data = await response.json().catch(() => ({}))
-      if (response.ok) {
-        toast({
-          title: "Push re-sent",
-          description: data.message || "The USSD push was successfully re-sent to the customer."
-        })
-        // Refresh transactions list
-        const tRes = await fetch(`/api/merchants/${id}/transactions`)
-        if (tRes.ok) setTransactions(await tRes.json())
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Failed to re-send",
-          description: data.error || "Please check the transaction status and try again."
-        })
-      }
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Unexpected Error",
-        description: "Could not communicate with the payment provider."
-      })
-    } finally {
-      setIsResending(null)
-    }
-  }
+
 
   const isPending = merchant.status === "pending" || merchant.status === "branch_approved"
   const isApproved = merchant.status === "approved" || merchant.status === "active"
@@ -546,22 +512,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                         {tx.status}
                       </Badge>
                     </div>
-                    {tx.status !== "success" && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#754319]"
-                        onClick={() => handleResendPush(tx.id)}
-                        disabled={isResending === tx.id}
-                        title="Re-send USSD Push"
-                      >
-                        {isResending === tx.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <SendHorizontal className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}

@@ -10,8 +10,6 @@ import {
   Clock,
   Search,
   ShieldCheck,
-  SendHorizontal,
-  Loader2,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -58,7 +56,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [density, setDensity] = useState<Density>("comfortable")
 
   const [maxSlider, setMaxSlider] = useState<number>(5000)
-  const [isResending, setIsResending] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchMerchant = async () => {
@@ -195,43 +192,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     setPageIndex(0)
     setDensity("comfortable")
     toast({ title: "Filters cleared", description: "Showing all transactions." })
-  }
-
-  const handleResendPush = async (txId: string) => {
-    setIsResending(txId)
-    try {
-      const response = await fetch(`/api/transactions/${txId}/resend-push`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-      const data = await response.json().catch(() => ({}))
-      if (response.ok) {
-        toast({
-          title: "Push re-sent",
-          description: data.message || "The USSD push was successfully re-sent to the customer."
-        })
-        // Fetch transactions again to update status if needed
-        const res = await fetch(`/api/merchants/${id}/transactions`)
-        if (res.ok) {
-          const txs = await res.json()
-          setTransactions([...txs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()))
-        }
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Failed to re-send",
-          description: data.error || "Please check the transaction status and try again."
-        })
-      }
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Unexpected Error",
-        description: "Could not communicate with the payment provider."
-      })
-    } finally {
-      setIsResending(null)
-    }
   }
 
   if (!merchant) {
@@ -493,22 +453,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                         </div>
                       </TableCell>
                       <TableCell className={densityCellClass + " text-right"}>
-                        {tx.status !== "success" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#754319] text-[10px] font-bold gap-1.5"
-                            onClick={() => handleResendPush(tx.id)}
-                            disabled={isResending === tx.id}
-                          >
-                            {isResending === tx.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <SendHorizontal className="h-3 w-3" />
-                            )}
-                            Re-send Push
-                          </Button>
-                        )}
+                        {/* No actions currently */}
                       </TableCell>
                     </TableRow>
                   ))
