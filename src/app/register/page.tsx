@@ -104,14 +104,20 @@ export default function MerchantSelfRegistration() {
   const allowedTypes = Array.isArray(systemConfig.allowedFileTypes) ? systemConfig.allowedFileTypes : []
   const maxFileSizeMB = Number(systemConfig.maxFileSizeMB || 5)
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files) return
+    if (!files || files.length === 0) return
 
-    const newDocs: MerchantDocument[] = []
-    const maxSize = maxFileSizeMB * 1024 * 1024
-
-    Array.from(files).forEach(file => {
+    const MAX_SINGLE_FILE_BYTES = 5 * 1024 * 1024
+    const MAX_TOTAL_BYTES = 15 * 1024 * 1024
+    
+    // Calculate current total size
+    let currentTotalSize = documents.reduce((sum, doc) => sum + doc.size, 0)
+    const newFiles = Array.from(files)
+    
+    const validFiles: File[] = []
+    
+    for (const file of newFiles) {
       const extension = `.${file.name.split('.').pop()?.toLowerCase()}`
       
       if (!allowedTypes.includes(extension)) {
@@ -120,37 +126,61 @@ export default function MerchantSelfRegistration() {
           title: "Invalid File Type",
           description: `${file.name} is not a supported format.`
         })
-        return
+        continue
       }
 
-      if (file.size > maxSize) {
+      if (file.size > MAX_SINGLE_FILE_BYTES) {
         toast({
           variant: "destructive",
           title: "File Too Large",
-          description: `${file.name} exceeds the ${maxFileSizeMB}MB limit.`
+          description: `${file.name} exceeds the 5MB limit.`
         })
-        return
+        continue
       }
 
-      const docId = Math.random().toString(36).substr(2, 9)
-      const newDoc: MerchantDocument = {
-        id: docId,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadedAt: new Date().toISOString()
+      if (currentTotalSize + file.size > MAX_TOTAL_BYTES) {
+        toast({
+          variant: "destructive",
+          title: "Total Size Exceeded",
+          description: "Total size of all compliance documents cannot exceed 15MB."
+        })
+        break
       }
 
-      // If it's an image, create a preview URL
-      if (file.type.startsWith('image/')) {
-        newDoc.url = URL.createObjectURL(file)
-      }
+      currentTotalSize += file.size
+      validFiles.push(file)
+    }
 
-      newDocs.push(newDoc)
-    })
+    if (validFiles.length === 0) return
 
-    setDocuments(prev => [...prev, ...newDocs])
-    if (fileInputRef.current) fileInputRef.current.value = ""
+    setIsSubmitting(true) // Use isSubmitting to show a loader if needed, or create a new state
+    try {
+      const fd = new FormData()
+      validFiles.forEach(file => fd.append("files", file))
+      
+      const res = await fetch("/api/uploads/compliance-docs", {
+        method: "POST",
+        body: fd
+      })
+      
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Upload failed")
+      
+      setDocuments(prev => [...prev, ...data.documents])
+      toast({
+        title: "Files Uploaded",
+        description: `${validFiles.length} document(s) uploaded successfully.`
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: error.message || "Could not upload documents."
+      })
+    } finally {
+      setIsSubmitting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
   }
 
   const removeDoc = (id: string) => {
@@ -575,14 +605,25 @@ export default function MerchantSelfRegistration() {
                     </div>
 
                     <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">Business Description</Label>
+                      <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">
+                        Business Description 
+                        <span className="text-[10px] ml-2 font-bold text-slate-400">
+                          ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words)
+                        </span>
+                      </Label>
                       <Textarea 
                         id="businessDescription" 
                         placeholder="Describe your business activities, products, and services" 
                         rows={3} 
                         className={`rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.businessDescription ? 'border-red-500' : ''}`}
                         value={formData.businessDescription}
-                        onChange={e => setFormData({...formData, businessDescription: e.target.value})}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const words = val.trim().split(/\s+/).filter(Boolean);
+                          if (words.length <= 50 || val.length < formData.businessDescription.length) {
+                            setFormData({...formData, businessDescription: val});
+                          }
+                        }}
                       />
                       {errors.businessDescription && <p className="text-[11px] text-red-500 font-medium">{errors.businessDescription}</p>}
                     </div>

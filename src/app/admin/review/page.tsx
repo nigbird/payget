@@ -564,16 +564,16 @@ function MerchantReviewContent() {
 
       {/* Preview Modal */}
       <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-        <DialogContent className="max-w-4xl bg-black/95 border-none p-0 overflow-hidden">
-          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/60 to-transparent">
+        <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
+          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-white text-sm font-bold truncate pr-8">
+              <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
                 {previewFile?.name}
               </DialogTitle>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-white hover:bg-white/20" 
+                className="text-white hover:bg-white/20 bg-black/40 rounded-full backdrop-blur-md" 
                 onClick={() => setPreviewFile(null)}
               >
                 <X className="w-5 h-5" />

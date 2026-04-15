@@ -192,23 +192,45 @@ export default function MerchantOnboardingPage() {
     setFormData(prev => ({ ...prev, [id]: value }))
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files) return
+    if (!files || files.length === 0) return
 
-    const newDocs: MerchantDocument[] = Array.from(files).map(file => ({
-      id: Math.random().toString(36).slice(2, 11),
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      uploadedAt: new Date().toISOString()
-    }))
+    const MAX_SINGLE_FILE_BYTES = 5 * 1024 * 1024
+    const MAX_TOTAL_BYTES = 15 * 1024 * 1024
+    
+    let currentTotalSize = documents.reduce((sum, doc) => sum + doc.size, 0)
+    const validFiles: File[] = []
+    
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_SINGLE_FILE_BYTES) {
+        toast({ variant: "destructive", title: "File Too Large", description: `${file.name} exceeds 5MB.` })
+        continue
+      }
+      if (currentTotalSize + file.size > MAX_TOTAL_BYTES) {
+        toast({ variant: "destructive", title: "Limit Exceeded", description: "Total compliance files cannot exceed 15MB." })
+        break
+      }
+      currentTotalSize += file.size
+      validFiles.push(file)
+    }
 
-    setDocuments(prev => [...prev, ...newDocs])
-    toast({
-      title: "Files Uploaded",
-      description: `${files.length} document(s) added to the application.`
-    })
+    if (validFiles.length === 0) return
+
+    try {
+      const fd = new FormData()
+      validFiles.forEach(file => fd.append("files", file))
+      
+      const res = await fetch("/api/uploads/compliance-docs", { method: "POST", body: fd })
+      const data = await res.json()
+      
+      if (!res.ok) throw new Error(data.error || "Upload failed")
+      
+      setDocuments(prev => [...prev, ...data.documents])
+      toast({ title: "Files Uploaded", description: `${validFiles.length} document(s) added.` })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Upload Failed", description: error.message })
+    }
   }
 
   const handleRemoveDoc = (id: string) => {
@@ -550,14 +572,25 @@ export default function MerchantOnboardingPage() {
                               </div>
 
                               <div className="space-y-2">
-                                <Label htmlFor="businessDescription">Business Description</Label>
+                                <Label htmlFor="businessDescription">
+                                  Business Description 
+                                  <span className="text-[10px] ml-2 font-bold text-slate-400">
+                                    ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words)
+                                  </span>
+                                </Label>
                                 <div className="relative">
                                   <Textarea
                                     id="businessDescription"
                                     placeholder="Describe the nature of business and products sold..."
                                     className={`min-h-[100px] pr-10 ${errors.businessDescription ? "border-red-500" : ""}`}
                                     value={formData.businessDescription}
-                                    onChange={handleInputChange}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const words = val.trim().split(/\s+/).filter(Boolean);
+                                      if (words.length <= 50 || val.length < formData.businessDescription.length) {
+                                        setFormData({...formData, businessDescription: val});
+                                      }
+                                    }}
                                   />
                                   <Button
                                     variant="ghost"
@@ -1182,6 +1215,53 @@ export default function MerchantOnboardingPage() {
                     </Button>
                   ) : null}
                 </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Preview Modal */}
+            <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+              <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
+                <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
+                  <div className="flex items-center justify-between">
+                    <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
+                      {previewFile?.name}
+                    </DialogTitle>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-white hover:bg-white/20 bg-black/40 rounded-full backdrop-blur-md" 
+                      onClick={() => setPreviewFile(null)}
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </DialogHeader>
+                <div className="flex items-center justify-center min-h-[60vh] p-8">
+                  {previewFile?.type.startsWith('image/') ? (
+                    <img 
+                      src={previewFile.url} 
+                      alt={previewFile.name} 
+                      className="max-w-full max-h-[80vh] object-contain shadow-2xl animate-in zoom-in-95 duration-300"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-6 text-white animate-in fade-in duration-300">
+                      <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
+                        <FileText className="w-12 h-12 text-white/60" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold">Preview not available for this file type</p>
+                        <p className="text-sm text-white/60 mt-1">Please download the file to view its content.</p>
+                      </div>
+                      <a 
+                        href={previewFile?.url} 
+                        download={previewFile?.name}
+                        className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-2xl font-bold hover:bg-slate-200 transition-colors"
+                      >
+                        <Download className="w-4 h-4" /> Download File
+                      </a>
+                    </div>
+                  )}
+                </div>
               </DialogContent>
             </Dialog>
 

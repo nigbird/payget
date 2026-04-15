@@ -54,6 +54,14 @@ export async function POST(request: Request) {
     if (!data.accountNumber?.trim()) errors.accountNumber = 'Account number is required';
     if (!data.callbackUrl?.trim()) errors.callbackUrl = 'Callback URL is required';
 
+    // Business description word count validation (max 50 words)
+    if (data.businessDescription) {
+      const wordCount = data.businessDescription.trim().split(/\s+/).filter(Boolean).length;
+      if (wordCount > 50) {
+        errors.businessDescription = 'Business description cannot exceed 50 words';
+      }
+    }
+
     if (Object.keys(errors).length > 0) {
       return NextResponse.json({ error: 'Validation failed', errors }, { status: 400 });
     }
@@ -83,6 +91,7 @@ export async function POST(request: Request) {
               name: doc.name,
               type: doc.type,
               size: doc.size,
+              url: doc.url,
               uploadedAt: new Date(doc.uploadedAt)
             }))
           } : undefined

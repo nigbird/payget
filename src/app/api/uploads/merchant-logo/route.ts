@@ -5,7 +5,7 @@ import crypto from "crypto"
 import { mkdir, writeFile } from "fs/promises"
 import path from "path"
 
-const MAX_BYTES = 2 * 1024 * 1024 // 2MB
+const MAX_BYTES = 5 * 1024 * 1024 // 5MB
 
 const allowedMimeToExt: Record<string, string> = {
   "image/png": "png",

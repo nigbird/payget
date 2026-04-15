@@ -137,6 +137,7 @@ model MerchantDocument {
   name       String
   type       String
   size       Int
+  url        String
   uploadedAt DateTime @default(now())
   merchantId String
   merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
