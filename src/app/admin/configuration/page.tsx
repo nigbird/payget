@@ -110,7 +110,7 @@ export default function MasterDataConfigPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
-  const [selectedEntry, setSelectedEntry] = useState<MasterDataEntry | null>(null)
+  const [selectedEntryIndex, setSelectedEntryIndex] = useState<number | null>(null)
 
   const [formName, setFormName] = useState("")
   const [formCode, setFormCode] = useState("")
@@ -198,8 +198,8 @@ export default function MasterDataConfigPage() {
     setIsAddDialogOpen(true)
   }
 
-  const openEditDialog = (entry: MasterDataEntry) => {
-    setSelectedEntry(entry)
+  const openEditDialog = (entry: MasterDataEntry, index: number) => {
+    setSelectedEntryIndex(index)
     setFormName(entry.name)
     setFormCode(entry.code || "")
     setFormActive(entry.active)
@@ -241,7 +241,7 @@ export default function MasterDataConfigPage() {
   }
 
   const handleUpdate = async () => {
-    if (!formName.trim() || !selectedEntry) {
+    if (!formName.trim() || selectedEntryIndex === null) {
       toast({ variant: "destructive", title: "Validation Error", description: "Name is required" })
       return
     }
@@ -254,8 +254,8 @@ export default function MasterDataConfigPage() {
         body: JSON.stringify({
           type: activeTab,
           action: "update",
-          name: selectedEntry.name,
-          newName: formName.trim(),
+          id: selectedEntryIndex.toString(),
+          name: formName.trim(),
           code: formCode.trim() || undefined,
           active: formActive,
         }),
@@ -276,7 +276,7 @@ export default function MasterDataConfigPage() {
     }
   }
 
-  const handleToggle = async (entry: MasterDataEntry) => {
+  const handleToggle = async (entry: MasterDataEntry, index: number) => {
     try {
       const response = await fetch("/api/master-data", {
         method: "PATCH",
@@ -284,7 +284,8 @@ export default function MasterDataConfigPage() {
         body: JSON.stringify({
           type: activeTab,
           action: "toggle",
-          name: entry.name,
+          id: index.toString(),
+          active: !entry.active,
         }),
       })
 
@@ -303,7 +304,7 @@ export default function MasterDataConfigPage() {
     }
   }
 
-  const handleDelete = async (entry: MasterDataEntry) => {
+  const handleDelete = async (entry: MasterDataEntry, index: number) => {
     if (!confirm(`Are you sure you want to delete "${entry.name}"?`)) return
 
     try {
@@ -313,7 +314,7 @@ export default function MasterDataConfigPage() {
         body: JSON.stringify({
           type: activeTab,
           action: "delete",
-          name: entry.name,
+          id: index.toString(),
         }),
       })
 
@@ -637,7 +638,7 @@ export default function MasterDataConfigPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 rounded-lg hover:bg-slate-100"
-                              onClick={() => openEditDialog(item)}
+                              onClick={() => openEditDialog(item, index)}
                             >
                               <Edit2 className="h-3.5 w-3.5 text-slate-600" />
                             </Button>
@@ -645,7 +646,7 @@ export default function MasterDataConfigPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 rounded-lg hover:bg-red-50"
-                              onClick={() => handleDelete(item)}
+                              onClick={() => handleDelete(item, index)}
                             >
                               <Trash2 className="h-3.5 w-3.5 text-red-500" />
                             </Button>
@@ -653,7 +654,7 @@ export default function MasterDataConfigPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 rounded-lg hover:bg-amber-50"
-                              onClick={() => handleToggle(item)}
+                              onClick={() => handleToggle(item, index)}
                               title={item.active ? "Disable" : "Enable"}
                             >
                               <div

@@ -4,6 +4,12 @@ import { auth } from '@/auth';
 
 type MasterDataType = 'districts' | 'branches' | 'categories' | 'businessTypes';
 
+interface MasterDataEntry {
+  name: string;
+  code?: string;
+  active: boolean;
+}
+
 export async function GET() {
   try {
     const session = await auth();
@@ -22,7 +28,18 @@ export async function GET() {
     }
 
     const parseField = (value: unknown): MasterDataEntry[] => {
-      if (Array.isArray(value)) {
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            return parsed.map(item =>
+              typeof item === 'string' ? { name: item, active: true } : item
+            ) as MasterDataEntry[];
+          }
+        } catch (e) {
+          console.error("Failed to parse JSON field:", e);
+        }
+      } else if (Array.isArray(value)) { // Fallback for direct array if Prisma somehow returns it
         return value.map(item =>
           typeof item === 'string' ? { name: item, active: true } : item
         ) as MasterDataEntry[];
@@ -40,12 +57,6 @@ export async function GET() {
     console.error('Error fetching master data:', error);
     return NextResponse.json({ error: 'Failed to fetch master data' }, { status: 500 });
   }
-}
-
-interface MasterDataEntry {
-  name: string;
-  code?: string;
-  active: boolean;
 }
 
 export async function PATCH(request: Request) {
@@ -125,17 +136,15 @@ export async function PATCH(request: Request) {
         break;
       }
       case 'update': {
-        if (!id && !name) {
-          return NextResponse.json({ error: 'ID or name is required for update action' }, { status: 400 });
+        if (id === undefined) {
+          return NextResponse.json({ error: 'ID is required for update action' }, { status: 400 });
         }
         updatedData = currentData.map((entry, index) => {
-          const matchesId = id && index === parseInt(id, 10);
-          const matchesName = name && entry.name.toLowerCase() === name.trim().toLowerCase();
-          if (matchesId || matchesName) {
+          if (index === parseInt(id, 10)) {
             return {
               ...entry,
-              name: name ? name.trim() : entry.name,
-              code: code !== undefined ? (code ? code.trim() : entry.code || '') : entry.code || '',
+              name: name !== undefined ? name.trim() : entry.name,
+              code: code !== undefined ? (code ? code.trim() : '') : entry.code || '',
               active: active !== undefined ? active : entry.active,
             };
           }
@@ -144,24 +153,18 @@ export async function PATCH(request: Request) {
         break;
       }
       case 'delete': {
-        if (!id && !name) {
-          return NextResponse.json({ error: 'ID or name is required for delete action' }, { status: 400 });
+        if (id === undefined) {
+          return NextResponse.json({ error: 'ID is required for delete action' }, { status: 400 });
         }
-        updatedData = currentData.filter((entry, index) => {
-          const matchesId = id && index === parseInt(id, 10);
-          const matchesName = name && entry.name.toLowerCase() === name.trim().toLowerCase();
-          return !(matchesId || matchesName);
-        });
+        updatedData = currentData.filter((entry, index) => index !== parseInt(id, 10));
         break;
       }
       case 'toggle': {
-        if (!id && !name) {
-          return NextResponse.json({ error: 'ID or name is required for toggle action' }, { status: 400 });
+        if (id === undefined) {
+          return NextResponse.json({ error: 'ID is required for toggle action' }, { status: 400 });
         }
         updatedData = currentData.map((entry, index) => {
-          const matchesId = id && index === parseInt(id, 10);
-          const matchesName = name && entry.name.toLowerCase() === name.trim().toLowerCase();
-          if (matchesId || matchesName) {
+          if (index === parseInt(id, 10)) {
             return { ...entry, active: active !== undefined ? active : !entry.active };
           }
           return entry;

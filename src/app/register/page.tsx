@@ -10,13 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select"
-import { 
   Loader2, 
   Sparkles, 
   Store, 
@@ -24,7 +17,6 @@ import {
   Building2, 
   User, 
   Phone, 
-  MapPin, 
   Link as LinkIcon,
   FileText,
   Upload,
@@ -53,8 +45,6 @@ export default function MerchantSelfRegistration() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
   const [systemConfig, setSystemConfig] = useState<any>({
-    districts: [],
-    branches: [],
     allowedFileTypes: [],
     maxFileSizeMB: 5
   })
@@ -73,8 +63,6 @@ export default function MerchantSelfRegistration() {
     callbackUrl: "",
     contactName: "",
     contactUsername: "",
-    branchName: "",
-    district: "",
     category: "",
     businessType: ""
   })
@@ -91,7 +79,10 @@ export default function MerchantSelfRegistration() {
         ])
         if (configRes.ok) {
           const config = await configRes.json()
-          setSystemConfig(config)
+          setSystemConfig({
+            allowedFileTypes: Array.isArray(config?.allowedFileTypes) ? config.allowedFileTypes : [],
+            maxFileSizeMB: Number(config?.maxFileSizeMB ?? 5)
+          })
         }
         if (masterDataRes.ok) {
           const masterData = await masterDataRes.json()
@@ -105,13 +96,15 @@ export default function MerchantSelfRegistration() {
     fetchConfig()
   }, [])
 
+  const allowedTypes = Array.isArray(systemConfig.allowedFileTypes) ? systemConfig.allowedFileTypes : []
+  const maxFileSizeMB = Number(systemConfig.maxFileSizeMB || 5)
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
 
     const newDocs: MerchantDocument[] = []
-    const maxSize = (systemConfig.maxFileSizeMB || 5) * 1024 * 1024
-    const allowedTypes = systemConfig.allowedFileTypes || []
+    const maxSize = maxFileSizeMB * 1024 * 1024
 
     Array.from(files).forEach(file => {
       const extension = `.${file.name.split('.').pop()?.toLowerCase()}`
@@ -129,7 +122,7 @@ export default function MerchantSelfRegistration() {
         toast({
           variant: "destructive",
           title: "File Too Large",
-          description: `${file.name} exceeds the ${systemConfig.maxFileSizeMB}MB limit.`
+          description: `${file.name} exceeds the ${maxFileSizeMB}MB limit.`
         })
         return
       }
@@ -221,15 +214,6 @@ export default function MerchantSelfRegistration() {
       return
     }
 
-    if (!formData.branchName || !formData.district) {
-      toast({
-        variant: "destructive",
-        title: "Missing Selections",
-        description: "Please select your preferred branch and district."
-      })
-      return
-    }
-
     setIsSubmitting(true)
     
     const merchantId = `m_${Math.random().toString(36).substr(2, 9)}`
@@ -241,6 +225,8 @@ export default function MerchantSelfRegistration() {
         body: JSON.stringify({
           id: merchantId,
           ...formData,
+          branchName: "Self-Service",
+          district: "Self-Service",
           dailyLimit: Number(formData.dailyLimit),
           transactionLimit: Number(formData.transactionLimit),
           dailyCountLimit: 100,
@@ -312,8 +298,8 @@ export default function MerchantSelfRegistration() {
   }
 
   return (
-    <div className="min-h-screen pb-20">
-      <header className="bg-white/80 backdrop-blur-md border-b h-16 flex items-center px-4 sticky top-0 z-50">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fffdf8_0%,#fff8ea_38%,#fffdf9_100%)] pb-20">
+      <header className="sticky top-0 z-50 flex h-16 items-center border-b border-[#eadcc4]/70 bg-[#fffdf8]/90 px-4 backdrop-blur-md">
         <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -332,23 +318,27 @@ export default function MerchantSelfRegistration() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-12">
+      <main className="mx-auto max-w-5xl px-4 py-12">
         <div className="space-y-8">
-          <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Register Your Business</h2>
-            <p className="text-gray-500 max-w-lg mx-auto">
+          <div className="mx-auto max-w-2xl rounded-[28px] border border-[#eddcc0] bg-white/80 px-8 py-7 text-center shadow-[0_16px_50px_rgba(117,67,25,0.08)] backdrop-blur">
+            <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-[#efd9af] bg-[#fff8ea] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#754319]">
+              <Sparkles className="h-3.5 w-3.5" />
+              Merchant self-service onboarding
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Register Your Business</h2>
+            <p className="mx-auto mt-2 max-w-lg text-gray-500">
               Complete the information below to start processing payments with NibTera Merchants.
             </p>
           </div>
 
-          <Card className="shadow-sm border-gray-200 overflow-hidden bg-white rounded-2xl">
+          <Card className="overflow-hidden rounded-[26px] border border-[#eddcc0] bg-white/90 shadow-[0_20px_60px_rgba(117,67,25,0.07)]">
             <CardContent className="p-0">
               <form onSubmit={handleSubmit} className="divide-y divide-gray-100">
                 {/* Section 1: Company Profile */}
                 <div className="p-8 space-y-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
-                      <Building2 className="w-5 h-5 text-gray-400" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                      <Building2 className="h-5 w-5 text-[#754319]" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Company Profile</h3>
@@ -434,8 +424,8 @@ export default function MerchantSelfRegistration() {
                 {/* Section 2: Authorized Contact */}
                 <div className="p-8 space-y-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
-                      <User className="w-5 h-5 text-gray-400" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                      <User className="h-5 w-5 text-[#754319]" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Authorized Contact</h3>
@@ -472,59 +462,11 @@ export default function MerchantSelfRegistration() {
                   </div>
                 </div>
 
-                {/* Section 3: Business Location */}
+                {/* Section 3: Compliance Documents */}
                 <div className="p-8 space-y-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
-                      <MapPin className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Business Location</h3>
-                      <p className="text-xs text-gray-400">Where your business is physically located</p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="district" className="text-sm font-medium text-gray-700">District</Label>
-                      <Select 
-                        value={formData.district} 
-                        onValueChange={(val) => setFormData({...formData, district: val})}
-                      >
-                        <SelectTrigger id="district" className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 transition-all">
-                          <SelectValue placeholder="Select District" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-gray-100">
-                          {(systemConfig.districts || []).map((district: string) => (
-                            <SelectItem key={district} value={district}>{district}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="branchName" className="text-sm font-medium text-gray-700">Processing Hub</Label>
-                      <Select 
-                        value={formData.branchName} 
-                        onValueChange={(val) => setFormData({...formData, branchName: val})}
-                      >
-                        <SelectTrigger id="branchName" className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 transition-all">
-                          <SelectValue placeholder="Select Processing Hub" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-gray-100">
-                          {(systemConfig.branches || []).map((branch: string) => (
-                            <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 4: Compliance Documents */}
-                <div className="p-8 space-y-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
-                      <FileText className="w-5 h-5 text-gray-400" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                      <FileText className="h-5 w-5 text-[#754319]" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Compliance Documents</h3>
@@ -541,8 +483,8 @@ export default function MerchantSelfRegistration() {
                     </div>
                     <p className="text-sm font-semibold text-gray-900">Upload KYC Documents</p>
                     <p className="text-xs text-gray-400 mt-1 text-center">
-                      Supported formats: {(systemConfig.allowedFileTypes || []).join(', ')}<br/>
-                      Maximum file size: {systemConfig.maxFileSizeMB}MB
+                      Supported formats: {allowedTypes.join(', ') || ".pdf, .png, .jpg"}<br/>
+                      Maximum file size: {maxFileSizeMB}MB
                     </p>
                     <input 
                       type="file" 
@@ -550,7 +492,7 @@ export default function MerchantSelfRegistration() {
                       className="hidden" 
                       ref={fileInputRef}
                       onChange={handleFileUpload}
-                      accept={(systemConfig.allowedFileTypes || []).join(',')}
+                      accept={allowedTypes.join(',')}
                     />
                   </div>
 

@@ -504,15 +504,6 @@ export default function MerchantOnboardingPage() {
                                       {categories.filter(c => c.active).map((cat, i) => (
                                         <SelectItem key={i} value={cat.name}>{cat.name}</SelectItem>
                                       ))}
-                                      {categories.length === 0 && (
-                                        <>
-                                          <SelectItem value="E-commerce">E-commerce</SelectItem>
-                                          <SelectItem value="Retail">Retail</SelectItem>
-                                          <SelectItem value="Services">Services</SelectItem>
-                                          <SelectItem value="Gaming">Gaming/Digital</SelectItem>
-                                          <SelectItem value="Education">Education</SelectItem>
-                                        </>
-                                      )}
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -524,14 +515,6 @@ export default function MerchantOnboardingPage() {
                                       {businessTypes.filter(bt => bt.active).map((bt, i) => (
                                         <SelectItem key={i} value={bt.name}>{bt.name}</SelectItem>
                                       ))}
-                                      {businessTypes.length === 0 && (
-                                        <>
-                                          <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
-                                          <SelectItem value="Private Limited">Private Limited</SelectItem>
-                                          <SelectItem value="Public Limited">Public Limited</SelectItem>
-                                          <SelectItem value="Partnership">Partnership</SelectItem>
-                                        </>
-                                      )}
                                     </SelectContent>
                                   </Select>
                                 </div>
