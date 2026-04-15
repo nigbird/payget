@@ -63,7 +63,10 @@ import {
   Lock,
   Plus,
   ChevronRight,
-  SlidersHorizontal
+  SlidersHorizontal,
+  CreditCard,
+  Store,
+  Download
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument, Merchant } from "@/app/lib/db"
@@ -100,6 +103,7 @@ export default function MerchantOnboardingPage() {
   const [resendLoadingId, setResendLoadingId] = useState<string | null>(null)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -954,86 +958,220 @@ export default function MerchantOnboardingPage() {
       </Card>
 
             <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-              <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5" />
-                    {selectedMerchant?.name ?? "Merchant"} Details
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader className="border-b pb-4">
+                  <DialogTitle className="flex items-center gap-3 text-xl">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold">{selectedMerchant?.name ?? "Merchant"} Details</p>
+                      <p className="text-xs text-muted-foreground font-normal">Submitted on {selectedMerchant?.createdAt ? new Date(selectedMerchant.createdAt).toLocaleString() : "—"}</p>
+                    </div>
                   </DialogTitle>
-                  <DialogDescription>
-                    Submitted on{" "}
-                    {selectedMerchant?.createdAt ? new Date(selectedMerchant.createdAt).toLocaleString() : "—"}.
-                  </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">Merchant ID</Label>
-                      <p className="text-sm font-mono">{selectedMerchant?.id ?? "—"}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">Identifiers</Label>
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm flex items-center gap-2">
-                          <Mail className="w-3 h-3" /> {selectedMerchant?.email ?? "—"}
-                        </p>
-                        <p className="text-sm flex items-center gap-2">
-                          <User className="w-3 h-3" /> {selectedMerchant?.contactUsername ?? "—"}
-                        </p>
-                        {selectedMerchant?.contactName ? (
-                          <p className="text-sm flex items-center gap-2">
-                            <User className="w-3 h-3" /> {selectedMerchant.contactName}
-                          </p>
-                        ) : null}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-6">
+                  {/* Left Column: Core Info & Logo */}
+                  <div className="space-y-8">
+                    <div className="space-y-3">
+                      <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Business Logo</Label>
+                      <div className="relative group w-full aspect-square max-w-[200px] mx-auto rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
+                        {selectedMerchant?.logoUrl ? (
+                          <>
+                            <img 
+                              src={selectedMerchant.logoUrl} 
+                              alt="Logo" 
+                              className="w-full h-full object-contain p-4"
+                            />
+                            <button 
+                              className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                              onClick={() => setPreviewFile({ url: selectedMerchant.logoUrl!, name: "Business Logo", type: "image/png" })}
+                            >
+                              <Eye className="w-6 h-6 text-white" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="text-center p-4">
+                            <Building2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                            <p className="text-[10px] text-slate-400 font-medium">No logo provided</p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">Hub / District</Label>
-                      <p className="text-sm">{selectedMerchant?.branchName ?? "—"} — {selectedMerchant?.district ?? "—"}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">Category</Label>
-                      <p className="text-sm">
-                        {(selectedMerchant as any)?.category ?? "—"} — {(selectedMerchant as any)?.businessType ?? "—"}
-                      </p>
+
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-slate-500 font-bold">Merchant ID</Label>
+                          <p className="text-sm font-mono font-bold text-slate-900">{selectedMerchant?.id ?? "—"}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-slate-500 font-bold">Status</Label>
+                          <div>{selectedMerchant?.status ? getStatusBadge(selectedMerchant.status) : <Badge variant="secondary">—</Badge>}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-slate-500 font-bold">Registration Path</Label>
+                          <p className="text-xs font-bold text-slate-700">{selectedMerchant?.branchName === "Self-Service" ? "Self-Registration Portal" : `Staff: ${selectedMerchant?.branchName}`}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">Status</Label>
-                      <div>{selectedMerchant?.status ? getStatusBadge(selectedMerchant.status) : <Badge variant="secondary">—</Badge>}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">Limits</Label>
-                      <div className="text-sm space-y-1">
-                        <p>Daily: <span className="font-semibold">{(selectedMerchant as any)?.dailyLimit ?? "—"}</span></p>
-                        <p>Per Tx: <span className="font-semibold">{(selectedMerchant as any)?.transactionLimit ?? "—"}</span></p>
-                        <p>Daily Count: <span className="font-semibold">{(selectedMerchant as any)?.dailyCountLimit ?? "—"}</span></p>
+                  {/* Middle & Right Columns: Business Details */}
+                  <div className="md:col-span-2 space-y-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                      {/* Section: Identifiers */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                          <User className="w-3.5 h-3.5" /> Primary Contact
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Full Name</Label>
+                            <p className="text-sm font-bold text-slate-900">{selectedMerchant?.contactName || "—"}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Username / Login</Label>
+                            <p className="text-sm font-bold text-slate-900">{selectedMerchant?.contactUsername || "—"}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Business Email</Label>
+                            <p className="text-sm font-bold text-slate-900">{selectedMerchant?.email || "—"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section: Professional Info */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                          <Store className="w-3.5 h-3.5" /> Industry Info
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Industry Category</Label>
+                            <p className="text-sm font-bold text-slate-900">{selectedMerchant?.category || "—"}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Business Type</Label>
+                            <p className="text-sm font-bold text-slate-900">{selectedMerchant?.businessType || "—"}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Hub / Location</Label>
+                            <p className="text-sm font-bold text-slate-900">{selectedMerchant?.district || "—"}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">Risk Factors</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {(selectedMerchant as any)?.riskFactors?.length ? (
-                          (selectedMerchant as any).riskFactors.map((rf: string) => (
-                            <Badge key={rf} variant="destructive" className="text-[10px]">{rf}</Badge>
+
+                    <Separator />
+
+                    {/* Section: Technical & Financial */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                          <Globe className="w-3.5 h-3.5" /> Online Presence
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Website URL</Label>
+                            <p className="text-sm font-bold text-blue-600 truncate">
+                              <a href={selectedMerchant?.websiteUrl || "#"} target="_blank" className="hover:underline">
+                                {selectedMerchant?.websiteUrl || "—"}
+                              </a>
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Webhook Callback</Label>
+                            <p className="text-sm font-mono text-slate-700 truncate" title={selectedMerchant?.callbackUrl}>
+                              {selectedMerchant?.callbackUrl || "—"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                          <CreditCard className="w-3.5 h-3.5" /> Financial Setup
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Settlement Account</Label>
+                            <p className="text-sm font-mono font-bold text-slate-900">{selectedMerchant?.accountNumber || "—"}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-400 font-bold">Configured Limits</Label>
+                            <div className="flex gap-4">
+                              <div className="text-center p-2 rounded-lg bg-slate-50 border border-slate-100 flex-1">
+                                <p className="text-[9px] uppercase text-slate-400 font-bold">Daily</p>
+                                <p className="text-xs font-bold">{selectedMerchant?.dailyLimit ?? "—"}</p>
+                              </div>
+                              <div className="text-center p-2 rounded-lg bg-slate-50 border border-slate-100 flex-1">
+                                <p className="text-[9px] uppercase text-slate-400 font-bold">Max Tx</p>
+                                <p className="text-xs font-bold">{selectedMerchant?.transactionLimit ?? "—"}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 p-4 rounded-2xl bg-amber-50/30 border border-amber-100">
+                      <Label className="text-[10px] uppercase text-amber-700 font-bold">Business Description</Label>
+                      <p className="text-sm text-slate-700 italic leading-relaxed">
+                        "{selectedMerchant?.businessDescription || "No description provided."}"
+                      </p>
+                    </div>
+
+                    {/* Section: Documents */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                        <FileText className="w-4 h-4" /> Uploaded Documents
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {selectedMerchant?.documents?.length ? (
+                          selectedMerchant.documents.map(doc => (
+                            <div key={doc.id} className="group flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-primary/50 transition-all">
+                              <div className="flex items-center gap-3 truncate">
+                                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                                  {doc.type.startsWith('image/') ? (
+                                    <img src={doc.url} alt="" className="w-full h-full object-cover rounded-lg" />
+                                  ) : (
+                                    <FileText className="w-4 h-4 text-slate-400" />
+                                  )}
+                                </div>
+                                <div className="truncate">
+                                  <p className="text-xs font-bold text-slate-900 truncate" title={doc.name}>{doc.name}</p>
+                                  <p className="text-[9px] text-slate-500 font-medium">{(doc.size / 1024).toFixed(1)} KB</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPreviewFile({ url: doc.url!, name: doc.name, type: doc.type })}>
+                                  <Eye className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                                  <a href={doc.url} download={doc.name}>
+                                    <Download className="w-3.5 h-3.5" />
+                                  </a>
+                                </Button>
+                              </div>
+                            </div>
                           ))
                         ) : (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <FileCheck className="w-3 h-3" /> None flagged.
-                          </span>
+                          <div className="col-span-2 py-8 text-center rounded-2xl border-2 border-dashed border-slate-100">
+                            <p className="text-xs text-slate-400 font-medium">No documents attached.</p>
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t">
-                  <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>Close</Button>
+                <DialogFooter className="border-t pt-4">
+                  <Button variant="outline" className="rounded-xl px-8 h-11 font-bold" onClick={() => setIsDetailsDialogOpen(false)}>Close</Button>
                   {selectedMerchant?.status === 'pending' && canSetLimits ? (
                     <Button
+                      className="rounded-xl px-8 h-11 font-bold bg-primary text-white hover:bg-primary/90"
                       onClick={() => {
                         setIsDetailsDialogOpen(false)
                         setSelectedForReview(selectedMerchant)
@@ -1043,7 +1181,7 @@ export default function MerchantOnboardingPage() {
                       Initial Review
                     </Button>
                   ) : null}
-                </div>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
 

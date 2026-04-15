@@ -37,19 +37,27 @@ import {
   User, 
   Phone, 
   MapPin, 
-  Link as LinkIcon,
-  FileCheck,
-  ExternalLink,
-  MessageSquare,
-  TrendingUp,
-  Hash,
-  Clock,
-  ArrowRight,
-  Filter,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Plus
+  Link as LinkIcon, 
+  FileCheck, 
+  ExternalLink, 
+  MessageSquare, 
+  TrendingUp, 
+  Hash, 
+  Clock, 
+  ArrowRight, 
+  Filter, 
+  CheckCircle, 
+  AlertCircle, 
+  Loader2, 
+  Plus, 
+  Globe, 
+  ShieldAlert, 
+  X, 
+  FileText, 
+  Download,
+  Mail,
+  Store,
+  CreditCard
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { Merchant } from "@/app/lib/db"
@@ -75,6 +83,7 @@ function MerchantReviewContent() {
   
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
   const userPermissions = (session?.user as any)?.permissions || []
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
@@ -257,62 +266,166 @@ function MerchantReviewContent() {
               {selectedMerchant && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-6">
                   <div className="lg:col-span-2 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase text-muted-foreground">Merchant ID</Label>
-                        <p className="text-sm font-mono font-bold">{selectedMerchant.id}</p>
+                    {/* Header Info with Logo */}
+                    <div className="flex items-start gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <div className="relative group shrink-0">
+                        <div className="w-24 h-24 rounded-2xl bg-white border border-slate-200 shadow-inner flex items-center justify-center overflow-hidden">
+                          {selectedMerchant.logoUrl ? (
+                            <img 
+                              src={selectedMerchant.logoUrl} 
+                              alt="Merchant Logo" 
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Building2 className="w-10 h-10 text-slate-300" />
+                          )}
+                        </div>
+                        {selectedMerchant.logoUrl && (
+                          <button 
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl"
+                            onClick={() => setPreviewFile({ url: selectedMerchant.logoUrl!, name: "Business Logo", type: "image/png" })}
+                          >
+                            <Eye className="w-6 h-6 text-white" />
+                          </button>
+                        )}
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase text-muted-foreground">Registered Email</Label>
-                        <p className="text-sm font-medium">{selectedMerchant.email}</p>
+                      <div className="flex-1 space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Merchant ID</Label>
+                            <p className="text-sm font-mono font-bold text-slate-950">{selectedMerchant.id}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Business Email</Label>
+                            <p className="text-sm font-medium text-slate-950 flex items-center gap-2">
+                              <Mail className="w-3.5 h-3.5 text-slate-400" /> {selectedMerchant.email}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Contact Name</Label>
+                            <p className="text-sm font-medium text-slate-950 flex items-center gap-2">
+                              <User className="w-3.5 h-3.5 text-slate-400" /> {selectedMerchant.contactName || "—"}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Contact Username</Label>
+                            <p className="text-sm font-medium text-slate-950 flex items-center gap-2">
+                              <Hash className="w-3.5 h-3.5 text-slate-400" /> {selectedMerchant.contactUsername || "—"}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <Separator />
-
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-bold flex items-center gap-2">
-                        <FileCheck className="w-4 h-4 text-primary" /> Business Profile
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                        <Store className="w-4 h-4" /> Business Profile
                       </h4>
-                      <p className="text-sm text-slate-600 bg-primary/5 p-3 rounded-lg border border-primary/10">
-                        {selectedMerchant.businessDescription}
-                      </p>
-                      <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div className="flex justify-between p-2 border-b">
-                          <span className="text-muted-foreground">Category:</span>
-                          <span className="font-medium">{selectedMerchant.category}</span>
+                      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="p-4 bg-slate-50/50 border-b border-slate-100">
+                          <Label className="text-[10px] uppercase text-slate-500 font-bold">Nature of Business</Label>
+                          <p className="mt-1 text-sm text-slate-700 leading-relaxed italic">
+                            "{selectedMerchant.businessDescription}"
+                          </p>
                         </div>
-                        <div className="flex justify-between p-2 border-b">
-                          <span className="text-muted-foreground">Type:</span>
-                          <span className="font-medium">{selectedMerchant.businessType}</span>
-                        </div>
-                        <div className="flex justify-between p-2 border-b">
-                          <span className="text-muted-foreground">Account #:</span>
-                          <span className="font-medium">{selectedMerchant.accountNumber}</span>
-                        </div>
-                        <div className="flex justify-between p-2 border-b">
-                          <span className="text-muted-foreground">Hub:</span>
-                          <span className="font-medium">{selectedMerchant.branchName}</span>
+                        <div className="grid grid-cols-2 divide-x divide-slate-100">
+                          <div className="p-4 space-y-3">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500">Industry:</span>
+                              <Badge variant="outline" className="font-bold border-slate-200">{selectedMerchant.category}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500">Business Type:</span>
+                              <Badge variant="outline" className="font-bold border-slate-200">{selectedMerchant.businessType}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500">Hub / District:</span>
+                              <span className="font-bold text-slate-900">{selectedMerchant.branchName} / {selectedMerchant.district}</span>
+                            </div>
+                          </div>
+                          <div className="p-4 space-y-3">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500 flex items-center gap-1"><Globe className="w-3 h-3" /> Website:</span>
+                              <a href={selectedMerchant.websiteUrl || "#"} target="_blank" className="font-bold text-blue-600 hover:underline truncate max-w-[120px]">
+                                {selectedMerchant.websiteUrl?.replace(/^https?:\/\//, '') || "—"}
+                              </a>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500 flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Webhook:</span>
+                              <span className="font-bold text-slate-900 truncate max-w-[120px]" title={selectedMerchant.callbackUrl}>
+                                {selectedMerchant.callbackUrl?.replace(/^https?:\/\//, '') || "—"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500 flex items-center gap-1"><CreditCard className="w-3 h-3" /> Settlement:</span>
+                              <span className="font-mono font-bold text-slate-950">{selectedMerchant.accountNumber}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-bold">Uploaded Documents</h4>
-                      <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                        <FileText className="w-4 h-4" /> Compliance Documentation
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {selectedMerchant.documents?.map(doc => (
-                          <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-white border text-[10px] group hover:border-primary transition-colors">
-                            <div className="flex items-center gap-2 truncate">
-                              <FileCheck className="w-3 h-3 text-green-500" />
-                              <span className="truncate">{doc.name}</span>
+                          <div key={doc.id} className="group relative flex flex-col p-4 rounded-2xl bg-white border border-slate-200 hover:border-primary/50 hover:shadow-md transition-all duration-300">
+                            <div className="flex items-start gap-4">
+                              <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 group-hover:bg-primary/5 transition-colors">
+                                {doc.type.startsWith('image/') ? (
+                                  <img src={doc.url} alt={doc.name} className="w-full h-full object-cover rounded-xl" />
+                                ) : (
+                                  <FileText className="w-6 h-6 text-slate-400 group-hover:text-primary transition-colors" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-slate-900 truncate" title={doc.name}>{doc.name}</p>
+                                <p className="text-[10px] text-slate-500 font-medium uppercase mt-0.5">
+                                  {doc.type.split('/')[1]} • {(doc.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100">
-                              <ExternalLink className="w-3 h-3" />
-                            </Button>
+                            <div className="flex gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 h-8 text-[10px] font-bold uppercase tracking-wider rounded-lg border-slate-200"
+                                onClick={() => setPreviewFile({ url: doc.url!, name: doc.name, type: doc.type })}
+                              >
+                                <Eye className="w-3 h-3 mr-1.5" /> Preview
+                              </Button>
+                              <a 
+                                href={doc.url} 
+                                download={doc.name}
+                                className="flex-1 inline-flex items-center justify-center h-8 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                              >
+                                <Download className="w-3 h-3 mr-1.5" /> Download
+                              </a>
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
+
+                    {selectedMerchant.riskFactors?.length > 0 && (
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-red-600 flex items-center gap-2">
+                          <ShieldAlert className="w-4 h-4" /> Compliance Risk Assessment
+                        </h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {selectedMerchant.riskFactors.map((rf, idx) => (
+                            <div key={idx} className="flex items-center gap-3 p-3 bg-red-50/50 border border-red-100 rounded-xl text-xs font-medium text-red-900">
+                              <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                              {rf}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-6">
@@ -448,6 +561,53 @@ function MerchantReviewContent() {
               )}
             </DialogContent>
           </Dialog>
+
+      {/* Preview Modal */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl bg-black/95 border-none p-0 overflow-hidden">
+          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/60 to-transparent">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-white text-sm font-bold truncate pr-8">
+                {previewFile?.name}
+              </DialogTitle>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-white hover:bg-white/20" 
+                onClick={() => setPreviewFile(null)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="flex items-center justify-center min-h-[60vh] p-8">
+            {previewFile?.type.startsWith('image/') ? (
+              <img 
+                src={previewFile.url} 
+                alt={previewFile.name} 
+                className="max-w-full max-h-[80vh] object-contain shadow-2xl animate-in zoom-in-95 duration-300"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-6 text-white animate-in fade-in duration-300">
+                <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
+                  <FileText className="w-12 h-12 text-white/60" />
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold">Preview not available for this file type</p>
+                  <p className="text-sm text-white/60 mt-1">Please download the file to view its content.</p>
+                </div>
+                <a 
+                  href={previewFile?.url} 
+                  download={previewFile?.name}
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-2xl font-bold hover:bg-slate-200 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Download File
+                </a>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

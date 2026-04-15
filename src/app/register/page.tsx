@@ -356,7 +356,7 @@ export default function MerchantSelfRegistration() {
             </div>
           </CardContent>
           <CardFooter className="px-8 pb-8">
-            <Button className="w-full h-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 font-bold" asChild>
+            <Button className="w-full h-14 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_100%)] text-[#3f210f] hover:brightness-95 shadow-lg shadow-amber-950/10 font-bold border border-white/40" asChild>
               <Link href="/">Return to Home</Link>
             </Button>
           </CardFooter>
