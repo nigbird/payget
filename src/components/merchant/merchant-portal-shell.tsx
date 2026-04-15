@@ -132,13 +132,13 @@ export default function MerchantPortalShell({
     <MerchantPortalRoleContext.Provider value={activeRole}>
       <div className="min-h-svh bg-app-main">
         <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur-md shadow-sm">
-          <div className="mx-auto w-full max-w-7xl px-4 md:px-8 h-16 flex items-center gap-3">
+          <div className="mx-auto w-full max-w-7xl px-3 xs:px-4 sm:px-6 md:px-8 h-14 xs:h-16 flex items-center gap-2 xs:gap-3">
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center">
-                <span className="text-[10px] md:text-xs font-black text-[#754319]">FF</span>
+              <div className="w-7 xs:w-8 h-7 xs:h-8 md:w-10 md:h-10 rounded-lg xs:rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center">
+                <span className="text-[9px] xs:text-[10px] md:text-xs font-black text-[#754319]">FF</span>
               </div>
               <div className="leading-tight hidden sm:block">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
+                <p className="text-[9px] xs:text-[10px] uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
               </div>
             </div>
 
@@ -152,7 +152,7 @@ export default function MerchantPortalShell({
 
                 <div
                   className={cn(
-                    "flex items-center gap-1 rounded-2xl bg-card border border-border/40 px-1 py-1",
+                    "flex items-center gap-0.5 xs:gap-1 rounded-xl xs:rounded-2xl bg-card border border-border/40 px-0.5 xs:px-1 py-0.5 xs:py-1",
                     isMobile ? "w-auto" : "w-auto"
                   )}
                 >
@@ -166,14 +166,14 @@ export default function MerchantPortalShell({
                         key={item.key}
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-xl transition-all whitespace-nowrap text-sm font-semibold",
+                          "flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg xs:rounded-xl transition-all whitespace-nowrap text-xs xs:text-sm font-semibold",
                           isActive
                             ? "gradient-honey text-[#2a1410] shadow-sm"
                             : "text-foreground hover:bg-accent/20"
                         )}
                         title={item.label}
                       >
-                        <Icon className={cn("h-4 w-4")} />
+                        <Icon className={cn("h-3.5 xs:h-4 w-3.5 xs:w-4")} />
                         <span className="hidden md:inline">{item.label}</span>
                       </Link>
                     )
@@ -204,17 +204,17 @@ export default function MerchantPortalShell({
                 variant="ghost"
                 size="sm"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-xl gap-2 px-2 md:px-3 font-semibold text-sm"
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg xs:rounded-xl gap-1 xs:gap-2 px-2 xs:px-3 font-semibold text-xs xs:text-sm h-8 xs:h-auto"
                 title="Log Out"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 xs:h-4 w-3.5 xs:w-4" />
                 <span className="hidden md:inline">Log Out</span>
               </Button>
             </div>
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 md:px-8 pt-5 pb-28">
+        <main className="mx-auto w-full max-w-7xl px-3 xs:px-4 sm:px-6 md:px-8 pt-4 xs:pt-5 sm:pt-6 pb-24 sm:pb-28">
           {isRestrictedSalesPath ? null : children}
         </main>
       </div>

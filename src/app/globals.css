@@ -2,6 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-30px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(248, 181, 19, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(248, 181, 19, 0.6);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer components {
   .bg-app-main {
     @apply bg-background;
@@ -21,6 +70,38 @@
 
   .dark .card-gradient {
     @apply bg-gradient-to-br from-[#2a1f15] to-[#1f1511];
+  }
+
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-md border border-white/40 rounded-2xl shadow-2xl;
+  }
+
+  .float-animation {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .float-slow-animation {
+    animation: float-slow 8s ease-in-out infinite;
+  }
+
+  .glow-pulse-animation {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .scale-in-animation {
+    animation: scale-in 0.5s ease-out;
+  }
+
+  .fade-in-down-animation {
+    animation: fade-in-down 0.6s ease-out;
+  }
+
+  .input-glow {
+    @apply transition-all duration-300;
+  }
+
+  .input-glow:focus {
+    @apply shadow-lg shadow-[#f8b513]/30 ring-2 ring-[#f8b513];
   }
 }
 

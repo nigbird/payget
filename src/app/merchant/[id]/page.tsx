@@ -454,69 +454,70 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header with User Greeting and Notification */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Welcome back</p>
-          <h1 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">{merchant?.name || "Merchant"}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs sm:text-sm text-muted-foreground">Welcome back</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground tracking-tight truncate">{merchant?.name || "Merchant"}</h1>
         </div>
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] flex items-center justify-center text-white font-bold text-lg">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] flex items-center justify-center text-white font-bold text-xs sm:text-lg flex-shrink-0">
           {merchant?.name?.charAt(0).toUpperCase()}
         </div>
       </div>
 
       {/* Hero Balance Section */}
-      <section className="relative overflow-hidden rounded-3xl gradient-honey p-8 md:p-12 shadow-2xl border border-[#f8b513]/20">
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl gradient-honey p-6 sm:p-8 md:p-12 shadow-2xl border border-[#f8b513]/20">
         {/* Honeycomb pattern overlay */}
         <div className="absolute inset-0 honeycomb-pattern opacity-100 pointer-events-none" />
         
-        <div className="relative z-10 flex flex-col gap-8">
-          <div>
-            <p className="text-sm uppercase tracking-[0.2em] font-bold text-[#3f210f]/70">Available Balance</p>
-            <h2 className="mt-4 text-6xl md:text-7xl font-black text-[#2a1410] tracking-tight">
+        <div className="relative z-10 flex flex-col gap-6 sm:gap-8">
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm uppercase tracking-[0.2em] font-bold text-[#3f210f]/70">Available Balance</p>
+            <h2 className="mt-3 sm:mt-4 text-4xl sm:text-6xl md:text-7xl font-black text-[#2a1410] tracking-tight break-words">
               {merchant?.balance?.toFixed(2) || "0.00"}
             </h2>
-            <p className="mt-3 text-base md:text-lg text-[#3f210f]/75 font-medium">ETB</p>
-            <p className="mt-1 text-sm text-[#3f210f]/65">Your balance up 12.2% from last month</p>
+            <p className="mt-2 sm:mt-3 text-sm sm:text-base md:text-lg text-[#3f210f]/75 font-medium">ETB</p>
+            <p className="mt-1 text-xs sm:text-sm text-[#3f210f]/65">Your balance up 12.2% from last month</p>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full">
             <Button
               disabled={!isApproved}
-              className="h-12 px-6 rounded-2xl bg-white text-[#754319] font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
+              className="h-10 sm:h-12 px-4 sm:px-6 rounded-lg sm:rounded-2xl bg-white text-[#754319] font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 text-sm sm:text-base"
               onClick={() => setIsRequestPanelOpen(true)}
             >
-              <Plus className="mr-2 h-5 w-5" />
-              Push Payment
+              <Plus className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
+              <span className="hidden xs:inline">Push Payment</span>
+              <span className="xs:hidden">Pay</span>
             </Button>
             <Button
               variant="outline"
-              className="h-12 px-6 rounded-2xl border-2 border-white/60 text-[#2a1410] hover:bg-white/20 font-bold shadow-md bg-white/30"
+              className="h-10 sm:h-12 px-4 sm:px-6 rounded-lg sm:rounded-2xl border-2 border-white/60 text-[#2a1410] hover:bg-white/20 font-bold shadow-md bg-white/30 text-sm sm:text-base"
             >
-              Withdraw Funds
+              Withdraw
             </Button>
           </div>
         </div>
       </section>
 
       {/* Quick Action Pills */}
-      <section className="flex flex-wrap gap-3">
-        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-pink-100 hover:bg-pink-200 text-pink-700 font-semibold transition-colors shadow-sm hover:shadow-md">
-          <Plus className="h-4 w-4" />
-          <span>Top Up</span>
+      <section className="flex flex-wrap gap-2 sm:gap-3">
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-full bg-pink-100 hover:bg-pink-200 text-pink-700 font-semibold transition-colors shadow-sm hover:shadow-md text-xs sm:text-sm">
+          <Plus className="h-3 sm:h-4 w-3 sm:w-4" />
+          <span className="hidden xs:inline">Top Up</span>
         </button>
-        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-semibold transition-colors shadow-sm hover:shadow-md">
-          <ArrowDownLeft className="h-4 w-4" />
-          <span>Receive</span>
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-full bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-semibold transition-colors shadow-sm hover:shadow-md text-xs sm:text-sm">
+          <ArrowDownLeft className="h-3 sm:h-4 w-3 sm:w-4" />
+          <span className="hidden xs:inline">Receive</span>
         </button>
-        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold transition-colors shadow-sm hover:shadow-md">
-          <Send className="h-4 w-4" />
-          <span>Send</span>
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold transition-colors shadow-sm hover:shadow-md text-xs sm:text-sm">
+          <Send className="h-3 sm:h-4 w-3 sm:w-4" />
+          <span className="hidden xs:inline">Send</span>
         </button>
-        <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold transition-colors shadow-sm hover:shadow-md">
-          <MoreHorizontal className="h-4 w-4" />
-          <span>More</span>
+        <button className="flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold transition-colors shadow-sm hover:shadow-md text-xs sm:text-sm">
+          <MoreHorizontal className="h-3 sm:h-4 w-3 sm:w-4" />
+          <span className="hidden xs:inline">More</span>
         </button>
       </section>
 
@@ -537,22 +538,22 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       )}
 
       {/* Key Metrics */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {metricCards.map((item) => {
           const Icon = item.icon
           return (
             <Card
               key={item.title}
-              className="overflow-hidden rounded-2xl card-gradient border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5"
+              className="overflow-hidden rounded-lg sm:rounded-2xl card-gradient border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5"
             >
-              <CardContent className="p-5 flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{item.title}</p>
-                  <p className="mt-2 text-3xl font-black text-foreground">{item.value}</p>
-                  <p className="mt-1 text-xs text-muted-foreground font-medium">{item.hint}</p>
+              <CardContent className="p-3 sm:p-5 flex items-center justify-between gap-3 sm:gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground truncate">{item.title}</p>
+                  <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-black text-foreground truncate">{item.value}</p>
+                  <p className="mt-0.5 sm:mt-1 text-xs text-muted-foreground font-medium truncate">{item.hint}</p>
                 </div>
-                <div className="shrink-0 p-3 rounded-xl bg-primary/10 border border-primary/20">
-                  <Icon className="h-5 w-5 text-primary" />
+                <div className="shrink-0 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-primary/10 border border-primary/20">
+                  <Icon className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
                 </div>
               </CardContent>
             </Card>
@@ -561,29 +562,29 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </section>
 
       {/* Recent Activity */}
-      <section className="rounded-2xl card-gradient border border-border/40 shadow-sm p-6">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="font-bold text-2xl text-foreground">Recent Transactions</h2>
-            <p className="text-sm text-muted-foreground mt-1">{pendingRequests.length} pending • {todayActivity.length} today</p>
+      <section className="rounded-lg sm:rounded-2xl card-gradient border border-border/40 shadow-sm p-4 sm:p-6">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h2 className="font-bold text-lg sm:text-2xl text-foreground truncate">Recent Transactions</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">{pendingRequests.length} pending • {todayActivity.length} today</p>
           </div>
-          <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
-            View All <ArrowUpRight className="ml-1 h-4 w-4" />
+          <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-xs sm:text-sm font-semibold text-primary hover:text-primary/80 transition-colors whitespace-nowrap">
+            View All <ArrowUpRight className="ml-1 h-3 sm:h-4 w-3 sm:w-4" />
           </Link>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 sm:space-y-3">
           {recentTransactions.map((tx) => (
-            <div key={tx.id} className="group flex items-center justify-between rounded-xl border border-border/50 bg-background/50 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-background/80">
+            <div key={tx.id} className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 rounded-lg sm:rounded-xl border border-border/50 bg-background/50 p-3 sm:p-4 transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-background/80">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{tx.description}</p>
-                <p className="text-xs text-muted-foreground mt-1">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{tx.description}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
               </div>
-              <div className="text-right flex items-center gap-3 ml-4 flex-shrink-0">
-                <div>
-                  <p className="font-semibold text-foreground">{tx.amount.toFixed(2)} ETB</p>
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+                <div className="text-right">
+                  <p className="text-xs sm:text-sm font-semibold text-foreground">{tx.amount.toFixed(2)} ETB</p>
                   <Badge
                     variant="outline"
-                    className={`mt-1.5 text-xs capitalize font-medium ${
+                    className={`mt-1 text-xs capitalize font-medium inline-block ${
                       tx.status === "success"
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                         : ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status)
@@ -604,16 +605,16 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     title="Re-send USSD Push"
                   >
                     {isResending === tx.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3 sm:h-4 w-3 sm:w-4 animate-spin" />
                     ) : (
-                      <SendHorizontal className="h-4 w-4" />
+                      <SendHorizontal className="h-3 sm:h-4 w-3 sm:w-4" />
                     )}
                   </Button>
                 )}
               </div>
             </div>
           ))}
-          {transactions.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No transactions yet.</p>}
+          {transactions.length === 0 && <p className="text-xs sm:text-sm text-muted-foreground text-center py-6 sm:py-8">No transactions yet.</p>}
         </div>
       </section>
 

@@ -7,8 +7,7 @@ import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { CreditCard, ShieldCheck, ArrowRight, Loader2, Lock, Mail, Phone, Eye, EyeOff } from "lucide-react"
+import { Loader2, Lock, Mail, Eye, EyeOff, Phone, ArrowRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Home() {
@@ -50,7 +49,7 @@ export default function Home() {
           description: "Login successful. Redirecting..."
         })
         router.refresh()
-        router.push("/admin") // Middleware will handle correct portal routing
+        router.push("/admin")
       }
     } catch (err) {
       toast({
@@ -164,182 +163,227 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="h-16 border-b bg-white flex items-center px-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            <CreditCard size={20} />
-          </div>
-          <span className="text-xl font-bold font-headline tracking-tight text-primary">Finflow Gateway</span>
-        </div>
-      </header>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#faf8f3] via-[#f5f0e8] to-[#f0e8df]">
+      {/* Floating Gradient Orbs Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Top-left large orb */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-br from-[#f4db9f]/40 to-[#f8b513]/25 blur-3xl float-slow-animation" />
+        
+        {/* Top-right orb */}
+        <div className="absolute -top-48 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-[#f8b513]/35 to-[#754319]/20 blur-3xl float-animation" style={{ animationDelay: '2s' }} />
+        
+        {/* Bottom-left orb */}
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-gradient-to-br from-[#754319]/25 to-[#f4db9f]/20 blur-3xl float-animation" style={{ animationDelay: '4s' }} />
+        
+        {/* Bottom-right orb */}
+        <div className="absolute -bottom-24 -right-32 w-72 h-72 rounded-full bg-gradient-to-br from-[#f8b513]/30 to-[#f4db9f]/30 blur-3xl float-animation" style={{ animationDelay: '3s' }} />
+      </div>
 
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          
-          <div className="space-y-6 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/20 text-accent-foreground text-sm font-medium border border-accent/30">
-              <ShieldCheck size={16} />
-              Enterprise Auth Infrastructure
+      {/* Honeycomb Grid Overlay */}
+      <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='honeycomb' x='0' y='0' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Cpolygon points='30,0 40,10 40,30 30,40 20,30 20,10' fill='none' stroke='%23754319' stroke-width='0.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23honeycomb)'/%3E%3C/svg%3E")`,
+      }} />
+
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4">
+        {/* Logo Header */}
+        <div className="mb-8 fade-in-down-animation">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] flex items-center justify-center shadow-lg">
+            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Main Glass Card */}
+        <div className="w-full max-w-md scale-in-animation" style={{ animationDelay: '0.1s' }}>
+          <div className="glass-card p-8 md:p-10 space-y-6 rounded-3xl overflow-hidden hover:shadow-3xl transition-shadow duration-300">
+            {/* Header */}
+            <div className="space-y-3">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-[#754319] to-[#f8b513] bg-clip-text text-transparent">
+                Welcome Back
+              </h2>
+              <p className="text-base text-gray-600">
+                {loginMode === 'email' 
+                  ? 'Sign in to access your dashboard' 
+                  : 'Enter your phone number to proceed'}
+              </p>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold font-headline text-foreground tracking-tight leading-tight">
-              One Secure Entry. <br />
-              <span className="text-primary">Infinite Possibilities.</span>
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-md mx-auto md:mx-0">
-              Sign in to manage your gateway operations with enterprise-grade security.
-            </p>
-          </div>
 
-          <div className="space-y-6">
-            <Card className="shadow-xl border-none">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-2xl font-headline">Portal Access</CardTitle>
-                <CardDescription>
-                  Enter your credentials to access your dashboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={loginMode === 'email' ? handleLogin : handleSalesLogin} className="space-y-4">
-                  {loginMode === 'email' ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Username (Email or Phone)</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            id="email" 
-                            type="text"
-                            inputMode="text"
-                            autoCapitalize="none"
-                            autoCorrect="off"
-                            placeholder="email@example.com or +1234567890" 
-                            className="pl-9"
-                            required
-                            value={credentials.email}
-                            onChange={(e) => setCredentials({...credentials, email: e.target.value})}
-                          />
-                        </div>
+            {/* Form Content */}
+            <form onSubmit={loginMode === 'email' ? handleLogin : handleSalesLogin} className="space-y-5">
+                {loginMode === 'email' ? (
+                  <>
+                    {/* Email Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-sm font-semibold text-gray-700">Username or Email</Label>
+                      <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#754319]/60 transition-colors group-focus-within:text-[#f8b513]" />
+                        <Input 
+                          id="email" 
+                          type="text"
+                          inputMode="text"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          placeholder="email@example.com" 
+                          className="pl-12 h-12 bg-white/50 border border-white/50 rounded-xl focus:bg-white focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/30 focus:shadow-lg focus:shadow-[#f8b513]/20 transition-all"
+                          required
+                          value={credentials.email}
+                          onChange={(e) => setCredentials({...credentials, email: e.target.value})}
+                        />
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="password">Password</Label>
-                          <Button variant="link" className="px-0 h-auto text-xs" type="button" asChild>
-                            <Link href="/forgot-password">Forgot password?</Link>
-                          </Button>
-                        </div>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            id="password" 
-                            type={showPassword ? "text" : "password"} 
-                            className="pr-11 pl-9"
-                            placeholder="••••••••"
-                            required
-                            value={credentials.password}
-                            onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((visible) => !visible)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                            aria-label={showPassword ? "Hide password" : "Show password"}
-                          >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
+                    </div>
+
+                    {/* Password Input */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password" className="text-sm font-semibold text-gray-700">Password</Label>
+                        <Button variant="link" className="px-0 h-auto text-xs text-[#754319] hover:text-[#f8b513] font-medium" type="button" asChild>
+                          <Link href="/forgot-password">Forgot?</Link>
+                        </Button>
                       </div>
-                      <Button type="submit" className="w-full h-11" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Sign In"}
-                      </Button>
-                      <div className="flex justify-end">
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#754319]/60 transition-colors group-focus-within:text-[#f8b513]" />
+                        <Input 
+                          id="password" 
+                          type={showPassword ? "text" : "password"} 
+                          className="pl-12 pr-12 h-12 bg-white/50 border border-white/50 rounded-xl focus:bg-white focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/30 focus:shadow-lg focus:shadow-[#f8b513]/20 transition-all"
+                          placeholder="••••••••"
+                          required
+                          value={credentials.password}
+                          onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+                        />
                         <button
                           type="button"
-                          onClick={() => setLoginMode('sales')}
-                          className="text-xs font-medium text-muted-foreground transition hover:text-[#754319]"
+                          onClick={() => setShowPassword((visible) => !visible)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#754319]/60 hover:text-[#f8b513] transition-colors"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
                         >
-                          Sales Login
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLoginMode('email')
-                            resetSalesState()
-                          }}
-                          className="text-xs font-medium text-muted-foreground transition hover:text-[#754319]"
-                        >
-                          Back to Username Login
-                        </button>
+                    </div>
+
+                    {/* Sign In Button */}
+                    <Button 
+                      type="submit" 
+                      className="w-full h-12 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white font-bold hover:shadow-lg hover:shadow-[#f8b513]/30 hover:-translate-y-0.5 transition-all mt-6"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Sign In"}
+                    </Button>
+
+                    {/* Mode Switch */}
+                    <div className="text-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setLoginMode('sales')}
+                        className="text-sm text-[#754319] hover:text-[#f8b513] font-medium transition-colors underline-offset-2 hover:underline"
+                      >
+                        Sales Login
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Mode Switch Back */}
+                    <div className="text-center pb-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginMode('email')
+                          resetSalesState()
+                        }}
+                        className="text-sm text-[#754319] hover:text-[#f8b513] font-medium transition-colors underline-offset-2 hover:underline"
+                      >
+                        Back to Sign In
+                      </button>
+                    </div>
+
+                    {/* Phone Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="sales-phone" className="text-sm font-semibold text-gray-700">Phone Number</Label>
+                      <div className="relative group">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#754319]/60 transition-colors group-focus-within:text-[#f8b513]" />
+                        <Input
+                          id="sales-phone"
+                          type="tel"
+                          placeholder="+1234567890"
+                          className="pl-12 h-12 bg-white/50 border border-white/50 rounded-xl focus:bg-white focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/30 focus:shadow-lg focus:shadow-[#f8b513]/20 transition-all"
+                          required
+                          value={salesPhone}
+                          onChange={(e) => setSalesPhone(e.target.value)}
+                        />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sales-phone">Phone Number</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="sales-phone"
-                            type="tel"
-                            placeholder="+1234567890"
-                            className="pl-9"
-                            required
-                            value={salesPhone}
-                            onChange={(e) => setSalesPhone(e.target.value)}
-                          />
-                        </div>
+                    </div>
+
+                    {/* OTP Input */}
+                    {otpSent && (
+                      <div className="space-y-2 animate-fade-in">
+                        <Label htmlFor="sales-otp" className="text-sm font-semibold text-gray-700">OTP Code</Label>
+                        <Input
+                          id="sales-otp"
+                          type="text"
+                          placeholder="Enter code"
+                          className="h-12 bg-white/50 border border-white/50 rounded-xl focus:bg-white focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/30 focus:shadow-lg focus:shadow-[#f8b513]/20 transition-all text-center tracking-widest font-mono text-lg"
+                          value={salesOtp}
+                          onChange={(e) => setSalesOtp(e.target.value)}
+                        />
+                        <p className="text-xs text-gray-500 text-center">Code expires in 5 minutes</p>
                       </div>
-                      {otpSent && (
-                        <div className="space-y-2">
-                          <Label htmlFor="sales-otp">OTP Code</Label>
-                          <Input
-                            id="sales-otp"
-                            type="text"
-                            placeholder="Enter code"
-                            className="h-11"
-                            value={salesOtp}
-                            onChange={(e) => setSalesOtp(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">Enter the code sent to your phone. Code expires in 5 minutes.</p>
-                        </div>
-                      )}
-                      <Button type="submit" className="w-full h-11" disabled={isSendingOtp || isVerifyingOtp}>
-                        {(isSendingOtp || isVerifyingOtp) ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : otpSent ? 'Verify OTP' : 'Send OTP'}
-                      </Button>
-                      {otpSent && (
-                        <button
-                          type="button"
-                          className="text-sm text-[#754319] underline"
-                          onClick={handleSendSalesOtp}
-                          disabled={isSendingOtp}
-                        >
-                          Resend code
-                        </button>
-                      )}
-                    </>
-                  )}
-                </form>
-              </CardContent>
-              <CardFooter className="flex flex-col border-t p-6 gap-4 bg-muted/5">
-                <Button variant="outline" className="w-full h-11 border-primary text-primary hover:bg-primary/5" asChild>
-                  <Link href="/register">
-                    Register as New Merchant <ArrowRight className="ml-2 w-4 h-4" />
-                  </Link>
+                    )}
+
+                    {/* OTP Button */}
+                    <Button 
+                      type="submit" 
+                      className="w-full h-12 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white font-bold hover:shadow-lg hover:shadow-[#f8b513]/30 hover:-translate-y-0.5 transition-all mt-6"
+                      disabled={isSendingOtp || isVerifyingOtp}
+                    >
+                      {(isSendingOtp || isVerifyingOtp) ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : otpSent ? 'Verify OTP' : 'Send OTP'}
+                    </Button>
+
+                    {/* Resend Button */}
+                    {otpSent && (
+                      <button
+                        type="button"
+                        className="w-full text-sm text-[#754319] hover:text-[#f8b513] font-medium py-2 transition-colors"
+                        onClick={handleSendSalesOtp}
+                        disabled={isSendingOtp}
+                      >
+                        {isSendingOtp ? 'Sending...' : 'Resend code'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </form>
+
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/30" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-white/60 text-gray-600">or</span>
+                </div>
+              </div>
+
+              {/* Register Link */}
+              <Link href="/register">
+                <Button 
+                  variant="outline" 
+                  className="w-full h-12 rounded-xl border-[#f8b513] text-[#754319] hover:bg-[#f8b513]/10 font-bold transition-all"
+                >
+                  New Merchant Registration
                 </Button>
-              </CardFooter>
-            </Card>
+              </Link>
+            </div>
           </div>
 
-        </div>
-      </main>
-
-      <footer className="border-t py-8 bg-white text-center">
-        <p className="text-xs text-muted-foreground">
-          © 2024 Finflow Gateway Solution.
+        {/* Footer */}
+        <p className="mt-8 text-xs text-gray-600 text-center max-w-xs fade-in-down-animation">
+          © 2024 Finflow Gateway. Enterprise-grade payment processing with premium security.
         </p>
-      </footer>
+      </div>
     </div>
   )
 }
