@@ -16,10 +16,10 @@
   }
 
   .card-liquid-honey {
-    background: linear-gradient(135deg, #fffdf9 0%, #e7b86a 58%, #c7893a 100%);
-    border: 1px solid rgba(117, 67, 25, 0.12);
+    background: linear-gradient(135deg, #fffdfb 0%, #f6e8cc 56%, #ecd6af 100%);
+    border: 1px solid rgba(117, 67, 25, 0.1);
     box-shadow:
-      0 14px 32px rgba(117, 67, 25, 0.14),
+      0 10px 24px rgba(117, 67, 25, 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
 
