@@ -70,6 +70,7 @@ import type { MerchantDocument, Merchant } from "@/app/lib/db"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
+import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 
 export default function MerchantOnboardingPage() {
   const { data: session } = useSession()
@@ -98,6 +99,7 @@ export default function MerchantOnboardingPage() {
   })
   const [resendLoadingId, setResendLoadingId] = useState<string | null>(null)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const [formData, setFormData] = useState({
     name: "",
@@ -306,9 +308,54 @@ export default function MerchantOnboardingPage() {
   }
 
   const handleSubmit = async () => {
+    setErrors({})
+    
+    // Client-side validation
+    const newErrors: Record<string, string> = {}
+    
+    if (!formData.name?.trim()) newErrors.name = "Business name is required"
+    if (!formData.email?.trim()) {
+      newErrors.email = "Business email is required"
+    } else if (!isValidEmail(formData.email)) {
+      newErrors.email = "Invalid email format"
+    }
+    
+    if (!formData.contactName?.trim()) newErrors.contactName = "Contact name is required"
+    if (!formData.contactUsername?.trim()) {
+      newErrors.contactUsername = "Contact username (email or phone) is required"
+    } else {
+      const isEmail = isValidEmail(formData.contactUsername)
+      const isPhone = isValidPhoneNumber(formData.contactUsername)
+      
+      if (!isEmail && !isPhone) {
+        newErrors.contactUsername = "Please enter a valid email or phone number"
+      }
+    }
+
+    if (!formData.category) newErrors.category = "Industry category is required"
+    if (!formData.businessType) newErrors.businessType = "Business type is required"
+    if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
+    if (!formData.callbackUrl?.trim()) newErrors.callbackUrl = "Callback URL is required"
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please correct the errors in the form."
+      })
+      return
+    }
+
     try {
+      // Normalize phone number if contactUsername is a phone number
+      const finalFormData = { ...formData }
+      if (isValidPhoneNumber(finalFormData.contactUsername) && !isValidEmail(finalFormData.contactUsername)) {
+        finalFormData.contactUsername = normalizePhoneNumber(finalFormData.contactUsername)
+      }
+
       const payload = {
-        ...formData,
+        ...finalFormData,
         dailyLimit: Number(formData.dailyLimit),
         transactionLimit: Number(formData.transactionLimit),
         dailyCountLimit: Number(formData.dailyCountLimit),
@@ -340,14 +387,24 @@ export default function MerchantOnboardingPage() {
         })
         setDocuments([])
         setRiskFactors([])
+        setErrors({})
         
         // Refresh submissions
         const res = await fetch('/api/merchants')
         if (res.ok) setSubmissions(await res.json())
         setIsRegisterDialogOpen(false)
       } else {
-        const err = await response.json()
-        throw new Error(err.error || 'Failed to submit')
+        const result = await response.json()
+        if (result.errors) {
+          setErrors(result.errors)
+          toast({
+            variant: "destructive",
+            title: "Validation Failed",
+            description: "Some fields are invalid. Please check the form."
+          })
+        } else {
+          throw new Error(result.error || 'Failed to submit')
+        }
       }
     } catch (error: any) {
       toast({
@@ -465,11 +522,26 @@ export default function MerchantOnboardingPage() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                   <Label htmlFor="name">Business Name</Label>
-                                  <Input id="name" placeholder="Legal Entity Name" value={formData.name} onChange={handleInputChange} />
+                                  <Input 
+                                    id="name" 
+                                    placeholder="Legal Entity Name" 
+                                    value={formData.name} 
+                                    onChange={handleInputChange} 
+                                    className={errors.name ? "border-red-500" : ""}
+                                  />
+                                  {errors.name && <p className="text-[10px] text-red-500 font-medium">{errors.name}</p>}
                                 </div>
                                 <div className="space-y-2">
                                   <Label htmlFor="email">Business Email</Label>
-                                  <Input id="email" type="email" placeholder="contact@business.com" value={formData.email} onChange={handleInputChange} />
+                                  <Input 
+                                    id="email" 
+                                    type="email" 
+                                    placeholder="contact@business.com" 
+                                    value={formData.email} 
+                                    onChange={handleInputChange} 
+                                    className={errors.email ? "border-red-500" : ""}
+                                  />
+                                  {errors.email && <p className="text-[10px] text-red-500 font-medium">{errors.email}</p>}
                                 </div>
                               </div>
 
@@ -479,7 +551,7 @@ export default function MerchantOnboardingPage() {
                                   <Textarea
                                     id="businessDescription"
                                     placeholder="Describe the nature of business and products sold..."
-                                    className="min-h-[100px] pr-10"
+                                    className={`min-h-[100px] pr-10 ${errors.businessDescription ? "border-red-500" : ""}`}
                                     value={formData.businessDescription}
                                     onChange={handleInputChange}
                                   />
@@ -493,30 +565,33 @@ export default function MerchantOnboardingPage() {
                                     {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                   </Button>
                                 </div>
+                                {errors.businessDescription && <p className="text-[10px] text-red-500 font-medium">{errors.businessDescription}</p>}
                               </div>
 
                               <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                   <Label>Industry Category</Label>
                                   <Select onValueChange={(v) => handleSelectChange('category', v)} value={formData.category}>
-                                    <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                                    <SelectTrigger className={errors.category ? "border-red-500" : ""}><SelectValue placeholder="Select Category" /></SelectTrigger>
                                     <SelectContent>
                                       {categories.filter(c => c.active).map((cat, i) => (
                                         <SelectItem key={i} value={cat.name}>{cat.name}</SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
+                                  {errors.category && <p className="text-[10px] text-red-500 font-medium">{errors.category}</p>}
                                 </div>
                                 <div className="space-y-2">
                                   <Label>Business Type</Label>
                                   <Select onValueChange={(v) => handleSelectChange('businessType', v)} value={formData.businessType}>
-                                    <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
+                                    <SelectTrigger className={errors.businessType ? "border-red-500" : ""}><SelectValue placeholder="Select Type" /></SelectTrigger>
                                     <SelectContent>
                                       {businessTypes.filter(bt => bt.active).map((bt, i) => (
                                         <SelectItem key={i} value={bt.name}>{bt.name}</SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
+                                  {errors.businessType && <p className="text-[10px] text-red-500 font-medium">{errors.businessType}</p>}
                                 </div>
                               </div>
                             </CardContent>
@@ -559,11 +634,25 @@ export default function MerchantOnboardingPage() {
                             <CardContent className="p-6 grid grid-cols-2 gap-4">
                               <div className="space-y-2">
                                 <Label htmlFor="contactName">Full Name</Label>
-                                <Input id="contactName" placeholder="John Doe" value={formData.contactName} onChange={handleInputChange} />
+                                <Input 
+                                  id="contactName" 
+                                  placeholder="John Doe" 
+                                  value={formData.contactName} 
+                                  onChange={handleInputChange} 
+                                  className={errors.contactName ? "border-red-500" : ""}
+                                />
+                                {errors.contactName && <p className="text-[10px] text-red-500 font-medium">{errors.contactName}</p>}
                               </div>
                               <div className="space-y-2">
                                 <Label htmlFor="contactUsername">Username (Email or Phone)</Label>
-                                <Input id="contactUsername" placeholder="email@example.com or +1234567890" value={formData.contactUsername} onChange={handleInputChange} />
+                                <Input 
+                                  id="contactUsername" 
+                                  placeholder="email@example.com or +1234567890" 
+                                  value={formData.contactUsername} 
+                                  onChange={handleInputChange} 
+                                  className={errors.contactUsername ? "border-red-500" : ""}
+                                />
+                                {errors.contactUsername && <p className="text-[10px] text-red-500 font-medium">{errors.contactUsername}</p>}
                               </div>
                             </CardContent>
                           </Card>
@@ -580,16 +669,37 @@ export default function MerchantOnboardingPage() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                   <Label htmlFor="accountNumber">Payout Account #</Label>
-                                  <Input id="accountNumber" placeholder="Bank Account Number" value={formData.accountNumber} onChange={handleInputChange} />
+                                  <Input 
+                                    id="accountNumber" 
+                                    placeholder="Bank Account Number" 
+                                    value={formData.accountNumber} 
+                                    onChange={handleInputChange} 
+                                    className={errors.accountNumber ? "border-red-500" : ""}
+                                  />
+                                  {errors.accountNumber && <p className="text-[10px] text-red-500 font-medium">{errors.accountNumber}</p>}
                                 </div>
                                 <div className="space-y-2">
                                   <Label htmlFor="websiteUrl">Website URL</Label>
-                                  <Input id="websiteUrl" placeholder="https://..." value={formData.websiteUrl} onChange={handleInputChange} />
+                                  <Input 
+                                    id="websiteUrl" 
+                                    placeholder="https://..." 
+                                    value={formData.websiteUrl} 
+                                    onChange={handleInputChange} 
+                                    className={errors.websiteUrl ? "border-red-500" : ""}
+                                  />
+                                  {errors.websiteUrl && <p className="text-[10px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                                 </div>
                               </div>
                               <div className="space-y-2">
                                 <Label htmlFor="callbackUrl">Webhook Callback URL</Label>
-                                <Input id="callbackUrl" placeholder="https://api.merchant.com/webhook" value={formData.callbackUrl} onChange={handleInputChange} />
+                                <Input 
+                                  id="callbackUrl" 
+                                  placeholder="https://api.merchant.com/webhook" 
+                                  value={formData.callbackUrl} 
+                                  onChange={handleInputChange} 
+                                  className={errors.callbackUrl ? "border-red-500" : ""}
+                                />
+                                {errors.callbackUrl && <p className="text-[10px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                               </div>
                             </CardContent>
                           </Card>

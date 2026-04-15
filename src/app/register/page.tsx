@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
 import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
+import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 
@@ -71,6 +72,7 @@ export default function MerchantSelfRegistration() {
   
   const [documents, setDocuments] = useState<MerchantDocument[]>([])
   const [riskFactors, setRiskFactors] = useState<string[]>([])
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -221,12 +223,45 @@ export default function MerchantSelfRegistration() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrors({})
     
+    // Client-side validation
+    const newErrors: Record<string, string> = {}
+    
+    if (!formData.name?.trim()) newErrors.name = "Business name is required"
+    if (!formData.email?.trim()) {
+      newErrors.email = "Business email is required"
+    } else if (!isValidEmail(formData.email)) {
+      newErrors.email = "Invalid email format"
+    }
+    
+    if (!formData.contactName?.trim()) newErrors.contactName = "Contact name is required"
+    if (!formData.contactUsername?.trim()) {
+      newErrors.contactUsername = "Contact username (email or phone) is required"
+    } else {
+      const isEmail = isValidEmail(formData.contactUsername)
+      const isPhone = isValidPhoneNumber(formData.contactUsername)
+      
+      if (!isEmail && !isPhone) {
+        newErrors.contactUsername = "Please enter a valid email or phone number"
+      }
+    }
+
+    if (!formData.category) newErrors.category = "Industry category is required"
+    if (!formData.businessType) newErrors.businessType = "Business type is required"
+    if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
+    if (!formData.callbackUrl?.trim()) newErrors.callbackUrl = "Callback URL is required"
+
     if (documents.length === 0) {
+      newErrors.documents = "Please upload at least one compliance document"
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
       toast({
         variant: "destructive",
-        title: "Documents Required",
-        description: "Please upload at least one compliance document."
+        title: "Validation Error",
+        description: "Please correct the errors in the form."
       })
       return
     }
@@ -235,13 +270,19 @@ export default function MerchantSelfRegistration() {
     
     const merchantId = `m_${Math.random().toString(36).substr(2, 9)}`
     
+    // Normalize phone number if contactUsername is a phone number
+    const finalFormData = { ...formData }
+    if (isValidPhoneNumber(finalFormData.contactUsername) && !isValidEmail(finalFormData.contactUsername)) {
+      finalFormData.contactUsername = normalizePhoneNumber(finalFormData.contactUsername)
+    }
+
     try {
       const response = await fetch('/api/merchants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: merchantId,
-          ...formData,
+          ...finalFormData,
           branchName: "Self-Service",
           district: "Self-Service",
           dailyLimit: Number(formData.dailyLimit),
@@ -263,13 +304,23 @@ export default function MerchantSelfRegistration() {
         })
         setFormData(prev => ({ ...prev, logoUrl: "" }))
       } else {
-        throw new Error('Failed to register')
+        const result = await response.json()
+        if (result.errors) {
+          setErrors(result.errors)
+          toast({
+            variant: "destructive",
+            title: "Validation Failed",
+            description: "Some fields are invalid. Please check the form."
+          })
+        } else {
+          throw new Error(result.error || 'Failed to register')
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Registration Failed",
-        description: "Could not submit your application at this time."
+        description: error.message || "Could not submit your application at this time."
       })
     } finally {
       setIsSubmitting(false)
@@ -364,8 +415,107 @@ export default function MerchantSelfRegistration() {
                   </div>
 
                   <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-sm font-medium text-gray-700">Business Name</Label>
+                      <Input 
+                        id="name" 
+                        placeholder="Legal Entity Name" 
+                        required 
+                        className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.name ? 'border-red-500' : ''}`}
+                        value={formData.name}
+                        onChange={e => setFormData({...formData, name: e.target.value})}
+                      />
+                      {errors.name && <p className="text-[11px] text-red-500 font-medium">{errors.name}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-sm font-medium text-gray-700">Business Email</Label>
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="contact@business.com" 
+                        required 
+                        className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.email ? 'border-red-500' : ''}`}
+                        value={formData.email}
+                        onChange={e => setFormData({...formData, email: e.target.value})}
+                      />
+                      {errors.email && <p className="text-[11px] text-red-500 font-medium">{errors.email}</p>}
+                    </div>
+
                     <div className="space-y-2 sm:col-span-2">
-                      <Label className="text-sm font-medium text-gray-700">Business Logo (optional)</Label>
+                      <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">Settlement Account Number</Label>
+                      <Input
+                        id="accountNumber"
+                        inputMode="numeric"
+                        placeholder="e.g. 1234567890"
+                        required
+                        className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.accountNumber ? 'border-red-500' : ''}`}
+                        value={formData.accountNumber}
+                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                      />
+                      {errors.accountNumber && <p className="text-[11px] text-red-500 font-medium">{errors.accountNumber}</p>}
+                      <p className="text-xs text-gray-400">Payments will be settled to this account number.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Authorized Contact */}
+                <div className="p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                      <User className="h-5 w-5 text-[#754319]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Authorized Contact</h3>
+                      <p className="text-xs text-gray-400">Person authorized to manage this account</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="contactName" className="text-sm font-medium text-gray-700">Full Name</Label>
+                      <Input 
+                        id="contactName" 
+                        placeholder="Authorized Representative" 
+                        required 
+                        className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.contactName ? 'border-red-500' : ''}`}
+                        value={formData.contactName}
+                        onChange={e => setFormData({...formData, contactName: e.target.value})}
+                      />
+                      {errors.contactName && <p className="text-[11px] text-red-500 font-medium">{errors.contactName}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Username (Email or Phone Number)</Label>
+                      <div className="relative group">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                          id="contactUsername" 
+                          className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.contactUsername ? 'border-red-500' : ''}`}
+                          placeholder="email@example.com or +1234567890" 
+                          required 
+                          value={formData.contactUsername}
+                          onChange={e => setFormData({...formData, contactUsername: e.target.value})}
+                        />
+                      </div>
+                      {errors.contactUsername && <p className="text-[11px] text-red-500 font-medium">{errors.contactUsername}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Business Details */}
+                <div className="p-8 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                      <Store className="h-5 w-5 text-[#754319]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Business Details</h3>
+                      <p className="text-xs text-gray-400">Information about your business operations</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-sm font-medium text-gray-700">Business Logo (Optional)</Label>
                       <div
                         className="relative border-2 border-dashed border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-1 bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group"
                         onClick={() => logoInputRef.current?.click()}
@@ -424,113 +574,17 @@ export default function MerchantSelfRegistration() {
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="name" className="text-sm font-medium text-gray-700">Business Legal Name</Label>
-                      <Input 
-                        id="name" 
-                        placeholder="e.g. Acme Retail Ltd" 
-                        required 
-                        className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                        value={formData.name}
-                        onChange={e => setFormData({...formData, name: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium text-gray-700">Business Email</Label>
-                      <div className="relative group">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
-                        <Input 
-                          id="email" 
-                          type="email" 
-                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                          placeholder="legal@business.com" 
-                          required 
-                          value={formData.email}
-                          onChange={e => setFormData({...formData, email: e.target.value})}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">Settlement Account Number</Label>
-                      <Input
-                        id="accountNumber"
-                        inputMode="numeric"
-                        placeholder="e.g. 1234567890"
-                        required
-                        className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                        value={formData.accountNumber}
-                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                      />
-                      <p className="text-xs text-gray-400">Payments will be settled to this account number.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 2: Authorized Contact */}
-                <div className="p-8 space-y-6">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
-                      <User className="h-5 w-5 text-[#754319]" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Authorized Contact</h3>
-                      <p className="text-xs text-gray-400">Person authorized to manage this account</p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="contactName" className="text-sm font-medium text-gray-700">Full Name</Label>
-                      <Input 
-                        id="contactName" 
-                        placeholder="Authorized Representative" 
-                        required 
-                        className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                        value={formData.contactName}
-                        onChange={e => setFormData({...formData, contactName: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Username (Email or Phone Number)</Label>
-                      <div className="relative group">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
-                        <Input 
-                          id="contactUsername" 
-                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                          placeholder="email@example.com or +1234567890" 
-                          required 
-                          value={formData.contactUsername}
-                          onChange={e => setFormData({...formData, contactUsername: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 3: Business Details */}
-                <div className="p-8 space-y-6">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
-                      <Store className="h-5 w-5 text-[#754319]" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Business Details</h3>
-                      <p className="text-xs text-gray-400">Information about your business operations</p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-2 sm:col-span-2">
                       <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">Business Description</Label>
                       <Textarea 
                         id="businessDescription" 
                         placeholder="Describe your business activities, products, and services" 
                         rows={3} 
-                        className="rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                        className={`rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.businessDescription ? 'border-red-500' : ''}`}
                         value={formData.businessDescription}
                         onChange={e => setFormData({...formData, businessDescription: e.target.value})}
                       />
+                      {errors.businessDescription && <p className="text-[11px] text-red-500 font-medium">{errors.businessDescription}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="websiteUrl" className="text-sm font-medium text-gray-700">Website URL (Optional)</Label>
@@ -540,11 +594,12 @@ export default function MerchantSelfRegistration() {
                           id="websiteUrl" 
                           type="url" 
                           placeholder="https://yourbusiness.com" 
-                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                          className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.websiteUrl ? 'border-red-500' : ''}`}
                           value={formData.websiteUrl}
                           onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
                         />
                       </div>
+                      {errors.websiteUrl && <p className="text-[11px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="callbackUrl" className="text-sm font-medium text-gray-700">Callback URL (Optional)</Label>
@@ -554,17 +609,18 @@ export default function MerchantSelfRegistration() {
                           id="callbackUrl" 
                           type="url" 
                           placeholder="https://yourbusiness.com/callback" 
-                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                          className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.callbackUrl ? 'border-red-500' : ''}`}
                           value={formData.callbackUrl}
                           onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
                         />
                       </div>
+                      {errors.callbackUrl && <p className="text-[11px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="category" className="text-sm font-medium text-gray-700">Industry Category</Label>
                       <Select onValueChange={(v) => setFormData({...formData, category: v})} value={formData.category}>
-                        <SelectTrigger className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300">
+                        <SelectTrigger className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.category ? 'border-red-500' : ''}`}>
                           <SelectValue placeholder="Select Category" />
                         </SelectTrigger>
                         <SelectContent>
@@ -573,11 +629,12 @@ export default function MerchantSelfRegistration() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors.category && <p className="text-[11px] text-red-500 font-medium">{errors.category}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="businessType" className="text-sm font-medium text-gray-700">Business Type</Label>
                       <Select onValueChange={(v) => setFormData({...formData, businessType: v})} value={formData.businessType}>
-                        <SelectTrigger className="h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300">
+                        <SelectTrigger className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.businessType ? 'border-red-500' : ''}`}>
                           <SelectValue placeholder="Select Type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -586,6 +643,7 @@ export default function MerchantSelfRegistration() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors.businessType && <p className="text-[11px] text-red-500 font-medium">{errors.businessType}</p>}
                     </div>
                   </div>
                 </div>
@@ -603,7 +661,7 @@ export default function MerchantSelfRegistration() {
                   </div>
 
                   <div 
-                    className="border-2 border-dashed border-gray-100 rounded-2xl p-10 flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer group"
+                    className={`border-2 border-dashed border-gray-100 rounded-2xl p-10 flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer group ${errors.documents ? 'border-red-500' : ''}`}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 mb-4 group-hover:scale-110 transition-transform">
@@ -623,6 +681,7 @@ export default function MerchantSelfRegistration() {
                       accept={allowedTypes.join(',')}
                     />
                   </div>
+                  {errors.documents && <p className="text-[11px] text-red-500 font-medium text-center">{errors.documents}</p>}
 
                   <div className="grid gap-3">
                     {documents.map((doc) => (

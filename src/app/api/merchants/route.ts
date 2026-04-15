@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { hasPermission } from '@/lib/rbac';
 import bcrypt from 'bcryptjs';
+import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 
 export async function GET() {
   const merchants = await db.getMerchants();
@@ -22,6 +23,40 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json();
+
+    // Server-side validation
+    const errors: Record<string, string> = {};
+    
+    if (!data.name?.trim()) errors.name = 'Business name is required';
+    if (!data.email?.trim()) {
+      errors.email = 'Business email is required';
+    } else if (!isValidEmail(data.email)) {
+      errors.email = 'Invalid email format';
+    }
+    
+    if (!data.contactName?.trim()) errors.contactName = 'Contact name is required';
+    if (!data.contactUsername?.trim()) {
+      errors.contactUsername = 'Contact username (email or phone) is required';
+    } else {
+      const isEmail = isValidEmail(data.contactUsername);
+      const isPhone = isValidPhoneNumber(data.contactUsername);
+      
+      if (!isEmail && !isPhone) {
+        errors.contactUsername = 'Please enter a valid email or phone number';
+      } else if (isPhone) {
+        // Normalize phone number if it's a phone
+        data.contactUsername = normalizePhoneNumber(data.contactUsername);
+      }
+    }
+
+    if (!data.category) errors.category = 'Industry category is required';
+    if (!data.businessType) errors.businessType = 'Business type is required';
+    if (!data.accountNumber?.trim()) errors.accountNumber = 'Account number is required';
+    if (!data.callbackUrl?.trim()) errors.callbackUrl = 'Callback URL is required';
+
+    if (Object.keys(errors).length > 0) {
+      return NextResponse.json({ error: 'Validation failed', errors }, { status: 400 });
+    }
 
     // Generate a unique merchant ID if not provided (e.g., m12345)
     const merchantId = data.id || `m${Math.random().toString(36).substring(2, 9)}`;
