@@ -532,7 +532,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
             <SheetDescription>
               {lastMode === "push"
-                ? "Push a USSD PIN prompt to the customer instantly (mock)."
+                ? "Push a USSD PIN prompt to the customer instantly"
                 : lastMode === "link"
                 ? "Generate a secure payment link your customer can open on any channel."
                 : "Choose how you want to receive payment from your customer."}
@@ -548,7 +548,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
             <DialogDescription>
               {lastMode === "push"
-                ? "Push a USSD PIN prompt to the customer instantly (mock)."
+                ? "Push a USSD PIN prompt to the customer instantly"
                 : lastMode === "link"
                 ? "Generate a secure payment link your customer can open on any channel."
                 : "Choose how you want to receive payment from your customer."}
