@@ -188,115 +188,135 @@ function MerchantReviewContent() {
         <p className="text-sm text-slate-600">Approve registrations, adjust limits, and perform final audits.</p>
       </div>
 
-            <Card className="border-none shadow-sm overflow-hidden">
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-white hover:bg-white">
-                      <TableHead className="pl-6">Merchant</TableHead>
-                      <TableHead>Review Stage</TableHead>
-                      <TableHead>Submitted By</TableHead>
-                      <TableHead>Days in Queue</TableHead>
-                      <TableHead className="text-right pr-6">Review</TableHead>
-                    </TableRow>
-                  </TableHeader>
+      <div className="rounded-2xl border border-white/25 bg-white/30 backdrop-blur-xl shadow-sm shadow-amber-950/10">
+        <div className="relative overflow-hidden rounded-2xl px-5 py-4">
+          <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+            <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-base tracking-tight">Review queue</CardTitle>
+                  <CardDescription className="text-slate-600">
+                    Search, filter, and inspect merchant applications quickly.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+                    <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Merchant</TableHead>
+                    <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Review Stage</TableHead>
+                    <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Submitted By</TableHead>
+                    <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Days in Queue</TableHead>
+                    <TableHead className="py-4 text-right pr-6 text-xs font-semibold tracking-wide text-slate-700">Review</TableHead>
+                  </TableRow>
+                </TableHeader>
                   <TableBody>
                     {pending.map((m) => (
-                      <TableRow key={m.id} className="bg-white group hover:bg-primary/5 transition-colors">
-                        <TableCell className="py-4 pl-6">
+                      <TableRow
+                        key={m.id}
+                        className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm hover:-translate-y-[1px]"
+                      >
+                        <TableCell className="pl-6 py-5 align-middle">
                           <div className="flex flex-col">
-                            <span className="font-bold text-slate-900">{m.name}</span>
-                            <span className="text-[10px] font-mono text-muted-foreground uppercase">{m.id}</span>
+                            <span className="font-semibold text-slate-950">{m.name}</span>
+                            <span className="mt-0.5 text-[10px] font-mono uppercase text-slate-500">{m.id}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(m.status)}</TableCell>
-                        <TableCell>
+                        <TableCell className="py-5 align-middle">{getStatusBadge(m.status)}</TableCell>
+                        <TableCell className="py-5 align-middle">
                           <div className="flex items-center gap-3 text-xs">
                             <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
                               {m.contactName.charAt(0)}
                             </div>
-                            <span>{m.contactName}</span>
+                            <span className="font-medium text-slate-800">{m.contactName}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <TableCell className="py-5 align-middle text-xs text-slate-600">
+                          <div className="flex items-center gap-1.5">
                             <Clock className="w-3 h-3" />
                             {Math.floor((new Date().getTime() - new Date(m.createdAt).getTime()) / (1000 * 3600 * 24))} days
                           </div>
                         </TableCell>
-                        <TableCell className="text-right pr-6">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="gap-2"
-                            onClick={() => {
-                              setSelectedMerchant(m)
-                              setIsDetailsOpen(true)
-                            }}
-                          >
-                            Open Review <ArrowRight className="w-3 h-3" />
-                          </Button>
+                        <TableCell className="py-5 align-middle text-right pr-6">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-9 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors gap-2"
+                              onClick={() => {
+                                setSelectedMerchant(m)
+                                setIsDetailsOpen(true)
+                              }}
+                            >
+                              Open Review <ArrowRight className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                     {pending.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
-                          No pending actions in the review queue.
+                          No pending actions in review queue.
                         </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-      {/* Unified Review Modal */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-xl">
-                  <Building2 className="w-6 h-6 text-primary" />
-                  Review Application: {selectedMerchant?.name}
-                </DialogTitle>
-                <DialogDescription>
-                  Perform compliance checks and authorize merchant onboarding.
-                </DialogDescription>
-              </DialogHeader>
+            </CardContent>
+          </Card>
 
-              {selectedMerchant && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-6">
-                  <div className="lg:col-span-2 space-y-6">
-                    {/* Header Info with Logo */}
-                    <div className="flex items-start gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
-                      <div className="relative group shrink-0">
-                        <div className="w-24 h-24 rounded-2xl bg-white border border-slate-200 shadow-inner flex items-center justify-center overflow-hidden">
-                          {selectedMerchant.logoUrl ? (
-                            <img 
-                              src={selectedMerchant.logoUrl} 
-                              alt="Merchant Logo" 
-                              className="w-full h-full object-contain"
-                            />
-                          ) : (
-                            <Building2 className="w-10 h-10 text-slate-300" />
-                          )}
-                        </div>
-                        {selectedMerchant.logoUrl && (
-                          <button 
-                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl"
-                            onClick={() => setPreviewFile({ url: selectedMerchant.logoUrl!, name: "Business Logo", type: "image/png" })}
-                          >
-                            <Eye className="w-6 h-6 text-white" />
-                          </button>
+        {/* Unified Review Modal */}
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="flex items-center gap-3 text-xl">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Building2 className="w-6 h-6 text-primary" />
+                </div>
+                Review Application: {selectedMerchant?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Perform compliance checks and authorize merchant onboarding.
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedMerchant && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-6">
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Header Info with Logo */}
+                  <div className="flex items-start gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="relative group shrink-0">
+                      <div className="w-24 h-24 rounded-2xl bg-white border border-slate-200 shadow-inner flex items-center justify-center overflow-hidden">
+                        {selectedMerchant.logoUrl ? (
+                          <img 
+                            src={selectedMerchant.logoUrl} 
+                            alt="Merchant Logo" 
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <Building2 className="w-10 h-10 text-slate-300" />
                         )}
                       </div>
-                      <div className="flex-1 space-y-3">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Merchant ID</Label>
-                            <p className="text-sm font-mono font-bold text-slate-950">{selectedMerchant.id}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Business Email</Label>
+                      {selectedMerchant.logoUrl && (
+                        <button 
+                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl"
+                          onClick={() => setPreviewFile({ url: selectedMerchant.logoUrl!, name: "Business Logo", type: "image/png" })}
+                        >
+                          <Eye className="w-6 h-6 text-white" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Merchant ID</Label>
+                          <p className="text-sm font-mono font-bold text-slate-950">{selectedMerchant.id}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Business Email</Label>
                             <p className="text-sm font-medium text-slate-950 flex items-center gap-2">
                               <Mail className="w-3.5 h-3.5 text-slate-400" /> {selectedMerchant.email}
                             </p>
@@ -476,7 +496,7 @@ function MerchantReviewContent() {
                             </div>
                             
                             <Button 
-                              className="w-full bg-blue-600 hover:bg-blue-700" 
+                              className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'initial_approve')}
                               disabled={!canSetLimits}
                             >
@@ -493,7 +513,7 @@ function MerchantReviewContent() {
                               </p>
                             </div>
                             <Button 
-                              className="w-full bg-green-600 hover:bg-green-700" 
+                              className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'final_approve')}
                               disabled={!canApprove}
                             >
@@ -507,7 +527,7 @@ function MerchantReviewContent() {
                         {!isRejecting ? (
                           <Button 
                             variant="ghost" 
-                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="w-full h-9 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-2xl transition-colors"
                             onClick={() => setIsRejecting(true)}
                           >
                             Reject Application
@@ -522,8 +542,8 @@ function MerchantReviewContent() {
                               onChange={(e) => setRejectionReason(e.target.value)}
                             />
                             <div className="flex gap-2">
-                              <Button variant="outline" className="flex-1 text-xs h-8" onClick={() => setIsRejecting(false)}>Cancel</Button>
-                              <Button variant="destructive" className="flex-1 text-xs h-8" onClick={() => handleAction(selectedMerchant.id, 'reject')}>Confirm Reject</Button>
+                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors" onClick={() => setIsRejecting(false)}>Cancel</Button>
+                              <Button variant="destructive" className="flex-1 text-xs h-8 rounded-2xl" onClick={() => handleAction(selectedMerchant.id, 'reject')}>Confirm Reject</Button>
                             </div>
                           </div>
                         )}
@@ -562,52 +582,54 @@ function MerchantReviewContent() {
             </DialogContent>
           </Dialog>
 
-      {/* Preview Modal */}
-      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-        <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
-          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
-                {previewFile?.name}
-              </DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-white hover:bg-white/20 bg-black/40 rounded-full backdrop-blur-md" 
-                onClick={() => setPreviewFile(null)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-          </DialogHeader>
-          <div className="flex items-center justify-center min-h-[60vh] p-8">
-            {previewFile?.type.startsWith('image/') ? (
-              <img 
-                src={previewFile.url} 
-                alt={previewFile.name} 
-                className="max-w-full max-h-[80vh] object-contain shadow-2xl animate-in zoom-in-95 duration-300"
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-6 text-white animate-in fade-in duration-300">
-                <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
-                  <FileText className="w-12 h-12 text-white/60" />
+          {/* Preview Modal */}
+          <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+            <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
+              <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
+                    {previewFile?.name}
+                  </DialogTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-white hover:bg-white/20 bg-black/40 rounded-full backdrop-blur-md" 
+                    onClick={() => setPreviewFile(null)}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold">Preview not available for this file type</p>
-                  <p className="text-sm text-white/60 mt-1">Please download the file to view its content.</p>
-                </div>
-                <a 
-                  href={previewFile?.url} 
-                  download={previewFile?.name}
-                  className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-2xl font-bold hover:bg-slate-200 transition-colors"
-                >
-                  <Download className="w-4 h-4" /> Download File
-                </a>
+              </DialogHeader>
+              <div className="flex items-center justify-center min-h-[60vh] p-8">
+                {previewFile?.type.startsWith('image/') ? (
+                  <img 
+                    src={previewFile.url} 
+                    alt={previewFile.name} 
+                    className="max-w-full max-h-[80vh] object-contain shadow-2xl animate-in zoom-in-95 duration-300"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-6 text-white animate-in fade-in duration-300">
+                    <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
+                      <FileText className="w-12 h-12 text-white/60" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold">Preview not available for this file type</p>
+                      <p className="text-sm text-white/60 mt-1">Please download file to view its content.</p>
+                    </div>
+                    <a 
+                      href={previewFile?.url} 
+                      download={previewFile?.name}
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white rounded-2xl font-bold hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+                    >
+                      <Download className="w-4 h-4" /> Download File
+                    </a>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
     </div>
   )
 }

@@ -416,17 +416,60 @@ export default function MerchantSelfRegistration() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-12">
-        <div className="space-y-8">
-          <div className="mx-auto max-w-2xl rounded-[28px] border border-[#eddcc0] bg-white/80 px-8 py-7 text-center shadow-[0_16px_50px_rgba(117,67,25,0.08)] backdrop-blur">
-            <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-[#efd9af] bg-[#fff8ea] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#754319]">
-              <Sparkles className="h-3.5 w-3.5" />
-              Merchant self-service onboarding
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <div className="space-y-10">
+          {/* New Premium Header Section */}
+          <div className="relative overflow-hidden">
+            {/* Subtle Brand Accent - Faint Honeycomb Pattern */}
+            <div className="absolute -right-4 -top-12 opacity-[0.03] pointer-events-none">
+              <svg width="200" height="200" viewBox="0 0 100 100" fill="currentColor" className="text-[#754319]">
+                <path d="M50 5L89 27.5V72.5L50 95L11 72.5V27.5L50 5Z" fill="none" stroke="currentColor" strokeWidth="2" />
+                <path d="M89 27.5L128 50V95L89 117.5L50 95V50L89 27.5Z" fill="none" stroke="currentColor" strokeWidth="2" />
+                <path d="M11 27.5L50 50V95L11 117.5L-28 95V50L11 27.5Z" fill="none" stroke="currentColor" strokeWidth="2" />
+              </svg>
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Register Your Business</h2>
-            <p className="mx-auto mt-2 max-w-lg text-gray-500">
-              Complete the information below to start processing payments with NibTera Merchants.
-            </p>
+
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#eadcc4]/40">
+              <div className="space-y-4">
+                {/* Soft Pill Badge */}
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30 shadow-sm">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#f8b513] animate-pulse" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#754319]/80">
+                    Merchant Onboarding
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <h2 className="text-4xl font-black tracking-tight text-gray-900 font-headline">
+                    Register Your Business
+                  </h2>
+                  <p className="text-sm text-gray-500 font-medium max-w-xl">
+                    Provide your legal entity details and compliance documents to start processing payments.
+                  </p>
+                </div>
+              </div>
+
+              {/* Context Indicator */}
+              <div className="flex items-center gap-4 bg-white/50 backdrop-blur-sm px-4 py-2.5 rounded-2xl border border-[#eadcc4]/30 shadow-sm self-start md:self-auto">
+                <div className="flex -space-x-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center overflow-hidden">
+                      <div className="w-full h-full bg-gradient-to-br from-[#f4db9f] to-[#f8b513] opacity-60" />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Application Time</span>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#f8b513]" />
+                    <span className="text-xs font-bold text-gray-700">Takes 2–3 minutes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Thin Accent Line */}
+            <div className="absolute bottom-0 left-0 h-[2px] w-24 bg-gradient-to-r from-[#f8b513] to-transparent" />
           </div>
 
           <Card className="overflow-hidden rounded-[26px] border border-[#eddcc0] bg-white/90 shadow-[0_20px_60px_rgba(117,67,25,0.07)]">
