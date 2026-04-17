@@ -508,11 +508,11 @@ function MerchantReviewContent() {
                         <CardTitle className="text-sm">Compliance Actions</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {selectedMerchant.status === 'pending' && (
+                        {(selectedMerchant.status === 'pending' || selectedMerchant.status === 'resubmitted') && (
                           <div className="space-y-4">
                             <div className="space-y-3">
                               <Label className="text-xs font-bold uppercase text-primary flex items-center gap-2">
-                                <TrendingUp className="w-3 h-3" /> Assign Limits
+                                <TrendingUp className="w-3 h-3" /> {selectedMerchant.status === 'resubmitted' ? 'Review & Assign Limits' : 'Assign Limits'}
                               </Label>
                               <div className="space-y-2">
                                 <div className="grid gap-1">

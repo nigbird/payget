@@ -45,10 +45,12 @@ export async function POST(
 
     // Send notification
     const updateLink = generateMerchantUpdateLink(token);
+    const generalComment = comments?.general ? `\n\nReviewer Comments:\n"${comments.general}"` : '';
+    
     const delivered = await sendNotification({
       to: merchant.contactUsername,
       subject: 'Update Required: Merchant Application',
-      message: `Your merchant application requires updates. Please use the following link to review the comments and resubmit your application: ${updateLink}\n\nNote: For security, you will be required to verify an OTP sent to this contact method after clicking the link.`
+      message: `Your merchant application requires updates.${generalComment}\n\nPlease use the following link to review the detailed comments and resubmit your application: ${updateLink}\n\nNote: For security, you will be required to verify an OTP sent to this contact method after clicking the link.`
     });
 
     // Audit Log
