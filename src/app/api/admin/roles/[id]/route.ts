@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
-import { hasPermission, canAssignPermissions, isSuperAdmin } from '@/lib/rbac';
+import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await requireAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canEditRole = await hasPermission('ROLE_EDIT');
+    const canEditRole = userHasPermission(user, 'ROLE_EDIT');
     if (!canEditRole) {
       return NextResponse.json({ error: 'Permission denied: ROLE_EDIT required' }, { status: 403 });
     }
@@ -31,12 +30,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
 
-    if (roleToEdit.name === 'Super Admin' && !(await isSuperAdmin())) {
+    if (roleToEdit.name === 'Super Admin' && !userHasPermission(user, 'DASHBOARD_GLOBAL_VIEW')) {
       return NextResponse.json({ error: 'Permission denied: Only Super Admins can edit the Super Admin role.' }, { status: 403 });
     }
 
     // Privilege escalation check
-    const canAssign = await canAssignPermissions(permissionIds);
+    const canAssign = userCanAssignPermissions(user, permissionIds);
     if (!canAssign) {
       return NextResponse.json({ 
         error: 'Privilege escalation attempt: You cannot assign permissions you do not have.' 
@@ -76,12 +75,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await requireAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canDeleteRole = await hasPermission('ROLE_DELETE');
+    const canDeleteRole = userHasPermission(user, 'ROLE_DELETE');
     if (!canDeleteRole) {
       return NextResponse.json({ error: 'Permission denied: ROLE_DELETE required' }, { status: 403 });
     }

@@ -26,8 +26,32 @@ model User {
   createdMerchants  Merchant[] @relation("MerchantCreator")
   limitsSetMerchants Merchant[] @relation("MerchantLimitsSetter")
   approvedMerchants Merchant[] @relation("MerchantApprover")
+  refreshTokens RefreshToken[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+}
+
+model RefreshToken {
+  id           String   @id @default(cuid())
+  tokenHash    String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  familyId     String   // groups rotated tokens; revoke whole family on reuse
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  replacedById String?  @unique
+  replacedBy   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedById], references: [id])
+  replaces     RefreshToken? @relation("RefreshTokenReplacement")
+
+  userAgent    String?
+  ipAddress    String?
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
 }
 
 enum UserRole {

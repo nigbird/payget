@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
-import { hasAnyPermission } from "@/lib/rbac"
+import { requireAuthUser, userHasAnyPermission } from "@/lib/request-auth"
 import crypto from "crypto"
 import { mkdir, writeFile } from "fs/promises"
 import path from "path"
@@ -49,12 +48,11 @@ function looksLikeWebp(buf: Buffer) {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth()
+    const user = await requireAuthUser(request)
     // allow public for self-registration, or restricted for logged in users
-    if (session?.user) {
-      const sessionUser = session.user as { role?: string } | undefined
-      const isMerchantUser = sessionUser?.role === "MERCHANT"
-      const hasStaffPermission = await hasAnyPermission([
+    if (user) {
+      const isMerchantUser = user?.role === "MERCHANT"
+      const hasStaffPermission = userHasAnyPermission(user, [
         "MERCHANT_REGISTER",
         "TRANSACTION_LIMIT_SET",
         "TRANSACTION_LIMIT_OVERRIDE",

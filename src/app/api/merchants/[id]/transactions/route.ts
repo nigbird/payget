@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
-import { auth } from '@/auth';
+import { requireAuthUser } from '@/lib/request-auth';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-  const user = session?.user as { id?: string; role?: string; merchantId?: string | null; assignedMerchantIds?: string[] } | undefined;
+  const user = await requireAuthUser(request);
 
   if (!user?.id || !user.role) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

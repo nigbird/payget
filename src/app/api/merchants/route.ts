@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
-import { hasPermission } from '@/lib/rbac';
+import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import bcrypt from 'bcryptjs';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 
@@ -13,10 +12,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    // Allow public registration if no session, or check for permission if session exists
-    if (session?.user) {
-      const canRegister = await hasPermission('MERCHANT_REGISTER');
+    const sessionUser = await requireAuthUser(request);
+    // Allow public registration if no auth, or check for permission if auth exists
+    if (sessionUser) {
+      const canRegister = userHasPermission(sessionUser, 'MERCHANT_REGISTER');
       if (!canRegister) {
         return NextResponse.json({ error: 'Permission denied: MERCHANT_REGISTER required' }, { status: 403 });
       }
@@ -83,7 +82,7 @@ export async function POST(request: Request) {
           ...rest,
           id: merchantId,
           jweSecret: rest.jweSecret || Math.random().toString(36).substring(2, 15),
-          createdBy: session?.user ? (session.user as any).id : null,
+          createdBy: sessionUser?.id ?? null,
           status: 'PENDING', // Always start as pending
           documents: documents ? {
             create: documents.map((doc: any) => ({

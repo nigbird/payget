@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
-import { auth } from '@/auth';
-import { hasPermission } from '@/lib/rbac';
+import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { generatePasswordSetupLink, sendNotification } from '@/lib/notifications';
 import crypto from 'crypto';
 
@@ -10,12 +9,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await requireAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canApprove = await hasPermission('MERCHANT_APPROVE');
+    const canApprove = userHasPermission(user, 'MERCHANT_APPROVE');
     if (!canApprove) {
       return NextResponse.json({ error: 'Permission denied: MERCHANT_APPROVE required' }, { status: 403 });
     }

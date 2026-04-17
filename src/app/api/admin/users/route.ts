@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
-import { hasPermission, canAssignPermissions } from '@/lib/rbac';
 import bcrypt from 'bcryptjs';
+import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await requireAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -61,12 +60,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await requireAuthUser(request);
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canCreateUser = await hasPermission('USER_CREATE');
+    const canCreateUser = userHasPermission(authUser, 'USER_CREATE');
     if (!canCreateUser) {
       return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
@@ -99,7 +98,7 @@ export async function POST(request: Request) {
 
       if (targetRole) {
         const targetPerms = targetRole.permissions.map(p => p.permission.name);
-        const canAssign = await canAssignPermissions(targetPerms);
+        const canAssign = userCanAssignPermissions(authUser, targetPerms);
         if (!canAssign) {
           return NextResponse.json({ 
             error: 'Privilege escalation attempt: You cannot assign a role that has more permissions than you.' 
@@ -114,7 +113,7 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
+    const createdUser = await prisma.user.create({
       data: {
         email,
         name,
@@ -131,7 +130,7 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(user, { status: 201 });
+    return NextResponse.json(createdUser, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });

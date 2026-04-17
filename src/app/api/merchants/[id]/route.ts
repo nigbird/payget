@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
-import { auth } from '@/auth';
-import { hasPermission } from '@/lib/rbac';
+import { requireAuthUser, userHasPermission, userHasAnyPermission } from '@/lib/request-auth';
 import { sendNotification, generatePasswordSetupLink } from '@/lib/notifications';
 import crypto from 'crypto';
 
@@ -28,8 +27,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await requireAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -49,13 +48,12 @@ export async function PATCH(
         return NextResponse.json({ error: "Invalid logoUrl" }, { status: 400 })
       }
 
-      const sessionUser = session.user as any
+      const sessionUser = user as any
       const isOwnMerchant =
         sessionUser?.role === "MERCHANT" && sessionUser?.merchantId && sessionUser.merchantId === id
 
       if (!isOwnMerchant) {
-        const canStaffUpdate =
-          (await hasPermission("MERCHANT_REGISTER")) || (await hasPermission("MERCHANT_APPROVE"))
+        const canStaffUpdate = userHasAnyPermission(user, ["MERCHANT_REGISTER", "MERCHANT_APPROVE"])
         if (!canStaffUpdate) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
@@ -76,13 +74,13 @@ export async function PATCH(
 
     // Final approval actions require MERCHANT_APPROVE
     if (isFinalApprovalStatus) {
-      const canApprove = await hasPermission("MERCHANT_APPROVE")
+      const canApprove = userHasPermission(user, "MERCHANT_APPROVE")
       if (!canApprove) {
         return NextResponse.json({ error: "Permission denied: MERCHANT_APPROVE required" }, { status: 403 })
       }
 
       // Maker-Checker principle: creator cannot approve/reject/activate
-      if (currentMerchant.createdBy === (session.user as any).id) {
+      if (currentMerchant.createdBy === user.id) {
         return NextResponse.json(
           { error: "Maker-Checker violation: The user who registered this merchant cannot perform final approval actions." },
           { status: 403 }
@@ -90,14 +88,14 @@ export async function PATCH(
       }
 
       // Maker-Checker principle: initial reviewer / limit setter cannot perform final approval actions
-      if ((currentMerchant as any).limitsSetBy === (session.user as any).id) {
+      if ((currentMerchant as any).limitsSetBy === user.id) {
         return NextResponse.json(
           { error: "Maker-Checker violation: The user who performed initial limit-setting cannot perform final approval actions." },
           { status: 403 }
         )
       }
 
-      body.approvedBy = (session.user as any).id
+      body.approvedBy = user.id
 
       // If fully approved, generate setup token
       if (incomingStatus === "approved" || incomingStatus === "APPROVED") {
@@ -114,8 +112,8 @@ export async function PATCH(
 
     // Initial review requires limit permissions (not MERCHANT_APPROVE)
     if (isInitialReviewStatus || isLimitChange) {
-      const canSetLimits = await hasPermission("TRANSACTION_LIMIT_SET")
-      const canOverrideLimits = await hasPermission("TRANSACTION_LIMIT_OVERRIDE")
+      const canSetLimits = userHasPermission(user, "TRANSACTION_LIMIT_SET")
+      const canOverrideLimits = userHasPermission(user, "TRANSACTION_LIMIT_OVERRIDE")
 
       if (!canSetLimits && !canOverrideLimits) {
         return NextResponse.json(
@@ -127,7 +125,7 @@ export async function PATCH(
       // Record maker for maker/checker enforcement on final approval.
       // Keep the first limits setter as the maker for this merchant's onboarding.
       if (!(currentMerchant as any).limitsSetBy) {
-        body.limitsSetBy = (session.user as any).id
+        body.limitsSetBy = user.id
       }
     }
 

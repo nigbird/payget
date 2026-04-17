@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
-import { hasPermission } from '@/lib/rbac';
+import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await requireAuthUser(request);
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,7 +16,7 @@ export async function PATCH(
     const body = await request.json();
 
     // Check for user management permission
-    const canManage = await hasPermission('USER_CREATE');
+    const canManage = userHasPermission(authUser, 'USER_CREATE');
     if (!canManage) {
       return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
@@ -32,12 +31,12 @@ export async function PATCH(
     if (body.branch !== undefined) updateData.branch = body.branch;
     if (body.status !== undefined) updateData.status = body.status;
 
-    const user = await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
     });
 
-    return NextResponse.json({ user });
+    return NextResponse.json({ user: updatedUser });
   } catch (error: any) {
     console.error('Error updating user:', error);
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
@@ -49,21 +48,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await requireAuthUser(request);
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { id } = await params;
 
     // Check for user management permission
-    const canManage = await hasPermission('USER_CREATE');
+    const canManage = userHasPermission(authUser, 'USER_CREATE');
     if (!canManage) {
       return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
 
     // We prefer deactivation over hard deletion for audit purposes
-    const user = await prisma.user.update({
+    await prisma.user.update({
       where: { id },
       data: { status: 'DEACTIVATED' },
     });

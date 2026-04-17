@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
-import { auth } from "@/auth"
+import { requireAuthUser } from "@/lib/request-auth"
 
 export async function POST(request: Request) {
   try {
-    const session = await auth()
+    const sessionUser = await requireAuthUser(request)
     const body = await request.json()
     const parsed = PaymentInitiateSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const sessionUser = session?.user as { id?: string; name?: string | null; role?: string; merchantId?: string | null; assignedMerchantIds?: string[] } | undefined
     const isAssignedMerchant =
       sessionUser?.merchantId === parsed.data.merchantId ||
       sessionUser?.assignedMerchantIds?.includes(parsed.data.merchantId)

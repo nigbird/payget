@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
-import { hasPermission, canAssignPermissions } from '@/lib/rbac';
+import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await requireAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -34,12 +33,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await requireAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canCreateRole = await hasPermission('ROLE_CREATE');
+    const canCreateRole = userHasPermission(user, 'ROLE_CREATE');
     if (!canCreateRole) {
       return NextResponse.json({ error: 'Permission denied: ROLE_CREATE required' }, { status: 403 });
     }
@@ -47,7 +46,7 @@ export async function POST(request: Request) {
     const { name, description, permissionIds } = await request.json();
 
     // Privilege escalation check
-    const canAssign = await canAssignPermissions(permissionIds);
+    const canAssign = userCanAssignPermissions(user, permissionIds);
     if (!canAssign) {
       return NextResponse.json({ 
         error: 'Privilege escalation attempt: You cannot assign permissions you do not have.' 
@@ -58,7 +57,7 @@ export async function POST(request: Request) {
       data: {
         name,
         description,
-        createdBy: (session.user as any).id,
+        createdBy: user.id,
         permissions: {
           create: permissionIds.map((pid: string) => ({
             permissionId: pid

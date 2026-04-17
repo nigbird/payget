@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { db } from "@/app/lib/db"
-import { auth } from "@/auth"
+import { requireAuthUser } from "@/lib/request-auth"
 import { sendProviderPushRequest } from "@/lib/provider-client"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
 
@@ -9,8 +9,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user) {
+    const user = await requireAuthUser(request)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -26,11 +26,10 @@ export async function POST(
     }
 
     // Verify ownership
-    const sessionUser = session.user as any
-    const isAssigned = sessionUser.merchantId === merchant.id || 
-                     (sessionUser.assignedMerchantIds && sessionUser.assignedMerchantIds.includes(merchant.id))
+    const isAssigned =
+      user.merchantId === merchant.id || (user.assignedMerchantIds && user.assignedMerchantIds.includes(merchant.id))
     
-    if (sessionUser.role !== 'ADMIN' && !isAssigned) {
+    if (user.role !== 'ADMIN' && !isAssigned) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
