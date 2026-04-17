@@ -10,7 +10,7 @@ import {
   UserRole
 } from '@prisma/client';
 
-export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected' | 'active';
+export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected' | 'active' | 'rejected_with_update' | 'resubmitted';
 export type TransactionStatus = 'success' | 'failed' | 'initiated' | 'pending' | 'awaiting_pin' | 'processing';
 
 export interface MerchantDocument {
@@ -19,6 +19,18 @@ export interface MerchantDocument {
   type: string;
   size: number;
   uploadedAt: string;
+}
+
+export interface MerchantUpdateToken {
+  id: string;
+  token: string;
+  merchantId: string;
+  otp?: string | null;
+  otpExpires?: string | null;
+  verified: boolean;
+  expiresAt: string;
+  usedAt?: string | null;
+  createdAt: string;
 }
 
 export interface Merchant {
@@ -50,6 +62,7 @@ export interface Merchant {
   limitsSetBy?: string | null;
   approvedBy?: string | null;
   createdAt: string;
+  updateComments?: any | null;
   documents?: MerchantDocument[];
   _count?: {
     transactions: number;
@@ -87,6 +100,8 @@ function mapMerchantStatus(s: PrismaMerchantStatus): MerchantStatus {
   if (s === 'BRANCH_APPROVED') return 'branch_approved';
   if (s === 'APPROVED') return 'approved';
   if (s === 'ACTIVE') return 'active';
+  if (s === 'REJECTED_WITH_UPDATE') return 'rejected_with_update';
+  if (s === 'RESUBMITTED') return 'resubmitted';
   return 'rejected';
 }
 
@@ -95,6 +110,8 @@ function mapToPrismaMerchantStatus(s: MerchantStatus): PrismaMerchantStatus {
   if (s === 'branch_approved') return 'BRANCH_APPROVED';
   if (s === 'approved') return 'APPROVED';
   if (s === 'active') return 'ACTIVE';
+  if (s === 'rejected_with_update') return 'REJECTED_WITH_UPDATE';
+  if (s === 'resubmitted') return 'RESUBMITTED';
   return 'REJECTED';
 }
 
@@ -429,6 +446,31 @@ export const db = {
         transactionTimestamp: new Date(tx.transactionTimestamp),
         userCredentials: tx.userCredentials as any
       }
+    });
+  },
+
+  // Merchant Update Token Methods
+  createMerchantUpdateToken: async (merchantId: string, token: string, expiresAt: Date) => {
+    return prisma.merchantUpdateToken.create({
+      data: {
+        merchantId,
+        token,
+        expiresAt
+      }
+    });
+  },
+
+  getMerchantUpdateToken: async (token: string) => {
+    return prisma.merchantUpdateToken.findUnique({
+      where: { token },
+      include: { merchant: true }
+    });
+  },
+
+  updateMerchantUpdateToken: async (id: string, data: any) => {
+    return prisma.merchantUpdateToken.update({
+      where: { id },
+      data
     });
   }
 };

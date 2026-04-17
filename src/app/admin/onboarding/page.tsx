@@ -441,10 +441,16 @@ export default function MerchantOnboardingPage() {
     }
   }
 
-  const filteredSubmissions = submissions.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.id.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredSubmissions = submissions.filter(s => {
+    // Visibility Constraint: Self-registered merchants (createdBy === null)
+    // should only appear here AFTER they are approved.
+    const isSelfRegistered = !s.createdBy;
+    const isApproved = s.status === 'approved' || s.status === 'active';
+    if (isSelfRegistered && !isApproved) return false;
+
+    const query = searchQuery.toLowerCase();
+    return s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query);
+  })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -458,6 +464,10 @@ export default function MerchantOnboardingPage() {
         return <Badge className="rounded-full bg-amber-50 text-amber-800 border border-amber-100 font-medium gap-1.5"><Clock className="w-3 h-3" /> Pending</Badge>
       case 'rejected':
         return <Badge className="rounded-full bg-rose-50 text-rose-700 border border-rose-100 font-medium gap-1.5"><AlertCircle className="w-3 h-3" /> Rejected</Badge>
+      case 'rejected_with_update':
+        return <Badge className="rounded-full bg-amber-100 text-amber-900 border border-amber-200 font-medium gap-1.5"><MessageSquare className="w-3 h-3" /> Update Requested</Badge>
+      case 'resubmitted':
+        return <Badge className="rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 font-medium gap-1.5"><ArrowRight className="w-3 h-3" /> Resubmitted</Badge>
       default: return <Badge variant="secondary">{status}</Badge>
     }
   }

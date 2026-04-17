@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
+import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission, userHasAnyPermission } from '@/lib/request-auth';
 import { sendNotification, generatePasswordSetupLink } from '@/lib/notifications';
 import crypto from 'crypto';
@@ -131,6 +132,20 @@ export async function PATCH(
 
     // Update merchant using the existing updateMerchant method
     const updated = await db.updateMerchant(id, body);
+
+    // Audit Log
+    if (updated) {
+      await prisma.auditLog.create({
+        data: {
+          userId: (session.user as any).id,
+          action: body.status ? `MERCHANT_STATUS_${body.status.toUpperCase()}` : 'MERCHANT_UPDATE',
+          entityType: 'MERCHANT',
+          entityId: id,
+          oldValue: currentMerchant as any,
+          newValue: body as any
+        }
+      });
+    }
 
     // Trigger notification if approved
     if ((body.status === 'approved' || body.status === 'APPROVED') && updated) {

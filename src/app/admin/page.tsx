@@ -164,9 +164,20 @@ export default function AdminDashboard() {
   }, [config.allowedFileTypes])
 
   const filteredMerchants = useMemo(() => {
+    let list = merchants
+    
+    // Visibility Constraint: Self-registered merchants (createdBy === null) 
+    // should only appear here AFTER they are approved.
+    list = list.filter((m) => {
+      const isSelfRegistered = !m.createdBy;
+      const isApproved = m.status === "approved" || m.status === "active";
+      if (isSelfRegistered && !isApproved) return false;
+      return true;
+    });
+
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return merchants
-    return merchants.filter((m) => {
+    if (!q) return list
+    return list.filter((m) => {
       const name = String(m?.name ?? "").toLowerCase()
       const id = String(m?.id ?? "").toLowerCase()
       const email = String(m?.email ?? "").toLowerCase()

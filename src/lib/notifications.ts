@@ -100,3 +100,17 @@ export function generatePasswordSetupLink(merchantId: string, token: string): st
   const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
   return `${normalizedBaseUrl}/merchant/setup-password?merchantId=${merchantId}&token=${token}`;
 }
+
+/**
+ * Generates a secure magic link for merchant application updates.
+ */
+export function generateMerchantUpdateLink(token: string): string {
+  const baseUrl =
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
+    'http://localhost:3000';
+
+  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+  return `${normalizedBaseUrl}/merchant/review-update?token=${token}`;
+}

@@ -83,6 +83,11 @@ function MerchantReviewContent() {
   
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
+  const [isRequestingUpdate, setIsRequestingUpdate] = useState(false)
+  const [updateComments, setUpdateComments] = useState({
+    general: "",
+    fields: {} as Record<string, string>
+  })
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
   const userPermissions = (session?.user as any)?.permissions || []
@@ -109,7 +114,12 @@ function MerchantReviewContent() {
       if (response.ok) {
         const merchants = await response.json()
         // Centralized queue: show anything not fully approved or rejected
-        setPending(merchants.filter((m: Merchant) => m.status === 'pending' || m.status === 'branch_approved'))
+        setPending(merchants.filter((m: Merchant) => 
+          m.status === 'pending' || 
+          m.status === 'branch_approved' || 
+          m.status === 'resubmitted' ||
+          m.status === 'rejected_with_update'
+        ))
       }
     } catch (error) {
       console.error('Failed to fetch merchants:', error)
@@ -171,12 +181,55 @@ function MerchantReviewContent() {
     }
   }
 
+  const handleRequestUpdate = async () => {
+    if (!selectedMerchant) return;
+    if (!updateComments.general.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Comment Required",
+        description: "Please provide at least a general comment for the update request."
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/merchants/${selectedMerchant.id}/request-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comments: updateComments })
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Update Requested",
+          description: "The merchant has been notified to provide updates."
+        })
+        setSelectedMerchant(null)
+        setIsDetailsOpen(false)
+        setIsRequestingUpdate(false)
+        setUpdateComments({ general: "", fields: {} })
+        fetchMerchants()
+      } else {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to request update')
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Request Failed",
+        description: error.message
+      })
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved': return <Badge className="bg-green-500 gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</Badge>
       case 'active': return <Badge className="bg-emerald-500 gap-1"><CheckCircle2 className="w-3 h-3" /> Active</Badge>
       case 'branch_approved': return <Badge className="bg-blue-500 gap-1"><ShieldCheck className="w-3 h-3" /> Initial Review OK</Badge>
       case 'pending': return <Badge variant="outline" className="text-orange-500 border-orange-200 bg-orange-50 gap-1"><Clock className="w-3 h-3" /> New Submission</Badge>
+      case 'rejected_with_update': return <Badge className="bg-amber-500 gap-1 text-white"><MessageSquare className="w-3 h-3" /> Update Requested</Badge>
+      case 'resubmitted': return <Badge className="bg-indigo-500 gap-1"><ArrowRight className="w-3 h-3" /> Resubmitted</Badge>
       default: return <Badge variant="secondary">{status}</Badge>
     }
   }
@@ -455,11 +508,11 @@ function MerchantReviewContent() {
                         <CardTitle className="text-sm">Compliance Actions</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {selectedMerchant.status === 'pending' && (
+                        {(selectedMerchant.status === 'pending' || selectedMerchant.status === 'resubmitted') && (
                           <div className="space-y-4">
                             <div className="space-y-3">
                               <Label className="text-xs font-bold uppercase text-primary flex items-center gap-2">
-                                <TrendingUp className="w-3 h-3" /> Assign Limits
+                                <TrendingUp className="w-3 h-3" /> {selectedMerchant.status === 'resubmitted' ? 'Review & Assign Limits' : 'Assign Limits'}
                               </Label>
                               <div className="space-y-2">
                                 <div className="grid gap-1">
@@ -524,11 +577,42 @@ function MerchantReviewContent() {
 
                         <Separator />
 
+                        {!isRequestingUpdate ? (
+                          <Button 
+                            variant="outline" 
+                            className="w-full h-9 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-2xl transition-colors border-amber-200"
+                            onClick={() => {
+                              setIsRequestingUpdate(true)
+                              setIsRejecting(false)
+                            }}
+                          >
+                            Request Update
+                          </Button>
+                        ) : (
+                          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                            <Label className="text-xs font-bold text-amber-800">Update Request Comments</Label>
+                            <Textarea 
+                              className="min-h-[80px] text-xs" 
+                              placeholder="General instructions for the merchant..."
+                              value={updateComments.general}
+                              onChange={(e) => setUpdateComments({...updateComments, general: e.target.value})}
+                            />
+                            <p className="text-[10px] text-slate-500 italic">Field-level comments can be added in a future update or via the general comments above.</p>
+                            <div className="flex gap-2">
+                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors" onClick={() => setIsRequestingUpdate(false)}>Cancel</Button>
+                              <Button className="flex-1 text-xs h-8 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white" onClick={handleRequestUpdate}>Send Request</Button>
+                            </div>
+                          </div>
+                        )}
+
                         {!isRejecting ? (
                           <Button 
                             variant="ghost" 
                             className="w-full h-9 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-2xl transition-colors"
-                            onClick={() => setIsRejecting(true)}
+                            onClick={() => {
+                              setIsRejecting(true)
+                              setIsRequestingUpdate(false)
+                            }}
                           >
                             Reject Application
                           </Button>
