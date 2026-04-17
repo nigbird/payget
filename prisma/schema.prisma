@@ -118,6 +118,8 @@ model Merchant {
   createdAt           DateTime         @default(now())
   passwordResetToken  String?          @unique
   passwordResetExpires DateTime?
+  updateComments      Json?            // Field-level comments for corrections
+  updateTokens        MerchantUpdateToken[]
   documents           MerchantDocument[]
   transactions        Transaction[]
   teamMembers         MerchantTeamMember[]
@@ -129,7 +131,22 @@ enum MerchantStatus {
   BRANCH_APPROVED
   APPROVED
   REJECTED
+  REJECTED_WITH_UPDATE
+  RESUBMITTED
   ACTIVE
+}
+
+model MerchantUpdateToken {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  otp        String?  // The OTP sent to merchant
+  otpExpires DateTime?
+  verified   Boolean  @default(false)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
 }
 
 model MerchantDocument {

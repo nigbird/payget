@@ -13,11 +13,19 @@ export default auth((req) => {
     nextUrl.pathname.startsWith("/checker") ||
     nextUrl.pathname.startsWith("/head-office")
 
-  if ((isMerchantRoute || isAdminRoute) && !isLoggedIn) {
+  const isAuthExemptRoute = 
+    pathname === "/merchant/review-update" || 
+    pathname === "/merchant/setup-password"
+
+  if ((isMerchantRoute || isAdminRoute) && !isLoggedIn && !isAuthExemptRoute) {
     return Response.redirect(new URL("/", nextUrl))
   }
 
   if (isLoggedIn) {
+    // If user is logged in, they shouldn't be accessing setup/review-update links
+    // unless they logout first, but we can allow it for flexibility or redirect them.
+    // For now, let's just make sure they can access them if they have the link.
+    if (isAuthExemptRoute) return
     const userPermissions = user?.permissions || []
     const userRole = user?.role
 
