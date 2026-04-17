@@ -16,12 +16,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        loginType: { label: "Login Type", type: "text" }
       },
       authorize: async (credentials) => {
         if (!credentials?.email || !credentials?.password) return null
 
         const identifier = String(credentials.email).trim()
+        const loginType = String(credentials.loginType || "")
+
         let user = await db.findUserByEmail(identifier)
 
         // Fallback: allow merchant login by contact username (email or phone).
@@ -34,6 +37,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user || !user.password) return null
         
+        // Role-based validation
+        if (loginType === "admin") {
+          const adminRoles = ['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE']
+          if (!adminRoles.includes(user.role)) {
+            throw new Error("AccessDenied: Not an admin user")
+          }
+        } else if (loginType === "merchant") {
+          if (user.role !== 'MERCHANT') {
+            throw new Error("AccessDenied: Not a merchant user")
+          }
+        }
+
         // If the user is a merchant, ensure the merchant account is ACTIVE
         if (user.role === 'MERCHANT' && user.merchantId) {
           if (user.merchant?.status !== 'ACTIVE') {
