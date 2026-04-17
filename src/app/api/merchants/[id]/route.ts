@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
-import { requireAuthUser, userHasPermission, userHasAnyPermission } from '@/lib/request-auth';
+import { requireAuthUser, userHasPermission, userHasAnyPermission, canAccessMerchant } from '@/lib/request-auth';
 import { sendNotification, generatePasswordSetupLink } from '@/lib/notifications';
 import crypto from 'crypto';
 
@@ -15,7 +15,17 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await requireAuthUser(request);
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
+
+  if (!canAccessMerchant(user, id)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const merchant = await db.getMerchantById(id);
   if (!merchant) {
     return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
@@ -34,6 +44,11 @@ export async function PATCH(
     }
 
     const { id } = await params;
+
+    if (!canAccessMerchant(user, id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     
     const currentMerchant = await db.getMerchantById(id);
@@ -137,8 +152,8 @@ export async function PATCH(
     if (updated) {
       await prisma.auditLog.create({
         data: {
-          userId: (session.user as any).id,
-          action: body.status ? `MERCHANT_STATUS_${body.status.toUpperCase()}` : 'MERCHANT_UPDATE',
+          userId: user.id,
+          action: body.status ? `MERCHANT_STATUS_${String(body.status).toUpperCase()}` : 'MERCHANT_UPDATE',
           entityType: 'MERCHANT',
           entityId: id,
           oldValue: currentMerchant as any,

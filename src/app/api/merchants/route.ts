@@ -5,8 +5,20 @@ import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import bcrypt from 'bcryptjs';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 
-export async function GET() {
-  const merchants = await db.getMerchants();
+export async function GET(request: Request) {
+  const user = await requireAuthUser(request);
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  let merchants = await db.getMerchants();
+
+  if (user.role === 'MERCHANT' && user.merchantId) {
+    merchants = merchants.filter(m => m.id === user.merchantId);
+  } else if (user.role === 'SALES') {
+    merchants = merchants.filter(m => user.assignedMerchantIds?.includes(m.id));
+  }
+
   return NextResponse.json(merchants);
 }
 

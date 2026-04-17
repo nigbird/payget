@@ -96,3 +96,17 @@ export function userCanAssignPermissions(user: ResolvedAuthUser | null, targetPe
   return targetPermissions.every((p) => perms.includes(p))
 }
 
+export function canAccessMerchant(user: ResolvedAuthUser | null, targetMerchantId: string) {
+  if (!user) return false
+  if (["ADMIN", "MAKER", "CHECKER", "HEAD_OFFICE"].includes(user.role || "")) {
+    return true
+  }
+  if (user.role === "MERCHANT") {
+    return user.merchantId === targetMerchantId
+  }
+  if (user.role === "SALES") {
+    return user.assignedMerchantIds?.includes(targetMerchantId) ?? false
+  }
+  return false
+}
+

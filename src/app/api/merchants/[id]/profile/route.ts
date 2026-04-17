@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/app/lib/db'
 import { prisma } from '@/lib/prisma'
 import bcrypt from "bcryptjs"
+import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth'
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuthUser(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { id } = await params
+    if (!canAccessMerchant(user, id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json()
     
     // Find the merchant
