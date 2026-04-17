@@ -208,7 +208,7 @@ export default function MerchantLogin() {
               {loginMode === 'email' ? (
                 <>
                   <div className="space-y-2.5">
-                    <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">User Name</Label>
+                    <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Email or Phone</Label>
                     <div className="relative group transition-all">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
                       <Input 
