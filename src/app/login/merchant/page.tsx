@@ -267,18 +267,19 @@ export default function MerchantLogin() {
                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}
                   </Button>
 
-                  <div className="flex justify-center space-x-4 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setLoginMode('sales')}
-                      className="text-sm font-semibold text-[#6B7280] hover:text-[#f8b513] transition-colors"
-                    >
-                      Sales Login
-                    </button>
-                    <span className="text-[#D1D5DB]">•</span>
+                  <div className="flex flex-col space-y-4 pt-2">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setLoginMode('sales')}
+                        className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors"
+                      >
+                        Sales Login
+                      </button>
+                    </div>
                     <Link 
                       href="/register" 
-                      className="text-sm font-semibold text-[#6B7280] hover:text-[#f8b513] transition-colors"
+                      className="w-full flex items-center justify-center h-12 text-base font-bold rounded-xl bg-[#f8b513]/10 text-[#754319] hover:bg-[#f8b513]/20 transition-all duration-300"
                     >
                       Register as New Merchant
                     </Link>
