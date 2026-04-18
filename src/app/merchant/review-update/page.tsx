@@ -294,10 +294,10 @@ function ReviewUpdateForm() {
           </p>
         </CardContent>
         <CardFooter className="px-8 pb-8">
-          <Button className="w-full h-14 rounded-2xl bg-slate-900 text-white font-bold" asChild>
-            <Link href="/">Return to Home</Link>
-          </Button>
-        </CardFooter>
+            <Button className="w-full h-14 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold" asChild>
+                <Link href="/login/merchant">Back to Login</Link>
+              </Button>
+          </CardFooter>
       </Card>
     )
   }
@@ -307,7 +307,7 @@ function ReviewUpdateForm() {
 
 export default function ReviewUpdatePage() {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <Suspense fallback={<Loader2 className="w-8 h-8 animate-spin text-primary" />}>
         <ReviewUpdateForm />
       </Suspense>

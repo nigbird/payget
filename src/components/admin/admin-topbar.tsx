@@ -52,7 +52,7 @@ export function AdminTopbar({ className }: { className?: string }) {
       className={cn(
         "sticky top-0 z-40",
         "border-b border-[#F1E7D0]",
-        "bg-[#FFFDF7]/95 supports-[backdrop-filter]:backdrop-blur-sm",
+        "bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm",
         className
       )}
     >
@@ -134,7 +134,7 @@ export function AdminTopbar({ className }: { className?: string }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600 focus:text-red-700"
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => signOut({ callbackUrl: "/login" })}
               >
                 Log out
               </DropdownMenuItem>

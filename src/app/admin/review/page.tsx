@@ -235,7 +235,7 @@ function MerchantReviewContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold tracking-tight text-slate-950">Review & approvals</h2>
         <p className="text-sm text-slate-600">Approve registrations, adjust limits, and perform final audits.</p>
@@ -474,7 +474,7 @@ function MerchantReviewContent() {
                               <a 
                                 href={doc.url} 
                                 download={doc.name}
-                                className="flex-1 inline-flex items-center justify-center h-8 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                                className="flex-1 inline-flex items-center justify-center h-8 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors"
                               >
                                 <Download className="w-3 h-3 mr-1.5" /> Download
                               </a>
@@ -701,7 +701,7 @@ function MerchantReviewContent() {
                     <a 
                       href={previewFile?.url} 
                       download={previewFile?.name}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-medium shadow-sm hover:bg-slate-800 transition-all duration-300"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-600 text-white rounded-xl font-medium shadow-sm hover:bg-amber-700 transition-all duration-300"
                     >
                       <Download className="w-4 h-4" /> Download File
                     </a>

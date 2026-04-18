@@ -216,7 +216,7 @@ export default function MerchantPortalShell({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => signOut({ callbackUrl: "/login/merchant" })}
                 className="text-[#754319] hover:bg-red-50 hover:text-red-600 rounded-xl gap-2 px-2 md:px-3"
                 title="Log Out"
               >

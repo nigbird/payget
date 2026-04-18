@@ -203,7 +203,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6 bg-[#fffdf9]">
+    <div className="space-y-6 bg-white">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="card-soft-cream group rounded-[20px] transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
           <CardHeader className="pb-2">

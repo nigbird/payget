@@ -169,7 +169,7 @@ export function SidebarNav() {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium text-[#754319] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
-              onClick={() => signOut({ callbackUrl: "/" })}
+              onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <span className="sidebar-hex-icon">
                 <LogOut />

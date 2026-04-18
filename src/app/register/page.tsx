@@ -366,7 +366,7 @@ export default function MerchantSelfRegistration() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
           <div className="p-8 text-center border-b border-slate-50">
             <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
@@ -386,8 +386,8 @@ export default function MerchantSelfRegistration() {
             </div>
           </CardContent>
           <CardFooter className="px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-medium shadow-sm transition-all" asChild>
-              <Link href="/">Return to Home</Link>
+            <Button className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm transition-all" asChild>
+              <Link href="/login/merchant">Return to Login</Link>
             </Button>
           </CardFooter>
         </Card>
@@ -396,7 +396,7 @@ export default function MerchantSelfRegistration() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fffdf8_0%,#fff8ea_38%,#fffdf9_100%)] pb-20">
+    <div className="min-h-screen bg-white pb-20">
       <header className="sticky top-0 z-50 flex h-16 items-center border-b border-[#eadcc4]/70 bg-[#fffdf8]/90 px-4 backdrop-blur-md">
         <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -557,7 +557,7 @@ export default function MerchantSelfRegistration() {
                       {errors.contactName && <p className="text-[11px] text-red-500 font-medium">{errors.contactName}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Username (Email or Phone Number)</Label>
+                      <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Email or Phone Number</Label>
                       <div className="relative group">
                         <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                         <Input 

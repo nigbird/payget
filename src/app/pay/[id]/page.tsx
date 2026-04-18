@@ -129,7 +129,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
 
   if (!transaction || !merchant) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center p-6 text-center space-y-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center space-y-4">
         <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 mb-2">
           <XCircle className="w-6 h-6" />
         </div>
@@ -143,7 +143,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 sm:p-12">
+    <div className="min-h-screen bg-white p-6 sm:p-12">
       <div className="mx-auto w-full max-w-md space-y-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs uppercase tracking-widest text-slate-400">Customer Home</p>
@@ -184,7 +184,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
                   <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{request.amount.toFixed(2)} ETB</p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <Button
-                      className="rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-medium shadow-sm"
+                      className="rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm"
                       disabled={processing}
                       onClick={() => handlePayment(request.id)}
                     >

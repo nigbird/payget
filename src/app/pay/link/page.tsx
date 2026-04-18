@@ -156,7 +156,7 @@ function PayLinkContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFFDF7] p-4">
+      <div className="min-h-screen flex items-center justify-center bg-white p-4">
         <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
       </div>
     )
@@ -164,7 +164,7 @@ function PayLinkContent() {
 
   if (error || !payment) {
     return (
-      <div className="min-h-screen bg-[#FFFDF7] p-4 flex items-center justify-center">
+      <div className="min-h-screen bg-white p-4 flex items-center justify-center">
         <Card className="w-full max-w-md rounded-2xl border border-amber-100 bg-white shadow-sm">
           <CardContent className="p-8 space-y-4 text-center">
             <div className="mx-auto w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-2 border border-rose-100">
@@ -184,16 +184,16 @@ function PayLinkContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFDF7] p-4 flex items-center justify-center">
+    <div className="min-h-screen bg-white p-4 flex items-center justify-center">
       <div className="mx-auto w-full max-w-md space-y-4">
         <Card className="relative overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm shadow-amber-950/5">
           <CardContent className="p-0">
-            <div className="bg-[#FFFDF7] px-6 pb-8 pt-6 border-b border-black/5">
+            <div className="bg-white px-6 pb-8 pt-6 border-b border-black/5">
               <div className="flex flex-col gap-6">
                 <div className="rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#FFFDF7] border border-amber-100">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-amber-100">
                         {gatewayBrand.logoUrl ? (
                           <Image
                             src={gatewayBrand.logoUrl}
@@ -215,7 +215,7 @@ function PayLinkContent() {
                     <div className="h-8 w-px bg-amber-100" />
 
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#FFFDF7] border border-amber-100">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-amber-100">
                         {payment.merchantLogoUrl ? (
                           <Image
                             src={payment.merchantLogoUrl}
@@ -244,7 +244,7 @@ function PayLinkContent() {
             </div>
 
             <div className="space-y-5 bg-white p-6">
-              <div className="rounded-xl border border-amber-100 bg-[#FFFDF7] p-4">
+              <div className="rounded-xl border border-amber-100 bg-white p-4">
                 <div className="space-y-3">
                   <div className="grid grid-cols-[108px_minmax(0,1fr)] items-start gap-3 border-b border-amber-100 pb-3">
                     <p className="text-[11px] uppercase tracking-widest text-amber-800/60">Merchant</p>
@@ -279,7 +279,7 @@ function PayLinkContent() {
                 <div className="space-y-4">
                   {!pushSent ? (
                     <Button
-                      className="h-12 w-full rounded-xl bg-[#111827] text-white hover:bg-[#1f2937] font-medium shadow-sm transition-all"
+                      className="h-12 w-full rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm transition-all"
                       onClick={handleExecute}
                       disabled={processing}
                     >
@@ -346,7 +346,7 @@ function PayLinkContent() {
 export default function PayLinkPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#FFFDF7] p-4">
+      <div className="min-h-screen flex items-center justify-center bg-white p-4">
         <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
       </div>
     }>

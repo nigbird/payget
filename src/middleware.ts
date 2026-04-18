@@ -18,11 +18,14 @@ export default auth((req) => {
     pathname === "/merchant/setup-password"
 
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
-    return Response.redirect(new URL("/login", nextUrl))
+    return Response.redirect(new URL("/login", req.url))
   }
 
   if (isMerchantRoute && !isLoggedIn && !isAuthExemptRoute) {
-    return Response.redirect(new URL("/login/merchant", nextUrl))
+    const loginUrl = new URL("/login/merchant", req.url)
+    // Add callbackUrl so NextAuth knows where to redirect after login
+    loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
+    return Response.redirect(loginUrl)
   }
 
   if (isLoggedIn) {
@@ -44,10 +47,10 @@ export default auth((req) => {
 
     if (pathname === "/login" || pathname === "/login/merchant" || pathname === "/") {
       if (userRole === "MERCHANT" || userRole === "SALES") {
-        return Response.redirect(new URL("/merchant", nextUrl))
+        return Response.redirect(new URL("/merchant", req.url))
       } else {
         const landing = getAdminLandingPath() || "/admin"
-        return Response.redirect(new URL(landing, nextUrl))
+        return Response.redirect(new URL(landing, req.url))
       }
     }
 
@@ -62,16 +65,16 @@ export default auth((req) => {
       if (!hasAdminAccess) {
         // Don't send non-admin users to the global dashboard.
         // Default to merchant portal if applicable, otherwise home.
-        return Response.redirect(new URL(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login", nextUrl))
+        return Response.redirect(new URL(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login", req.url))
       }
 
       // Special-case: `/admin` is the global dashboard and requires explicit permission.
       if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_GLOBAL_VIEW")) {
         const landing = getAdminLandingPath()
         if (landing && landing !== "/admin") {
-          return Response.redirect(new URL(landing, nextUrl))
+          return Response.redirect(new URL(landing, req.url))
         }
-        return Response.redirect(new URL("/login", nextUrl))
+        return Response.redirect(new URL("/login", req.url))
       }
     }
 
@@ -79,8 +82,8 @@ export default auth((req) => {
     if (isMerchantRoute && userRole !== 'MERCHANT' && userRole !== 'SALES') {
       // Don't redirect to the global admin dashboard unless permitted.
       const landing = getAdminLandingPath()
-      if (landing) return Response.redirect(new URL(landing, nextUrl))
-      return Response.redirect(new URL("/login", nextUrl))
+      if (landing) return Response.redirect(new URL(landing, req.url))
+      return Response.redirect(new URL("/login", req.url))
     }
   }
 })

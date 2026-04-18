@@ -96,10 +96,10 @@ function SetupPasswordForm() {
           </div>
         </CardContent>
         <CardFooter className="px-8 pb-8 pt-2">
-          <Button className="w-full h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 shadow-sm font-medium transition-all" onClick={() => router.push('/')}>
-            Proceed to Login
-          </Button>
-        </CardFooter>
+            <Button className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 shadow-sm font-medium transition-all" onClick={() => router.push('/login/merchant')}>
+              Continue to Login
+            </Button>
+          </CardFooter>
       </Card>
     )
   }
@@ -191,7 +191,7 @@ function SetupPasswordForm() {
 
 export default function SetupPasswordPage() {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <Suspense fallback={<Loader2 className="w-8 h-8 animate-spin text-primary" />}>
         <SetupPasswordForm />
       </Suspense>

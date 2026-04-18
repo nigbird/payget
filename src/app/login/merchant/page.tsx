@@ -169,7 +169,7 @@ export default function MerchantLogin() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-[#FFFEFA] via-[#FFFDF7] to-[#FFF8EA]">
+    <div className="min-h-screen relative overflow-hidden bg-white">
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
