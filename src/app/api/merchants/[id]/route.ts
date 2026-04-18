@@ -162,14 +162,24 @@ export async function PATCH(
       });
     }
 
-    // Trigger notification if approved
-    if ((body.status === 'approved' || body.status === 'APPROVED') && updated) {
-      const setupLink = generatePasswordSetupLink(id, body.passwordResetToken);
-      await sendNotification({
-        to: updated.contactUsername,
-        subject: 'Merchant Account Approved',
-        message: `Congratulations! Your merchant account for ${updated.name} has been approved. Please set up your password here: ${setupLink}`
-      });
+    // Trigger notification if approved or rejected
+    if (updated) {
+      if (body.status === 'approved' || body.status === 'APPROVED') {
+        const setupLink = generatePasswordSetupLink(id, body.passwordResetToken);
+        await sendNotification({
+          to: updated.contactUsername,
+          subject: 'Merchant Account Approved',
+          message: `Congratulations! Your merchant account for ${updated.name} has been approved. Please set up your password here: ${setupLink}`
+        });
+      } else if (body.status === 'rejected' || body.status === 'REJECTED') {
+        const registrationLink = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/register`;
+        const reason = body.rejectionReason ? `\n\nReason for rejection: ${body.rejectionReason}` : '';
+        await sendNotification({
+          to: updated.contactUsername,
+          subject: 'Merchant Application Status Update',
+          message: `Dear ${updated.contactName},\n\nWe regret to inform you that your merchant application for ${updated.name} has been rejected.${reason}\n\nIf you believe this was in error or would like to submit a new application with corrected information, please visit: ${registrationLink}`
+        });
+      }
     }
 
     return NextResponse.json(updated);
