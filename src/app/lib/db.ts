@@ -18,6 +18,7 @@ export interface MerchantDocument {
   name: string;
   type: string;
   size: number;
+  url: string;
   uploadedAt: string;
 }
 
@@ -463,7 +464,13 @@ export const db = {
   getMerchantUpdateToken: async (token: string) => {
     return prisma.merchantUpdateToken.findUnique({
       where: { token },
-      include: { merchant: true }
+      include: { 
+        merchant: {
+          include: {
+            documents: true
+          }
+        }
+      }
     });
   },
 

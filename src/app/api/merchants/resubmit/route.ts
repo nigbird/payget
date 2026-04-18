@@ -23,13 +23,18 @@ export async function PATCH(request: Request) {
     // Allowed: name, email, accountNumber, businessDescription, websiteUrl, callbackUrl, contactName, category, businessType, documents
     const allowedFields = [
       'name', 'email', 'accountNumber', 'businessDescription', 
-      'websiteUrl', 'callbackUrl', 'contactName', 'category', 'businessType'
+      'websiteUrl', 'callbackUrl', 'contactName', 'contactUsername', 'category', 'businessType',
+      'dailyLimit', 'transactionLimit', 'dailyCountLimit'
     ];
     
     const finalUpdate: any = {};
     allowedFields.forEach(field => {
       if (updateData[field] !== undefined) {
-        finalUpdate[field] = updateData[field];
+        if (['dailyLimit', 'transactionLimit', 'dailyCountLimit'].includes(field)) {
+          finalUpdate[field] = Number(updateData[field]);
+        } else {
+          finalUpdate[field] = updateData[field];
+        }
       }
     });
 
@@ -47,6 +52,7 @@ export async function PATCH(request: Request) {
           name: doc.name,
           type: doc.type,
           size: doc.size,
+          url: doc.url,
           merchantId
         }))
       });

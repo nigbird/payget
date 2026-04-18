@@ -61,6 +61,9 @@ function ReviewUpdateForm() {
     email: "",
     accountNumber: "",
     logoUrl: "",
+    dailyLimit: "0",
+    transactionLimit: "0",
+    dailyCountLimit: "0",
     businessDescription: "",
     websiteUrl: "",
     callbackUrl: "",
@@ -174,6 +177,9 @@ function ReviewUpdateForm() {
           email: data.merchant.email || "",
           accountNumber: data.merchant.accountNumber || "",
           logoUrl: data.merchant.logoUrl || "",
+          dailyLimit: String(data.merchant.dailyLimit || 0),
+          transactionLimit: String(data.merchant.transactionLimit || 0),
+          dailyCountLimit: String(data.merchant.dailyCountLimit || 0),
           businessDescription: data.merchant.businessDescription || "",
           websiteUrl: data.merchant.websiteUrl || "",
           callbackUrl: data.merchant.callbackUrl || "",
@@ -272,6 +278,8 @@ function ReviewUpdateForm() {
     if (!formData.category) newErrors.category = "Category is required"
     if (!formData.businessType) newErrors.businessType = "Business type is required"
     if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
+    if (isNaN(Number(formData.dailyLimit))) newErrors.dailyLimit = "Daily limit must be a number"
+    if (isNaN(Number(formData.transactionLimit))) newErrors.transactionLimit = "Transaction limit must be a number"
     if (documents.length === 0) newErrors.documents = "Upload at least one document"
 
     if (Object.keys(newErrors).length > 0) {
@@ -428,6 +436,33 @@ function ReviewUpdateForm() {
               <div className="p-8 space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                    <User className="h-5 w-5 text-[#754319]" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Authorized Contact</h3>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Full Name</Label>
+                    <Input 
+                      className={`h-11 rounded-xl ${errors.contactName ? 'border-red-500' : ''}`}
+                      value={formData.contactName}
+                      onChange={e => setFormData({...formData, contactName: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email or Phone Number</Label>
+                    <Input 
+                      className={`h-11 rounded-xl ${errors.contactUsername ? 'border-red-500' : ''}`}
+                      value={formData.contactUsername}
+                      onChange={e => setFormData({...formData, contactUsername: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                     <Store className="h-5 w-5 text-[#754319]" />
                   </div>
                   <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Business Details</h3>
@@ -466,11 +501,28 @@ function ReviewUpdateForm() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label>Callback URL (Optional)</Label>
+                    <Input 
+                      className="h-11 rounded-xl"
+                      value={formData.callbackUrl}
+                      onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Industry Category</Label>
                     <Select onValueChange={v => setFormData({...formData, category: v})} value={formData.category}>
                       <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {categories.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Business Type</Label>
+                    <Select onValueChange={v => setFormData({...formData, businessType: v})} value={formData.businessType}>
+                      <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {businessTypes.map(bt => <SelectItem key={bt.name} value={bt.name}>{bt.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
