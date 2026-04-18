@@ -17,9 +17,6 @@ export async function POST(request: Request) {
     if (typeof merchantSessionToken !== "string" || !merchantSessionToken) {
       return NextResponse.json({ error: "Missing merchantSessionToken" }, { status: 400 })
     }
-    if (!merchantCredentials || typeof merchantCredentials.userId !== "string" || typeof merchantCredentials.password !== "string") {
-      return NextResponse.json({ error: "Missing or invalid merchantCredentials" }, { status: 400 })
-    }
 
     // 1. Decrypt link token to ensure integrity and enforce expiration/usage rules
     const resolved = await resolveEncryptedToken(token)
@@ -46,21 +43,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid session token" }, { status: 401 })
     }
 
-    // 3. Revalidate the merchant credentials for high-risk assurance
-    // We check that the provided userId matches the merchant's ID or email,
-    // and verify the provided password against the stored bcrypt hash.
-    const isUserIdValid = merchantCredentials.userId === merchant.id || merchantCredentials.userId === merchant.email
-    if (!isUserIdValid) {
-      return NextResponse.json({ error: "Invalid merchant credentials: user ID mismatch" }, { status: 401 })
-    }
+    // 3. Revalidate the merchant credentials if provided (for high-risk assurance)
+    if (merchantCredentials) {
+      if (typeof merchantCredentials.userId !== "string" || typeof merchantCredentials.password !== "string") {
+        return NextResponse.json({ error: "Invalid merchantCredentials format" }, { status: 400 })
+      }
 
-    if (!merchant.password) {
-      return NextResponse.json({ error: "Merchant password not set" }, { status: 401 })
-    }
+      const isUserIdValid = merchantCredentials.userId === merchant.id || merchantCredentials.userId === merchant.email
+      if (!isUserIdValid) {
+        return NextResponse.json({ error: "Invalid merchant credentials: user ID mismatch" }, { status: 401 })
+      }
 
-    const isPasswordValid = await bcrypt.compare(merchantCredentials.password, merchant.password)
-    if (!isPasswordValid) {
-      return NextResponse.json({ error: "Invalid merchant credentials: password mismatch" }, { status: 401 })
+      if (!merchant.password) {
+        return NextResponse.json({ error: "Merchant password not set" }, { status: 401 })
+      }
+
+      const isPasswordValid = await bcrypt.compare(merchantCredentials.password, merchant.password)
+      if (!isPasswordValid) {
+        return NextResponse.json({ error: "Invalid merchant credentials: password mismatch" }, { status: 401 })
+      }
     }
 
     // 4. Prepare request for the external provider (legacy flow)

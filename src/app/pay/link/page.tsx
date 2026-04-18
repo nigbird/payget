@@ -48,6 +48,7 @@ function PayLinkContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [payment, setPayment] = useState<ResolvedPayment | null>(null)
+  const [merchantSessionToken, setMerchantSessionToken] = useState<string | null>(null)
 
   const [pin, setPin] = useState("")
   const [showPinEntry, setShowPinEntry] = useState(false)
@@ -76,6 +77,7 @@ function PayLinkContent() {
         }
 
         setPayment(data)
+        setMerchantSessionToken(data.merchantSessionToken)
         
         // If it's already success or failed, update view
         if (data?.status === "success") setView("success")
@@ -126,7 +128,10 @@ function PayLinkContent() {
       const res = await fetch("/api/provider/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ 
+          token,
+          merchantSessionToken,
+        }),
       })
 
       const data = await res.json().catch(() => ({}))
