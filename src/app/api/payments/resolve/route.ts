@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { resolveEncryptedToken } from "@/app/api/payments/_shared"
+import { encryptSessionToken } from "@/lib/jwe"
 
 export async function GET(request: Request) {
   try {
@@ -15,6 +16,16 @@ export async function GET(request: Request) {
     }
 
     const { merchant, payload, tx } = result
+    
+    // Issue a temporary merchant session token tied to this specific payment interaction
+    // Set a short expiration time for the session token (e.g., 15 minutes)
+    const exp = Date.now() + 15 * 60 * 1000
+    const merchantSessionToken = await encryptSessionToken({
+      merchantId: merchant.id,
+      transactionId: payload.transactionId,
+      exp,
+    }, merchant.jweSecret)
+
     const rawLogo = (merchant as any).logoUrl as string | null | undefined
     const normalizedLogo =
       typeof rawLogo === "string" && rawLogo.startsWith("/uploads/merchant-logos/")
@@ -32,6 +43,7 @@ export async function GET(request: Request) {
       status: tx.status,
       transactionTimestamp: tx.transactionTimestamp,
       payerPhone: payload.userCredentials.phone,
+      merchantSessionToken, // Return the newly generated session token
     })
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 400 })

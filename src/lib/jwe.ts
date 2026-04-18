@@ -25,6 +25,14 @@ export const PaymentPayloadSchema = z.object({
 
 export type PaymentPayload = z.infer<typeof PaymentPayloadSchema>
 
+export const MerchantSessionTokenSchema = z.object({
+  merchantId: z.string().min(1),
+  transactionId: z.string().min(1),
+  exp: z.number(), // Expiration timestamp in ms
+})
+
+export type MerchantSessionToken = z.infer<typeof MerchantSessionTokenSchema>
+
 async function deriveJwkKey(jweSecret: string) {
   const secretBytes = encoder.encode(jweSecret)
   const hashBuf = await crypto.subtle.digest("SHA-256", secretBytes)
@@ -59,5 +67,22 @@ export async function decryptPayload(token: string, jweSecret: string): Promise<
   const json = decoder.decode(plaintext)
   const parsed = JSON.parse(json)
   return validatePayloadSchema(parsed)
+}
+
+export async function encryptSessionToken(payload: MerchantSessionToken, jweSecret: string): Promise<string> {
+  const key = await deriveJwkKey(jweSecret)
+  const plaintext = encoder.encode(JSON.stringify(payload))
+
+  return new CompactEncrypt(plaintext)
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .encrypt(key)
+}
+
+export async function decryptSessionToken(token: string, jweSecret: string): Promise<MerchantSessionToken> {
+  const key = await deriveJwkKey(jweSecret)
+  const { plaintext } = await compactDecrypt(token, key)
+  const json = decoder.decode(plaintext)
+  const parsed = JSON.parse(json)
+  return MerchantSessionTokenSchema.parse(parsed)
 }
 

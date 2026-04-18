@@ -3,16 +3,25 @@ import { db } from "@/app/lib/db"
 import { resolveEncryptedToken } from "@/app/api/payments/_shared"
 import { sendProviderPushRequest } from "@/lib/provider-client"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
+import { decryptSessionToken } from "@/lib/jwe"
+import bcrypt from "bcryptjs"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { token } = body ?? {}
+    const { token, merchantSessionToken, merchantCredentials } = body ?? {}
 
     if (typeof token !== "string" || !token) {
       return NextResponse.json({ error: "Missing token" }, { status: 400 })
     }
+    if (typeof merchantSessionToken !== "string" || !merchantSessionToken) {
+      return NextResponse.json({ error: "Missing merchantSessionToken" }, { status: 400 })
+    }
+    if (!merchantCredentials || typeof merchantCredentials.userId !== "string" || typeof merchantCredentials.password !== "string") {
+      return NextResponse.json({ error: "Missing or invalid merchantCredentials" }, { status: 400 })
+    }
 
+    // 1. Decrypt link token to ensure integrity and enforce expiration/usage rules
     const resolved = await resolveEncryptedToken(token)
     if (!resolved.ok) {
       return NextResponse.json({ error: resolved.error }, { status: 400 })
@@ -20,7 +29,41 @@ export async function POST(request: Request) {
 
     const { merchant, tx } = resolved
 
-    // 1. Prepare request for the external provider (legacy flow)
+    // 2. Verify the merchant session token to confirm a legitimate interaction flow
+    try {
+      const sessionPayload = await decryptSessionToken(merchantSessionToken, merchant.jweSecret)
+      
+      if (sessionPayload.merchantId !== merchant.id) {
+        return NextResponse.json({ error: "Invalid session token: merchant mismatch" }, { status: 401 })
+      }
+      if (sessionPayload.transactionId !== tx.id) {
+        return NextResponse.json({ error: "Invalid session token: transaction mismatch" }, { status: 401 })
+      }
+      if (Date.now() > sessionPayload.exp) {
+        return NextResponse.json({ error: "Session token expired" }, { status: 401 })
+      }
+    } catch (err) {
+      return NextResponse.json({ error: "Invalid session token" }, { status: 401 })
+    }
+
+    // 3. Revalidate the merchant credentials for high-risk assurance
+    // We check that the provided userId matches the merchant's ID or email,
+    // and verify the provided password against the stored bcrypt hash.
+    const isUserIdValid = merchantCredentials.userId === merchant.id || merchantCredentials.userId === merchant.email
+    if (!isUserIdValid) {
+      return NextResponse.json({ error: "Invalid merchant credentials: user ID mismatch" }, { status: 401 })
+    }
+
+    if (!merchant.password) {
+      return NextResponse.json({ error: "Merchant password not set" }, { status: 401 })
+    }
+
+    const isPasswordValid = await bcrypt.compare(merchantCredentials.password, merchant.password)
+    if (!isPasswordValid) {
+      return NextResponse.json({ error: "Invalid merchant credentials: password mismatch" }, { status: 401 })
+    }
+
+    // 4. Prepare request for the external provider (legacy flow)
     const providerRequest = {
       transactionRef: tx.transactionReference,
       customerPhone: tx.userCredentials.phone,

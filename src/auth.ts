@@ -170,7 +170,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session
     }
   },
-  session: { strategy: "jwt", maxAge: 60, updateAge: 15 },
+  session: { strategy: "jwt", maxAge: 180, updateAge: 45 },
   pages: {
     signIn: "/"
   }
