@@ -125,7 +125,7 @@ model Merchant {
   rejectionReason     String?
   businessDescription String?
   websiteUrl          String?
-  callbackUrl         String
+  callbackUrl         String?
   contactName         String
   contactUsername     String
   branchName          String

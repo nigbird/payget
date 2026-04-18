@@ -280,7 +280,9 @@ export default function MerchantSelfRegistration() {
     if (!formData.category) newErrors.category = "Industry category is required"
     if (!formData.businessType) newErrors.businessType = "Business type is required"
     if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
-    if (!formData.callbackUrl?.trim()) newErrors.callbackUrl = "Callback URL is required"
+
+    // Ensure no error is set for callbackUrl
+    delete newErrors.callbackUrl;
 
     if (documents.length === 0) {
       newErrors.documents = "Please upload at least one compliance document"
@@ -693,12 +695,11 @@ export default function MerchantSelfRegistration() {
                           id="callbackUrl" 
                           type="url" 
                           placeholder="https://yourbusiness.com/callback" 
-                          className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.callbackUrl ? 'border-red-500' : ''}`}
+                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
                           value={formData.callbackUrl}
                           onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
                         />
                       </div>
-                      {errors.callbackUrl && <p className="text-[11px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                     </div>
 
                     <div className="space-y-2">

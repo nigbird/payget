@@ -361,7 +361,6 @@ export default function MerchantOnboardingPage() {
     if (!formData.category) newErrors.category = "Industry category is required"
     if (!formData.businessType) newErrors.businessType = "Business type is required"
     if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
-    if (!formData.callbackUrl?.trim()) newErrors.callbackUrl = "Callback URL is required"
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -727,7 +726,7 @@ export default function MerchantOnboardingPage() {
                                   {errors.accountNumber && <p className="text-[10px] text-red-500 font-medium">{errors.accountNumber}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="websiteUrl">Website URL</Label>
+                                  <Label htmlFor="websiteUrl">Website URL (Optional)</Label>
                                   <Input 
                                     id="websiteUrl" 
                                     placeholder="https://..." 
@@ -739,7 +738,7 @@ export default function MerchantOnboardingPage() {
                                 </div>
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="callbackUrl">Webhook Callback URL</Label>
+                                <Label htmlFor="callbackUrl">Webhook Callback URL (Optional)</Label>
                                 <Input 
                                   id="callbackUrl" 
                                   placeholder="https://api.merchant.com/webhook" 

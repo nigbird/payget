@@ -50,7 +50,7 @@ export interface Merchant {
   rejectionReason?: string | null;
   businessDescription?: string | null;
   websiteUrl?: string | null;
-  callbackUrl: string;
+  callbackUrl?: string | null;
   contactName: string;
   contactUsername: string;
   branchName: string;

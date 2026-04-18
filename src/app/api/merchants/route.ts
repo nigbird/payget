@@ -63,7 +63,6 @@ export async function POST(request: Request) {
     if (!data.category) errors.category = 'Industry category is required';
     if (!data.businessType) errors.businessType = 'Business type is required';
     if (!data.accountNumber?.trim()) errors.accountNumber = 'Account number is required';
-    if (!data.callbackUrl?.trim()) errors.callbackUrl = 'Callback URL is required';
 
     // Business description word count validation (max 50 words)
     if (data.businessDescription) {
