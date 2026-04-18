@@ -214,7 +214,7 @@ export default function MerchantLogin() {
                       <Input 
                         id="email" 
                         type="text"
-                        placeholder="Enter your username" 
+                        placeholder="enter your email or phone number" 
                         className="h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                         required
                         value={credentials.email}
