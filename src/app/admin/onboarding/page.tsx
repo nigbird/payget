@@ -497,26 +497,27 @@ export default function MerchantOnboardingPage() {
                   Register merchant
                 </Button>
               </DialogTrigger>
-                  <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <UserPlus className="w-5 h-5 text-primary" />
+                  <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+                    <DialogHeader className="p-6 border-b border-slate-50 flex flex-col">
+                      <DialogTitle className="text-xl font-medium text-slate-800 flex items-center gap-2">
+                        <UserPlus className="w-5 h-5 text-slate-600" />
                         Register New Merchant
                       </DialogTitle>
-                      <DialogDescription>
+                      <DialogDescription className="text-slate-500 mt-1">
                         Create a merchant profile and submit it into the onboarding workflow.
                       </DialogDescription>
                     </DialogHeader>
 
+                    <div className="p-6">
                     {!canRegister ? (
-                      <Card className="border-orange-100 bg-orange-50/30">
+                      <Card className="border-rose-100 bg-rose-50/50 shadow-sm rounded-xl">
                         <CardContent className="pt-6 flex flex-col items-center text-center gap-4">
-                          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                            <Lock className="w-6 h-6 text-orange-600" />
+                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-rose-100">
+                            <Lock className="w-6 h-6 text-rose-600" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-orange-900">Registration Restricted</h3>
-                            <p className="text-orange-800/70 max-w-md">
+                            <h3 className="text-lg font-medium text-rose-900">Registration Restricted</h3>
+                            <p className="text-rose-700/80 max-w-md text-sm mt-1">
                               Your account does not have the necessary permissions to register new merchants. Please contact your system administrator.
                             </p>
                           </div>
@@ -865,12 +866,13 @@ export default function MerchantOnboardingPage() {
                             </Card>
                           )}
 
-                          <Button className="w-full h-12 text-lg shadow-lg shadow-primary/20" onClick={handleSubmit}>
+                          <Button className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm text-sm font-medium transition-all" onClick={handleSubmit}>
                             Submit for Review
                           </Button>
                         </div>
                       </div>
                     )}
+                  </div>
                   </DialogContent>
                 </Dialog>
           </div>

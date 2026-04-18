@@ -77,24 +77,26 @@ function SetupPasswordForm() {
 
   if (isSuccess) {
     return (
-      <Card className="max-w-md w-full shadow-2xl border-none animate-in zoom-in-95 rounded-3xl overflow-hidden">
-        <div className="bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 text-[#3f210f] text-center">
-          <div className="mx-auto w-16 h-16 bg-white/30 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 shadow-sm border border-white/40">
-            <CheckCircle2 className="w-10 h-10 text-[#3f210f]" />
+      <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
+        <div className="p-8 text-center border-b border-slate-50">
+          <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
           </div>
-          <h3 className="text-2xl font-black tracking-tight uppercase">Account Activated!</h3>
-          <p className="text-[#3f210f]/80 mt-1 text-xs font-bold uppercase tracking-widest">Setup complete</p>
+          <h3 className="text-xl font-medium text-slate-800 tracking-tight">Account Activated</h3>
+          <p className="text-slate-500 mt-1 text-sm">Setup complete</p>
         </div>
-        <CardContent className="py-8 px-8 text-center space-y-4">
-          <p className="text-sm text-slate-600 leading-relaxed font-medium">
-            Your account has been successfully approved and activated.
-          </p>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            You can now log in to the merchant portal using your registered Username (Email/Phone) and the password you just created.
-          </p>
+        <CardContent className="py-6 px-8 text-center space-y-4">
+          <div className="bg-slate-50 rounded-xl p-5 text-center">
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Your account has been successfully approved and activated.
+            </p>
+            <p className="text-sm text-slate-500 mt-3">
+              You can now log in to the merchant portal using your registered Username (Email/Phone) and the password you just created.
+            </p>
+          </div>
         </CardContent>
-        <CardFooter className="px-8 pb-8">
-          <Button className="w-full h-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 font-bold" onClick={() => router.push('/')}>
+        <CardFooter className="px-8 pb-8 pt-2">
+          <Button className="w-full h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 shadow-sm font-medium transition-all" onClick={() => router.push('/')}>
             Proceed to Login
           </Button>
         </CardFooter>

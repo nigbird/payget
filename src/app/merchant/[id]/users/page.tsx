@@ -386,75 +386,75 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
 
       {/* Add Member Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="max-w-md border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] p-6 rounded-3xl shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-[#5b371f]">Add Team Member</DialogTitle>
-            <DialogDescription className="text-[#754319]/70">
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+          <DialogHeader className="p-6 border-b border-slate-50">
+            <DialogTitle className="text-xl font-medium text-slate-800">Add Team Member</DialogTitle>
+            <DialogDescription className="text-slate-500">
               Invite a new member to your merchant team.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddMember} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+          <form onSubmit={handleAddMember} className="space-y-4 px-6 py-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
                 id="name"
                 placeholder="John Doe"
-                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.name}
                 onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs font-medium text-slate-500">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="john@example.com"
-                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.email}
                 onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
                 placeholder="+1234567890"
-                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="role" className="text-xs font-medium text-slate-500">Role</Label>
               <Select
                 value={memberForm.role}
                 onValueChange={(val: MerchantTeamRole) => setMemberForm({ ...memberForm, role: val })}
               >
-                <SelectTrigger className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500">
+                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-white/60 bg-white/95 backdrop-blur-md">
-                  <SelectItem value="payment_initiator" className="rounded-xl">Sales</SelectItem>
-                  <SelectItem value="account_admin" className="rounded-xl">Account Admin</SelectItem>
+                <SelectContent className="rounded-xl border-slate-200 bg-white">
+                  <SelectItem value="payment_initiator" className="rounded-lg">Sales</SelectItem>
+                  <SelectItem value="account_admin" className="rounded-lg">Account Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 pb-2">
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 onClick={() => setIsAddModalOpen(false)}
-                className="rounded-xl text-[#754319]"
+                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-600/30"
+                className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors"
               >
                 Add Member
               </Button>
@@ -465,78 +465,78 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
 
       {/* Edit Member Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-md border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] p-6 rounded-3xl shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-[#5b371f]">Edit Team Member</DialogTitle>
-            <DialogDescription className="text-[#754319]/70">
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+          <DialogHeader className="p-6 border-b border-slate-50">
+            <DialogTitle className="text-xl font-medium text-slate-800">Edit Team Member</DialogTitle>
+            <DialogDescription className="text-slate-500">
               Update details for {selectedMember?.name}.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleEditMember} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Full Name</Label>
+          <form onSubmit={handleEditMember} className="space-y-4 px-6 py-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
                 id="edit-name"
                 placeholder="John Doe"
-                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.name}
                 onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-email">Email Address</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-email" className="text-xs font-medium text-slate-500">Email Address</Label>
               <Input
                 id="edit-email"
                 type="email"
                 placeholder="john@example.com"
-                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.email}
                 onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-phone">Phone Number</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-phone" className="text-xs font-medium text-slate-500">Phone Number</Label>
               <Input
                 id="edit-phone"
                 type="tel"
                 placeholder="+1234567890"
-                className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-role">Role</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-role" className="text-xs font-medium text-slate-500">Role</Label>
               <Select
                 value={memberForm.role}
                 onValueChange={(val: MerchantTeamRole) => setMemberForm({ ...memberForm, role: val })}
               >
-                <SelectTrigger className="h-12 rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500">
+                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-white/60 bg-white/95 backdrop-blur-md">
-                  <SelectItem value="payment_initiator" className="rounded-xl">Sales</SelectItem>
-                  <SelectItem value="account_admin" className="rounded-xl">Account Admin</SelectItem>
+                <SelectContent className="rounded-xl border-slate-200 bg-white">
+                  <SelectItem value="payment_initiator" className="rounded-lg">Sales</SelectItem>
+                  <SelectItem value="account_admin" className="rounded-lg">Account Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 pb-2">
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 onClick={() => {
                   setIsEditModalOpen(false)
                   setSelectedMember(null)
                 }}
-                className="rounded-xl text-[#754319]"
+                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-600/30"
+                className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors"
               >
                 Save Changes
               </Button>

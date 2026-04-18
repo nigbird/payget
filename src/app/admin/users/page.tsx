@@ -275,22 +275,22 @@ export default function UserManagementPage() {
                       <Plus className="w-4 h-4" /> Add User
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Add New User</DialogTitle>
-                      <DialogDescription>
+                  <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+                    <DialogHeader className="p-6 border-b border-slate-50">
+                      <DialogTitle className="text-xl font-medium text-slate-800">Add New User</DialogTitle>
+                      <DialogDescription className="text-slate-500">
                         Create a new staff account and assign a role. Security checks will ensure no privilege escalation.
                       </DialogDescription>
                     </DialogHeader>
                     
-                    <div className="grid gap-4 py-4">
+                    <div className="grid gap-4 px-6 py-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="name">Full Name</Label>
+                        <Label htmlFor="name" className="text-xs font-medium text-slate-500">Full Name</Label>
                         <div className="relative">
-                          <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input 
                             id="name" 
-                            className="pl-9" 
+                            className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
                             placeholder="John Doe" 
                             value={newUserName}
                             onChange={(e) => setNewUserName(e.target.value)}
@@ -298,13 +298,13 @@ export default function UserManagementPage() {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email" className="text-xs font-medium text-slate-500">Email Address</Label>
                         <div className="relative">
-                          <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input 
                             id="email" 
                             type="email" 
-                            className="pl-9" 
+                            className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
                             placeholder="john@example.com" 
                             value={newUserEmail}
                             onChange={(e) => setNewUserEmail(e.target.value)}
@@ -312,20 +312,20 @@ export default function UserManagementPage() {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="password">Initial Password</Label>
+                        <Label htmlFor="password" className="text-xs font-medium text-slate-500">Initial Password</Label>
                         <div className="relative">
-                          <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input 
                             id="password" 
                             type={newUserPasswordVisible ? "text" : "password"} 
-                            className="pr-11 pl-9" 
+                            className="pr-11 pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
                             value={newUserPassword}
                             onChange={(e) => setNewUserPassword(e.target.value)}
                           />
                           <button
                             type="button"
                             onClick={() => setNewUserPasswordVisible((visible) => !visible)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-primary/10 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors"
                             aria-label={newUserPasswordVisible ? "Hide password" : "Show password"}
                           >
                             {newUserPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -333,12 +333,12 @@ export default function UserManagementPage() {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Role Assignment</Label>
+                        <Label className="text-xs font-medium text-slate-500">Role Assignment</Label>
                         <Select onValueChange={setSelectedRoleId} value={selectedRoleId}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-xl border-slate-200 bg-white">
                             {roles.map((role) => {
                               const rolePerms = role.permissions.map(p => p.permission.name)
                               const hasEscalation = !isSuperAdmin && rolePerms.some(p => !userPermissions.includes(p))
@@ -348,11 +348,12 @@ export default function UserManagementPage() {
                                   key={role.id} 
                                   value={role.id} 
                                   disabled={hasEscalation}
+                                  className="rounded-lg"
                                 >
                                   <div className="flex flex-col">
                                     <span>{role.name}</span>
                                     {hasEscalation && (
-                                      <span className="text-[10px] text-orange-500 font-normal">Restricted (Contains higher perms)</span>
+                                      <span className="text-[10px] text-amber-600 font-medium">Restricted (Contains higher perms)</span>
                                     )}
                                   </div>
                                 </SelectItem>
@@ -362,10 +363,10 @@ export default function UserManagementPage() {
                         </Select>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4 shadow-sm">
                         <div className="space-y-0.5">
-                          <Label className="text-base">Head Office</Label>
-                          <div className="text-[10px] text-muted-foreground">
+                          <Label className="text-sm font-medium text-slate-800">Head Office</Label>
+                          <div className="text-[10px] text-slate-500">
                             Assign user to Head Office or specific branch.
                           </div>
                         </div>
@@ -378,27 +379,27 @@ export default function UserManagementPage() {
                       {!isHeadOffice && (
                         <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                           <div className="grid gap-2">
-                            <Label htmlFor="district">District</Label>
+                            <Label htmlFor="district" className="text-xs font-medium text-slate-500">District</Label>
                             <Select onValueChange={setDistrict} value={district}>
-                              <SelectTrigger>
+                              <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
                                 <SelectValue placeholder="Select District" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="rounded-xl border-slate-200 bg-white">
                                 {availableDistricts.filter(d => d.active).map((d, i) => (
-                                  <SelectItem key={i} value={d.name}>{d.name}</SelectItem>
+                                  <SelectItem key={i} value={d.name} className="rounded-lg">{d.name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="branch">Branch Name</Label>
+                            <Label htmlFor="branch" className="text-xs font-medium text-slate-500">Branch Name</Label>
                             <Select onValueChange={setBranch} value={branch}>
-                              <SelectTrigger>
+                              <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
                                 <SelectValue placeholder="Select Branch" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="rounded-xl border-slate-200 bg-white">
                                 {availableBranches.filter(b => b.active).map((b, i) => (
-                                  <SelectItem key={i} value={b.name}>{b.name}</SelectItem>
+                                  <SelectItem key={i} value={b.name} className="rounded-lg">{b.name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -407,9 +408,20 @@ export default function UserManagementPage() {
                       )}
                     </div>
 
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                      <Button onClick={handleCreateUser}>Create User</Button>
+                    <DialogFooter className="pt-4 px-6 pb-6">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setIsCreateDialogOpen(false)}
+                        className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleCreateUser}
+                        className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors"
+                      >
+                        Create User
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>

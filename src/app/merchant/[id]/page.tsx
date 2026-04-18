@@ -280,53 +280,53 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const formContent = (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          <div className="space-y-6 pb-6">
+        <ScrollArea className="h-full px-6">
+          <div className="space-y-6 pb-6 pt-2">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Customer Phone</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Customer Phone</Label>
                 <div className="relative">
-                  <Phone className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                  <Phone className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="phone"
                     type="tel"
                     placeholder="+1 (555) 000-0000"
-                    className="h-12 rounded-2xl border-white/50 bg-white/85 pl-9 shadow-sm focus-visible:ring-amber-500"
+                    className="h-11 rounded-xl border-slate-200 bg-white pl-10 shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                     required
                     value={requestForm.payerPhone}
                     onChange={(e) => setRequestForm({ ...requestForm, payerPhone: e.target.value })}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="amount" className="text-xs font-medium text-slate-500">Amount</Label>
                 <Input
                   id="amount"
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  className="h-16 rounded-2xl border-2 border-[#f8b513]/30 bg-white text-center text-3xl font-black text-[#5b371f] shadow-sm focus-visible:ring-amber-500"
+                  className="h-14 rounded-xl border border-slate-200 bg-white text-center text-2xl font-medium text-slate-800 shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                   required
                   value={requestForm.amount}
                   onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="description" className="text-xs font-medium text-slate-500">Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Order #1022"
-                  className="min-h-[100px] rounded-2xl border-white/50 bg-white/85 shadow-sm focus-visible:ring-amber-500"
+                  className="min-h-[100px] rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 resize-none"
                   value={requestForm.description}
                   onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("push")}
-                  className="h-12 rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-sm font-bold text-white shadow-lg shadow-amber-600/30"
+                  className="h-11 rounded-xl bg-amber-600 hover:bg-amber-700 text-sm font-medium text-white shadow-sm transition-all"
                   disabled={isSubmitting || !isApproved}
                 >
                   {isSubmitting && lastMode === "push" ? (
@@ -339,7 +339,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("link")}
-                  className="h-12 rounded-2xl bg-white border border-[#f8b513]/30 text-[#754319] text-sm font-bold shadow-sm hover:bg-amber-50/50"
+                  className="h-11 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-sm font-medium shadow-sm transition-all"
                   disabled={isSubmitting || !isApproved}
                 >
                   {isSubmitting && lastMode === "link" ? (
@@ -543,12 +543,15 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </Sheet>
 
       <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
-        <DialogContent className="max-w-md border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] p-6 rounded-3xl shadow-2xl">
-          <DialogHeader className="text-left mb-4">
-            <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+          <DialogHeader className="text-center p-6 border-b border-slate-50 shrink-0">
+            <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+              <Wallet className="w-6 h-6 text-slate-600" />
+            </div>
+            <DialogTitle className="text-xl font-medium text-slate-800">Request payment</DialogTitle>
+            <DialogDescription className="text-slate-500">
               {lastMode === "push"
-                ? "Push a USSD PIN prompt to the customer instantly"
+                ? "Push a USSD PIN prompt to the customer instantly."
                 : lastMode === "link"
                 ? "Generate a secure payment link your customer can open on any channel."
                 : "Choose how you want to receive payment from your customer."}
@@ -562,88 +565,88 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
       {/* Success Modal (Link or Push) */}
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
-        <DialogContent className="max-w-md border-0 bg-white p-0 rounded-3xl overflow-hidden shadow-2xl">
-          <div className="bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 text-[#3f210f] text-center">
-            <div className="mx-auto w-16 h-16 bg-white/30 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 shadow-sm border border-white/40">
-              <CheckCircle2 className="w-10 h-10 text-[#3f210f]" />
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-6 text-center border-b border-slate-50">
+            <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
             </div>
-            <h3 className="text-2xl font-black tracking-tight">
+            <h3 className="text-xl font-medium text-slate-800 tracking-tight">
               {lastMode === "link" ? "Payment Link Ready" : "Payment Pushed!"}
             </h3>
-            <p className="text-[#3f210f]/80 mt-1 text-sm font-bold uppercase tracking-wider">
+            <p className="text-slate-500 mt-1 text-sm">
               {lastMode === "link" 
                 ? "Secure checkout link generated" 
                 : `Sent to customer phone`}
             </p>
           </div>
           
-          <div className="p-8 space-y-6">
+          <div className="p-6 space-y-6 bg-slate-50/50">
             {lastMode === "link" ? (
               <>
                 <div className="space-y-3">
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Shareable Payment Link</Label>
+                  <Label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Shareable Payment Link</Label>
                   <div className="relative group">
                     <Input 
                       readOnly
                       value={generatedResult?.paymentUrl || ""}
-                      className="h-14 pr-24 rounded-2xl bg-slate-50 border-slate-200 font-mono text-sm focus-visible:ring-0 focus-visible:border-amber-500 transition-all"
+                      className="h-12 pr-24 rounded-xl bg-white border-slate-200 font-mono text-xs text-slate-600 focus-visible:ring-0 shadow-sm"
                     />
                     <Button 
                       onClick={() => generatedResult?.paymentUrl && copyText(generatedResult.paymentUrl, "modalCopy")}
-                      className="absolute right-1.5 top-1.5 h-11 rounded-xl bg-white border border-slate-200 text-[#754319] hover:bg-slate-50 shadow-sm transition-all"
+                      className="absolute right-1 top-1 h-10 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm transition-all"
                     >
                       {copied === "modalCopy" ? (
-                        <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
-                          <CheckCircle2 className="w-4 h-4" /> Copied
+                        <span className="flex items-center gap-1.5 text-emerald-600 font-medium text-xs">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Copied
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1.5 font-semibold">
-                          <Copy className="w-4 h-4" /> Copy
+                        <span className="flex items-center gap-1.5 font-medium text-xs">
+                          <Copy className="w-3.5 h-3.5" /> Copy
                         </span>
                       )}
                     </Button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <Button 
                     onClick={handleShare}
-                    className="h-14 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 flex items-center justify-center gap-2 group transition-all"
+                    className="h-11 rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all"
                   >
-                    <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    <span className="font-bold">Share Link</span>
+                    <Share2 className="w-4 h-4" />
+                    <span className="font-medium text-sm">Share Link</span>
                   </Button>
                   <Button 
                     variant="outline"
                     asChild
-                    className="h-14 rounded-2xl border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 transition-all"
+                    className="h-11 rounded-xl border-amber-200 bg-white hover:bg-amber-50 flex items-center justify-center gap-2 shadow-sm transition-all text-amber-900"
                   >
                     <Link href={generatedResult?.paymentUrl || "#"} target="_blank">
-                      <ExternalLink className="w-5 h-5" />
-                      <span className="font-bold">Open Link</span>
+                      <ExternalLink className="w-4 h-4" />
+                      <span className="font-medium text-sm">Open Link</span>
                     </Link>
                   </Button>
                 </div>
               </>
             ) : (
               <div className="space-y-6">
-                <div className="flex flex-col items-center justify-center gap-2 p-6 rounded-2xl bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Payment Amount</p>
-                  <p className="text-4xl font-black text-[#5b371f]">{parseFloat(lastRequestDetails?.amount || "0").toFixed(2)} ETB</p>
-                  <div className="flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-sm">
-                    <Phone className="w-3 h-3 text-[#754319]" />
-                    <span className="text-xs font-bold text-[#754319]">{lastRequestDetails?.phone}</span>
+                <div className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl bg-white border border-slate-200 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Payment Amount</p>
+                  <p className="text-3xl font-medium text-slate-800">{parseFloat(lastRequestDetails?.amount || "0").toFixed(2)} ETB</p>
+                  <div className="flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
+                    <Phone className="w-3 h-3 text-slate-500" />
+                    <span className="text-xs font-medium text-slate-600">{lastRequestDetails?.phone}</span>
                   </div>
                 </div>
                 
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50/50 border border-amber-100">
-                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                      <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 border border-slate-200">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4 text-blue-600 animate-pulse" />
                     </div>
-                    <div className="text-xs text-amber-800">
-                      <p className="font-bold">Awaiting Customer Action</p>
-                      <p className="opacity-80">The customer has been prompted to enter their PIN to authorize this transaction.</p>
+                    <div className="text-xs text-slate-700">
+                      <p className="font-medium text-slate-900">Awaiting Customer Action</p>
+                      <p className="text-slate-500 mt-0.5">The customer has been prompted to enter their PIN.</p>
                     </div>
                   </div>
                 </div>
@@ -651,7 +654,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             )}
 
             <div className="pt-2">
-              <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
+              <p className="text-[10px] text-center text-slate-500 leading-relaxed">
                 {lastMode === "link" 
                   ? "This link will direct your customer to a secure checkout page." 
                   : "Status updates will appear in your recent activity log."}<br/>
@@ -660,11 +663,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </div>
           </div>
           
-          <div className="p-4 bg-slate-50 border-t flex justify-center">
+          <div className="p-4 bg-white border-t border-slate-100 flex justify-center">
             <Button 
               variant="ghost" 
               onClick={() => setIsSuccessModalOpen(false)}
-              className="text-muted-foreground hover:text-slate-900 font-semibold"
+              className="text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-medium"
             >
               Done
             </Button>

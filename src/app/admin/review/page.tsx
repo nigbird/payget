@@ -324,14 +324,14 @@ function MerchantReviewContent() {
         {/* Unified Review Modal */}
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader className="border-b pb-4">
-              <DialogTitle className="flex items-center gap-3 text-xl">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Building2 className="w-6 h-6 text-primary" />
-                </div>
+            <DialogHeader className="border-b border-slate-50 pb-6 pt-2 flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3 border border-slate-100 shadow-sm">
+                <Building2 className="w-6 h-6 text-slate-600" />
+              </div>
+              <DialogTitle className="text-xl font-medium text-slate-800">
                 Review Application: {selectedMerchant?.name}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-slate-500 mt-1">
                 Perform compliance checks and authorize merchant onboarding.
               </DialogDescription>
             </DialogHeader>
@@ -549,7 +549,7 @@ function MerchantReviewContent() {
                             </div>
                             
                             <Button 
-                              className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                              className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'initial_approve')}
                               disabled={!canSetLimits}
                             >
@@ -560,13 +560,13 @@ function MerchantReviewContent() {
 
                         {selectedMerchant.status === 'branch_approved' && (
                           <div className="space-y-4">
-                            <div className="p-3 bg-blue-100/50 border border-blue-200 rounded-lg">
+                            <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
                               <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
                                 Initial review complete. Ready for final system activation.
                               </p>
                             </div>
                             <Button 
-                              className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                              className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'final_approve')}
                               disabled={!canApprove}
                             >
@@ -580,7 +580,7 @@ function MerchantReviewContent() {
                         {!isRequestingUpdate ? (
                           <Button 
                             variant="outline" 
-                            className="w-full h-9 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-2xl transition-colors border-amber-200"
+                            className="w-full h-9 text-amber-700 hover:bg-amber-50 rounded-xl transition-colors border-slate-200 shadow-sm"
                             onClick={() => {
                               setIsRequestingUpdate(true)
                               setIsRejecting(false)
@@ -590,17 +590,17 @@ function MerchantReviewContent() {
                           </Button>
                         ) : (
                           <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                            <Label className="text-xs font-bold text-amber-800">Update Request Comments</Label>
+                            <Label className="text-xs font-medium text-amber-900">Update Request Comments</Label>
                             <Textarea 
-                              className="min-h-[80px] text-xs" 
+                              className="min-h-[80px] text-xs rounded-lg border-slate-200" 
                               placeholder="General instructions for the merchant..."
                               value={updateComments.general}
                               onChange={(e) => setUpdateComments({...updateComments, general: e.target.value})}
                             />
                             <p className="text-[10px] text-slate-500 italic">Field-level comments can be added in a future update or via the general comments above.</p>
                             <div className="flex gap-2">
-                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors" onClick={() => setIsRequestingUpdate(false)}>Cancel</Button>
-                              <Button className="flex-1 text-xs h-8 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white" onClick={handleRequestUpdate}>Send Request</Button>
+                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRequestingUpdate(false)}>Cancel</Button>
+                              <Button className="flex-1 text-xs h-8 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm" onClick={handleRequestUpdate}>Send Request</Button>
                             </div>
                           </div>
                         )}
@@ -608,7 +608,7 @@ function MerchantReviewContent() {
                         {!isRejecting ? (
                           <Button 
                             variant="ghost" 
-                            className="w-full h-9 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-2xl transition-colors"
+                            className="w-full h-9 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
                             onClick={() => {
                               setIsRejecting(true)
                               setIsRequestingUpdate(false)
@@ -618,16 +618,16 @@ function MerchantReviewContent() {
                           </Button>
                         ) : (
                           <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                            <Label className="text-xs font-bold text-red-800">Reason for Rejection</Label>
+                            <Label className="text-xs font-medium text-rose-900">Reason for Rejection</Label>
                             <Textarea 
-                              className="min-h-[80px] text-xs" 
+                              className="min-h-[80px] text-xs rounded-lg border-slate-200" 
                               placeholder="Explain why this request is being denied..."
                               value={rejectionReason}
                               onChange={(e) => setRejectionReason(e.target.value)}
                             />
                             <div className="flex gap-2">
-                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors" onClick={() => setIsRejecting(false)}>Cancel</Button>
-                              <Button variant="destructive" className="flex-1 text-xs h-8 rounded-2xl" onClick={() => handleAction(selectedMerchant.id, 'reject')}>Confirm Reject</Button>
+                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRejecting(false)}>Cancel</Button>
+                              <Button variant="destructive" className="flex-1 text-xs h-8 rounded-lg shadow-sm" onClick={() => handleAction(selectedMerchant.id, 'reject')}>Confirm Reject</Button>
                             </div>
                           </div>
                         )}
@@ -668,42 +668,40 @@ function MerchantReviewContent() {
 
           {/* Preview Modal */}
           <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-            <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
-              <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
-                <div className="flex items-center justify-between">
-                  <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
-                    {previewFile?.name}
-                  </DialogTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-white hover:bg-white/20 bg-black/40 rounded-full backdrop-blur-md" 
-                    onClick={() => setPreviewFile(null)}
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
-                </div>
+            <DialogContent className="max-w-4xl bg-white border border-slate-100 p-0 overflow-hidden shadow-sm rounded-2xl">
+              <DialogHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
+                <DialogTitle className="text-slate-800 text-sm font-medium truncate pr-8">
+                  {previewFile?.name}
+                </DialogTitle>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-slate-500 hover:bg-slate-100 rounded-full" 
+                  onClick={() => setPreviewFile(null)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
               </DialogHeader>
-              <div className="flex items-center justify-center min-h-[60vh] p-8">
+              <div className="flex items-center justify-center min-h-[60vh] p-8 bg-slate-50/50">
                 {previewFile?.type.startsWith('image/') ? (
                   <img 
                     src={previewFile.url} 
                     alt={previewFile.name} 
-                    className="max-w-full max-h-[80vh] object-contain shadow-2xl animate-in zoom-in-95 duration-300"
+                    className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-sm border border-slate-200 animate-in zoom-in-95 duration-300"
                   />
                 ) : (
-                  <div className="flex flex-col items-center gap-6 text-white animate-in fade-in duration-300">
-                    <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
-                      <FileText className="w-12 h-12 text-white/60" />
+                  <div className="flex flex-col items-center gap-6 text-slate-800 animate-in fade-in duration-300">
+                    <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center border border-slate-200 shadow-sm">
+                      <FileText className="w-10 h-10 text-slate-400" />
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-bold">Preview not available for this file type</p>
-                      <p className="text-sm text-white/60 mt-1">Please download file to view its content.</p>
+                      <p className="text-lg font-medium">Preview not available</p>
+                      <p className="text-sm text-slate-500 mt-1">Please download file to view its content.</p>
                     </div>
                     <a 
                       href={previewFile?.url} 
                       download={previewFile?.name}
-                      className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white rounded-2xl font-bold hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-medium shadow-sm hover:bg-slate-800 transition-all duration-300"
                     >
                       <Download className="w-4 h-4" /> Download File
                     </a>

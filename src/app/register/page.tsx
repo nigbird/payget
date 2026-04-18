@@ -366,27 +366,27 @@ export default function MerchantSelfRegistration() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full shadow-2xl border-none animate-in zoom-in-95 rounded-3xl overflow-hidden">
-          <div className="bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 text-[#3f210f] text-center">
-            <div className="mx-auto w-16 h-16 bg-white/30 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 shadow-sm border border-white/40">
-              <CheckCircle2 className="w-10 h-10 text-[#3f210f]" />
+      <div className="min-h-screen bg-slate-50/50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
+          <div className="p-8 text-center border-b border-slate-50">
+            <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
             </div>
-            <h3 className="text-2xl font-black tracking-tight uppercase">Application Submitted!</h3>
-            <p className="text-[#3f210f]/80 mt-1 text-xs font-bold uppercase tracking-widest">In review</p>
+            <h3 className="text-xl font-medium text-slate-800 tracking-tight">Application Submitted</h3>
+            <p className="text-slate-500 mt-1 text-sm">In review</p>
           </div>
-          <CardContent className="py-8 px-8 space-y-6">
-            <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6 text-center">
-              <p className="text-sm text-blue-800 leading-relaxed font-medium">
-                Thank you for applying. Your application is currently <span className="font-bold uppercase text-xs px-2 py-0.5 bg-blue-100 rounded-full">Pending Review</span>.
+          <CardContent className="py-6 px-8 space-y-6">
+            <div className="bg-slate-50 rounded-xl p-5 text-center">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Thank you for applying. Your application is currently <span className="font-medium text-slate-900">Pending Review</span>.
               </p>
-              <p className="text-xs text-blue-700/70 mt-4 font-semibold">
+              <p className="text-sm text-slate-500 mt-3">
                 You will receive an email or SMS notification once your account has been approved.
               </p>
             </div>
           </CardContent>
-          <CardFooter className="px-8 pb-8">
-            <Button className="w-full h-14 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_100%)] text-[#3f210f] hover:brightness-95 shadow-lg shadow-amber-950/10 font-bold border border-white/40" asChild>
+          <CardFooter className="px-8 pb-8 pt-2">
+            <Button className="w-full h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-medium shadow-sm transition-all" asChild>
               <Link href="/">Return to Home</Link>
             </Button>
           </CardFooter>

@@ -171,30 +171,30 @@ export function RequestPaymentModal({
   const formContent = (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          <div className="space-y-6 pb-6">
+        <ScrollArea className="h-full px-6">
+          <div className="space-y-6 pb-6 pt-2">
             {!isMerchantApproved && (
-              <div className="rounded-3xl border border-rose-200 bg-rose-50/90 p-4 shadow-sm">
+              <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-sm">Account pending approval</p>
-                    <p className="text-xs text-muted-foreground">Request Payment unlocks once your account is approved.</p>
+                    <p className="font-medium text-sm text-rose-900">Account pending approval</p>
+                    <p className="text-xs text-rose-700/80">Request Payment unlocks once your account is approved.</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div className="space-y-1.5">
-                <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1">Customer Phone</Label>
+                <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Customer Phone</Label>
                 <div className="relative group transition-all duration-200">
-                  <Phone className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
+                  <Phone className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                   <Input
                     id="phone"
                     type="tel"
                     placeholder="+1 (555) 000-0000"
-                    className="h-12 rounded-xl border-border/40 bg-white/60 pl-10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] focus-visible:ring-amber-500/20 focus-visible:border-amber-500/30 transition-all"
+                    className="h-11 rounded-xl border-slate-200 bg-white pl-10 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
                     required
                     value={requestForm.payerPhone}
                     onChange={(e) => setRequestForm({ ...requestForm, payerPhone: e.target.value })}
@@ -203,15 +203,15 @@ export function RequestPaymentModal({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="amount" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1">Amount</Label>
+                <Label htmlFor="amount" className="text-xs font-medium text-slate-500">Amount</Label>
                 <div className="relative group transition-all duration-200">
-                  <Wallet className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
+                  <Wallet className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                   <Input
                     id="amount"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    className="h-12 rounded-xl border-border/40 bg-white/60 pl-10 text-lg font-medium text-[#5b371f] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] focus-visible:ring-amber-500/20 focus-visible:border-amber-500/30 transition-all"
+                    className="h-11 rounded-xl border-slate-200 bg-white pl-10 font-medium text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
                     required
                     value={requestForm.amount}
                     onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
@@ -220,24 +220,24 @@ export function RequestPaymentModal({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="description" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1">Description</Label>
+                <Label htmlFor="description" className="text-xs font-medium text-slate-500">Description</Label>
                 <div className="relative group transition-all duration-200">
-                  <FileText className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-muted-foreground/60 group-focus-within:text-amber-600 transition-colors" />
+                  <FileText className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                   <Textarea
                     id="description"
                     placeholder="Order #1022"
-                    className="min-h-[80px] rounded-xl border-border/40 bg-white/60 pl-10 py-2.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] focus-visible:ring-amber-500/20 focus-visible:border-amber-500/30 transition-all resize-none"
+                    className="min-h-[80px] rounded-xl border-slate-200 bg-white pl-10 py-2.5 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm"
                     value={requestForm.description}
                     onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("push")}
-                  className="h-12 rounded-xl bg-[#754319] hover:bg-[#5b371f] text-sm font-bold text-white shadow-md shadow-[#754319]/20 active:scale-[0.98] transition-all"
+                  className="h-11 rounded-xl bg-amber-600 hover:bg-amber-700 text-sm font-medium text-white shadow-sm transition-all"
                   disabled={isSubmitting || !isMerchantApproved}
                 >
                   {isSubmitting && lastMode === "push" ? (
@@ -250,7 +250,7 @@ export function RequestPaymentModal({
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("link")}
-                  className="h-12 rounded-xl bg-white border border-border/60 hover:bg-amber-50/30 text-[#754319] text-sm font-bold shadow-sm active:scale-[0.98] transition-all"
+                  className="h-11 rounded-xl bg-white border border-amber-200 hover:bg-amber-50 text-amber-900 text-sm font-medium shadow-sm transition-all"
                   disabled={isSubmitting || !isMerchantApproved}
                 >
                   {isSubmitting && lastMode === "link" ? (
@@ -263,13 +263,13 @@ export function RequestPaymentModal({
               </div>
 
               {generatedResult && (
-                <div className="rounded-xl border border-border/40 bg-white/60 p-4 space-y-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#754319]/60">
+                    <p className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
                       {lastMode === "push" ? "USSD Prompt Sent" : "Payment Link Ready"}
                     </p>
                     {generatedResult.transactionReference && (
-                      <Badge className="rounded-full bg-amber-100/50 text-amber-800 text-[10px] font-bold border-0 px-2 py-0 h-5">
+                      <Badge className="rounded-md bg-slate-200/50 text-slate-700 text-[10px] font-medium border-0 px-2 py-0 h-5">
                         REF: {generatedResult.transactionReference}
                       </Badge>
                     )}
@@ -277,39 +277,43 @@ export function RequestPaymentModal({
 
                   {generatedResult.paymentUrl ? (
                     <div className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/70 ml-1">Shareable URL</p>
+                      <p className="text-[11px] font-medium text-slate-500 ml-1">Shareable URL</p>
                       <div className="group relative">
-                        <code className="block break-all rounded-xl bg-white/80 border border-border/30 p-3 text-xs font-mono text-[#5b371f] pr-10">
-                          {generatedResult.paymentUrl}
-                        </code>
+                        <Input 
+                          readOnly
+                          value={generatedResult.paymentUrl}
+                          className="h-10 rounded-lg border-slate-200 bg-white pr-10 text-xs text-slate-600 font-mono focus-visible:ring-0 shadow-sm"
+                        />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-amber-100/50 text-[#754319]"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md hover:bg-slate-100 text-slate-500"
                           onClick={() => generatedResult.paymentUrl && copyText(generatedResult.paymentUrl, "paymentUrl")}
                         >
-                          {copied === "paymentUrl" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copied === "paymentUrl" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      <p className="text-[11px] font-medium text-muted-foreground/70 ml-1">Customer token (demo)</p>
+                      <p className="text-[11px] font-medium text-slate-500 ml-1">Customer token (demo)</p>
                       <div className="group relative">
-                        <code className="block break-all rounded-xl bg-white/80 border border-border/30 p-3 text-xs font-mono text-[#5b371f] pr-10">
-                          {generatedResult.customerPinToken}
-                        </code>
+                        <Input 
+                          readOnly
+                          value={generatedResult.customerPinToken}
+                          className="h-10 rounded-lg border-slate-200 bg-white pr-10 text-xs text-slate-600 font-mono focus-visible:ring-0 shadow-sm"
+                        />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-amber-100/50 text-[#754319]"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md hover:bg-slate-100 text-slate-500"
                           onClick={() =>
                             generatedResult.customerPinToken && copyText(generatedResult.customerPinToken, "customerPinToken")
                           }
                         >
-                          {copied === "customerPinToken" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copied === "customerPinToken" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                         </Button>
                       </div>
                     </div>
@@ -328,12 +332,15 @@ export function RequestPaymentModal({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="h-[92vh] rounded-t-[2.5rem] border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-0 flex flex-col"
+          className="h-[92vh] rounded-t-2xl border-0 bg-white px-0 pb-0 flex flex-col"
         >
-          <div className="mx-auto mb-3 mt-1 h-1.5 w-14 shrink-0 rounded-full bg-[#754319]/25" />
-          <SheetHeader className="text-left mb-4 shrink-0">
-            <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
-            <SheetDescription>
+          <div className="mx-auto mb-2 mt-2 h-1 w-12 shrink-0 rounded-full bg-slate-200" />
+          <SheetHeader className="text-center px-6 pb-4 border-b border-slate-50 shrink-0">
+            <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+              <Wallet className="w-6 h-6 text-slate-600" />
+            </div>
+            <SheetTitle className="text-xl font-medium text-slate-800">Request payment</SheetTitle>
+            <SheetDescription className="text-slate-500">
               {lastMode === "push"
                 ? "Push a USSD PIN prompt to the customer instantly"
                 : lastMode === "link"
@@ -349,10 +356,13 @@ export function RequestPaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] p-6 rounded-3xl shadow-2xl flex flex-col max-h-[85vh]">
-        <DialogHeader className="text-left mb-4 shrink-0">
-          <DialogTitle className="text-2xl text-[#5b371f]">Request payment</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm flex flex-col max-h-[85vh] overflow-hidden">
+        <DialogHeader className="text-center p-6 border-b border-slate-50 shrink-0">
+          <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+            <Wallet className="w-6 h-6 text-slate-600" />
+          </div>
+          <DialogTitle className="text-xl font-medium text-slate-800">Request payment</DialogTitle>
+          <DialogDescription className="text-slate-500">
             {lastMode === "push"
               ? "Push a USSD PIN prompt to the customer instantly."
               : lastMode === "link"
