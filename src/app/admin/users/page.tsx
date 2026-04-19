@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { SidebarNav } from "@/components/layout/sidebar-nav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
@@ -49,7 +47,8 @@ import {
   Trash2,
   Building,
   MapPin,
-  GitBranch
+  GitBranch,
+  Loader2
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
@@ -273,6 +272,14 @@ export default function UserManagementPage() {
   const userPermissions = (session?.user as any)?.permissions || []
   const isSuperAdmin = userPermissions.includes('DASHBOARD_GLOBAL_VIEW')
   const canCreateUser = isSuperAdmin || userPermissions.includes('USER_CREATE')
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

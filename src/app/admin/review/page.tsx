@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect, use } from "react"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { SidebarNav } from "@/components/layout/sidebar-nav"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -85,6 +83,7 @@ function MerchantReviewContent() {
   const merchantIdParam = searchParams.get('merchantId')
   
   const [pending, setPending] = useState<Merchant[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   
   // Pagination state
@@ -128,6 +127,7 @@ function MerchantReviewContent() {
   }, [merchantIdParam, pending])
 
   const fetchMerchants = async () => {
+    setIsLoading(true)
     try {
       const response = await fetch('/api/merchants')
       if (response.ok) {
@@ -142,6 +142,8 @@ function MerchantReviewContent() {
       }
     } catch (error) {
       console.error('Failed to fetch merchants:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -152,6 +154,14 @@ function MerchantReviewContent() {
 
   const totalPages = Math.ceil(filteredMerchants.length / itemsPerPage)
   const paginatedMerchants = filteredMerchants.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+      </div>
+    )
+  }
 
   const handleAction = async (id: string, action: 'initial_approve' | 'final_approve' | 'reject') => {
     if (action === 'reject' && !rejectionReason.trim()) {
@@ -262,14 +272,14 @@ function MerchantReviewContent() {
   }
 
   return (
-    <div className="space-y-6 bg-white">
+    <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">Review & approvals</h2>
-        <p className="text-sm text-slate-600">Approve registrations, adjust limits, and perform final audits.</p>
+        <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Review & approvals</h2>
+        <p className="text-sm text-amber-800/60 font-medium">Approve registrations, adjust limits, and perform final audits.</p>
       </div>
 
-      <div className="rounded-2xl border border-white/25 bg-white/30 backdrop-blur-xl shadow-sm shadow-amber-950/10">
-        <div className="relative overflow-hidden rounded-2xl px-5 py-4">
+      <div className="rounded-2xl">
+        <div className="relative overflow-hidden rounded-2xl">
           <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
             <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -403,7 +413,7 @@ function MerchantReviewContent() {
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage === 1}
                   >
-                    <ChevronsLeft className="h-3.5 w-3.5" />
+                    <ChevronsLeft className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
@@ -412,33 +422,11 @@ function MerchantReviewContent() {
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
                   >
-                    <ChevronLeft className="h-3.5 w-3.5" />
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
                   
-                  <div className="flex items-center gap-1 mx-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum = currentPage
-                      if (totalPages <= 5) pageNum = i + 1
-                      else if (currentPage <= 3) pageNum = i + 1
-                      else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i
-                      else pageNum = currentPage - 2 + i
-
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
-                          size="sm"
-                          className={`h-8 min-w-[32px] rounded-xl border-black/10 text-xs font-bold transition-all ${
-                            currentPage === pageNum 
-                              ? "bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-900/20" 
-                              : "bg-white text-slate-600 hover:bg-amber-50/50"
-                          }`}
-                          onClick={() => setCurrentPage(pageNum)}
-                        >
-                          {pageNum}
-                        </Button>
-                      )
-                    })}
+                  <div className="flex items-center px-3 h-8 rounded-xl border border-black/5 bg-white text-xs font-bold text-amber-900 shadow-sm">
+                    {currentPage} / {totalPages}
                   </div>
 
                   <Button
@@ -448,7 +436,7 @@ function MerchantReviewContent() {
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                   >
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
@@ -457,7 +445,7 @@ function MerchantReviewContent() {
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
                   >
-                    <ChevronsRight className="h-3.5 w-3.5" />
+                    <ChevronsRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

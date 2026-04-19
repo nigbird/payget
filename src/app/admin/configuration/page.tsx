@@ -17,8 +17,11 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   FileSpreadsheet,
   Loader2,
+  SlidersHorizontal,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
