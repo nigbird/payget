@@ -57,8 +57,21 @@ import {
   Download,
   Mail,
   Store,
-  CreditCard
+  CreditCard,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Search,
+  SlidersHorizontal
 } from "lucide-react"
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import type { Merchant } from "@/app/lib/db"
 import { useSession } from "next-auth/react"
@@ -72,6 +85,12 @@ function MerchantReviewContent() {
   const merchantIdParam = searchParams.get('merchantId')
   
   const [pending, setPending] = useState<Merchant[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   
@@ -125,6 +144,14 @@ function MerchantReviewContent() {
       console.error('Failed to fetch merchants:', error)
     }
   }
+
+  const filteredMerchants = pending.filter(m => 
+    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.id.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const totalPages = Math.ceil(filteredMerchants.length / itemsPerPage)
+  const paginatedMerchants = filteredMerchants.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   const handleAction = async (id: string, action: 'initial_approve' | 'final_approve' | 'reject') => {
     if (action === 'reject' && !rejectionReason.trim()) {
@@ -252,6 +279,48 @@ function MerchantReviewContent() {
                     Search, filter, and inspect merchant applications quickly.
                   </CardDescription>
                 </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative w-full sm:w-72">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <Input
+                      placeholder="Search merchants..."
+                      className="h-10 rounded-2xl border-black/10 bg-white pl-9 focus-visible:ring-2 focus-visible:ring-[#f8b513]/30"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-500 whitespace-nowrap">Show</span>
+                    <Select 
+                      value={String(itemsPerPage)} 
+                      onValueChange={(val) => {
+                        setItemsPerPage(Number(val))
+                        setCurrentPage(1)
+                      }}
+                    >
+                      <SelectTrigger className="h-10 w-20 rounded-2xl border-black/10 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors"
+                  >
+                    <SlidersHorizontal className="h-4 w-4 mr-2 text-[#754319]" />
+                    Filters
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -266,7 +335,7 @@ function MerchantReviewContent() {
                   </TableRow>
                 </TableHeader>
                   <TableBody>
-                    {pending.map((m) => (
+                    {paginatedMerchants.map((m) => (
                       <TableRow
                         key={m.id}
                         className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm hover:-translate-y-[1px]"
@@ -309,7 +378,7 @@ function MerchantReviewContent() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {pending.length === 0 && (
+                    {paginatedMerchants.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
                           No pending actions in review queue.
@@ -319,6 +388,80 @@ function MerchantReviewContent() {
                   </TableBody>
                 </Table>
             </CardContent>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-black/5 bg-amber-50/20">
+                <div className="text-xs font-medium text-slate-500">
+                  Showing <span className="text-slate-900 font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-slate-900 font-bold">{Math.min(currentPage * itemsPerPage, filteredMerchants.length)}</span> of <span className="text-slate-900 font-bold">{filteredMerchants.length}</span> results
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  
+                  <div className="flex items-center gap-1 mx-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum = currentPage
+                      if (totalPages <= 5) pageNum = i + 1
+                      else if (currentPage <= 3) pageNum = i + 1
+                      else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i
+                      else pageNum = currentPage - 2 + i
+
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className={`h-8 min-w-[32px] rounded-xl border-black/10 text-xs font-bold transition-all ${
+                            currentPage === pageNum 
+                              ? "bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-900/20" 
+                              : "bg-white text-slate-600 hover:bg-amber-50/50"
+                          }`}
+                          onClick={() => setCurrentPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
 
         {/* Unified Review Modal */}

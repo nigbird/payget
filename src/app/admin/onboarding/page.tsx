@@ -63,6 +63,9 @@ import {
   Lock,
   Plus,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   SlidersHorizontal,
   CreditCard,
   Store,
@@ -101,6 +104,11 @@ export default function MerchantOnboardingPage() {
     dailyCountLimit: "100"
   })
   const [resendLoadingId, setResendLoadingId] = useState<string | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  
   const [isLogoUploading, setIsLogoUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
@@ -450,6 +458,9 @@ export default function MerchantOnboardingPage() {
     const query = searchQuery.toLowerCase();
     return s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query);
   })
+
+  const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage)
+  const paginatedSubmissions = filteredSubmissions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -895,8 +906,31 @@ export default function MerchantOnboardingPage() {
                   placeholder="Search merchants..."
                   className="h-10 rounded-2xl border-black/10 bg-white pl-9 focus-visible:ring-2 focus-visible:ring-[#f8b513]/30"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setCurrentPage(1)
+                  }}
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500 whitespace-nowrap">Show</span>
+                <Select 
+                  value={String(itemsPerPage)} 
+                  onValueChange={(val) => {
+                    setItemsPerPage(Number(val))
+                    setCurrentPage(1)
+                  }}
+                >
+                  <SelectTrigger className="h-10 w-20 rounded-2xl border-black/10 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 variant="outline"
@@ -920,7 +954,7 @@ export default function MerchantOnboardingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSubmissions.map((s) => (
+                    {paginatedSubmissions.map((s) => (
                       <TableRow
                         key={s.id}
                         className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm hover:-translate-y-[1px]"
@@ -989,7 +1023,7 @@ export default function MerchantOnboardingPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {filteredSubmissions.length === 0 && (
+                    {paginatedSubmissions.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
                           No submissions found in the queue.
@@ -998,6 +1032,80 @@ export default function MerchantOnboardingPage() {
                     )}
                   </TableBody>
                 </Table>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-black/5 bg-amber-50/20">
+              <div className="text-xs font-medium text-slate-500">
+                Showing <span className="text-slate-900 font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-slate-900 font-bold">{Math.min(currentPage * itemsPerPage, filteredSubmissions.length)}</span> of <span className="text-slate-900 font-bold">{filteredSubmissions.length}</span> results
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                
+                <div className="flex items-center gap-1 mx-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum = currentPage
+                    if (totalPages <= 5) pageNum = i + 1
+                    else if (currentPage <= 3) pageNum = i + 1
+                    else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i
+                    else pageNum = currentPage - 2 + i
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 min-w-[32px] rounded-xl border-black/10 text-xs font-bold transition-all ${
+                          currentPage === pageNum 
+                            ? "bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-900/20" 
+                            : "bg-white text-slate-600 hover:bg-amber-50/50"
+                        }`}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl border-black/10 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
