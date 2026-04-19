@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
@@ -65,6 +66,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     amount: "",
     description: "",
     payerPhone: "",
+    method: "BANK" as "BANK" | "TELEBIRR",
   })
 
   useEffect(() => {
@@ -202,6 +204,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         amount: amountNum,
         serviceDescription,
         timestamp,
+        method: requestForm.method,
       }
 
       const endpoint = mode === "push" ? "/api/payments/push" : "/api/payments/link"
@@ -283,6 +286,49 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         <ScrollArea className="h-full px-6">
           <div className="space-y-6 pb-6 pt-2">
             <div className="space-y-4">
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-slate-500">Payment Method</Label>
+                <RadioGroup
+                  defaultValue="BANK"
+                  value={requestForm.method}
+                  onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" })}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <div className="relative">
+                    <RadioGroupItem
+                      value="BANK"
+                      id="bank"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="bank"
+                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all"
+                    >
+                      <Wallet className="mb-2 h-5 w-5 text-slate-600" />
+                      <span className="text-xs font-medium">Nib Bank Account</span>
+                    </Label>
+                    <div className="absolute top-2 right-2 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
+                      <CheckCircle2 className="h-4 w-4 text-amber-600" />
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <RadioGroupItem
+                      value="TELEBIRR"
+                      id="telebirr"
+                      className="peer sr-only"
+                      disabled
+                    />
+                    <Label
+                      htmlFor="telebirr"
+                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-60 transition-all"
+                    >
+                      <Plus className="mb-2 h-5 w-5 text-slate-400" />
+                      <span className="text-xs font-medium text-slate-500">Telebirr (Coming Soon)</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Customer Phone</Label>
                 <div className="relative">

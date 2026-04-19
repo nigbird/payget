@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -20,6 +21,7 @@ import {
   AlertCircle,
   Wallet,
   FileText,
+  Plus,
 } from "lucide-react"
 
 export function RequestPaymentModal({
@@ -49,6 +51,7 @@ export function RequestPaymentModal({
     amount: "",
     description: "",
     payerPhone: "",
+    method: "BANK" as "BANK" | "TELEBIRR",
   })
 
   const copyText = async (value: string, key: string) => {
@@ -108,6 +111,7 @@ export function RequestPaymentModal({
         amount: amountNum,
         serviceDescription,
         timestamp,
+        method: requestForm.method,
       }
 
       const endpoint = mode === "push" ? "/api/payments/push" : "/api/payments/link"
@@ -186,6 +190,49 @@ export function RequestPaymentModal({
             )}
 
             <div className="space-y-5">
+              <div className="space-y-3 pt-1">
+                <Label className="text-xs font-medium text-slate-500">Payment Method</Label>
+                <RadioGroup
+                  defaultValue="BANK"
+                  value={requestForm.method}
+                  onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" })}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <div className="relative">
+                    <RadioGroupItem
+                      value="BANK"
+                      id="bank-modal"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="bank-modal"
+                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all"
+                    >
+                      <Wallet className="mb-2 h-5 w-5 text-slate-600" />
+                      <span className="text-[10px] font-medium uppercase tracking-wider">Nib Bank</span>
+                    </Label>
+                    <div className="absolute top-2 right-2 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
+                      <CheckCircle2 className="h-3 w-3 text-amber-600" />
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <RadioGroupItem
+                      value="TELEBIRR"
+                      id="telebirr-modal"
+                      className="peer sr-only"
+                      disabled
+                    />
+                    <Label
+                      htmlFor="telebirr-modal"
+                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-60 transition-all"
+                    >
+                      <Plus className="mb-2 h-5 w-5 text-slate-400" />
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Telebirr</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Customer Phone</Label>
                 <div className="relative group transition-all duration-200">

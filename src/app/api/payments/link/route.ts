@@ -45,6 +45,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, limit: (result as any).limit }, { status })
     }
 
+    if (parsed.data.method === "TELEBIRR") {
+      console.log('Telebirr payment link requested (not yet available)')
+      return NextResponse.json({ 
+        message: "Telebirr integration is coming soon.",
+        transactionReference: result.transactionReference,
+        status: "pending"
+      }, { status: 202 })
+    }
+
     const token = result.token
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
     const paymentUrl = `${baseUrl}/pay/link?token=${encodeURIComponent(token)}`

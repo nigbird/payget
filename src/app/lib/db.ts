@@ -12,6 +12,7 @@ import {
 
 export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected' | 'active' | 'rejected_with_update' | 'resubmitted';
 export type TransactionStatus = 'success' | 'failed' | 'initiated' | 'pending' | 'awaiting_pin' | 'processing';
+export type PaymentMethod = 'BANK' | 'TELEBIRR';
 
 export interface MerchantDocument {
   id: string;
@@ -94,6 +95,7 @@ export interface Transaction {
       usedAt?: string;
     };
   };
+  paymentMethod: PaymentMethod;
 }
 
 function mapMerchantStatus(s: PrismaMerchantStatus): MerchantStatus {
@@ -159,7 +161,8 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
         status: 'PENDING' | 'USED' | 'EXPIRED';
         usedAt?: string;
       };
-    }
+    },
+    paymentMethod: tx.paymentMethod as PaymentMethod
   };
 }
 

@@ -12,6 +12,7 @@ export const PaymentInitiateSchema = z.object({
   amount: z.number().finite().positive(),
   serviceDescription: z.string().min(1),
   timestamp: z.string().min(1),
+  method: z.enum(["BANK", "TELEBIRR"]).default("BANK"),
   // Optional hint from merchant; gateway overwrites the final reference.
   transactionReferenceHint: z.string().optional(),
 })
@@ -93,6 +94,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
         status: "PENDING"
       }
     },
+    paymentMethod: input.method || "BANK",
   }
 
   await db.addTransaction(tx)

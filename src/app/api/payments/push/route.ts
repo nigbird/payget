@@ -48,6 +48,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, limit: (result as any).limit }, { status })
     }
 
+    // 1. Route based on selected payment method
+    if (parsed.data.method === "TELEBIRR") {
+      console.log('Telebirr push requested (not yet available)')
+      // Update transaction status to pending or similar
+      await db.updateTransactionStatus(result.tx.id, "pending")
+      return NextResponse.json({ 
+        message: "Telebirr integration is coming soon.",
+        transactionReference: result.transactionReference,
+        status: "pending"
+      }, { status: 202 }) // Accepted, but not processed
+    }
+
+    // Default to BANK (existing flow)
     // 1. Prepare request for the external provider (legacy flow)
     const providerRequest = {
       transactionRef: result.transactionReference,
