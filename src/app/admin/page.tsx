@@ -45,15 +45,14 @@ type SystemConfigState = {
   maintenanceMode: boolean
 }
 
-const insightData = [
-  { month: "Jan", volume: 45000 },
-  { month: "Feb", volume: 52000 },
-  { month: "Mar", volume: 48000 },
-  { month: "Apr", volume: 61000 },
-  { month: "May", volume: 59000 },
-  { month: "Jun", volume: 72000 },
-  { month: "Jul", volume: 68000 },
-]
+type AdminStats = {
+  volume30d: number
+  chartData: { month: string; volume: number }[]
+  totalMerchants: number
+  activeMerchants: number
+  pendingMerchants: number
+  activeUsers: number
+}
 
 function MetricCard({
   title,
@@ -123,6 +122,7 @@ export default function AdminDashboard() {
   const { data: session } = useSession()
 
   const [merchants, setMerchants] = useState<any[]>([])
+  const [stats, setStats] = useState<AdminStats | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [config, setConfig] = useState<SystemConfigState>({
     maxFileSizeMB: 5,
@@ -134,8 +134,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function fetchData() {
-      const [mRes, cRes] = await Promise.all([fetch("/api/merchants"), fetch("/api/system-config")])
+      const [mRes, cRes, sRes] = await Promise.all([
+        fetch("/api/merchants"),
+        fetch("/api/system-config"),
+        fetch("/api/admin/stats"),
+      ])
       if (mRes.ok) setMerchants(await mRes.json())
+      if (sRes.ok) setStats(await sRes.json())
       if (cRes.ok) {
         const sysConfig = await cRes.json()
         setConfig((prev) => ({
@@ -249,23 +254,23 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <MetricCard
           title="Total volume (30d)"
-          value="1.24M ETB"
-          hint="Warm seasonality holding steady"
+          value={`${(stats?.volume30d ?? 0).toLocaleString()} ETB`}
+          hint="Successful transactions only"
           trend={{ direction: "up", label: "+18.4%" }}
           icon={<TrendingUp className="h-4 w-4" />}
           highlight
         />
         <MetricCard
           title="Merchants"
-          value={`${merchants.length}`}
-          hint={`${totals.active} active`}
+          value={`${stats?.totalMerchants ?? merchants.length}`}
+          hint={`${stats?.activeMerchants ?? totals.active} active`}
           trend={{ direction: "up", label: "+2.1%" }}
           icon={<Users className="h-4 w-4" />}
           highlight
         />
         <MetricCard
           title="Active system users"
-          value={`${totals.activeUsers}`}
+          value={`${stats?.activeUsers ?? totals.activeUsers}`}
           hint="Across merchant teams"
           trend={{ direction: "up", label: "+4.8%" }}
           icon={<Users className="h-4 w-4" />}
@@ -281,7 +286,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={insightData} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
+              <AreaChart data={stats?.chartData ?? []} margin={{ top: 10, right: 18, left: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="honeyFill" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor="#f8b513" stopOpacity={0.34} />
@@ -294,8 +299,21 @@ export default function AdminDashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.18} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={10} />
-                <YAxis tickLine={false} axisLine={false} tickMargin={10} width={40} />
+                <XAxis 
+                  dataKey="month" 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickMargin={10}
+                  tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
+                />
+                <YAxis 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickMargin={10} 
+                  width={60}
+                  tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
+                  tickFormatter={(value) => value >= 1000000 ? `${(value/1000000).toFixed(1)}M` : value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}
+                />
                 <RechartsTooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null
@@ -450,7 +468,7 @@ export default function AdminDashboard() {
             <div className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
               <div className="text-xs font-semibold text-slate-700">Approval queue</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-                {totals.queue}
+                {stats?.pendingMerchants ?? totals.queue}
               </div>
               <div className="mt-1 text-xs text-slate-600">Across all stages</div>
             </div>
@@ -458,7 +476,7 @@ export default function AdminDashboard() {
             <div className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
               <div className="text-xs font-semibold text-slate-700">Active merchants</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-                {totals.active}
+                {stats?.activeMerchants ?? totals.active}
               </div>
               <div className="mt-1 text-xs text-slate-600">Approved or active</div>
             </div>

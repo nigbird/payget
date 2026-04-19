@@ -8,6 +8,7 @@ interface MasterDataEntry {
   name: string;
   code?: string;
   active: boolean;
+  district?: string; // For branches
 }
 
 export async function GET() {
@@ -27,17 +28,35 @@ export async function GET() {
         try {
           const parsed = JSON.parse(value);
           if (Array.isArray(parsed)) {
-            return parsed.map(item =>
-              typeof item === 'string' ? { name: item, active: true } : item
-            ) as MasterDataEntry[];
+            return parsed.map(item => {
+              if (typeof item === 'string') return { name: item, active: true };
+              if (item && typeof item === 'object') {
+                return {
+                  name: String(item.name || ''),
+                  code: item.code ? String(item.code) : undefined,
+                  active: item.active !== undefined ? Boolean(item.active) : true,
+                  district: item.district ? String(item.district) : undefined
+                };
+              }
+              return { name: 'Unknown', active: false };
+            }) as MasterDataEntry[];
           }
         } catch (e) {
           console.error("Failed to parse JSON field:", e);
         }
-      } else if (Array.isArray(value)) { // Fallback for direct array if Prisma somehow returns it
-        return value.map(item =>
-          typeof item === 'string' ? { name: item, active: true } : item
-        ) as MasterDataEntry[];
+      } else if (Array.isArray(value)) {
+        return value.map(item => {
+          if (typeof item === 'string') return { name: item, active: true };
+          if (item && typeof item === 'object') {
+            return {
+              name: String(item.name || ''),
+              code: item.code ? String(item.code) : undefined,
+              active: item.active !== undefined ? Boolean(item.active) : true,
+              district: item.district ? String(item.district) : undefined
+            };
+          }
+          return { name: 'Unknown', active: false };
+        }) as MasterDataEntry[];
       }
       return [];
     };
@@ -62,13 +81,14 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { type, action, name, code, id, active } = body as {
+    const { type, action, name, code, id, active, district } = body as {
       type: MasterDataType;
       action: 'add' | 'update' | 'delete' | 'toggle';
       name?: string;
       code?: string;
       id?: string;
       active?: boolean;
+      district?: string;
     };
 
     if (!type || !action) {
@@ -96,15 +116,38 @@ export async function PATCH(request: Request) {
     }
 
     const parseField = (value: unknown): MasterDataEntry[] => {
-      if (Array.isArray(value)) {
-        return value as MasterDataEntry[];
-      }
       if (typeof value === 'string') {
         try {
-          return JSON.parse(value);
-        } catch {
-          return [];
-        }
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            return parsed.map(item => {
+              if (typeof item === 'string') return { name: item, active: true };
+              if (item && typeof item === 'object') {
+                return {
+                  name: String(item.name || ''),
+                  code: item.code ? String(item.code) : undefined,
+                  active: item.active !== undefined ? Boolean(item.active) : true,
+                  district: item.district ? String(item.district) : undefined
+                };
+              }
+              return { name: 'Unknown', active: false };
+            }) as MasterDataEntry[];
+          }
+        } catch { return []; }
+      }
+      if (Array.isArray(value)) {
+        return value.map(item => {
+          if (typeof item === 'string') return { name: item, active: true };
+          if (item && typeof item === 'object') {
+            return {
+              name: String(item.name || ''),
+              code: item.code ? String(item.code) : undefined,
+              active: item.active !== undefined ? Boolean(item.active) : true,
+              district: item.district ? String(item.district) : undefined
+            };
+          }
+          return { name: 'Unknown', active: false };
+        }) as MasterDataEntry[];
       }
       return [];
     };
@@ -119,14 +162,17 @@ export async function PATCH(request: Request) {
         }
         const trimmedName = name.trim();
         const existingEntry = currentData.find((entry) =>
-          entry.name.toLowerCase() === trimmedName.toLowerCase()
+          entry.name && entry.name.toLowerCase() === trimmedName.toLowerCase()
         );
         if (existingEntry) {
           return NextResponse.json({ error: 'Entry already exists' }, { status: 409 });
         }
-        const newEntry: MasterDataEntry = code
-          ? { name: trimmedName, code: code.trim(), active: true }
-          : { name: trimmedName, active: true };
+        const newEntry: MasterDataEntry = {
+          name: trimmedName,
+          code: code ? code.trim() : undefined,
+          active: true,
+          district: type === 'branches' ? district : undefined
+        };
         updatedData = [...currentData, newEntry];
         break;
       }
@@ -139,8 +185,9 @@ export async function PATCH(request: Request) {
             return {
               ...entry,
               name: name !== undefined ? name.trim() : entry.name,
-              code: code !== undefined ? (code ? code.trim() : '') : entry.code || '',
+              code: code !== undefined ? (code ? code.trim() : undefined) : entry.code,
               active: active !== undefined ? active : entry.active,
+              district: (type === 'branches' && district !== undefined) ? district : entry.district
             };
           }
           return entry;

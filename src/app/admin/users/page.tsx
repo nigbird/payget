@@ -305,7 +305,7 @@ export default function UserManagementPage() {
                       <Input 
                         id="name" 
                         className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
-                        placeholder="John Doe" 
+                        placeholder="Abebe Kebede" 
                         value={newUserName}
                         onChange={(e) => setNewUserName(e.target.value)}
                       />
@@ -319,7 +319,7 @@ export default function UserManagementPage() {
                         id="email" 
                         type="email" 
                         className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
-                        placeholder="john@example.com" 
+                        placeholder="abebe@example.com" 
                         value={newUserEmail}
                         onChange={(e) => setNewUserEmail(e.target.value)}
                       />

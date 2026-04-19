@@ -398,7 +398,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Label htmlFor="name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
                 id="name"
-                placeholder="John Doe"
+                placeholder="Abebe Kebede"
                 className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.name}
@@ -410,7 +410,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Input
                 id="email"
                 type="email"
-                placeholder="john@example.com"
+                placeholder="abebe@example.com"
                 className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.email}
@@ -477,7 +477,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Label htmlFor="edit-name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
                 id="edit-name"
-                placeholder="John Doe"
+                placeholder="Abebe Kebede"
                 className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.name}
@@ -489,7 +489,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Input
                 id="edit-email"
                 type="email"
-                placeholder="john@example.com"
+                placeholder="abebe@example.com"
                 className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 required
                 value={memberForm.email}
@@ -501,7 +501,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Input
                 id="edit-phone"
                 type="tel"
-                placeholder="+1234567890"
+                placeholder="+251934567890"
                 className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}

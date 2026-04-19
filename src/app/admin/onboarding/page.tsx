@@ -694,7 +694,7 @@ export default function MerchantOnboardingPage() {
                                 <Label htmlFor="contactName">Full Name</Label>
                                 <Input 
                                   id="contactName" 
-                                  placeholder="John Doe" 
+                                  placeholder="Abebe Kebede" 
                                   value={formData.contactName} 
                                   onChange={handleInputChange} 
                                   className={errors.contactName ? "border-red-500" : ""}
