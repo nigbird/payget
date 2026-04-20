@@ -88,7 +88,7 @@ export async function POST(request: Request) {
        });
     }
 
-    if (finalStatus === 'success') {
+    if (finalStatus === 'success' || finalStatus === 'failed') {
       await db.updateTransaction(tx.id, {
         userCredentials: {
           ...tx.userCredentials,

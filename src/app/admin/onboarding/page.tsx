@@ -703,7 +703,7 @@ export default function MerchantOnboardingPage() {
                                 <Label htmlFor="contactUsername">Username (Email or Phone)</Label>
                                 <Input 
                                   id="contactUsername" 
-                                  placeholder="email@example.com or +1234567890" 
+                                  placeholder="email@example.com or 0912345678" 
                                   value={formData.contactUsername} 
                                   onChange={handleInputChange} 
                                   className={errors.contactUsername ? "border-red-500" : ""}

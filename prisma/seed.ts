@@ -165,8 +165,8 @@ async function main() {
       transactionReference: 'ref_demo_tx1',
       serviceDescription: 'Order #8821',
       transactionTimestamp: new Date(),
-      payerPhone: '+1234567890',
-      userCredentials: { phone: '+1234567890', authToken: 'demo_auth_token_tx1' },
+      payerPhone: '0912345678',
+      userCredentials: { phone: '0912345678', authToken: 'demo_auth_token_tx1' },
     },
   })
 

@@ -565,7 +565,7 @@ export default function MerchantSelfRegistration() {
                         <Input 
                           id="contactUsername" 
                           className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.contactUsername ? 'border-red-500' : ''}`}
-                          placeholder="email@example.com or +1234567890" 
+                          placeholder="email@example.com or 0912345678" 
                           required 
                           value={formData.contactUsername}
                           onChange={e => setFormData({...formData, contactUsername: e.target.value})}

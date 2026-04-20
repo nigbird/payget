@@ -195,7 +195,7 @@ function PayLinkContent() {
           <CardContent className="p-0">
             <div className="bg-white px-6 pb-8 pt-6 border-b border-black/5">
               <div className="flex flex-col gap-6">
-                <div className="rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
+                <div className="rounded-xl border border-amber-100 bg-gradient-to-r from-white to-amber-50/40 px-4 py-3 shadow-sm">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-amber-100">
@@ -219,8 +219,8 @@ function PayLinkContent() {
 
                     <div className="h-8 w-px bg-amber-100" />
 
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-amber-100">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-amber-100 shadow-[0_1px_6px_rgba(117,67,25,0.08)]">
                         {payment.merchantLogoUrl ? (
                           <Image
                             src={payment.merchantLogoUrl}
@@ -232,9 +232,6 @@ function PayLinkContent() {
                         ) : (
                           <span className="text-[11px] font-medium tracking-widest text-[#754319]">{getInitials(payment.merchantName)}</span>
                         )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-[#5b371f]">{payment.merchantName}</p>
                       </div>
                     </div>
                   </div>
@@ -306,9 +303,6 @@ function PayLinkContent() {
                           Please check your phone (<strong>{payment.payerPhone}</strong>) and enter your PIN to authorize the payment.
                          </p>
                       </div>
-                      <Button variant="outline" className="w-full rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50" onClick={() => window.location.reload()}>
-                        I didn't get the prompt
-                      </Button>
                     </div>
                   )}
                 </div>

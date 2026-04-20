@@ -554,7 +554,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           id="username"
                           value={profileData.username}
                           onChange={(e) => setProfileData((p) => ({ ...p, username: e.target.value }))}
-                          placeholder="email@example.com or +1234567890"
+                          placeholder="email@example.com or 0912345678"
                           className="rounded-2xl border-white/60 bg-white/85"
                         />
                         <p className="text-xs text-muted-foreground">This is your login username and can be either email or phone.</p>

@@ -147,6 +147,14 @@ export async function resolveEncryptedToken(token: string) {
   const effectiveExpiresAt = linkMeta?.expiresAt ?? (payload as any)?.expiresAt
   const linkStatus = linkMeta?.status ?? (payload as any)?.linkStatus ?? "PENDING"
 
+  if (tx.status === "success") {
+    return { ok: false as const, error: "Payment already completed" }
+  }
+
+  if (tx.status === "failed") {
+    return { ok: false as const, error: "Payment already failed and cannot be retried with this link" }
+  }
+
   if (linkStatus === "USED") {
     return { ok: false as const, error: "Payment link already used" }
   }

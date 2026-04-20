@@ -422,7 +422,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Input
                 id="phone"
                 type="tel"
-                placeholder="+1234567890"
+                placeholder="0912345678"
                 className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
