@@ -43,6 +43,16 @@ async function deriveJwkKey(jweSecret: string) {
   return importJWK(jwk, "A256GCM")
 }
 
+/**
+ * Generates a strong random secret key for JWE.
+ * Returns a 32-byte (256-bit) hex string by default.
+ */
+export function generateJweSecret(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("")
+}
+
 export function validatePayloadSchema(payload: unknown) {
   return PaymentPayloadSchema.parse(payload)
 }

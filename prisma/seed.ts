@@ -1,5 +1,6 @@
 import { PrismaClient, MerchantStatus, TeamRole, TeamMemberStatus, TransactionStatus, UserRole } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 const prisma = new PrismaClient()
 
@@ -101,7 +102,7 @@ async function main() {
       name: 'TechGear Solutions',
       email: 'onboarding@techgear.io',
       password: hashedDefaultPassword,
-      jweSecret: 'demo_jwe_secret_m1',
+      jweSecret: crypto.randomBytes(32).toString('hex'),
       accountNumber: '1234567890',
       dailyLimit: 50000,
       transactionLimit: 5000,

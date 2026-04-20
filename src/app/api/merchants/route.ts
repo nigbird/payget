@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import bcrypt from 'bcryptjs';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
+import { generateJweSecret } from '@/lib/jwe';
 
 export async function GET(request: Request) {
   const user = await requireAuthUser(request);
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
         data: {
           ...rest,
           id: merchantId,
-          jweSecret: rest.jweSecret || Math.random().toString(36).substring(2, 15),
+          jweSecret: rest.jweSecret || generateJweSecret(),
           createdBy: sessionUser?.id ?? null,
           status: 'PENDING', // Always start as pending
           documents: documents ? {
