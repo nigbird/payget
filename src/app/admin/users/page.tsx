@@ -32,6 +32,12 @@ import {
   DialogFooter
 } from "@/components/ui/dialog"
 import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs"
+import { 
   Users, 
   Plus, 
   Search, 
@@ -48,7 +54,8 @@ import {
   Building,
   MapPin,
   GitBranch,
-  Loader2
+  Loader2,
+  Briefcase
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
@@ -89,6 +96,7 @@ export default function UserManagementPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentTab, setCurrentTab] = useState("staff")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedUser, setSelectedForEdit] = useState<UserRecord | null>(null)
@@ -261,10 +269,13 @@ export default function UserManagementPage() {
     }
   }
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredUsers = users.filter(u => {
+    const isStaff = u.role !== 'MERCHANT'
+    const matchesTab = currentTab === 'staff' ? isStaff : !isStaff
+    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          u.email.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesTab && matchesSearch
+  })
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -451,12 +462,12 @@ export default function UserManagementPage() {
       </div>
 
       <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
-        <CardHeader className="bg-[#FFFDF7] border-b border-black/5 p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <CardHeader className="bg-[#FFFDF7] border-b border-black/5 p-6 pb-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="space-y-1">
               <CardTitle className="text-base tracking-tight">Staff members</CardTitle>
               <CardDescription className="text-slate-600">
-                Search, filter, and manage administrative user accounts.
+                Search, filter, and manage administrative and merchant user accounts.
               </CardDescription>
             </div>
 
@@ -495,6 +506,32 @@ export default function UserManagementPage() {
               </div>
             </div>
           </div>
+
+          <Tabs defaultValue="staff" value={currentTab} onValueChange={(v) => {
+            setCurrentTab(v)
+            setCurrentPage(1)
+          }} className="w-full">
+            <TabsList className="w-full justify-start bg-transparent h-12 p-0 gap-8 border-0">
+              <TabsTrigger 
+                value="staff" 
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-amber-700 data-[state=active]:border-b-2 data-[state=active]:border-amber-600 rounded-none px-1 h-full text-sm font-semibold text-slate-500 transition-all gap-2"
+              >
+                <Users className="w-4 h-4" /> Internal Staff
+                <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 bg-slate-100 text-slate-600 font-bold border-0">
+                  {users.filter(u => u.role !== 'MERCHANT').length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="merchants" 
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-amber-700 data-[state=active]:border-b-2 data-[state=active]:border-amber-600 rounded-none px-1 h-full text-sm font-semibold text-slate-500 transition-all gap-2"
+              >
+                <Briefcase className="w-4 h-4" /> Merchant Users
+                <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 bg-slate-100 text-slate-600 font-bold border-0">
+                  {users.filter(u => u.role === 'MERCHANT').length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -521,8 +558,8 @@ export default function UserManagementPage() {
                       </div>
                     </TableCell>
                     <TableCell className="py-5 align-middle">
-                      <Badge variant="secondary" className="font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-100/50 rounded-lg px-2 py-0.5">
-                        {user.customRole?.name || 'Staff'}
+                      <Badge variant="secondary" className="font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-100/50 rounded-lg px-2 py-0.5 capitalize">
+                        {user.customRole?.name || (user.role === 'MERCHANT' ? 'Merchant' : 'Staff')}
                       </Badge>
                     </TableCell>
                     <TableCell className="py-5 align-middle">
