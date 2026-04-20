@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
+import nibLogo from "@/app/admin/logo/niblogo.png"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -302,10 +303,18 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     />
                     <Label
                       htmlFor="bank"
-                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[104px]"
                     >
-                      <Wallet className="mb-2 h-5 w-5 text-slate-600" />
-                      <span className="text-xs font-medium">Nib Bank Account</span>
+                      <span className="flex items-center justify-center w-12 h-12 mb-1 rounded-lg bg-white">
+                        <img
+                          src={nibLogo.src}
+                          alt="Nib Bank"
+                          width={40}
+                          height={40}
+                          className="object-contain"
+                        />
+                      </span>
+                      <span className="mt-1 text-xs font-medium text-slate-700">Nib Bank</span>
                     </Label>
                     <div className="absolute top-2 right-2 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
                       <CheckCircle2 className="h-4 w-4 text-amber-600" />
@@ -320,10 +329,18 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     />
                     <Label
                       htmlFor="telebirr"
-                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-60 transition-all"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[104px]"
                     >
-                      <Plus className="mb-2 h-5 w-5 text-slate-400" />
-                      <span className="text-xs font-medium text-slate-500">Telebirr (Coming Soon)</span>
+                      <span className="flex items-center justify-center w-12 h-12 mb-1 rounded-lg bg-white border border-slate-200">
+                        <img
+                          src="/telebirr.png"
+                          alt="Telebirr"
+                          width={40}
+                          height={40}
+                          className="object-contain"
+                        />
+                      </span>
+                      <span className="mt-1 text-xs font-medium text-slate-700">Telebirr</span>
                     </Label>
                   </div>
                 </RadioGroup>
@@ -336,7 +353,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="0912345678"
                     className="h-11 rounded-xl border-slate-200 bg-white pl-10 shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                     required
                     value={requestForm.payerPhone}

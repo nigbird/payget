@@ -17,12 +17,12 @@ import {
   Copy,
   Loader2,
   Phone,
+  Wallet,
   Sparkles,
   AlertCircle,
-  Wallet,
   FileText,
-  Plus,
 } from "lucide-react"
+import nibLogo from "@/app/admin/logo/niblogo.png"
 
 export function RequestPaymentModal({
   merchantId,
@@ -198,6 +198,7 @@ export function RequestPaymentModal({
                   onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" })}
                   className="grid grid-cols-2 gap-3"
                 >
+                  {/* Nib Bank Card */}
                   <div className="relative">
                     <RadioGroupItem
                       value="BANK"
@@ -206,15 +207,24 @@ export function RequestPaymentModal({
                     />
                     <Label
                       htmlFor="bank-modal"
-                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[104px]"
                     >
-                      <Wallet className="mb-2 h-5 w-5 text-slate-600" />
-                      <span className="text-[10px] font-medium uppercase tracking-wider">Nib Bank</span>
+                      <span className="flex items-center justify-center w-12 h-12 mb-1 rounded-lg bg-white">
+                        <img
+                          src={nibLogo.src}
+                          alt="Nib Bank"
+                          width={40}
+                          height={40}
+                          className="object-contain"
+                        />
+                      </span>
+                      <span className="mt-1 text-xs font-medium text-slate-700">Nib Bank</span>
                     </Label>
                     <div className="absolute top-2 right-2 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
                       <CheckCircle2 className="h-3 w-3 text-amber-600" />
                     </div>
                   </div>
+                  {/* Telebirr Card */}
                   <div className="relative">
                     <RadioGroupItem
                       value="TELEBIRR"
@@ -224,10 +234,18 @@ export function RequestPaymentModal({
                     />
                     <Label
                       htmlFor="telebirr-modal"
-                      className="flex flex-col items-center justify-between rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-60 transition-all"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[104px]"
                     >
-                      <Plus className="mb-2 h-5 w-5 text-slate-400" />
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Telebirr</span>
+                      <span className="flex items-center justify-center w-12 h-12 mb-1 rounded-lg bg-white border border-slate-200">
+                        <img
+                          src="/telebirr.png"
+                          alt="Telebirr"
+                          width={40}
+                          height={40}
+                          className="object-contain"
+                        />
+                      </span>
+                      <span className="mt-1 text-xs font-medium text-slate-700">Telebirr</span>
                     </Label>
                   </div>
                 </RadioGroup>
@@ -240,7 +258,7 @@ export function RequestPaymentModal({
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="0912345678"
                     className="h-11 rounded-xl border-slate-200 bg-white pl-10 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
                     required
                     value={requestForm.payerPhone}
