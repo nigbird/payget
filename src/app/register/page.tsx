@@ -320,7 +320,6 @@ export default function MerchantSelfRegistration() {
           dailyLimit: Number(formData.dailyLimit),
           transactionLimit: Number(formData.transactionLimit),
           dailyCountLimit: 100,
-          jweSecret: `demo_jwe_secret_${merchantId}`,
           status: 'pending',
           documents,
           riskFactors,
