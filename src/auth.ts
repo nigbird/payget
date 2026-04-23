@@ -172,8 +172,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: { 
     strategy: "jwt", 
-    maxAge: 120, // 2 minutes (test period)
-    updateAge: 30, // Refresh session cookie every 30 seconds if active
+    maxAge: 1800, // 30 minutes
+    updateAge: 300, // Refresh session cookie every 5 minutes if active
   },
   pages: {
     signIn: "/login"

@@ -150,10 +150,10 @@ export function RequestPaymentModal({
       }
 
       toast({
-        title: mode === "push" ? "USSD Request Initiated" : "Payment Link Generated",
+        title: mode === "push" ? "Push Payment Sent" : "Payment Link Generated",
         description:
           mode === "push"
-            ? `A customer PIN entry prompt is ready (demo token returned).`
+            ? `A payment prompt has been sent to the customer.`
             : `Share the secure payment link with your customer.`,
       })
 
@@ -331,7 +331,7 @@ export function RequestPaymentModal({
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
-                      {lastMode === "push" ? "USSD Prompt Sent" : "Payment Link Ready"}
+                      {lastMode === "push" ? "Push Notification Sent" : "Payment Link Ready"}
                     </p>
                     {generatedResult.transactionReference && (
                       <Badge className="rounded-md bg-slate-200/50 text-slate-700 text-[10px] font-medium border-0 px-2 py-0 h-5">

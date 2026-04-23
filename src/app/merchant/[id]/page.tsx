@@ -50,6 +50,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true)
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
+  const [currentTxStatus, setCurrentTxStatus] = useState<TransactionStatus | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [lastMode, setLastMode] = useState<"push" | "link" | null>(null)
@@ -237,6 +238,30 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             : undefined
 
         setGeneratedResult({ customerPinToken, transactionReference, paymentUrl })
+        
+        // Start polling for this specific transaction status
+        if (transactionReference) {
+          setCurrentTxStatus("initiated")
+          const pollInterval = setInterval(async () => {
+            try {
+              const res = await fetch(`/api/merchants/${id}/transactions/${transactionReference}`)
+              if (res.ok) {
+                const tx = await res.json()
+                if (tx.status === "success" || tx.status === "failed") {
+                  setCurrentTxStatus(tx.status)
+                  clearInterval(pollInterval)
+                }
+              }
+            } catch (err) {
+              console.error("Polling current transaction error:", err)
+            }
+          }, 2000)
+          
+          // Stop polling if modal is closed
+          setTimeout(() => {
+            if (!isSuccessModalOpen) clearInterval(pollInterval)
+          }, 120000) // 2 minute timeout for polling
+        }
       } else {
         setGeneratedResult({
           paymentUrl: data?.paymentUrl as string | undefined,
@@ -421,11 +446,10 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   )
 
   const totalReceived = transactions.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0)
-  const pendingRequests = transactions.filter((tx) => ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status))
-  const todayActivity = transactions.filter((tx) => {
+  const successfulToday = transactions.filter((tx) => {
     const txDate = new Date(tx.timestamp)
     const now = new Date()
-    return txDate.toDateString() === now.toDateString()
+    return tx.status === "success" && txDate.toDateString() === now.toDateString()
   })
   const recentTransactions = transactions.slice(0, 4)
   const metricCards = [
@@ -544,10 +568,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         <Card className="xl:col-span-3 rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-sm">
           <CardContent className="p-5">
             <div className="mb-4 flex items-center justify-between">
-              <div>
                 <h2 className="font-semibold text-[#5b371f] text-lg">Recent Activity</h2>
-                <p className="text-xs text-amber-800/60">{pendingRequests.length} pending requests, {todayActivity.length} today</p>
-              </div>
+                <p className="text-xs text-amber-800/60">{successfulToday.length} successful payments today</p>
               <Link href={`/merchant/${id}/transactions`} className="inline-flex items-center text-sm font-medium text-amber-700">
                 View All Transactions <ArrowUpRight className="ml-1 h-4 w-4" />
               </Link>
@@ -567,12 +589,10 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                         className={`mt-1 text-[10px] capitalize ${
                           tx.status === "success"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : ["pending", "awaiting_pin", "initiated", "processing"].includes(tx.status)
-                              ? "border-amber-200 bg-amber-50 text-amber-700"
-                              : "border-rose-200 bg-rose-50 text-rose-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
                         }`}
                       >
-                        {tx.status}
+                        {tx.status === "success" ? "Success" : "Failed"}
                       </Badge>
                     </div>
                   </div>
@@ -627,20 +647,45 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </Dialog>
 
       {/* Success Modal (Link or Push) */}
-      <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+      <Dialog open={isSuccessModalOpen} onOpenChange={(open) => {
+        setIsSuccessModalOpen(open)
+        if (!open) setCurrentTxStatus(null)
+      }}>
         <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden">
           <div className="p-6 text-center border-b border-slate-50">
-            <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-            </div>
-            <h3 className="text-xl font-medium text-slate-800 tracking-tight">
-              {lastMode === "link" ? "Payment Link Ready" : "Payment Pushed!"}
-            </h3>
-            <p className="text-slate-500 mt-1 text-sm">
-              {lastMode === "link" 
-                ? "Secure checkout link generated" 
-                : `Sent to customer phone`}
-            </p>
+            {lastMode === "link" ? (
+              <>
+                <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-medium text-slate-800 tracking-tight">Payment Link Ready</h3>
+                <p className="text-slate-500 mt-1 text-sm">Secure checkout link generated</p>
+              </>
+            ) : currentTxStatus === "success" ? (
+              <>
+                <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-medium text-emerald-800 tracking-tight">Payment Successful</h3>
+                <p className="text-slate-500 mt-1 text-sm">Transaction completed successfully</p>
+              </>
+            ) : currentTxStatus === "failed" ? (
+              <>
+                <div className="mx-auto w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mb-4">
+                  <ShieldAlert className="w-6 h-6 text-rose-600" />
+                </div>
+                <h3 className="text-xl font-medium text-rose-800 tracking-tight">Payment Failed</h3>
+                <p className="text-slate-500 mt-1 text-sm">Transaction could not be completed</p>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-4">
+                  <Loader2 className="w-6 h-6 text-amber-600 animate-spin" />
+                </div>
+                <h3 className="text-xl font-medium text-slate-800 tracking-tight">Processing Payment</h3>
+                <p className="text-slate-500 mt-1 text-sm">Sent to customer phone</p>
+              </>
+            )}
           </div>
           
           <div className="p-6 space-y-6 bg-slate-50/50">
@@ -693,26 +738,49 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               </>
             ) : (
               <div className="space-y-6">
-                <div className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl bg-white border border-slate-200 shadow-sm">
+                <div className={`flex flex-col items-center justify-center gap-2 p-6 rounded-xl border shadow-sm ${
+                  currentTxStatus === 'success' ? 'bg-emerald-50/50 border-emerald-100' : 
+                  currentTxStatus === 'failed' ? 'bg-rose-50/50 border-rose-100' : 
+                  'bg-white border-slate-200'
+                }`}>
                   <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Payment Amount</p>
-                  <p className="text-3xl font-medium text-slate-800">{parseFloat(lastRequestDetails?.amount || "0").toFixed(2)} ETB</p>
+                  <p className={`text-3xl font-medium ${
+                    currentTxStatus === 'success' ? 'text-emerald-700' : 
+                    currentTxStatus === 'failed' ? 'text-rose-700' : 
+                    'text-slate-800'
+                  }`}>{parseFloat(lastRequestDetails?.amount || "0").toFixed(2)} ETB</p>
                   <div className="flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
                     <Phone className="w-3 h-3 text-slate-500" />
                     <span className="text-xs font-medium text-slate-600">{lastRequestDetails?.phone}</span>
                   </div>
                 </div>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 border border-slate-200">
-                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                      <Clock className="w-4 h-4 text-blue-600 animate-pulse" />
-                    </div>
-                    <div className="text-xs text-slate-700">
-                      <p className="font-medium text-slate-900">Awaiting Customer Action</p>
-                      <p className="text-slate-500 mt-0.5">The customer has been prompted to enter their PIN.</p>
+                {currentTxStatus === 'failed' && (
+                  <Button 
+                    onClick={() => {
+                      setIsSuccessModalOpen(false)
+                      handleRequestPayment("push")
+                    }}
+                    className="w-full h-12 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="font-medium">Resend Push Notification</span>
+                  </Button>
+                )}
+
+                {currentTxStatus !== 'success' && currentTxStatus !== 'failed' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 border border-slate-200">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                        <Clock className="w-4 h-4 text-blue-600 animate-pulse" />
+                      </div>
+                      <div className="text-xs text-slate-700">
+                        <p className="font-medium text-slate-900">Waiting for confirmation</p>
+                        <p className="text-slate-500 mt-0.5">Please ask the customer to authorize the payment on their phone.</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -720,7 +788,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               <p className="text-[10px] text-center text-slate-500 leading-relaxed">
                 {lastMode === "link" 
                   ? "This link will direct your customer to a secure checkout page." 
-                  : "Status updates will appear in your recent activity log."}<br/>
+                  : currentTxStatus === 'success' 
+                    ? "Funds have been added to your merchant balance." 
+                    : "Status updates will appear in your recent activity log."}<br/>
                 Payments are processed instantly upon successful authorization.
               </p>
             </div>
@@ -729,7 +799,10 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           <div className="p-4 bg-white border-t border-slate-100 flex justify-center">
             <Button 
               variant="ghost" 
-              onClick={() => setIsSuccessModalOpen(false)}
+              onClick={() => {
+                setIsSuccessModalOpen(false)
+                setCurrentTxStatus(null)
+              }}
               className="text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-medium"
             >
               Done

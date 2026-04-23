@@ -34,7 +34,7 @@ import type { Merchant, Transaction } from "@/app/lib/db"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
 
-type StatusFilter = "all" | "success" | "pending" | "failed"
+type StatusFilter = "all" | "success" | "failed"
 type Density = "comfortable" | "compact"
 
 export default function MerchantTransactionsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -103,8 +103,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     [transactions]
   )
 
-  const pendingCount = useMemo(
-    () => transactions.filter((tx) => nonTerminalStatuses.includes(tx.status)).length,
+  const successCount = useMemo(
+    () => transactions.filter((tx) => tx.status === "success").length,
     [transactions]
   )
 
@@ -122,8 +122,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
     return transactions.filter((tx) => {
       if (statusFilter === "success" && tx.status !== "success") return false
-      if (statusFilter === "failed" && tx.status !== "failed") return false
-      if (statusFilter === "pending" && (tx.status === "success" || tx.status === "failed")) return false
+      if (statusFilter === "failed" && tx.status === "success") return false
 
       const txMs = new Date(tx.timestamp).getTime()
       if (fromMs !== undefined && txMs < fromMs) return false
@@ -163,16 +162,12 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
   const badgeFor = (status: Transaction["status"]) => {
     if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700"
-    if (status === "failed") return "border-rose-200 bg-rose-50 text-rose-700"
-    return "border-amber-200 bg-amber-50 text-amber-700"
+    return "border-rose-200 bg-rose-50 text-rose-700"
   }
 
   const statusLabel = (status: Transaction["status"]) => {
-    if (status === "awaiting_pin") return "Awaiting PIN"
-    if (status === "processing") return "Processing"
-    if (status === "initiated") return "Initiated"
-    if (status === "pending") return "Pending"
-    return status
+    if (status === "success") return "Success"
+    return "Failed"
   }
 
   const dateRangeLabel = (() => {
@@ -211,7 +206,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Transactions</p>
             <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">{merchant.name}</h1>
             <p className="mt-1 text-sm md:text-base text-[#754319]/70">
-              {pendingCount} active requests • {transactions.length} total
+              {successCount} successful • {transactions.length} total transactions
             </p>
           </div>
 
@@ -285,7 +280,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="success">Success</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="failed">Failed</SelectItem>
                   </SelectContent>
                 </Select>
