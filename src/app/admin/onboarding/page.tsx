@@ -129,6 +129,18 @@ export default function MerchantOnboardingPage() {
     transactionLimit: "1000",
     dailyCountLimit: "100"
   })
+
+  // Sync organization details from session when modal opens
+  useEffect(() => {
+    if (isRegisterDialogOpen && session?.user) {
+      const user = session.user as any
+      setFormData(prev => ({
+        ...prev,
+        district: user.isHeadOffice ? "Head Office" : (user.district || ""),
+        branchName: user.isHeadOffice ? "Head Office" : (user.branch || "")
+      }))
+    }
+  }, [isRegisterDialogOpen, session])
   
   const [documents, setDocuments] = useState<MerchantDocument[]>([])
   const [riskFactors, setRiskFactors] = useState<string[]>([])
@@ -505,26 +517,44 @@ export default function MerchantOnboardingPage() {
                   Register merchant
                 </Button>
               </DialogTrigger>
-                  <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
-                    <DialogHeader className="p-6 border-b border-slate-50 flex flex-col">
-                      <DialogTitle className="text-xl font-medium text-slate-800 flex items-center gap-2">
-                        <UserPlus className="w-5 h-5 text-slate-600" />
-                        Register New Merchant
-                      </DialogTitle>
-                      <DialogDescription className="text-slate-500 mt-1">
-                        Create a merchant profile and submit it into the onboarding workflow.
-                      </DialogDescription>
+                  <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border border-[#eddcc0] bg-[#fffdf8] p-0 rounded-[32px] shadow-2xl">
+                    <DialogHeader className="relative overflow-hidden p-8 border-b border-[#eadcc4]/40 flex flex-col">
+                      {/* Subtle Background Accent */}
+                      <div className="absolute -right-4 -top-8 opacity-[0.03] pointer-events-none">
+                        <svg width="160" height="160" viewBox="0 0 100 100" fill="currentColor" className="text-[#754319]">
+                          <path d="M50 5L89 27.5V72.5L50 95L11 72.5V27.5L50 5Z" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      </div>
+
+                      <div className="flex flex-col gap-4 relative z-10">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30 shadow-sm w-fit">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#f8b513] animate-pulse" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#754319]/80">
+                            Merchant Registration
+                          </span>
+                        </div>
+
+                        <div>
+                          <DialogTitle className="text-3xl font-black tracking-tight text-gray-900 font-headline flex items-center gap-3">
+                            <Store className="w-8 h-8 text-[#f8b513]" />
+                            Register New Merchant
+                          </DialogTitle>
+                          <DialogDescription className="text-sm text-gray-500 font-medium mt-1">
+                            Provide legal entity details and compliance documents to initiate the onboarding process.
+                          </DialogDescription>
+                        </div>
+                      </div>
                     </DialogHeader>
 
-                    <div className="p-6">
+                    <div className="p-8">
                     {!canRegister ? (
-                      <Card className="border-rose-100 bg-rose-50/50 shadow-sm rounded-xl">
-                        <CardContent className="pt-6 flex flex-col items-center text-center gap-4">
-                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-rose-100">
-                            <Lock className="w-6 h-6 text-rose-600" />
+                      <Card className="border-rose-100 bg-rose-50/50 shadow-sm rounded-3xl">
+                        <CardContent className="pt-8 flex flex-col items-center text-center gap-4">
+                          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-rose-100">
+                            <Lock className="w-8 h-8 text-rose-600" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-medium text-rose-900">Registration Restricted</h3>
+                            <h3 className="text-xl font-bold text-rose-900">Registration Restricted</h3>
                             <p className="text-rose-700/80 max-w-md text-sm mt-1">
                               Your account does not have the necessary permissions to register new merchants. Please contact your system administrator.
                             </p>
@@ -532,66 +562,80 @@ export default function MerchantOnboardingPage() {
                         </CardContent>
                       </Card>
                     ) : (
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 space-y-6">
-                          <Card className="border-none shadow-sm">
-                            <CardHeader className="bg-white border-b">
-                              <CardTitle className="text-lg flex items-center gap-2">
-                                <Building2 className="w-5 h-5 text-primary" />
-                                Business Information
-                              </CardTitle>
-                              <CardDescription>Enter the legal and operational details of the merchant.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                            <div className="space-y-2">
-                              <Label>Merchant Logo</Label>
-                              <div className="flex items-center gap-3">
-                                <Input
-                                  type="file"
-                                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-                                  className="bg-white"
-                                  disabled={isLogoUploading}
-                                  onChange={(e) => {
-                                    const f = e.target.files?.[0]
-                                    if (f) void handleLogoUpload(f)
-                                  }}
-                                />
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-8">
+                          {/* Business Information Section */}
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                                <Building2 className="h-5 w-5 text-[#754319]" />
                               </div>
-                              {formData.logoUrl ? (
-                                <p className="text-xs text-muted-foreground">Uploaded: <span className="font-mono">{formData.logoUrl}</span></p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">Optional. This will appear on hosted payment pages.</p>
-                              )}
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Company Profile</h3>
+                                <p className="text-xs text-gray-400">Basic information about the legal entity</p>
+                              </div>
                             </div>
 
-                              <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-6">
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium text-gray-700">Merchant Logo</Label>
+                                <div className="flex items-center gap-4">
+                                  <div 
+                                    className="flex-1 border-2 border-dashed border-[#eadcc4] rounded-xl p-4 text-center cursor-pointer hover:bg-[#fffcf5] transition-colors"
+                                    onClick={() => fileInputRef.current?.click()}
+                                  >
+                                    <Upload className="w-6 h-6 mx-auto text-gray-400 mb-2" />
+                                    <p className="text-xs font-medium text-gray-600">
+                                      {isLogoUploading ? "Uploading..." : "Click to upload logo"}
+                                    </p>
+                                    <input
+                                      type="file"
+                                      ref={fileInputRef}
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0]
+                                        if (f) void handleLogoUpload(f)
+                                      }}
+                                    />
+                                  </div>
+                                  {formData.logoUrl && (
+                                    <div className="w-16 h-16 rounded-xl border border-[#eadcc4] overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm">
+                                      <img src={formData.logoUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-gray-400 italic">Optional. Recommended size: 512x512px.</p>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                  <Label htmlFor="name">Business Name</Label>
+                                  <Label htmlFor="name" className="text-sm font-medium text-gray-700">Business Name</Label>
                                   <Input 
                                     id="name" 
                                     placeholder="Legal Entity Name" 
                                     value={formData.name} 
                                     onChange={handleInputChange} 
-                                    className={errors.name ? "border-red-500" : ""}
+                                    className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.name ? "border-red-500" : ""}`}
                                   />
                                   {errors.name && <p className="text-[10px] text-red-500 font-medium">{errors.name}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="email">Business Email</Label>
+                                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">Business Email</Label>
                                   <Input 
                                     id="email" 
                                     type="email" 
                                     placeholder="contact@business.com" 
                                     value={formData.email} 
                                     onChange={handleInputChange} 
-                                    className={errors.email ? "border-red-500" : ""}
+                                    className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.email ? "border-red-500" : ""}`}
                                   />
                                   {errors.email && <p className="text-[10px] text-red-500 font-medium">{errors.email}</p>}
                                 </div>
                               </div>
 
                               <div className="space-y-2">
-                                <Label htmlFor="businessDescription">
+                                <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">
                                   Business Description 
                                   <span className="text-[10px] ml-2 font-bold text-slate-400">
                                     ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words)
@@ -601,7 +645,7 @@ export default function MerchantOnboardingPage() {
                                   <Textarea
                                     id="businessDescription"
                                     placeholder="Describe the nature of business and products sold..."
-                                    className={`min-h-[100px] pr-10 ${errors.businessDescription ? "border-red-500" : ""}`}
+                                    className={`min-h-[120px] rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all pr-12 ${errors.businessDescription ? "border-red-500" : ""}`}
                                     value={formData.businessDescription}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -614,7 +658,7 @@ export default function MerchantOnboardingPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="absolute right-2 top-2 text-primary hover:text-primary/80 hover:bg-primary/5"
+                                    className="absolute right-3 top-3 text-primary hover:bg-[#fff8ea] rounded-lg h-8 w-8"
                                     onClick={handleAiAssist}
                                     disabled={isAiLoading}
                                   >
@@ -624,12 +668,14 @@ export default function MerchantOnboardingPage() {
                                 {errors.businessDescription && <p className="text-[10px] text-red-500 font-medium">{errors.businessDescription}</p>}
                               </div>
 
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                  <Label>Industry Category</Label>
+                                  <Label className="text-sm font-medium text-gray-700">Industry Category</Label>
                                   <Select onValueChange={(v) => handleSelectChange('category', v)} value={formData.category}>
-                                    <SelectTrigger className={errors.category ? "border-red-500" : ""}><SelectValue placeholder="Select Category" /></SelectTrigger>
-                                    <SelectContent>
+                                    <SelectTrigger className={`h-11 rounded-xl border-gray-200 ${errors.category ? "border-red-500" : ""}`}>
+                                      <SelectValue placeholder="Select Category" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-[#eddcc0]">
                                       {categories.filter(c => c.active).map((cat, i) => (
                                         <SelectItem key={i} value={cat.name}>{cat.name}</SelectItem>
                                       ))}
@@ -638,10 +684,12 @@ export default function MerchantOnboardingPage() {
                                   {errors.category && <p className="text-[10px] text-red-500 font-medium">{errors.category}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                  <Label>Business Type</Label>
+                                  <Label className="text-sm font-medium text-gray-700">Business Type</Label>
                                   <Select onValueChange={(v) => handleSelectChange('businessType', v)} value={formData.businessType}>
-                                    <SelectTrigger className={errors.businessType ? "border-red-500" : ""}><SelectValue placeholder="Select Type" /></SelectTrigger>
-                                    <SelectContent>
+                                    <SelectTrigger className={`h-11 rounded-xl border-gray-200 ${errors.businessType ? "border-red-500" : ""}`}>
+                                      <SelectValue placeholder="Select Type" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-[#eddcc0]">
                                       {businessTypes.filter(bt => bt.active).map((bt, i) => (
                                         <SelectItem key={i} value={bt.name}>{bt.name}</SelectItem>
                                       ))}
@@ -650,231 +698,238 @@ export default function MerchantOnboardingPage() {
                                   {errors.businessType && <p className="text-[10px] text-red-500 font-medium">{errors.businessType}</p>}
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </div>
+                          </div>
 
-                          {canSetLimits && (
-                            <Card className="border-none shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-                              <CardHeader className="bg-white border-b">
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                  <TrendingUp className="w-5 h-5 text-primary" />
-                                  Compliance: Initial Limits
-                                </CardTitle>
-                                <CardDescription>Authorize transaction volumes for this merchant.</CardDescription>
-                              </CardHeader>
-                              <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="dailyLimit">Daily Vol. Limit (ETB)</Label>
-                                  <Input id="dailyLimit" placeholder="10000" value={formData.dailyLimit} onChange={handleInputChange} />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="transactionLimit">Max Per Tx (ETB)</Label>
-                                  <Input id="transactionLimit" placeholder="1000" value={formData.transactionLimit} onChange={handleInputChange} />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="dailyCountLimit">Max Daily Count</Label>
-                                  <Input id="dailyCountLimit" placeholder="100" value={formData.dailyCountLimit} onChange={handleInputChange} />
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
+                          <Separator className="bg-[#eadcc4]/40" />
 
-                          <Card className="border-none shadow-sm">
-                            <CardHeader className="bg-white border-b">
-                              <CardTitle className="text-lg flex items-center gap-2">
-                                <User className="w-5 h-5 text-primary" />
-                                Primary Contact
-                              </CardTitle>
-                              <CardDescription>Person responsible for managing this account.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-6 grid grid-cols-2 gap-4">
+                          {/* Primary Contact Section */}
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                                <User className="h-5 w-5 text-[#754319]" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Primary Contact</h3>
+                                <p className="text-xs text-gray-400">Account management and communications</p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6">
                               <div className="space-y-2">
-                                <Label htmlFor="contactName">Full Name</Label>
+                                <Label htmlFor="contactName" className="text-sm font-medium text-gray-700">Full Name</Label>
                                 <Input 
                                   id="contactName" 
                                   placeholder="Abebe Kebede" 
                                   value={formData.contactName} 
                                   onChange={handleInputChange} 
-                                  className={errors.contactName ? "border-red-500" : ""}
+                                  className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.contactName ? "border-red-500" : ""}`}
                                 />
                                 {errors.contactName && <p className="text-[10px] text-red-500 font-medium">{errors.contactName}</p>}
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="contactUsername">Username (Email or Phone)</Label>
+                                <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Username (Email or Phone)</Label>
                                 <Input 
                                   id="contactUsername" 
                                   placeholder="email@example.com or 0912345678" 
                                   value={formData.contactUsername} 
                                   onChange={handleInputChange} 
-                                  className={errors.contactUsername ? "border-red-500" : ""}
+                                  className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.contactUsername ? "border-red-500" : ""}`}
                                 />
                                 {errors.contactUsername && <p className="text-[10px] text-red-500 font-medium">{errors.contactUsername}</p>}
                               </div>
-                            </CardContent>
-                          </Card>
+                            </div>
+                          </div>
 
-                          <Card className="border-none shadow-sm">
-                            <CardHeader className="bg-white border-b">
-                              <CardTitle className="text-lg flex items-center gap-2">
-                                <Globe className="w-5 h-5 text-primary" />
-                                Technical & Financial
-                              </CardTitle>
-                              <CardDescription>Integration endpoints and payout information.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
+                          <Separator className="bg-[#eadcc4]/40" />
+
+                          {/* Technical & Financial Section */}
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                                <Globe className="h-5 w-5 text-[#754319]" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Financial & Technical</h3>
+                                <p className="text-xs text-gray-400">Payout details and integration settings</p>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-6">
+                              <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                  <Label htmlFor="accountNumber">Payout Account #</Label>
-                                  <Input 
-                                    id="accountNumber" 
-                                    placeholder="Bank Account Number" 
-                                    value={formData.accountNumber} 
-                                    onChange={handleInputChange} 
-                                    className={errors.accountNumber ? "border-red-500" : ""}
-                                  />
+                                  <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">Payout Account #</Label>
+                                  <div className="relative">
+                                    <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input 
+                                      id="accountNumber" 
+                                      placeholder="Bank Account Number" 
+                                      value={formData.accountNumber} 
+                                      onChange={handleInputChange} 
+                                      className={`h-11 rounded-xl border-gray-200 pl-10 focus:ring-primary/20 focus:border-primary transition-all ${errors.accountNumber ? "border-red-500" : ""}`}
+                                    />
+                                  </div>
                                   {errors.accountNumber && <p className="text-[10px] text-red-500 font-medium">{errors.accountNumber}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="websiteUrl">Website URL (Optional)</Label>
-                                  <Input 
-                                    id="websiteUrl" 
-                                    placeholder="https://..." 
-                                    value={formData.websiteUrl} 
-                                    onChange={handleInputChange} 
-                                    className={errors.websiteUrl ? "border-red-500" : ""}
-                                  />
+                                  <Label htmlFor="websiteUrl" className="text-sm font-medium text-gray-700">Website URL (Optional)</Label>
+                                  <div className="relative">
+                                    <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input 
+                                      id="websiteUrl" 
+                                      placeholder="https://..." 
+                                      value={formData.websiteUrl} 
+                                      onChange={handleInputChange} 
+                                      className={`h-11 rounded-xl border-gray-200 pl-10 focus:ring-primary/20 focus:border-primary transition-all ${errors.websiteUrl ? "border-red-500" : ""}`}
+                                    />
+                                  </div>
                                   {errors.websiteUrl && <p className="text-[10px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                                 </div>
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="callbackUrl">Webhook Callback URL (Optional)</Label>
-                                <Input 
-                                  id="callbackUrl" 
-                                  placeholder="https://api.merchant.com/webhook" 
-                                  value={formData.callbackUrl} 
-                                  onChange={handleInputChange} 
-                                  className={errors.callbackUrl ? "border-red-500" : ""}
-                                />
+                                <Label htmlFor="callbackUrl" className="text-sm font-medium text-gray-700">Webhook Callback URL (Optional)</Label>
+                                <div className="relative">
+                                  <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                  <Input 
+                                    id="callbackUrl" 
+                                    placeholder="https://api.merchant.com/webhook" 
+                                    value={formData.callbackUrl} 
+                                    onChange={handleInputChange} 
+                                    className={`h-11 rounded-xl border-gray-200 pl-10 focus:ring-primary/20 focus:border-primary transition-all ${errors.callbackUrl ? "border-red-500" : ""}`}
+                                  />
+                                </div>
                                 {errors.callbackUrl && <p className="text-[10px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                               </div>
-                            </CardContent>
-                          </Card>
+                            </div>
+                          </div>
                         </div>
 
-                    <div className="space-y-6">
-                      <Card className="border-none shadow-sm">
-                        <CardHeader className="bg-white border-b">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <MapPin className="w-5 h-5 text-primary" />
-                            Organization
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                          {formData.district === "Head Office" ? (
-                            <div className="space-y-2">
-                              <Label>Assigned Organization</Label>
-                              <div className="relative">
-                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#754319]" />
-                                <Input 
-                                  value="Head Office" 
-                                  readOnly 
-                                  className="pl-10 bg-amber-50 border-amber-100 font-bold text-[#754319]" 
-                                />
+                        <div className="space-y-8">
+                          {/* Organization Section */}
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                                <MapPin className="h-5 w-5 text-[#754319]" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Organization</h3>
+                                <p className="text-xs text-gray-400">Assigned processing hub</p>
                               </div>
                             </div>
-                          ) : (
-                            <>
-                              <div className="space-y-2">
-                                <Label>District</Label>
-                                <div className="relative">
-                                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <Input 
-                                    value={formData.district} 
-                                    readOnly 
-                                    className="pl-10 bg-primary/5 border-primary/10 font-medium" 
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Branch</Label>
-                                <div className="relative">
-                                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <Input 
-                                    value={formData.branchName} 
-                                    readOnly 
-                                    className="pl-10 bg-primary/5 border-primary/10 font-medium" 
-                                  />
-                                </div>
-                              </div>
-                            </>
-                          )}
-                          <p className="text-[10px] text-muted-foreground italic">
-                            * Organization details are automatically assigned based on your account profile.
-                          </p>
-                        </CardContent>
-                      </Card>
 
-                          <Card className="border-none shadow-sm">
-                            <CardHeader className="bg-white border-b">
-                              <CardTitle className="text-lg flex items-center gap-2">
-                                <FileText className="w-5 h-5 text-primary" />
-                                Documentation
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                              <div
-                                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
-                                <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-sm font-medium">Click to upload documents</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">
-                                  Max {systemConfig.maxFileSizeMB}MB. Allowed: {systemConfig.allowedFileTypes.join(', ')}
+                            <Card className="border-[#eddcc0] bg-white/50 rounded-2xl overflow-hidden shadow-sm">
+                              <CardContent className="p-5 space-y-4">
+                                {formData.district === "Head Office" ? (
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Processing Center</Label>
+                                    <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-br from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30">
+                                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                                        <Building2 className="h-4 w-4 text-[#754319]" />
+                                      </div>
+                                      <span className="text-sm font-bold text-[#754319]">Head Office</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-4">
+                                    <div className="space-y-2">
+                                      <Label className="text-xs font-bold text-gray-500 uppercase tracking-tight">District</Label>
+                                      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 border border-gray-100">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                                          <Globe className="h-4 w-4 text-gray-400" />
+                                        </div>
+                                        <span className="text-sm font-bold text-gray-700">{formData.district}</span>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Branch</Label>
+                                      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 border border-gray-100">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                                          <Building2 className="h-4 w-4 text-gray-400" />
+                                        </div>
+                                        <span className="text-sm font-bold text-gray-700">{formData.branchName}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                <p className="text-[10px] text-gray-400 italic text-center px-2">
+                                  Organization details are automatically assigned based on your account profile.
                                 </p>
-                                <input
-                                  type="file"
-                                  ref={fileInputRef}
-                                  className="hidden"
-                                  multiple
-                                  onChange={handleFileUpload}
-                                />
-                              </div>
+                              </CardContent>
+                            </Card>
+                          </div>
 
+                          {/* Documentation Section */}
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
+                                <FileText className="h-5 w-5 text-[#754319]" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Compliance</h3>
+                                <p className="text-xs text-gray-400">Required legal documents</p>
+                              </div>
+                            </div>
+
+                            <div 
+                              className="border-2 border-dashed border-[#eadcc4] rounded-2xl p-8 text-center cursor-pointer hover:bg-[#fffcf5] transition-all group"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#eadcc4] mx-auto mb-3 group-hover:scale-110 transition-transform">
+                                <Upload className="w-6 h-6 text-gray-400" />
+                              </div>
+                              <p className="text-sm font-bold text-gray-700">Upload documents</p>
+                              <p className="text-[10px] text-gray-400 mt-1 px-4">
+                                Max {systemConfig.maxFileSizeMB}MB per file.
+                              </p>
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                multiple
+                                onChange={handleFileUpload}
+                              />
+                            </div>
+
+                            {documents.length > 0 && (
                               <div className="space-y-2">
                                 {documents.map(doc => (
-                                  <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-white border text-xs">
-                                    <div className="flex items-center gap-2">
-                                      <FileCheck className="w-3 h-3 text-green-500" />
-                                      <span className="truncate max-w-[120px]">{doc.name}</span>
+                                  <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 text-xs shadow-sm">
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                      <div className="p-2 rounded-lg bg-emerald-50 shrink-0">
+                                        <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                      </div>
+                                      <span className="truncate font-medium text-gray-700">{doc.name}</span>
                                     </div>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveDoc(doc.id)}>
-                                      <X className="w-3 h-3" />
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-rose-50 hover:text-rose-600" onClick={() => handleRemoveDoc(doc.id)}>
+                                      <X className="w-3.5 h-3.5" />
                                     </Button>
                                   </div>
                                 ))}
                               </div>
-                            </CardContent>
-                          </Card>
+                            )}
+                          </div>
 
                           {riskFactors.length > 0 && (
-                            <Card className="border-none shadow-sm bg-red-50/50">
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-xs font-bold uppercase text-red-800 flex items-center gap-2">
-                                  <AlertCircle className="w-3 h-3" /> AI Risk Analysis
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="p-4 space-y-2">
+                            <div className="p-5 rounded-2xl bg-rose-50 border border-rose-100 space-y-3">
+                              <div className="flex items-center gap-2">
+                                <ShieldAlert className="w-4 h-4 text-rose-600" />
+                                <span className="text-xs font-bold uppercase tracking-wider text-rose-800">Risk Analysis</span>
+                              </div>
+                              <div className="space-y-1.5">
                                 {riskFactors.map((rf, idx) => (
-                                  <div key={idx} className="text-[10px] text-red-700 bg-red-100/50 p-1.5 rounded flex items-center gap-2">
-                                    <div className="w-1 h-1 rounded-full bg-red-500" />
+                                  <div key={idx} className="text-[10px] text-rose-700 flex items-center gap-2 font-medium">
+                                    <div className="w-1 h-1 rounded-full bg-rose-400" />
                                     {rf}
                                   </div>
                                 ))}
-                              </CardContent>
-                            </Card>
+                              </div>
+                            </div>
                           )}
 
-                          <Button className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm text-sm font-medium transition-all" onClick={handleSubmit}>
+                          <Button 
+                            className="button-honey-solid w-full h-14 rounded-2xl text-base font-bold shadow-lg shadow-amber-900/20" 
+                            onClick={handleSubmit}
+                          >
                             Submit for Review
                           </Button>
                         </div>
