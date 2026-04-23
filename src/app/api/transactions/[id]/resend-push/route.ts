@@ -39,7 +39,7 @@ export async function POST(
       customerPhone: tx.userCredentials.phone,
       creditAccount: merchant.accountNumber,
       amount: tx.amount,
-      company: merchant.name
+      company: "NibterMerchant"
     }
 
     // 2. Call the external provider API (legacy flow)
@@ -54,7 +54,7 @@ export async function POST(
         customerPhone: tx.userCredentials.phone,
         creditAccount: merchant.accountNumber,
         amount: tx.amount,
-        company: merchant.name,
+        company: "NibterMerchant",
       })
 
       const baseUrl = process.env.PROVIDER_BASE_URL!

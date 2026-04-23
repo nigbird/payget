@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
-import { decryptProviderPayload } from '@/lib/crypto-provider';
+import { decryptProviderPayload, deriveSharedSecret } from '@/lib/crypto-provider';
 import crypto from 'crypto';
 
 /**
@@ -9,6 +9,12 @@ import crypto from 'crypto';
  */
 export async function POST(request: Request) {
   try {
+    const resolveTransactionByAnyReference = async (value: unknown) => {
+      if (typeof value !== 'string' || !value.trim()) return null;
+      const candidate = value.trim();
+      return (await db.getTransactionByReference(candidate)) || (await db.getTransactionById(candidate));
+    };
+
     // 0. Authenticate the provider request (Auth)
     const authHeader = request.headers.get('Authorization');
     const expectedToken = process.env.PROVIDER_CALLBACK_TOKEN;
@@ -21,9 +27,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('[CALLBACK] Received raw body:', JSON.stringify(body, null, 2));
     
-    const { payload, salt, tag, cksum } = body;
+    const { payload, salt, tag, cksum, pubkey: providerPubKey } = body;
     // The provider might send transactionRef under different names
-    const transactionRef = body.transactionRef || body.transactionReference || body.externalReference || body.requestId;
+    let transactionRef =
+      body.transactionRef ||
+      body.transactionReference ||
+      body.externalReference ||
+      body.requestId ||
+      body.transactionId ||
+      body.cbsreference;
 
     if (!payload || !salt || !tag || !cksum) {
       console.error('[CALLBACK] Malformed payload. Missing one of: payload, salt, tag, cksum');
@@ -31,32 +43,70 @@ export async function POST(request: Request) {
     }
 
     // 1. Verify Integrity (SHA-256 checksum of encrypted payload)
-    const computedCksum = crypto.createHash('sha256').update(payload).digest('hex');
-    if (computedCksum !== cksum) {
-      console.error('[CALLBACK] Integrity check failed. Expected:', cksum, 'Computed:', computedCksum);
+    // Provider integrations may checksum either raw hex text or decoded ciphertext bytes.
+    const computedCksumFromBytes = crypto.createHash('sha256').update(Buffer.from(payload, 'hex')).digest('hex');
+    const computedCksumFromText = crypto.createHash('sha256').update(payload).digest('hex');
+    const normalizedIncomingCksum = String(cksum).toLowerCase();
+
+    if (
+      normalizedIncomingCksum !== computedCksumFromBytes.toLowerCase() &&
+      normalizedIncomingCksum !== computedCksumFromText.toLowerCase()
+    ) {
+      console.error(
+        '[CALLBACK] Integrity check failed. Expected:',
+        cksum,
+        'Computed(bytes):',
+        computedCksumFromBytes,
+        'Computed(text):',
+        computedCksumFromText
+      );
       return NextResponse.json({ error: 'Integrity check failed' }, { status: 400 });
     }
 
-    // 2. Identify the transaction
-    if (!transactionRef) {
-       console.error('[CALLBACK] Missing transactionRef in root of request. Cannot identify transaction.');
-       return NextResponse.json({ error: 'Missing transactionRef' }, { status: 400 });
+    // 2. Identify transaction and obtain shared secret
+    // Prefer per-transaction shared secret when transactionRef is sent in root;
+    // otherwise derive secret from provider callback pubkey + server private key.
+    let tx: any = null;
+    let sharedSecret: Buffer | null = null;
+
+    if (transactionRef) {
+      tx = await resolveTransactionByAnyReference(transactionRef);
+      if (!tx) {
+        console.error('[CALLBACK] Transaction not found for reference:', transactionRef);
+        return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+      }
+
+      const sharedSecretBase64 = tx.userCredentials.providerSharedSecret;
+      if (!sharedSecretBase64) {
+        console.error('[CALLBACK] Shared secret not found for transaction:', tx.id);
+        return NextResponse.json({ error: 'Shared secret not found for this transaction' }, { status: 400 });
+      }
+
+      sharedSecret = Buffer.from(sharedSecretBase64, 'base64');
+    } else if (providerPubKey) {
+      const serverPrivateKeyBase64 = process.env.PROVIDER_SERVER_PRIVATE_KEY;
+      if (!serverPrivateKeyBase64) {
+        console.error('[CALLBACK] Missing transactionRef in root and PROVIDER_SERVER_PRIVATE_KEY is not configured');
+        return NextResponse.json({ error: 'Cannot identify transaction without transactionRef or server private key' }, { status: 400 });
+      }
+
+      try {
+        const serverPrivateKey = Buffer.from(serverPrivateKeyBase64.trim(), 'base64');
+        sharedSecret = deriveSharedSecret(providerPubKey, serverPrivateKey);
+      } catch (err) {
+        console.error('[CALLBACK] Failed to derive shared secret from provider pubkey:', err);
+        return NextResponse.json({ error: 'Failed to derive callback shared secret' }, { status: 400 });
+      }
+    } else {
+      console.error('[CALLBACK] Missing both transactionRef and callback pubkey. Cannot identify transaction.');
+      return NextResponse.json({ error: 'Missing transactionRef and pubkey' }, { status: 400 });
     }
 
-    const tx = await db.getTransactionByReference(transactionRef);
-    if (!tx) {
-      console.error('[CALLBACK] Transaction not found for reference:', transactionRef);
-      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
-    }
-
-    const sharedSecretBase64 = tx.userCredentials.providerSharedSecret;
-    if (!sharedSecretBase64) {
-      console.error('[CALLBACK] Shared secret not found for transaction:', tx.id);
-      return NextResponse.json({ error: 'Shared secret not found for this transaction' }, { status: 400 });
+    if (!sharedSecret) {
+      return NextResponse.json({ error: 'Missing shared secret' }, { status: 400 });
     }
 
     // 3. Decrypt the payload
-    const sharedSecret = Buffer.from(sharedSecretBase64, 'base64');
     let decryptedData: any;
     try {
       decryptedData = decryptProviderPayload({ payload, salt, tag }, sharedSecret);
@@ -66,6 +116,28 @@ export async function POST(request: Request) {
       // Even if decryption fails, if we got a callback, something happened.
       // But we can't be sure of the status without decryption.
       return NextResponse.json({ error: 'Decryption failed' }, { status: 400 });
+    }
+
+    // If root reference was absent, recover it from decrypted payload and resolve tx.
+    if (!transactionRef) {
+      transactionRef =
+        decryptedData.transactionRef ||
+        decryptedData.transactionReference ||
+        decryptedData.externalReference ||
+        decryptedData.requestId ||
+        decryptedData.transactionId ||
+        decryptedData.cbsreference;
+
+      if (!transactionRef) {
+        console.error('[CALLBACK] Missing transactionRef in both root and decrypted payload');
+        return NextResponse.json({ error: 'Missing transactionRef' }, { status: 400 });
+      }
+
+      tx = await resolveTransactionByAnyReference(transactionRef);
+      if (!tx) {
+        console.error('[CALLBACK] Transaction not found for decrypted reference:', transactionRef);
+        return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+      }
     }
 
     // 4. Update transaction status
