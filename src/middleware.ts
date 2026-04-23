@@ -17,15 +17,35 @@ export default auth((req) => {
     pathname === "/merchant/review-update" || 
     pathname === "/merchant/setup-password"
 
+  const isAuthRoute = 
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password")
+
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
+    if (pathname === "/login") return
     return Response.redirect(new URL("/login", req.url))
   }
 
   if (isMerchantRoute && !isLoggedIn && !isAuthExemptRoute) {
+    if (pathname === "/login/merchant") return
     const loginUrl = new URL("/login/merchant", req.url)
     // Add callbackUrl so NextAuth knows where to redirect after login
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
     return Response.redirect(loginUrl)
+  }
+
+  if (!isLoggedIn && !isAuthRoute) {
+    // Redirect to login if not authenticated
+    return Response.redirect(new URL("/login", req.url))
+  }
+
+  // Check if session is expired
+  const sessionExpiry = req.cookies.get("next-auth.session-token")?.expires
+  if (sessionExpiry && new Date(sessionExpiry) < new Date()) {
+    console.warn("Session expired. Redirecting to login.")
+    return Response.redirect(new URL("/login", req.url))
   }
 
   if (isLoggedIn) {
@@ -47,10 +67,20 @@ export default auth((req) => {
 
     if (pathname === "/login" || pathname === "/login/merchant" || pathname === "/") {
       if (userRole === "MERCHANT" || userRole === "SALES") {
+        if (pathname === "/merchant") return
         return Response.redirect(new URL("/merchant", req.url))
       } else {
-        const landing = getAdminLandingPath() || "/admin"
-        return Response.redirect(new URL(landing, req.url))
+        const landing = getAdminLandingPath()
+        if (landing && landing !== pathname) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        // If logged in as admin but no specific landing found, 
+        // only redirect to /admin if they have global view permission
+        if (userPermissions.includes("DASHBOARD_GLOBAL_VIEW") && pathname !== "/admin") {
+          return Response.redirect(new URL("/admin", req.url))
+        }
+        // Otherwise, don't redirect to avoid potential loops
+        return
       }
     }
 

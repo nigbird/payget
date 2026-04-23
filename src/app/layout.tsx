@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
+import { SessionWatcher } from "@/components/session-watcher";
 
 export const metadata: Metadata = {
   title: 'NibTeraMerchant APP',
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background">
         <AuthSessionProvider>
           {children}
+          <SessionWatcher />
           <Toaster />
         </AuthSessionProvider>
       </body>
