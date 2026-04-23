@@ -15,10 +15,10 @@ import { Button } from "@/components/ui/button"
 import { Clock, LogIn, AlertCircle } from "lucide-react"
 import { SESSION_EXPIRED_EVENT } from "@/lib/api-client"
 
-// Configuration for session behavior (2-minute test period)
-const INACTIVITY_TIMEOUT = 2 * 60 * 1000 // 2 minutes of inactivity
-const WARNING_THRESHOLD = 1 * 60 * 1000 // Show warning 1 minute before timeout
-const SESSION_CHECK_INTERVAL = 15 * 1000 // Check every 15 seconds for testing
+// Configuration for session behavior (30-minute period)
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000 // 30 minutes of inactivity
+const WARNING_THRESHOLD = 28 * 60 * 1000 // Show warning 2 minutes before timeout (at 28 min)
+const SESSION_CHECK_INTERVAL = 30 * 1000 // Check every 30 seconds
 const ACTIVITY_STORAGE_KEY = "last_activity_timestamp"
 
 export function SessionWatcher() {
@@ -142,6 +142,12 @@ export function SessionWatcher() {
 
   // Periodic session check and inactivity timeout
   useEffect(() => {
+    if (isAuthPage) {
+      if (showTimeoutModal) setShowTimeoutModal(false)
+      if (isExpiring) setIsExpiring(false)
+      return
+    }
+
     const interval = setInterval(() => {
       const now = Date.now()
       const lastActivity = lastActivityRef.current
@@ -188,6 +194,8 @@ export function SessionWatcher() {
     // the session is fully cleared before landing on the login page.
     signOut({ callbackUrl: loginUrl })
   }
+
+  if (isAuthPage) return null
 
   return (
     <Dialog open={showTimeoutModal} onOpenChange={expiredReason ? undefined : setShowTimeoutModal}>
