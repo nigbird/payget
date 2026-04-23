@@ -164,8 +164,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     )
   }
 
-  const handleRequestPayment = async (mode: "push" | "link") => {
-    const amountNum = parseFloat(requestForm.amount)
+  const handleRequestPayment = async (mode: "push" | "link", retryData?: { amount: string; phone: string }) => {
+    const amount = retryData?.amount || requestForm.amount
+    const phone = retryData?.phone || requestForm.payerPhone
+    
+    const amountNum = parseFloat(amount)
     if (isNaN(amountNum) || amountNum <= 0) {
       toast({
         variant: "destructive",
@@ -175,7 +178,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       return
     }
 
-    if (!requestForm.payerPhone.trim()) {
+    if (!phone.trim()) {
       toast({
         variant: "destructive",
         title: "Phone Required",
@@ -200,7 +203,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         merchantId: id,
         transactionId,
         userCredentials: {
-          phone: requestForm.payerPhone,
+          phone: phone,
           authToken,
         },
         amount: amountNum,
@@ -279,8 +282,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       })
       
       setLastRequestDetails({
-        amount: requestForm.amount,
-        phone: requestForm.payerPhone
+        amount: amount,
+        phone: phone
       })
 
       // Close the request panel
@@ -759,9 +762,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <Button 
                     onClick={() => {
                       setIsSuccessModalOpen(false)
-                      handleRequestPayment("push")
+                      handleRequestPayment("push", {
+                        amount: lastRequestDetails?.amount || "",
+                        phone: lastRequestDetails?.phone || ""
+                      })
                     }}
-                    className="w-full h-12 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md flex items-center justify-center gap-2 transition-all"
+                    className="button-honey-solid w-full h-12 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span className="font-medium">Resend Push Notification</span>
