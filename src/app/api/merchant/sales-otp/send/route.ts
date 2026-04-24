@@ -25,6 +25,8 @@ export async function POST(request: Request) {
 
   const otp = generateSalesOtp(phone)
 
+  console.info("[sales-otp] OTP generated and sent", { phone, otp })
+
   await sendNotification({
     to: phone,
     subject: 'Your Sales Login OTP',

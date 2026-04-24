@@ -221,11 +221,11 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
   if (!merchant) return null
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
+    <div className="space-y-6 pb-6">
+      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href={`/merchant/${id}`} className="p-2 rounded-xl bg-white/80 border border-white/70 hover:bg-white transition-colors">
+            <Link href={`/merchant/${id}`} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/70 bg-white/80 hover:bg-white transition-colors">
               <ArrowLeft className="h-5 w-5 text-[#754319]" />
             </Link>
             <div>
@@ -235,7 +235,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           </div>
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-700/30 hover:-translate-y-0.5 transition-all"
+            className="h-11 min-h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-700/30 hover:-translate-y-0.5 transition-all"
           >
             <UserPlus className="mr-2 h-4 w-4" />
             Add Team Member
@@ -243,10 +243,59 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
         </div>
       </section>
 
-      <section>
+      <section className="space-y-3">
+        <div className="space-y-3 md:hidden">
+          {teamMembers.map((member) => (
+            <Card key={`mobile-${member.id}`} className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-gradient-to-br from-[#f8b513]/20 to-[#754319]/20 shadow-sm">
+                    <span className="text-sm font-bold text-[#754319]">{member.name.split(" ").map(n => n[0]).join("").toUpperCase()}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-[#5b371f]">{member.name}</p>
+                    <p className="truncate text-xs text-[#754319]/70">{member.email}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full px-3 py-0.5 text-[11px] font-medium border-0 ${
+                      member.role === "account_admin" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {member.role === "account_admin" ? "Account Admin" : "Sales"}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full px-3 py-0.5 text-[11px] font-medium border-0 ${
+                      member.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                    }`}
+                  >
+                    {member.status === "active" ? "Active" : "Deactivated"}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => openEditModal(member)}>
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-xl"
+                    onClick={() => toggleMemberStatus(member)}
+                  >
+                    {member.status === "active" ? "Deactivate" : "Activate"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
         <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm overflow-hidden">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader className="bg-white/40">
                   <TableRow className="border-white/40 hover:bg-transparent">
@@ -348,7 +397,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
         </Card>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-12">
         <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm p-6">
           <h3 className="text-lg font-bold text-[#5b371f] mb-4 flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-amber-600" />
@@ -386,14 +435,14 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
 
       {/* Add Member Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm max-h-[90vh] overflow-hidden">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Add Team Member</DialogTitle>
             <DialogDescription className="text-slate-500">
               Invite a new member to your merchant team.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddMember} className="space-y-4 px-6 py-4">
+          <form onSubmit={handleAddMember} className="space-y-4 px-4 sm:px-6 py-4 overflow-y-auto">
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
@@ -443,7 +492,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter className="pt-4 pb-2">
+            <DialogFooter className="pt-4 pb-2 flex-col sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
@@ -465,14 +514,14 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
 
       {/* Edit Member Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm max-h-[90vh] overflow-hidden">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Edit Team Member</DialogTitle>
             <DialogDescription className="text-slate-500">
               Update details for {selectedMember?.name}.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleEditMember} className="space-y-4 px-6 py-4">
+          <form onSubmit={handleEditMember} className="space-y-4 px-4 sm:px-6 py-4 overflow-y-auto">
             <div className="space-y-1.5">
               <Label htmlFor="edit-name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
@@ -522,7 +571,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter className="pt-4 pb-2">
+            <DialogFooter className="pt-4 pb-2 flex-col sm:flex-row">
               <Button
                 type="button"
                 variant="outline"

@@ -199,9 +199,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   }
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
-        <div className="flex items-start justify-between gap-4">
+    <div className="space-y-4 pb-6">
+      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Transactions</p>
             <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">{merchant.name}</h1>
@@ -210,7 +210,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             </p>
           </div>
 
-          <div className="hidden md:flex items-center gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center md:gap-3">
             <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2 shadow-sm flex items-center gap-3">
               <Wallet className="h-4 w-4 text-[#754319]" />
               <div className="text-right">
@@ -228,7 +228,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col lg:flex-row lg:items-end gap-3">
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="flex-1">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="relative">
@@ -237,7 +237,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search order ID or customer reference..."
-                  className="pl-9 rounded-2xl border-white/60 bg-white/80"
+                  className="h-11 pl-9 rounded-2xl border-white/60 bg-white/80"
                 />
               </div>
 
@@ -248,7 +248,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full justify-start rounded-2xl border-white/60 bg-white/80 text-[#754319] hover:bg-white/90"
+                      className="h-11 w-full justify-start rounded-2xl border-white/60 bg-white/80 text-[#754319] hover:bg-white/90"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {dateRangeLabel}
@@ -274,7 +274,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Status</Label>
                 <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                  <SelectTrigger className="rounded-2xl border-white/60 bg-white/80 text-[#754319]">
+                  <SelectTrigger className="h-11 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -295,7 +295,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   value={amountMin}
                   onChange={(e) => setAmountMin(e.target.value)}
                   placeholder="0.00"
-                  className="rounded-2xl border-white/60 bg-white/80"
+                  className="h-11 rounded-2xl border-white/60 bg-white/80"
                 />
               </div>
 
@@ -307,7 +307,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   value={amountMax}
                   onChange={(e) => setAmountMax(e.target.value)}
                   placeholder="5000.00"
-                  className="rounded-2xl border-white/60 bg-white/80"
+                  className="h-11 rounded-2xl border-white/60 bg-white/80"
                 />
                 <div className="mt-2">
                   <Slider
@@ -331,7 +331,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Table density</Label>
                 <Select value={density} onValueChange={(v) => setDensity(v as Density)}>
-                  <SelectTrigger className="rounded-2xl border-white/60 bg-white/80 text-[#754319]">
+                  <SelectTrigger className="h-11 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
                     <SelectValue placeholder="Density" />
                   </SelectTrigger>
                   <SelectContent>
@@ -344,7 +344,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     type="button"
                     variant="outline"
                     onClick={handleReset}
-                    className="rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
+                    className="h-11 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
                   >
                     Reset
                   </Button>
@@ -369,8 +369,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
         </div>
       </section>
 
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
-        <div className="flex items-center justify-between gap-4">
+      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Results</p>
             <p className="mt-1 text-sm text-[#754319]/70">
@@ -389,7 +389,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           <div className="flex items-center gap-2">
             <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Page size</Label>
             <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-              <SelectTrigger className="w-28 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
+              <SelectTrigger className="h-11 w-28 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -401,8 +401,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="rounded-2xl border border-white/60 bg-white/70 overflow-hidden">
+        <div className="mt-4 hidden md:block">
+          <div className="rounded-2xl border border-white/60 bg-white/70 overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -457,6 +457,31 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           </div>
         </div>
 
+        <div className="mt-4 space-y-3 md:hidden">
+          {pageItems.items.length === 0 ? (
+            <div className="rounded-2xl border border-white/60 bg-white/70 p-4 text-sm text-muted-foreground">
+              No transactions match your filters.
+            </div>
+          ) : (
+            pageItems.items.map((tx) => (
+              <Card key={tx.id} className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+                <CardContent className="space-y-2 p-4">
+                  <p className="text-xs text-[#754319]/70">{new Date(tx.timestamp).toLocaleString()}</p>
+                  <p className="break-words text-sm font-semibold text-[#5b371f]">{tx.serviceDescription}</p>
+                  <p className="break-all font-mono text-xs text-[#754319]/70">{tx.transactionReference}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</span>
+                    <Badge variant="outline" className={cn("rounded-full text-[10px] capitalize", badgeFor(tx.status))}>
+                      {statusLabel(tx.status)}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-[#754319]/70">{tx.payerPhone || tx.userCredentials.phone}</p>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
         <div className="mt-4 flex items-center justify-between gap-3">
           <div className="text-xs text-[#754319]/70">
             Page <span className="font-semibold text-[#5b371f]">{pageItems.safePageIndex + 1}</span> of{" "}
@@ -467,7 +492,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             <Button
               type="button"
               variant="outline"
-              className="rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
+              className="h-11 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
               onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
               disabled={pageItems.safePageIndex === 0}
             >
@@ -476,7 +501,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             <Button
               type="button"
               variant="outline"
-              className="rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
+              className="h-11 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
               onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
               disabled={pageItems.safePageIndex >= pageCount - 1}
             >

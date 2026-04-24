@@ -397,8 +397,8 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-5 md:p-7 shadow-xl backdrop-blur-md">
+    <div className="mx-auto max-w-4xl space-y-5 pb-6">
+      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
         <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Configuration</p>
         <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">Account Settings</h1>
         <p className="mt-1 text-sm text-[#754319]/70">
@@ -410,10 +410,10 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         <CardContent className="p-0">
           {/* Tab Navigation */}
           <div className="border-b border-white/40 bg-gradient-to-r from-white/80 to-white/60 px-4 md:px-6 py-4">
-            <div className="flex space-x-1">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setActiveTab("system")}
-                className={`relative px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
+                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   activeTab === "system"
                     ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-600/30"
                     : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
@@ -427,7 +427,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               </button>
               <button
                 onClick={() => setActiveTab("profile")}
-                className={`relative px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
+                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   activeTab === "profile"
                     ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-600/30"
                     : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
@@ -510,7 +510,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           value={formData.companyName}
                           onChange={(e) => setFormData((p) => ({ ...p, companyName: e.target.value }))}
                           placeholder="Acme Payments Ltd."
-                          className="rounded-2xl border-white/60 bg-white/85"
+                          className="h-11 rounded-2xl border-white/60 bg-white/85"
                         />
                         <p className="text-xs text-muted-foreground">Public business identity shown on payment records and receipts.</p>
                         {errors.companyName && <p className="text-xs text-rose-600">{errors.companyName}</p>}
@@ -523,7 +523,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           value={formData.accountNumber}
                           onChange={(e) => setFormData((p) => ({ ...p, accountNumber: e.target.value }))}
                           placeholder="1234567890"
-                          className="rounded-2xl border-white/60 bg-white/85"
+                          className="h-11 rounded-2xl border-white/60 bg-white/85"
                         />
                         <p className="text-xs text-muted-foreground">Settlement account reference used by gateway operations.</p>
                         {errors.accountNumber && <p className="text-xs text-rose-600">{errors.accountNumber}</p>}
@@ -555,7 +555,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           value={profileData.username}
                           onChange={(e) => setProfileData((p) => ({ ...p, username: e.target.value }))}
                           placeholder="email@example.com or 0912345678"
-                          className="rounded-2xl border-white/60 bg-white/85"
+                          className="h-11 rounded-2xl border-white/60 bg-white/85"
                         />
                         <p className="text-xs text-muted-foreground">This is your login username and can be either email or phone.</p>
                         {errors.username && <p className="text-xs text-rose-600">{errors.username}</p>}
@@ -587,7 +587,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                               type="file"
                               accept="image/png,image/jpeg,image/jpg,image/webp"
                               disabled={!canEdit || isLogoUploading}
-                              className="rounded-2xl border-white/60 bg-white/85"
+                              className="h-11 rounded-2xl border-white/60 bg-white/85"
                               onChange={(e) => {
                                 const f = e.target.files?.[0]
                                 if (f) void handleLogoUpload(f)
@@ -622,12 +622,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             value={profileData.currentPassword}
                             onChange={(e) => setProfileData((p) => ({ ...p, currentPassword: e.target.value }))}
                             placeholder="Enter current password"
-                            className="rounded-2xl border-white/60 bg-white/85 pr-10"
+                            className="h-11 rounded-2xl border-white/60 bg-white/85 pr-10"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-                            className="absolute right-3 top-3 text-[#754319]/60 hover:text-[#5b371f]"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#754319]/60 hover:text-[#5b371f]"
                           >
                             {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
@@ -644,12 +644,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             value={profileData.newPassword}
                             onChange={(e) => setProfileData((p) => ({ ...p, newPassword: e.target.value }))}
                             placeholder="Enter new password"
-                            className="rounded-2xl border-white/60 bg-white/85 pr-10"
+                            className="h-11 rounded-2xl border-white/60 bg-white/85 pr-10"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                            className="absolute right-3 top-3 text-[#754319]/60 hover:text-[#5b371f]"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#754319]/60 hover:text-[#5b371f]"
                           >
                             {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
@@ -685,12 +685,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             value={profileData.confirmPassword}
                             onChange={(e) => setProfileData((p) => ({ ...p, confirmPassword: e.target.value }))}
                             placeholder="Confirm new password"
-                            className="rounded-2xl border-white/60 bg-white/85 pr-10"
+                            className="h-11 rounded-2xl border-white/60 bg-white/85 pr-10"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                            className="absolute right-3 top-3 text-[#754319]/60 hover:text-[#5b371f]"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#754319]/60 hover:text-[#5b371f]"
                           >
                             {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
@@ -710,8 +710,8 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/80 p-4">
-                      <div>
+                    <div className="flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <p className="text-sm font-medium text-[#5b371f]">Active Sessions</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
@@ -722,7 +722,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         variant="outline"
                         size="sm"
                         onClick={handleLogoutOtherSessions}
-                        className="border-[#754319]/30 text-[#754319] hover:bg-[#754319]/10"
+                        className="h-11 border-[#754319]/30 text-[#754319] hover:bg-[#754319]/10"
                       >
                         <LogOut className="mr-2 h-3 w-3" />
                         Log out others
@@ -734,7 +734,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/60 pt-6 mt-6">
+            <div className="mt-6 flex flex-col gap-3 border-t border-white/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 type="button"
                 onClick={activeTab === "system" ? handleSaveSystem : handleSaveProfile}

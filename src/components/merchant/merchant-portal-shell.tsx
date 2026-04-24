@@ -10,7 +10,6 @@ import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
-import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 
 export type MerchantPortalModuleRole =
@@ -32,7 +31,6 @@ export default function MerchantPortalShell({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const isMobile = useIsMobile()
   const { data: session, status } = useSession()
 
   const [merchant, setMerchant] = React.useState<Merchant | null>(null)
@@ -132,8 +130,8 @@ export default function MerchantPortalShell({
   return (
     <MerchantPortalRoleContext.Provider value={activeRole}>
       <div className="min-h-svh bg-app-main">
-        <header className="sticky top-0 z-50 border-b border-white/50 bg-white/70 backdrop-blur-md">
-          <div className="mx-auto w-full max-w-7xl px-4 md:px-8 h-16 flex items-center gap-3">
+        <header className="sticky top-0 z-50 border-b border-white/50 bg-white/85 backdrop-blur-md">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-3 py-2 md:h-16 md:flex-nowrap md:gap-3 md:px-8">
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden">
                 {merchant?.logoUrl ? (
@@ -155,20 +153,15 @@ export default function MerchantPortalShell({
               </div>
             </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3">
+            <div className="order-3 w-full min-w-0 md:order-none md:flex-1">
+              <div className="flex items-center gap-2 md:gap-3">
                 <div className="hidden md:block">
                   <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">
                     {isSalesUser ? "Sales Workspace" : "Management Modules"}
                   </p>
                 </div>
 
-                <div
-                  className={cn(
-                    "flex items-center gap-1 rounded-2xl bg-white/65 border border-white/60 backdrop-blur-sm px-1 py-1",
-                    isMobile ? "w-auto" : "w-auto"
-                  )}
-                >
+                <div className={cn("flex w-full items-center gap-1 overflow-x-auto rounded-2xl border border-white/60 bg-white/65 px-1 py-1 backdrop-blur-sm md:w-auto")}>
                   {visibleNavItems.map((item) => {
                     const Icon = item.icon
                     const isActive =
@@ -179,7 +172,7 @@ export default function MerchantPortalShell({
                         key={item.key}
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-xl transition-all whitespace-nowrap",
+                          "flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 transition-all",
                           isActive
                             ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-md shadow-amber-600/25"
                             : "text-[#754319] hover:bg-white/90"
@@ -195,11 +188,11 @@ export default function MerchantPortalShell({
               </div>
             </div>
 
-            <div className="shrink-0 ml-auto md:ml-0 flex items-center gap-2 md:gap-3">
+            <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:gap-3">
               {isSalesUser && assignedMerchants.length > 1 ? (
                 <div className="min-w-[140px] md:min-w-[220px]">
                   <Select value={merchantId} onValueChange={(value) => router.push(`/merchant/${value}`)}>
-                    <SelectTrigger className="w-full rounded-xl border border-[#E5E7EB] bg-white text-xs md:text-sm text-[#5b371f] shadow-sm">
+                  <SelectTrigger className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white text-xs text-[#5b371f] shadow-sm md:text-sm">
                       <SelectValue placeholder={merchant?.name ?? "Select merchant"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -217,7 +210,7 @@ export default function MerchantPortalShell({
                 variant="ghost"
                 size="sm"
                 onClick={() => signOut({ callbackUrl: "/login/merchant" })}
-                className="text-[#754319] hover:bg-red-50 hover:text-red-600 rounded-xl gap-2 px-2 md:px-3"
+                className="h-11 min-h-11 gap-2 rounded-xl px-2 text-[#754319] hover:bg-red-50 hover:text-red-600 md:px-3"
                 title="Log Out"
               >
                 <LogOut className="h-4 w-4" />
