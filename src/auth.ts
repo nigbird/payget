@@ -84,13 +84,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       name: "Sales OTP",
       credentials: {
         phone: { label: "Phone", type: "tel" },
-        otp: { label: "OTP", type: "text" }
+        otp: { label: "OTP", type: "text" },
+        merchantId: { label: "Merchant ID", type: "text" }
       },
       authorize: async (credentials) => {
         const rawPhone = credentials?.phone
         const rawOtp = credentials?.otp
+        const rawMerchantId = credentials?.merchantId
         const phone = typeof rawPhone === 'string' ? rawPhone.trim() : ''
         const otp = typeof rawOtp === 'string' ? rawOtp.trim() : ''
+        const merchantId = typeof rawMerchantId === 'string' ? rawMerchantId.trim() : ''
+        
         if (!phone || !otp) return null
 
         if (!verifySalesOtp(phone, otp)) return null
@@ -107,6 +111,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null
         }
 
+        // If merchantId is provided, find that specific member/merchant association
+        let selectedMember = activeMembers[0]
+        if (merchantId) {
+          const found = activeMembers.find(m => m.merchantId === merchantId)
+          if (found) {
+            selectedMember = found
+          }
+        }
+
         const assignedMerchantIds = Array.from(
           new Set(activeMembers.map((member) => member.merchantId))
         )
@@ -117,10 +130,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         return {
           id: `sales-${phone}`,
-          email: activeMembers[0].email,
-          name: activeMembers[0].name,
+          email: selectedMember.email,
+          name: selectedMember.name,
           role: 'SALES',
-          merchantId: activeMembers[0].merchantId,
+          merchantId: selectedMember.merchantId,
           assignedMerchantIds,
           assignedMerchants,
           permissions: []
@@ -164,6 +177,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).isHeadOffice = token.isHeadOffice;
         (session.user as any).district = token.district;
         (session.user as any).branch = token.branch;
+        (session.user as any).assignedMerchantIds = token.assignedMerchantIds;
+        (session.user as any).assignedMerchants = token.assignedMerchants;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
       }

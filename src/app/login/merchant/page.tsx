@@ -7,7 +7,14 @@ import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Lock, Mail, Phone, Eye, EyeOff, Hexagon } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Loader2, Lock, Mail, Phone, Eye, EyeOff, Hexagon, Building2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function MerchantLogin() {
@@ -25,6 +32,8 @@ export default function MerchantLogin() {
   })
   const [salesPhone, setSalesPhone] = useState("")
   const [salesOtp, setSalesOtp] = useState("")
+  const [merchants, setMerchants] = useState<{ id: string, name: string }[]>([])
+  const [selectedMerchantId, setSelectedMerchantId] = useState<string>("")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,6 +106,10 @@ export default function MerchantLogin() {
       }
 
       setOtpSent(true)
+      setMerchants(result.merchants || [])
+      if (result.merchants && result.merchants.length > 0) {
+        setSelectedMerchantId(result.merchants[0].id)
+      }
       toast({
         title: "OTP Sent",
         description: result.message || 'A one-time code has been sent to your phone.'
@@ -134,6 +147,7 @@ export default function MerchantLogin() {
       const result = await signIn("sales-otp", {
         phone: salesPhone,
         otp: salesOtp,
+        merchantId: selectedMerchantId,
         redirect: false,
       })
 
@@ -166,6 +180,8 @@ export default function MerchantLogin() {
     setSalesPhone("")
     setSalesOtp("")
     setOtpSent(false)
+    setMerchants([])
+    setSelectedMerchantId("")
   }
 
   return (
@@ -315,6 +331,36 @@ export default function MerchantLogin() {
                       />
                     </div>
                   </div>
+                  {otpSent && merchants.length > 1 && (
+                    <div className="space-y-2.5 animate-fade-in">
+                      <Label htmlFor="merchant-select" className="text-sm font-semibold text-[#374151]">Select Merchant</Label>
+                      <div className="relative group">
+                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors z-10" />
+                        <Select
+                          value={selectedMerchantId}
+                          onValueChange={setSelectedMerchantId}
+                        >
+                          <SelectTrigger 
+                            id="merchant-select"
+                            className="h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                          >
+                            <SelectValue placeholder="Select a merchant" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-[#E5E7EB] bg-white/95 backdrop-blur-md shadow-xl">
+                            {merchants.map((merchant) => (
+                              <SelectItem 
+                                key={merchant.id} 
+                                value={merchant.id}
+                                className="focus:bg-[#f8b513]/10 focus:text-[#754319] rounded-lg cursor-pointer"
+                              >
+                                {merchant.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
                   {otpSent && (
                     <div className="space-y-2.5">
                       <Label htmlFor="sales-otp" className="text-sm font-semibold">OTP Code</Label>

@@ -33,5 +33,19 @@ export async function POST(request: Request) {
     message: `Your one-time login code is ${otp}. It expires in 5 minutes.`
   })
 
-  return NextResponse.json({ success: true, message: 'OTP sent to your phone number.' })
+  const merchants = activeMembers.map(member => ({
+    id: member.merchantId,
+    name: member.merchant.name
+  }))
+
+  // Deduplicate merchants by ID
+  const uniqueMerchants = Array.from(
+    new Map(merchants.map(m => [m.id, m])).values()
+  )
+
+  return NextResponse.json({ 
+    success: true, 
+    message: 'OTP sent to your phone number.',
+    merchants: uniqueMerchants
+  })
 }
