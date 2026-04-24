@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { sendSms } from '@/lib/sms';
 
 /**
  * Notification system abstraction for Email and SMS.
@@ -80,10 +81,12 @@ async function sendEmailNotification(email: string, subject: string, message: st
  * Placeholder for SMS provider integration (e.g., Twilio, MessageBird, Infobip).
  */
 async function sendSMSNotification(phone: string, message: string): Promise<boolean> {
-  // Current logic for SMS is console log only until a provider is configured
-  console.log(`[SMS] Sending to: ${phone}`);
-  console.log(`[SMS] Message: ${message}`);
-  
+  const result = await sendSms(phone, message);
+  if (!result.ok) {
+    console.error(`[SMS-ERROR] Failed to send to ${phone}:`, result);
+    return false;
+  }
+
   return true;
 }
 
