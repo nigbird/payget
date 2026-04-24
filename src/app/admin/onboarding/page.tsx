@@ -80,6 +80,7 @@ export default function MerchantOnboardingPage() {
   const { data: session } = useSession()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [systemConfig, setSystemConfig] = useState<any>({
     districts: [],
@@ -373,12 +374,27 @@ export default function MerchantOnboardingPage() {
       
       if (!isEmail && !isPhone) {
         newErrors.contactUsername = "Please enter a valid email or phone number"
+      } else {
+        // Check uniqueness
+        const checkUniqueRes = await fetch('/api/users/check-unique', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: formData.contactUsername })
+        })
+        const uniqueData = await checkUniqueRes.json()
+        if (!uniqueData.isUnique) {
+          newErrors.contactUsername = uniqueData.message
+        }
       }
     }
 
     if (!formData.category) newErrors.category = "Industry category is required"
     if (!formData.businessType) newErrors.businessType = "Business type is required"
     if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
+
+    if (documents.length === 0) {
+      newErrors.documents = "Please upload at least one compliance document"
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -582,7 +598,7 @@ export default function MerchantOnboardingPage() {
                                 <div className="flex items-center gap-4">
                                   <div 
                                     className="flex-1 border-2 border-dashed border-[#eadcc4] rounded-xl p-4 text-center cursor-pointer hover:bg-[#fffcf5] transition-colors"
-                                    onClick={() => fileInputRef.current?.click()}
+                                    onClick={() => logoInputRef.current?.click()}
                                   >
                                     <Upload className="w-6 h-6 mx-auto text-gray-400 mb-2" />
                                     <p className="text-xs font-medium text-gray-600">
@@ -590,7 +606,7 @@ export default function MerchantOnboardingPage() {
                                     </p>
                                     <input
                                       type="file"
-                                      ref={fileInputRef}
+                                      ref={logoInputRef}
                                       accept="image/*"
                                       className="hidden"
                                       onChange={(e) => {
@@ -600,8 +616,17 @@ export default function MerchantOnboardingPage() {
                                     />
                                   </div>
                                   {formData.logoUrl && (
-                                    <div className="w-16 h-16 rounded-xl border border-[#eadcc4] overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm">
+                                    <div className="relative group w-16 h-16 rounded-xl border border-[#eadcc4] overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm">
                                       <img src={formData.logoUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setFormData(prev => ({ ...prev, logoUrl: "" }));
+                                        }}
+                                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
                                     </div>
                                   )}
                                 </div>
@@ -871,7 +896,7 @@ export default function MerchantOnboardingPage() {
                             </div>
 
                             <div 
-                              className="border-2 border-dashed border-[#eadcc4] rounded-2xl p-8 text-center cursor-pointer hover:bg-[#fffcf5] transition-all group"
+                              className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer hover:bg-[#fffcf5] transition-all group ${errors.documents ? 'border-red-500 bg-red-50/10' : 'border-[#eadcc4]'}`}
                               onClick={() => fileInputRef.current?.click()}
                             >
                               <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#eadcc4] mx-auto mb-3 group-hover:scale-110 transition-transform">
@@ -889,18 +914,25 @@ export default function MerchantOnboardingPage() {
                                 onChange={handleFileUpload}
                               />
                             </div>
+                            {errors.documents && <p className="text-[10px] text-red-500 font-medium text-center">{errors.documents}</p>}
 
                             {documents.length > 0 && (
-                              <div className="space-y-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {documents.map(doc => (
-                                  <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 text-xs shadow-sm">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                      <div className="p-2 rounded-lg bg-emerald-50 shrink-0">
-                                        <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
-                                      </div>
-                                      <span className="truncate font-medium text-gray-700">{doc.name}</span>
+                                  <div key={doc.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 text-xs shadow-sm hover:border-[#f8b513]/30 transition-all">
+                                    <div className="p-2 rounded-lg bg-emerald-50 shrink-0">
+                                      <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
                                     </div>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-rose-50 hover:text-rose-600" onClick={() => handleRemoveDoc(doc.id)}>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="truncate font-medium text-gray-700">{doc.name}</p>
+                                      <p className="text-[10px] text-gray-400">{(doc.size / 1024 / 1024).toFixed(2)} MB</p>
+                                    </div>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 transition-all" 
+                                      onClick={() => handleRemoveDoc(doc.id)}
+                                    >
                                       <X className="w-3.5 h-3.5" />
                                     </Button>
                                   </div>
@@ -1314,6 +1346,10 @@ export default function MerchantOnboardingPage() {
                               <div className="text-center p-2 rounded-lg bg-slate-50 border border-slate-100 flex-1">
                                 <p className="text-[9px] uppercase text-slate-400 font-bold">Max Tx</p>
                                 <p className="text-xs font-bold">{selectedMerchant?.transactionLimit ?? "—"}</p>
+                              </div>
+                              <div className="text-center p-2 rounded-lg bg-slate-50 border border-slate-100 flex-1">
+                                <p className="text-[9px] uppercase text-slate-400 font-bold">Daily Count</p>
+                                <p className="text-xs font-bold">{selectedMerchant?.dailyCountLimit ?? "—"}</p>
                               </div>
                             </div>
                           </div>

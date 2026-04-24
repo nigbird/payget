@@ -225,6 +225,14 @@ export const db = {
     });
   },
 
+  getUserByEmailOrPhone: async (identifier: string) => {
+    return prisma.user.findFirst({
+      where: {
+        email: identifier
+      }
+    });
+  },
+
   findMerchantUserByMerchantId: async (merchantId: string) => {
     return prisma.user.findFirst({
       where: { merchantId, role: UserRole.MERCHANT },
