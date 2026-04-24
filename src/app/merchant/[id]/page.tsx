@@ -417,7 +417,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("push")}
-                  className="h-11 rounded-xl bg-amber-600 hover:bg-amber-700 text-sm font-medium text-white shadow-sm transition-all"
+                  className="h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:saturate-110 text-sm font-bold text-white shadow-lg shadow-amber-900/20 transition-all"
                   disabled={isSubmitting || !isApproved}
                 >
                   {isSubmitting && lastMode === "push" ? (
@@ -430,7 +430,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <Button
                   type="button"
                   onClick={() => handleRequestPayment("link")}
-                  className="h-11 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-sm font-medium shadow-sm transition-all"
+                  className="h-11 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-sm font-bold shadow-sm transition-all"
                   disabled={isSubmitting || !isApproved}
                 >
                   {isSubmitting && lastMode === "link" ? (
@@ -515,37 +515,16 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <h1 className="mt-2 text-[1.75rem] leading-tight md:text-3xl font-bold text-[#5b371f]">Welcome back, {merchant.name}</h1>
             <p className="mt-2 text-sm leading-6 md:text-base text-amber-800/60">A premium view of your requests, activity, and settlements.</p>
           </div>
-          <div className="hidden md:flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <Button
               disabled={!isApproved}
-              className="h-11 min-h-11 rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all"
+              className="h-10 md:h-11 min-h-[40px] md:min-h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all px-4 md:px-6"
               onClick={() => setIsRequestPanelOpen(true)}
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Request Payment
+              <Sparkles className="mr-2 h-4 w-4" />
+              <span className="text-sm font-bold">Push Payment</span>
             </Button>
           </div>
-        </div>
-      </section>
-
-      <section className="md:hidden rounded-2xl border border-amber-200/40 bg-white/90 p-3 shadow-sm">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-800/70">Quick actions</p>
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Button
-            disabled={!isApproved}
-            className="h-11 min-h-11 rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 text-white"
-            onClick={() => setIsRequestPanelOpen(true)}
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            Push Payment
-          </Button>
-          <Button
-            variant="outline"
-            asChild
-            className="h-11 min-h-11 rounded-xl border-amber-200 text-amber-900"
-          >
-            <Link href={`/merchant/${id}/transactions`}>View Transactions</Link>
-          </Button>
         </div>
       </section>
 
@@ -634,7 +613,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
         <SheetContent
             side="bottom"
-            className="max-h-[90vh] overflow-y-auto rounded-t-3xl border-0 bg-[linear-gradient(180deg,#fffaf0_0%,#fff5de_100%)] px-4 pb-[max(env(safe-area-inset-bottom),1.25rem)]"
+            className="max-h-[90vh] overflow-y-auto rounded-t-3xl border-0 bg-white px-4 pb-[max(env(safe-area-inset-bottom),1.25rem)]"
           >
           <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
           <SheetHeader className="text-left mb-4">
@@ -840,16 +819,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </DialogContent>
       </Dialog>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-amber-200/40 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
-        <Button
-          disabled={!isApproved}
-          className="h-12 min-h-12 w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 text-white"
-          onClick={() => setIsRequestPanelOpen(true)}
-        >
-          <Sparkles className="mr-2 h-4 w-4" />
-          Push Payment
-        </Button>
-      </div>
     </div>
   )
 }

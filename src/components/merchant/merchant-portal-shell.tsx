@@ -129,11 +129,11 @@ export default function MerchantPortalShell({
 
   return (
     <MerchantPortalRoleContext.Provider value={activeRole}>
-      <div className="min-h-svh bg-app-main">
+      <div className="min-h-svh bg-white">
         <header className="sticky top-0 z-50 border-b border-white/50 bg-white/85 backdrop-blur-md">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-3 py-2 md:h-16 md:flex-nowrap md:gap-3 md:px-8">
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden">
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden">
                 {merchant?.logoUrl ? (
                   <Image
                     src={merchant.logoUrl}
@@ -148,20 +148,21 @@ export default function MerchantPortalShell({
                   </span>
                 )}
               </div>
-              <div className="leading-tight hidden sm:block">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
+              <div className="leading-tight">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70 hidden md:block">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
+                <p className="text-sm font-bold text-[#5b371f] md:text-base">{merchant?.name || "Merchant"}</p>
               </div>
             </div>
 
             <div className="order-3 w-full min-w-0 md:order-none md:flex-1">
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="hidden md:block">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/40">
                     {isSalesUser ? "Sales Workspace" : "Management Modules"}
                   </p>
                 </div>
 
-                <div className={cn("flex w-full items-center gap-1 overflow-x-auto rounded-2xl border border-white/60 bg-white/65 px-1 py-1 backdrop-blur-sm md:w-auto")}>
+                <div className={cn("flex w-full items-center justify-around gap-1 rounded-[24px] border border-amber-200/40 bg-white/80 backdrop-blur-md shadow-xl md:w-auto md:justify-start md:overflow-x-auto md:rounded-2xl md:border-white/60 md:bg-white/65 md:shadow-none md:backdrop-blur-sm md:bg-none")}>
                   {visibleNavItems.map((item) => {
                     const Icon = item.icon
                     const isActive =
@@ -172,15 +173,35 @@ export default function MerchantPortalShell({
                         key={item.key}
                         href={item.href}
                         className={cn(
-                          "flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 transition-all",
+                          "relative flex flex-col items-center justify-center gap-1.5 px-2 py-1 transition-all duration-500 md:flex-row md:min-h-9 md:gap-2 md:rounded-xl md:px-3 md:py-1.5 md:whitespace-nowrap",
                           isActive
-                            ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-md shadow-amber-600/25"
-                            : "text-[#754319] hover:bg-white/90"
+                            ? "text-[#754319] md:bg-gradient-to-r md:from-[#f8b513] md:to-[#754319] md:text-white md:shadow-lg md:shadow-amber-600/30"
+                            : "text-[#754319]/50 hover:text-[#754319] md:text-[#754319]/70 md:hover:bg-white/90"
                         )}
                         title={item.label}
                       >
-                        <Icon className={cn("h-4 w-4", isActive ? "text-white" : "text-[#754319]")} />
-                        <span className="hidden md:inline text-sm font-semibold">{item.label}</span>
+                        <div className={cn(
+                          "relative flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-500 md:h-auto md:w-auto md:bg-transparent",
+                          isActive && "bg-gradient-to-r from-[#f8b513] to-[#754319] md:bg-none shadow-lg shadow-amber-600/20 md:shadow-none"
+                        )}>
+                          <Icon 
+                            className={cn(
+                              "h-5 w-5 transition-all duration-500 md:h-5 md:w-5", 
+                              isActive 
+                                ? "scale-110 rotate-[5deg] text-white md:scale-100 md:rotate-0 md:text-white md:stroke-[2.5px]" 
+                                : "text-[#754319]/60 md:text-[#754319] md:stroke-[1.5px]"
+                            )} 
+                          />
+                          {isActive && (
+                            <div className="absolute -bottom-0.5 h-1 w-4 rounded-full bg-[#f8b513] shadow-[0_0_8px_#f8b513] md:hidden animate-in fade-in zoom-in duration-500" />
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-[9px] font-bold uppercase tracking-wider md:tracking-tight md:text-sm md:font-bold md:capitalize md:inline",
+                          isActive ? "text-[#754319] md:text-inherit" : "text-[#754319]/40 md:text-inherit",
+                        )}>
+                          {item.label.split(' ')[0]}
+                        </span>
                       </Link>
                     )
                   })}
