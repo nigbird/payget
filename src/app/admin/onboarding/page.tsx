@@ -67,7 +67,8 @@ import {
   SlidersHorizontal,
   CreditCard,
   Store,
-  Download
+  Download,
+  MessageSquare
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument, Merchant } from "@/app/lib/db"
