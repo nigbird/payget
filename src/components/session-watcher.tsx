@@ -195,6 +195,12 @@ export function SessionWatcher() {
     signOut({ callbackUrl: loginUrl })
   }
 
+  const handleLogoutNow = useCallback(() => {
+    clearAuthData()
+    const loginUrl = pathname?.startsWith("/merchant") ? "/login/merchant" : "/login"
+    signOut({ callbackUrl: loginUrl })
+  }, [clearAuthData, pathname])
+
   if (isAuthPage) return null
 
   return (
@@ -220,7 +226,7 @@ export function SessionWatcher() {
             <>
               <Button 
                 variant="outline" 
-                onClick={() => logout("inactivity")}
+                onClick={handleLogoutNow}
                 className="w-full sm:flex-1 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
               >
                 Log Out
