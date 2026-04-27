@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'NibTeraMerchant APP',
   description: 'Secure Payment Gateway',
   icons: {
-    icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4b3.png',
+    icon: '/niblogo.png',
   },
 };
 

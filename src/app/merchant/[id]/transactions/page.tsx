@@ -14,6 +14,12 @@ import {
   FileText,
   User as UserIcon,
   TrendingUp,
+  Filter,
+  CheckCircle2,
+  X,
+  CalendarDays,
+  MoreVertical,
+  ChevronDown,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -54,14 +60,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [salesUserFilter, setSalesUserFilter] = useState<string>("all")
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
-  const [amountMin, setAmountMin] = useState<string>("")
-  const [amountMax, setAmountMax] = useState<string>("")
 
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(10)
-  const [density, setDensity] = useState<Density>("comfortable")
-
-  const [maxSlider, setMaxSlider] = useState<number>(5000)
 
   useEffect(() => {
     const fetchMerchant = async () => {
@@ -131,9 +132,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     const from = dateRange.from
     const to = dateRange.to
 
-    const min = amountMin.trim() ? Number(amountMin) : undefined
-    const max = amountMax.trim() ? Number(amountMax) : undefined
-
     const q = search.trim().toLowerCase()
 
     const fromMs = from ? new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime() : undefined
@@ -148,9 +146,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       if (fromMs !== undefined && txMs < fromMs) return false
       if (toMs !== undefined && txMs > toMs) return false
 
-      if (min !== undefined && Number.isFinite(min) && tx.amount < min) return false
-      if (max !== undefined && Number.isFinite(max) && tx.amount > max) return false
-
       if (q) {
         const orderText = `${tx.transactionReference} ${tx.description} ${tx.serviceDescription}`.toLowerCase()
         const customerText = `${tx.payerPhone ?? ""} ${tx.userCredentials.phone}`.toLowerCase()
@@ -159,13 +154,13 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       return true
     })
-  }, [transactions, amountMin, amountMax, dateRange.from, dateRange.to, search, statusFilter])
+  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
 
   useEffect(() => {
     setPageIndex(0)
-  }, [statusFilter, search, dateRange.from, dateRange.to, amountMin, amountMax, pageSize])
+  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, pageSize])
 
   const pageItems = useMemo(() => {
     const safePageIndex = Math.min(Math.max(0, pageIndex), pageCount - 1)
@@ -177,8 +172,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     }
   }, [filtered, pageIndex, pageSize, pageCount])
 
-  const densityHeadClass = density === "compact" ? "h-10 px-3 text-xs" : "h-12 px-4 text-sm"
-  const densityCellClass = density === "compact" ? "p-3 text-xs" : "p-4 text-sm"
+  const densityHeadClass = "h-12 px-4 text-sm"
+  const densityCellClass = "p-4 text-sm"
 
   const salesSummary = useMemo(() => {
     const summary: Record<string, { name: string, count: number, total: number }> = {}
@@ -250,413 +245,287 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return `${from?.toLocaleDateString()} - ${to?.toLocaleDateString()}`
   })()
 
+  const handleToday = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tonight = new Date()
+    tonight.setHours(23, 59, 59, 999)
+    setDateRange({ from: today, to: tonight })
+    toast({ title: "Filter applied", description: "Showing today's transactions." })
+  }
+
   const handleReset = () => {
     setStatusFilter("all")
     setSearch("")
     setSalesUserFilter("all")
     setDateRange({})
-    setAmountMin("")
-    setAmountMax("")
     setPageIndex(0)
-    setDensity("comfortable")
     toast({ title: "Filters cleared", description: "Showing all transactions." })
   }
 
   if (!merchant) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-muted/20 gap-4">
-        <Clock className="w-12 h-12 text-muted-foreground" />
-        <h2 className="text-xl font-bold">Merchant Not Found</h2>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fafafa] gap-4">
+        <Clock className="w-12 h-12 text-slate-300" />
+        <h2 className="text-xl font-bold text-slate-400">Merchant Not Found</h2>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 pb-6">
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
-        <div className="flex items-center gap-2 mb-6">
-          <TrendingUp className="w-5 h-5 text-amber-600" />
-          <h2 className="text-lg font-bold text-[#5b371f]">Sales Performance Summary</h2>
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 px-4 sm:px-6">
+      {/* Minimal Header */}
+      <header className="flex flex-col gap-4 pt-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{merchant.name}</h1>
+          <p className="text-sm font-medium text-slate-500">
+            {successCount} successful of {transactions.length} total
+          </p>
         </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {salesSummary.length === 0 ? (
-            <div className="col-span-full py-8 text-center text-muted-foreground italic bg-white/40 rounded-2xl border border-dashed border-white/60">
-              No successful transactions found for the current filters.
-            </div>
-          ) : (
-            salesSummary.map(([id, data]) => (
-              <Card key={id} className="rounded-2xl border-white/60 bg-white/80 shadow-sm overflow-hidden border-l-4 border-l-amber-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                      <UserIcon className="w-4 h-4 text-amber-700" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[#5b371f] truncate">{data.name}</p>
-                      <p className="text-[10px] text-[#754319]/70 uppercase tracking-wider">Sales User</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 border-t border-amber-100/50 pt-3">
-                    <div>
-                      <p className="text-[10px] text-[#754319]/70 uppercase">Collected</p>
-                      <p className="text-sm font-black text-amber-700">{data.total.toFixed(2)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-[#754319]/70 uppercase">Orders</p>
-                      <p className="text-sm font-black text-[#5b371f]">{data.count}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
-      </section>
 
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Transactions</p>
-            <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">{merchant.name}</h1>
-            <p className="mt-1 text-sm md:text-base text-[#754319]/70">
-              {successCount} successful • {transactions.length} total transactions
-            </p>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search..."
+              className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-amber-500/20"
+            />
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center md:gap-3">
-            <Button
-              onClick={exportToCSV}
-              variant="outline"
-              className="h-12 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90 shadow-sm gap-2"
-            >
-              <Download className="h-4 w-4" />
-              <span className="font-semibold">Export Report</span>
-            </Button>
-            <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2 shadow-sm flex items-center gap-3">
-              <Wallet className="h-4 w-4 text-[#754319]" />
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Received</p>
-                <p className="font-black text-[#5b371f]">{totalReceived.toFixed(2)} ETB</p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2 shadow-sm flex items-center gap-3">
-              <ShieldCheck className="h-4 w-4 text-[#754319]" />
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-[#754319]/70">Merchant</p>
-                <p className="font-semibold text-[#5b371f]">{merchant.status}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search order ID or customer reference..."
-                  className="h-11 pl-9 rounded-2xl border-white/60 bg-white/80"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Date range</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 w-full justify-start rounded-2xl border-white/60 bg-white/80 text-[#754319] hover:bg-white/90"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRangeLabel}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-3">
-                      <Calendar
-                        mode="range"
-                        selected={dateRange as any}
-                        onSelect={(range) => setDateRange((range ?? {}) as any)}
-                      />
-                      <div className="flex items-center justify-end gap-2 border-t p-3">
-                        <Button type="button" variant="ghost" onClick={() => setDateRange({})} className="rounded-2xl">
-                          Clear
-                        </Button>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Status</Label>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                  <SelectTrigger className="h-11 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="success">Success</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Sales User</Label>
-                <Select value={salesUserFilter} onValueChange={setSalesUserFilter}>
-                  <SelectTrigger className="h-11 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
-                    <SelectValue placeholder="All Sales Users" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sales Users</SelectItem>
-                    {teamMembers.filter(m => m.role === 'payment_initiator').map(member => (
-                      <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Amount min</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={amountMin}
-                  onChange={(e) => setAmountMin(e.target.value)}
-                  placeholder="0.00"
-                  className="h-11 rounded-2xl border-white/60 bg-white/80"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Amount max</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={amountMax}
-                  onChange={(e) => setAmountMax(e.target.value)}
-                  placeholder="5000.00"
-                  className="h-11 rounded-2xl border-white/60 bg-white/80"
-                />
-                <div className="mt-2">
-                  <Slider
-                    value={[
-                      Number.isFinite(Number(amountMax)) && amountMax.trim() !== "" ? Number(amountMax) : maxSlider,
-                    ]}
-                    min={0}
-                    max={merchant.transactionLimit}
-                    step={1}
-                    onValueChange={(v) => {
-                      const next = v[0] ?? 0
-                      setMaxSlider(next)
-                      setAmountMax(String(next))
-                    }}
-                    className="mt-2"
-                  />
-                  <p className="text-[10px] text-muted-foreground mt-1">Quick cap: {amountMax || maxSlider} ETB</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Table density</Label>
-                <Select value={density} onValueChange={(v) => setDensity(v as Density)}>
-                  <SelectTrigger className="h-11 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
-                    <SelectValue placeholder="Density" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="comfortable">Comfortable</SelectItem>
-                    <SelectItem value="compact">Compact</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="flex items-center gap-2 pt-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleReset}
-                    className="h-11 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
-                  >
-                    Reset
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm gap-2",
+                  (statusFilter !== "all" || dateRange.from || salesUserFilter !== "all") && "border-amber-200 bg-amber-50 text-amber-700"
+                )}
+              >
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filter</span>
+                {(statusFilter !== "all" || dateRange.from || salesUserFilter !== "all") && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-600 text-[10px] text-white">
+                    !
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[320px] p-0 sm:w-[400px] rounded-2xl shadow-2xl border-slate-100" align="end">
+              <div className="p-5 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-900">Filters & Reports</h3>
+                  <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50">
+                    Reset All
                   </Button>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="lg:flex lg:flex-col lg:items-end gap-2 hidden lg:block">
-            {/* <Button
-              type="button"
-              variant="outline"
-              className="rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
-              asChild
-            >
-              <Link href={`/merchant/${merchant.id}`}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to dashboard
-              </Link>
-            </Button> */}
-          </div>
-        </div>
-      </section>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date Range</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-9 rounded-lg text-xs font-bold border-slate-100 hover:bg-slate-50"
+                        onClick={handleToday}
+                      >
+                        Today
+                      </Button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs font-bold border-slate-100 truncate">
+                            <CalendarDays className="mr-2 h-3.5 w-3.5" />
+                            {dateRangeLabel}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar
+                            mode="range"
+                            selected={dateRange as any}
+                            onSelect={(range) => setDateRange((range ?? {}) as any)}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
 
-      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Results</p>
-            <p className="mt-1 text-sm text-[#754319]/70">
-              Showing{" "}
-              <span className="font-semibold text-[#5b371f]">
-                {filtered.length === 0 ? 0 : pageItems.safePageIndex * pageSize + 1}
-              </span>{" "}
-              -{" "}
-              <span className="font-semibold text-[#5b371f]">
-                {Math.min(filtered.length, (pageItems.safePageIndex + 1) * pageSize)}
-              </span>{" "}
-              of <span className="font-semibold text-[#5b371f]">{filtered.length}</span>
-            </p>
-          </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</Label>
+                      <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="success">Success</SelectItem>
+                          <SelectItem value="failed">Failed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-          <div className="flex items-center gap-2">
-            <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Page size</Label>
-            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-              <SelectTrigger className="h-11 w-28 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sales User</Label>
+                      <Select value={salesUserFilter} onValueChange={setSalesUserFilter}>
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Users</SelectItem>
+                          {teamMembers.filter(m => m.role === 'payment_initiator').map(member => (
+                            <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
 
-        <div className="mt-4 hidden md:block">
-          <div className="rounded-2xl border border-white/60 bg-white/70 overflow-auto">
-            <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className={densityHeadClass}>Date</TableHead>
-                      <TableHead className={densityHeadClass}>Order ID</TableHead>
-                      <TableHead className={densityHeadClass}>Customer</TableHead>
-                      <TableHead className={densityHeadClass}>Sales User</TableHead>
-                      <TableHead className={densityHeadClass}>Amount</TableHead>
-                      <TableHead className={densityHeadClass}>Status</TableHead>
-                      <TableHead className={densityHeadClass + " text-right"}>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.items.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10 text-muted-foreground italic">
-                          No transactions match your filters.
-                        </TableCell>
-                      </TableRow>
+                {/* Sales Summary Report Section */}
+                <div className="pt-4 border-t border-slate-50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sales Summary</Label>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-7 px-2 text-[10px] font-bold text-amber-600 gap-1.5"
+                      onClick={exportToCSV}
+                    >
+                      <Download className="w-3 h-3" /> Export
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-[160px] overflow-auto pr-1">
+                    {salesSummary.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 italic text-center py-2">No data for this period</p>
                     ) : (
-                      pageItems.items.map((tx) => (
-                        <TableRow key={tx.id}>
-                          <TableCell className={densityCellClass}>{new Date(tx.timestamp).toLocaleString()}</TableCell>
-                          <TableCell className={densityCellClass}>
-                            <span className="font-mono text-[#5b371f]">{tx.transactionReference}</span>
-                          </TableCell>
-                          <TableCell className={densityCellClass}>{tx.payerPhone || tx.userCredentials.phone}</TableCell>
-                          <TableCell className={densityCellClass}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
-                                <UserIcon className="w-3 h-3 text-amber-700" />
-                              </div>
-                              <span className="text-xs font-medium text-[#754319]">
-                                {tx.userCredentials.initiatedByName || "System"}
-                              </span>
+                      salesSummary.map(([uid, data]) => (
+                        <div key={uid} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-sm">
+                              <UserIcon className="w-3 h-3 text-slate-400" />
                             </div>
-                          </TableCell>
-                          <TableCell className={densityCellClass}>
-                            <span className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</span>
-                          </TableCell>
-                      <TableCell className={densityCellClass}>
-                        <div className="flex flex-col items-end gap-1">
-                          <Badge variant="outline" className={cn("rounded-full text-[10px] capitalize", badgeFor(tx.status))}>
+                            <span className="text-[11px] font-bold text-slate-700 truncate max-w-[100px]">{data.name}</span>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[11px] font-black text-amber-700">{data.total.toFixed(2)} ETB</p>
+                            <p className="text-[9px] font-medium text-slate-400">{data.count} orders</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </header>
+
+      {/* Transaction List */}
+      <main className="space-y-3">
+        {pageItems.items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
+            <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+              <FileText className="w-8 h-8 text-slate-200" />
+            </div>
+            <p className="text-sm font-bold text-slate-400">No transactions found</p>
+            <p className="text-xs text-slate-300 mt-1">Try adjusting your filters</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pageItems.items.map((tx) => (
+              <Card key={tx.id} className="group rounded-[20px] border-slate-100 bg-white hover:border-amber-100 hover:shadow-md transition-all duration-300 overflow-hidden shadow-sm">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors",
+                        tx.status === 'success' ? "bg-emerald-50" : "bg-rose-50"
+                      )}>
+                        {tx.status === 'success' ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                        ) : (
+                          <X className="w-6 h-6 text-rose-600" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-black text-slate-900 truncate">
+                            {tx.amount.toFixed(2)} ETB
+                          </span>
+                          <Badge className={cn(
+                            "text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0",
+                            tx.status === 'success' ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                          )}>
                             {statusLabel(tx.status)}
                           </Badge>
-                          {tx.status === 'failed' && (tx.userCredentials as any).providerDetails && (
-                            <span className="text-[10px] text-rose-500 font-medium italic max-w-[120px] truncate" title={(tx.userCredentials as any).providerDetails}>
-                              {(tx.userCredentials as any).providerDetails}
-                            </span>
-                          )}
                         </div>
-                      </TableCell>
-                      <TableCell className={densityCellClass + " text-right"}>
-                        {/* No actions currently */}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                        <p className="text-[11px] font-bold text-slate-400 truncate flex items-center gap-1.5">
+                          {tx.transactionReference}
+                          <span className="w-1 h-1 rounded-full bg-slate-200" />
+                          {new Date(tx.timestamp).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="hidden sm:flex flex-col items-end gap-1 text-right">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-500">{tx.userCredentials.initiatedByName || "System"}</span>
+                        <UserIcon className="w-3 h-3 text-slate-300" />
+                      </div>
+                      <p className="text-[10px] text-slate-300 font-medium">
+                        {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
 
-        <div className="mt-4 space-y-3 md:hidden">
-          {pageItems.items.length === 0 ? (
-            <div className="rounded-2xl border border-white/60 bg-white/70 p-4 text-sm text-muted-foreground">
-              No transactions match your filters.
-            </div>
-          ) : (
-            pageItems.items.map((tx) => (
-              <Card key={tx.id} className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
-                <CardContent className="space-y-2 p-4">
-                  <p className="text-xs text-[#754319]/70">{new Date(tx.timestamp).toLocaleString()}</p>
-                  <p className="break-words text-sm font-semibold text-[#5b371f]">{tx.serviceDescription}</p>
-                  <p className="break-all font-mono text-xs text-[#754319]/70">{tx.transactionReference}</p>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</span>
-                    <Badge variant="outline" className={cn("rounded-full text-[10px] capitalize", badgeFor(tx.status))}>
-                      {statusLabel(tx.status)}
-                    </Badge>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 group-hover:text-slate-500 sm:hidden">
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <p className="text-xs text-[#754319]/70">{tx.payerPhone || tx.userCredentials.phone}</p>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="text-xs text-[#754319]/70">
-            Page <span className="font-semibold text-[#5b371f]">{pageItems.safePageIndex + 1}</span> of{" "}
-            <span className="font-semibold text-[#5b371f]">{pageCount}</span>
+            ))}
           </div>
+        )}
 
-          <div className="flex items-center gap-2">
+        {/* Pagination */}
+        {pageCount > 1 && (
+          <div className="flex items-center justify-between pt-4 px-2">
             <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
+              variant="ghost"
+              className="h-10 rounded-xl font-bold text-slate-600 gap-2 px-4"
               onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
               disabled={pageItems.safePageIndex === 0}
             >
-              Previous
+              <ArrowLeft className="w-4 h-4" /> Previous
             </Button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: pageCount }, (_, i) => (
+                <div 
+                  key={i} 
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full transition-all",
+                    i === pageItems.safePageIndex ? "bg-amber-600 w-4" : "bg-slate-200"
+                  )} 
+                />
+              ))}
+            </div>
+
             <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90"
+              variant="ghost"
+              className="h-10 rounded-xl font-bold text-slate-600 gap-2 px-4"
               onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
               disabled={pageItems.safePageIndex >= pageCount - 1}
             >
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
+              Next <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-        </div>
-      </section>
+        )}
+      </main>
     </div>
   )
 }
