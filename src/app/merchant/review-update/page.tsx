@@ -46,6 +46,7 @@ function ReviewUpdateForm() {
   const [merchant, setMerchant] = useState<any>(null)
   const [otp, setOtp] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -124,7 +125,7 @@ function ReviewUpdateForm() {
   }
 
   const handleSendOtp = async () => {
-    setIsSubmitting(true)
+    setIsSendingOtp(true)
     try {
       const res = await fetch('/api/auth/merchant-update/otp/send', {
         method: 'POST',
@@ -140,7 +141,7 @@ function ReviewUpdateForm() {
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Failed to connect to server" })
     } finally {
-      setIsSubmitting(false)
+      setIsSendingOtp(false)
     }
   }
 
@@ -365,9 +366,9 @@ function ReviewUpdateForm() {
                 variant="ghost" 
                 className="w-full h-10 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50" 
                 onClick={handleSendOtp} 
-                disabled={isSubmitting}
+                disabled={isSubmitting || isSendingOtp}
               >
-                {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Resend code"}
+                {isSendingOtp ? <Loader2 className="animate-spin mr-2" /> : "Resend code"}
               </Button>
             </div>
           </CardContent>
@@ -617,6 +618,19 @@ function ReviewUpdateForm() {
               <p className="text-sm text-slate-500 mt-3">
                 You will be notified via email or SMS once the final decision has been made.
               </p>
+            </div>
+            <div className="rounded-2xl border border-dashed border-slate-200 p-4 bg-white">
+              <p className="text-sm text-slate-600 mb-3">
+                Need another verification code? Send an OTP text to your registered contact.
+              </p>
+              <Button
+                variant="outline"
+                className="w-full h-12 rounded-xl text-sm font-semibold"
+                onClick={handleSendOtp}
+                disabled={isSendingOtp}
+              >
+                {isSendingOtp ? <Loader2 className="animate-spin mr-2" /> : "Send OTP Text"}
+              </Button>
             </div>
           </CardContent>
           <CardFooter className="px-8 pb-8 pt-2">

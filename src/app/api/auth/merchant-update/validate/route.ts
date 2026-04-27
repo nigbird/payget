@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     }
 
     if (updateToken.usedAt) {
-      return NextResponse.json({ error: 'Token already used' }, { status: 400 });
+      return NextResponse.json({ error: 'Link already used' }, { status: 400 });
     }
 
     const merchant = updateToken.merchant;

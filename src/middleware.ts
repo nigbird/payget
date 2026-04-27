@@ -13,10 +13,11 @@ export default auth((req) => {
     nextUrl.pathname.startsWith("/checker") ||
     nextUrl.pathname.startsWith("/head-office")
 
-  const isAuthExemptRoute = 
-    pathname === "/merchant/review-update" || 
+  const isAuthExemptRoute =
+    pathname === "/merchant/review-update" ||
     pathname === "/merchant/setup-password" ||
-    pathname.startsWith("/pay/")
+    pathname.startsWith("/pay/") ||
+    nextUrl.searchParams.has("token"); // If URL has a token, it is a magic link and should be exempt
 
   const isAuthRoute = 
     pathname.startsWith("/login") ||

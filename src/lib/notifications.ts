@@ -108,28 +108,30 @@ async function sendSMSNotification(phone: string, message: string): Promise<bool
   return true;
 }
 
+function getNotificationBaseUrl(): string {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_BASE_URL must be configured for notification links');
+  }
+
+  return baseUrl.replace(/\/$/, '');
+}
+
 /**
  * Password setup link
  */
 export function generatePasswordSetupLink(merchantId: string, token: string): string {
-  const baseUrl =
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
-    'http://localhost:3000';
+  const baseUrl = getNotificationBaseUrl();
 
-  return `${baseUrl.replace(/\/$/, '')}/merchant/setup-password?merchantId=${merchantId}&token=${token}`;
+  return `${baseUrl}/merchant/setup-password?merchantId=${merchantId}&token=${token}`;
 }
 
 /**
  * Merchant update link (magic link)
  */
 export function generateMerchantUpdateLink(token: string): string {
-  const baseUrl =
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
-    'http://localhost:3000';
+  const baseUrl = getNotificationBaseUrl();
 
-  return `${baseUrl.replace(/\/$/, '')}/merchant/review-update?token=${token}`;
+  return `${baseUrl}/merchant/review-update?token=${token}`;
 }
