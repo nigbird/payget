@@ -15,13 +15,15 @@ export default auth((req) => {
 
   const isAuthExemptRoute = 
     pathname === "/merchant/review-update" || 
-    pathname === "/merchant/setup-password"
+    pathname === "/merchant/setup-password" ||
+    pathname.startsWith("/pay/")
 
   const isAuthRoute = 
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password")
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/pay/")
 
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login") return

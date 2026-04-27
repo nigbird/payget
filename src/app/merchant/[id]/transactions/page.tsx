@@ -16,7 +16,6 @@ import {
   TrendingUp,
   Filter,
   CheckCircle2,
-  X,
   CalendarDays,
   MoreVertical,
   ChevronDown,
@@ -273,7 +272,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12 px-4 sm:px-6">
       {/* Minimal Header */}
       <header className="flex flex-col gap-4 pt-6 md:flex-row md:items-center md:justify-between">
         <div>
@@ -312,7 +311,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[320px] p-0 sm:w-[400px] rounded-2xl shadow-2xl border-slate-100" align="end">
+            <PopoverContent className="w-[calc(100vw-40px)] max-w-[400px] p-0 rounded-2xl shadow-2xl border-slate-100" align="end">
               <div className="p-5 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-900">Filters & Reports</h3>
@@ -441,16 +440,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors",
-                        tx.status === 'success' ? "bg-emerald-50" : "bg-rose-50"
-                      )}>
-                        {tx.status === 'success' ? (
-                          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                        ) : (
-                          <X className="w-6 h-6 text-rose-600" />
-                        )}
-                      </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-sm font-black text-slate-900 truncate">

@@ -466,12 +466,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       hint: `${transactions.filter((tx) => tx.status === "success").length} successful`,
       icon: TrendingUp,
     },
-    {
-      title: "Account Status",
-      value: (merchant.status === "approved" || merchant.status === "active") ? "Verified" : "Reviewing",
-      hint: merchant.businessType || "Merchant",
-      icon: ShieldAlert,
-    },
   ]
 
   const copyText = async (value: string, key: string) => {
@@ -508,10 +502,32 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     <div className="space-y-4 pb-24 md:pb-4">
       <section className="rounded-3xl border border-amber-200/30 bg-white/80 p-4 sm:p-5 md:p-7 shadow-xl backdrop-blur-md">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-amber-700/70">Merchant Dashboard</p>
-            <h1 className="mt-2 text-[1.75rem] leading-tight md:text-3xl font-bold text-[#5b371f]">Welcome back, {merchant.name}</h1>
-            <p className="mt-2 text-sm leading-6 md:text-base text-amber-800/60">A premium view of your requests, activity, and settlements.</p>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-amber-700/70">Merchant Dashboard</p>
+              <div className="mt-2 flex items-center gap-3">
+                <h1 className="text-[1.75rem] leading-tight md:text-3xl font-bold text-[#5b371f]">
+                  Welcome back, {merchant.name}
+                </h1>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100/50">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Verified</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => copyText(merchant.accountNumber, "acc")}>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50/50 border border-amber-100/50 transition-all hover:bg-amber-100/50 hover:border-amber-200/50">
+                <Wallet className="w-3.5 h-3.5 text-amber-700" />
+                <span className="text-xs font-bold text-amber-900/80 font-mono tracking-wider">{merchant.accountNumber}</span>
+                {copied === "acc" ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-600 transition-colors" />
+                )}
+              </div>
+              <span className="text-[10px] font-bold text-amber-700/40 uppercase tracking-tight group-hover:text-amber-700/60 transition-colors">Settlement Account</span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -542,7 +558,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
         {metricCards.map((item) => {
           const Icon = item.icon
           return (
@@ -565,8 +581,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         })}
       </section>
 
-      <section className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <Card className="xl:col-span-3 rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-sm">
+      <section className="mt-4 grid grid-cols-1 gap-4">
+        <Card className="rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-sm">
           <CardContent className="p-4 sm:p-5">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
