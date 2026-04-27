@@ -142,6 +142,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return transactions.filter((tx) => {
       if (statusFilter === "success" && tx.status !== "success") return false
       if (statusFilter === "failed" && tx.status === "success") return false
+      if (salesUserFilter !== "all" && tx.userCredentials.initiatedById !== salesUserFilter) return false
 
       const txMs = new Date(tx.timestamp).getTime()
       if (fromMs !== undefined && txMs < fromMs) return false
@@ -179,6 +180,58 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const densityHeadClass = density === "compact" ? "h-10 px-3 text-xs" : "h-12 px-4 text-sm"
   const densityCellClass = density === "compact" ? "p-3 text-xs" : "p-4 text-sm"
 
+  const salesSummary = useMemo(() => {
+    const summary: Record<string, { name: string, count: number, total: number }> = {}
+    
+    filtered.filter(tx => tx.status === 'success').forEach(tx => {
+      const userId = tx.userCredentials.initiatedById || 'system'
+      const userName = tx.userCredentials.initiatedByName || 'System'
+      
+      if (!summary[userId]) {
+        summary[userId] = { name: userName, count: 0, total: 0 }
+      }
+      summary[userId].count += 1
+      summary[userId].total += tx.amount
+    })
+    
+    return Object.entries(summary).sort((a, b) => b[1].total - a[1].total)
+  }, [filtered])
+
+  const exportToCSV = () => {
+    if (filtered.length === 0) {
+      toast({ title: "No data to export", variant: "destructive" })
+      return
+    }
+
+    const headers = ["Date", "Order ID", "Customer", "Description", "Amount (ETB)", "Status", "Sales User"]
+    const rows = filtered.map(tx => [
+      new Date(tx.timestamp).toLocaleString(),
+      tx.transactionReference,
+      tx.payerPhone || tx.userCredentials.phone,
+      tx.serviceDescription,
+      tx.amount.toFixed(2),
+      tx.status,
+      tx.userCredentials.initiatedByName || "System"
+    ])
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `transactions_${merchant?.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast({ title: "Export successful", description: `Exported ${filtered.length} transactions.` })
+  }
+
   const badgeFor = (status: Transaction["status"]) => {
     if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700"
     return "border-rose-200 bg-rose-50 text-rose-700"
@@ -200,6 +253,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const handleReset = () => {
     setStatusFilter("all")
     setSearch("")
+    setSalesUserFilter("all")
     setDateRange({})
     setAmountMin("")
     setAmountMax("")
@@ -220,6 +274,47 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   return (
     <div className="space-y-4 pb-6">
       <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
+        <div className="flex items-center gap-2 mb-6">
+          <TrendingUp className="w-5 h-5 text-amber-600" />
+          <h2 className="text-lg font-bold text-[#5b371f]">Sales Performance Summary</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {salesSummary.length === 0 ? (
+            <div className="col-span-full py-8 text-center text-muted-foreground italic bg-white/40 rounded-2xl border border-dashed border-white/60">
+              No successful transactions found for the current filters.
+            </div>
+          ) : (
+            salesSummary.map(([id, data]) => (
+              <Card key={id} className="rounded-2xl border-white/60 bg-white/80 shadow-sm overflow-hidden border-l-4 border-l-amber-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                      <UserIcon className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-[#5b371f] truncate">{data.name}</p>
+                      <p className="text-[10px] text-[#754319]/70 uppercase tracking-wider">Sales User</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-amber-100/50 pt-3">
+                    <div>
+                      <p className="text-[10px] text-[#754319]/70 uppercase">Collected</p>
+                      <p className="text-sm font-black text-amber-700">{data.total.toFixed(2)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-[#754319]/70 uppercase">Orders</p>
+                      <p className="text-sm font-black text-[#5b371f]">{data.count}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Transactions</p>
@@ -230,6 +325,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center md:gap-3">
+            <Button
+              onClick={exportToCSV}
+              variant="outline"
+              className="h-12 rounded-2xl border-white/60 bg-white/70 text-[#754319] hover:bg-white/90 shadow-sm gap-2"
+            >
+              <Download className="h-4 w-4" />
+              <span className="font-semibold">Export Report</span>
+            </Button>
             <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2 shadow-sm flex items-center gap-3">
               <Wallet className="h-4 w-4 text-[#754319]" />
               <div className="text-right">
@@ -249,7 +352,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
         <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -297,9 +400,24 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="success">Success</SelectItem>
                     <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-[#754319]/70">Sales User</Label>
+                <Select value={salesUserFilter} onValueChange={setSalesUserFilter}>
+                  <SelectTrigger className="h-11 rounded-2xl border-white/60 bg-white/80 text-[#754319]">
+                    <SelectValue placeholder="All Sales Users" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales Users</SelectItem>
+                    {teamMembers.filter(m => m.role === 'payment_initiator').map(member => (
+                      <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -423,36 +541,45 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
         <div className="mt-4 hidden md:block">
           <div className="rounded-2xl border border-white/60 bg-white/70 overflow-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className={densityHeadClass}>Date</TableHead>
-                  <TableHead className={densityHeadClass}>Order ID</TableHead>
-                  <TableHead className={densityHeadClass}>Customer</TableHead>
-                  <TableHead className={densityHeadClass}>Description</TableHead>
-                  <TableHead className={densityHeadClass}>Amount</TableHead>
-                  <TableHead className={densityHeadClass}>Status</TableHead>
-                  <TableHead className={densityHeadClass + " text-right"}>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageItems.items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground italic">
-                      No transactions match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  pageItems.items.map((tx) => (
-                    <TableRow key={tx.id}>
-                      <TableCell className={densityCellClass}>{new Date(tx.timestamp).toLocaleString()}</TableCell>
-                      <TableCell className={densityCellClass}>
-                        <span className="font-mono text-[#5b371f]">{tx.transactionReference}</span>
-                      </TableCell>
-                      <TableCell className={densityCellClass}>{tx.payerPhone || tx.userCredentials.phone}</TableCell>
-                      <TableCell className={densityCellClass}>{tx.serviceDescription}</TableCell>
-                      <TableCell className={densityCellClass}>
-                        <span className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</span>
-                      </TableCell>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={densityHeadClass}>Date</TableHead>
+                      <TableHead className={densityHeadClass}>Order ID</TableHead>
+                      <TableHead className={densityHeadClass}>Customer</TableHead>
+                      <TableHead className={densityHeadClass}>Sales User</TableHead>
+                      <TableHead className={densityHeadClass}>Amount</TableHead>
+                      <TableHead className={densityHeadClass}>Status</TableHead>
+                      <TableHead className={densityHeadClass + " text-right"}>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pageItems.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10 text-muted-foreground italic">
+                          No transactions match your filters.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pageItems.items.map((tx) => (
+                        <TableRow key={tx.id}>
+                          <TableCell className={densityCellClass}>{new Date(tx.timestamp).toLocaleString()}</TableCell>
+                          <TableCell className={densityCellClass}>
+                            <span className="font-mono text-[#5b371f]">{tx.transactionReference}</span>
+                          </TableCell>
+                          <TableCell className={densityCellClass}>{tx.payerPhone || tx.userCredentials.phone}</TableCell>
+                          <TableCell className={densityCellClass}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                                <UserIcon className="w-3 h-3 text-amber-700" />
+                              </div>
+                              <span className="text-xs font-medium text-[#754319]">
+                                {tx.userCredentials.initiatedByName || "System"}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className={densityCellClass}>
+                            <span className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</span>
+                          </TableCell>
                       <TableCell className={densityCellClass}>
                         <div className="flex flex-col items-end gap-1">
                           <Badge variant="outline" className={cn("rounded-full text-[10px] capitalize", badgeFor(tx.status))}>
