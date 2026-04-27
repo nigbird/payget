@@ -30,7 +30,36 @@ export async function GET(
   if (!merchant) {
     return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
   }
-  return NextResponse.json(merchant);
+
+  // Calculate maker-checker permissions for the UI
+  const userPermissions = (user as any).permissions || [];
+  const isCreator = merchant.createdBy === user.id;
+  const isLimitSetter = (merchant as any).limitsSetBy === user.id;
+  
+  const priorEditBySameUser = await prisma.auditLog.findFirst({
+    where: {
+      userId: user.id,
+      entityType: "MERCHANT",
+      entityId: id,
+      action: {
+        in: ["MERCHANT_FORM_EDIT", "MERCHANT_RESUBMIT"]
+      }
+    }
+  });
+
+  const canApprove = userHasPermission(user, "MERCHANT_APPROVE") && !isCreator && !isLimitSetter && !priorEditBySameUser;
+  const canSetLimits = (userHasPermission(user, "TRANSACTION_LIMIT_SET") || userHasPermission(user, "TRANSACTION_LIMIT_OVERRIDE")) && !isCreator;
+
+  return NextResponse.json({
+    ...merchant,
+    _permissions: {
+      canApprove,
+      canSetLimits,
+      isCreator,
+      isLimitSetter,
+      hasEdited: !!priorEditBySameUser
+    }
+  });
 }
 
 export async function PATCH(
@@ -111,6 +140,24 @@ export async function PATCH(
         )
       }
 
+      // Maker-Checker principle: application editor cannot perform final approval actions
+      const priorEditBySameUser = await prisma.auditLog.findFirst({
+        where: {
+          userId: user.id,
+          entityType: "MERCHANT",
+          entityId: id,
+          action: {
+            in: ["MERCHANT_FORM_EDIT", "MERCHANT_RESUBMIT"]
+          }
+        }
+      })
+      if (priorEditBySameUser) {
+        return NextResponse.json(
+          { error: "Maker-Checker violation: The user who edited this application cannot perform final approval actions." },
+          { status: 403 }
+        )
+      }
+
       body.approvedBy = user.id
 
       // If fully approved, generate setup token
@@ -150,10 +197,18 @@ export async function PATCH(
 
     // Audit Log
     if (updated) {
+      const nonStatusFieldsUpdated = Object.keys(body).some((key) =>
+        !["status", "approvedBy", "passwordResetToken", "passwordResetExpires", "rejectionReason"].includes(key)
+      )
+
       await prisma.auditLog.create({
         data: {
           userId: user.id,
-          action: body.status ? `MERCHANT_STATUS_${String(body.status).toUpperCase()}` : 'MERCHANT_UPDATE',
+          action: body.status
+            ? `MERCHANT_STATUS_${String(body.status).toUpperCase()}`
+            : nonStatusFieldsUpdated
+              ? 'MERCHANT_FORM_EDIT'
+              : 'MERCHANT_UPDATE',
           entityType: 'MERCHANT',
           entityId: id,
           oldValue: currentMerchant as any,
@@ -172,17 +227,41 @@ export async function PATCH(
           message: `Congratulations! Your merchant account for ${updated.name} has been approved. Please set up your password here: ${setupLink}`
         });
       } else if (body.status === 'rejected' || body.status === 'REJECTED') {
-        const registrationLink = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/register`;
-        const reason = body.rejectionReason ? `\n\nReason for rejection: ${body.rejectionReason}` : '';
         await sendNotification({
           to: updated.contactUsername,
-          subject: 'Merchant Application Status Update',
-          message: `Dear ${updated.contactName},\n\nWe regret to inform you that your merchant application for ${updated.name} has been rejected.${reason}\n\nIf you believe this was in error or would like to submit a new application with corrected information, please visit: ${registrationLink}`
+          subject: 'Merchant Account Update Required',
+          message: `Your merchant account application for ${updated.name} requires updates. Reason: ${body.rejectionReason}`
         });
       }
     }
 
-    return NextResponse.json(updated);
+    // Re-calculate permissions for the updated merchant
+    const isCreator = updated.createdBy === user.id;
+    const isLimitSetter = (updated as any).limitsSetBy === user.id;
+    const priorEditBySameUser = await prisma.auditLog.findFirst({
+      where: {
+        userId: user.id,
+        entityType: "MERCHANT",
+        entityId: id,
+        action: {
+          in: ["MERCHANT_FORM_EDIT", "MERCHANT_RESUBMIT"]
+        }
+      }
+    });
+
+    const canApprove = userHasPermission(user, "MERCHANT_APPROVE") && !isCreator && !isLimitSetter && !priorEditBySameUser;
+    const canSetLimits = (userHasPermission(user, "TRANSACTION_LIMIT_SET") || userHasPermission(user, "TRANSACTION_LIMIT_OVERRIDE")) && !isCreator;
+
+    return NextResponse.json({
+      ...updated,
+      _permissions: {
+        canApprove,
+        canSetLimits,
+        isCreator,
+        isLimitSetter,
+        hasEdited: !!priorEditBySameUser
+      }
+    });
   } catch (error) {
     console.error('Error updating merchant:', error);
     return NextResponse.json({ error: 'Failed to update merchant' }, { status: 500 });

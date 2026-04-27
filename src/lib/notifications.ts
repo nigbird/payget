@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { sendSms } from '@/lib/sms';
+import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 
 /**
  * Notification system abstraction for Email and SMS.
@@ -17,15 +18,19 @@ export interface NotificationPayload {
  */
 export async function sendNotification(payload: NotificationPayload): Promise<boolean> {
   const { to, subject, message } = payload;
-  
-  const isEmail = to.includes('@');
+
+  const isEmail = isValidEmail(to);
+  const isPhone = !isEmail && isValidPhoneNumber(to);
   
   try {
     if (isEmail) {
       return await sendEmailNotification(to, subject || 'Notification', message);
-    } else {
+    } else if (isPhone) {
       return await sendSMSNotification(to, message);
     }
+
+    console.error(`[NOTIFICATION-ERROR] Unsupported contact format: ${to}`);
+    return false;
   } catch (error) {
     console.error('Failed to send notification:', error);
     return false;

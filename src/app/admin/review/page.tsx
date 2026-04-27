@@ -61,7 +61,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Search,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Edit2
 } from "lucide-react"
 import { 
   Select, 
@@ -73,12 +74,13 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import type { Merchant } from "@/app/lib/db"
 import { useSession } from "next-auth/react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 
 function MerchantReviewContent() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const merchantIdParam = searchParams.get('merchantId')
   
@@ -90,9 +92,9 @@ function MerchantReviewContent() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   
-  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
+  const [selectedMerchant, setSelectedMerchant] = useState<(Merchant & { _permissions?: any }) | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false)
   const [limits, setLimits] = useState({
     dailyLimit: "10000",
     transactionLimit: "1000",
@@ -112,6 +114,21 @@ function MerchantReviewContent() {
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')
 
+  const fetchMerchantDetails = async (id: string) => {
+    setIsFetchingDetails(true)
+    try {
+      const response = await fetch(`/api/merchants/${id}`)
+      if (response.ok) {
+        const details = await response.json()
+        setSelectedMerchant(details)
+      }
+    } catch (error) {
+      console.error('Failed to fetch merchant details:', error)
+    } finally {
+      setIsFetchingDetails(false)
+    }
+  }
+
   useEffect(() => {
     fetchMerchants()
   }, [])
@@ -120,7 +137,7 @@ function MerchantReviewContent() {
     if (merchantIdParam && pending.length > 0) {
       const m = pending.find(p => p.id === merchantIdParam)
       if (m) {
-        setSelectedMerchant(m)
+        fetchMerchantDetails(m.id)
         setIsDetailsOpen(true)
       }
     }
@@ -378,7 +395,7 @@ function MerchantReviewContent() {
                               size="sm"
                               className="h-9 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors gap-2"
                               onClick={() => {
-                                setSelectedMerchant(m)
+                                fetchMerchantDetails(m.id)
                                 setIsDetailsOpen(true)
                               }}
                             >
@@ -467,7 +484,12 @@ function MerchantReviewContent() {
               </DialogDescription>
             </DialogHeader>
 
-            {selectedMerchant && (
+            {isFetchingDetails ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-amber-600" />
+                <p className="text-sm text-slate-500 font-medium">Loading merchant details...</p>
+              </div>
+            ) : selectedMerchant && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-6">
                 <div className="lg:col-span-2 space-y-6">
                   {/* Header Info with Logo */}
@@ -639,12 +661,39 @@ function MerchantReviewContent() {
                         <CardTitle className="text-sm">Compliance Actions</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        {selectedMerchant.createdBy && (
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-primary flex items-center gap-2">
+                              <Edit2 className="w-3 h-3" /> Application Edit
+                            </Label>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full h-9"
+                              onClick={() => {
+                                setIsDetailsOpen(false)
+                                router.push(`/admin/onboarding?editMerchantId=${selectedMerchant.id}`)
+                              }}
+                            >
+                              Open Edit Form
+                            </Button>
+                          </div>
+                        )}
+
                         {(selectedMerchant.status === 'pending' || selectedMerchant.status === 'resubmitted') && (
                           <div className="space-y-4">
                             <div className="space-y-3">
                               <Label className="text-xs font-bold uppercase text-primary flex items-center gap-2">
                                 <TrendingUp className="w-3 h-3" /> {selectedMerchant.status === 'resubmitted' ? 'Review & Assign Limits' : 'Assign Limits'}
                               </Label>
+                              {selectedMerchant._permissions?.isCreator && (
+                                <div className="p-2 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-2">
+                                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                                  <p className="text-[10px] text-amber-800 font-medium leading-tight">
+                                    Maker-Checker: You created this application and cannot set its limits.
+                                  </p>
+                                </div>
+                              )}
                               <div className="space-y-2">
                                 <div className="grid gap-1">
                                   <Label htmlFor="dailyLimit" className="text-[10px]">Daily Volume (ETB)</Label>
@@ -653,7 +702,7 @@ function MerchantReviewContent() {
                                     className="h-8 text-sm" 
                                     value={limits.dailyLimit}
                                     onChange={(e) => setLimits({...limits, dailyLimit: e.target.value})}
-                                    disabled={!canSetLimits}
+                                    disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
                                   />
                                 </div>
                                 <div className="grid gap-1">
@@ -663,7 +712,7 @@ function MerchantReviewContent() {
                                     className="h-8 text-sm" 
                                     value={limits.transactionLimit}
                                     onChange={(e) => setLimits({...limits, transactionLimit: e.target.value})}
-                                    disabled={!canSetLimits}
+                                    disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
                                   />
                                 </div>
                                 <div className="grid gap-1">
@@ -673,7 +722,7 @@ function MerchantReviewContent() {
                                     className="h-8 text-sm" 
                                     value={limits.dailyCountLimit}
                                     onChange={(e) => setLimits({...limits, dailyCountLimit: e.target.value})}
-                                    disabled={!canSetLimits}
+                                    disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
                                   />
                                 </div>
                               </div>
@@ -682,7 +731,7 @@ function MerchantReviewContent() {
                             <Button 
                               className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'initial_approve')}
-                              disabled={!canSetLimits}
+                              disabled={!canSetLimits || !selectedMerchant._permissions?.canSetLimits}
                             >
                               Confirm & Set Limits
                             </Button>
@@ -696,10 +745,22 @@ function MerchantReviewContent() {
                                 Initial review complete. Ready for final system activation.
                               </p>
                             </div>
+                            {(!selectedMerchant._permissions?.canApprove && canApprove) && (
+                              <div className="p-2 bg-rose-50 border border-rose-100 rounded-lg flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
+                                <p className="text-[10px] text-rose-800 font-medium leading-tight">
+                                  Maker-Checker: You are restricted from approving this application because you {
+                                    selectedMerchant._permissions?.isCreator ? "created it" : 
+                                    selectedMerchant._permissions?.isLimitSetter ? "set its limits" : 
+                                    "edited the form"
+                                  }.
+                                </p>
+                              </div>
+                            )}
                             <Button 
                               className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'final_approve')}
-                              disabled={!canApprove}
+                              disabled={!canApprove || !selectedMerchant._permissions?.canApprove}
                             >
                               Finalize Activation
                             </Button>

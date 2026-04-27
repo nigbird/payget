@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { Suspense, useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -73,13 +73,16 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument, Merchant } from "@/app/lib/db"
 import { useSession } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 
-export default function MerchantOnboardingPage() {
+function MerchantOnboardingContent() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const editMerchantIdParam = searchParams.get("editMerchantId")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -94,6 +97,8 @@ export default function MerchantOnboardingPage() {
   const [submissions, setSubmissions] = useState<Merchant[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
+  const [editingMerchantId, setEditingMerchantId] = useState<string | null>(null)
+  const [editingOriginalContactUsername, setEditingOriginalContactUsername] = useState<string | null>(null)
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [selectedForReview, setSelectedForReview] = useState<Merchant | null>(null)
@@ -146,6 +151,34 @@ export default function MerchantOnboardingPage() {
   
   const [documents, setDocuments] = useState<MerchantDocument[]>([])
   const [riskFactors, setRiskFactors] = useState<string[]>([])
+  const openEditForm = (merchant: Merchant) => {
+    if (!merchant.createdBy) return
+    setEditingMerchantId(merchant.id)
+    setEditingOriginalContactUsername(merchant.contactUsername || null)
+    setFormData({
+      name: merchant.name || "",
+      email: merchant.email || "",
+      accountNumber: merchant.accountNumber || "",
+      logoUrl: merchant.logoUrl || "",
+      businessDescription: merchant.businessDescription || "",
+      websiteUrl: merchant.websiteUrl || "",
+      callbackUrl: merchant.callbackUrl || "",
+      contactName: merchant.contactName || "",
+      contactUsername: merchant.contactUsername || "",
+      branchName: merchant.branchName || "",
+      district: merchant.district || "",
+      category: merchant.category || "",
+      businessType: merchant.businessType || "",
+      dailyLimit: String(merchant.dailyLimit ?? "10000"),
+      transactionLimit: String(merchant.transactionLimit ?? "1000"),
+      dailyCountLimit: String(merchant.dailyCountLimit ?? "100"),
+    })
+    setDocuments(merchant.documents || [])
+    setRiskFactors(merchant.riskFactors || [])
+    setErrors({})
+    setIsRegisterDialogOpen(true)
+  }
+
 
   const userPermissions = (session?.user as any)?.permissions || []
   const canRegister = userPermissions.includes('MERCHANT_REGISTER')
@@ -202,6 +235,14 @@ export default function MerchantOnboardingPage() {
     }
     fetchData()
   }, [])
+
+  useEffect(() => {
+    if (!editMerchantIdParam || submissions.length === 0) return
+    const merchant = submissions.find((m) => m.id === editMerchantIdParam)
+    if (merchant && merchant.createdBy) {
+      openEditForm(merchant)
+    }
+  }, [editMerchantIdParam, submissions])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target
@@ -376,15 +417,18 @@ export default function MerchantOnboardingPage() {
       if (!isEmail && !isPhone) {
         newErrors.contactUsername = "Please enter a valid email or phone number"
       } else {
-        // Check uniqueness
-        const checkUniqueRes = await fetch('/api/users/check-unique', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: formData.contactUsername })
-        })
-        const uniqueData = await checkUniqueRes.json()
-        if (!uniqueData.isUnique) {
-          newErrors.contactUsername = uniqueData.message
+        const contactChanged = !editingMerchantId || formData.contactUsername !== editingOriginalContactUsername
+        if (contactChanged) {
+          // Check uniqueness only when creating or changing contact username.
+          const checkUniqueRes = await fetch('/api/users/check-unique', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: formData.contactUsername })
+          })
+          const uniqueData = await checkUniqueRes.json()
+          if (!uniqueData.isUnique) {
+            newErrors.contactUsername = uniqueData.message
+          }
         }
       }
     }
@@ -420,22 +464,31 @@ export default function MerchantOnboardingPage() {
         transactionLimit: Number(formData.transactionLimit),
         dailyCountLimit: Number(formData.dailyCountLimit),
         documents,
-        riskFactors,
-        status: canSetLimits ? 'branch_approved' : 'pending'
+        riskFactors
       }
 
-      const response = await fetch('/api/merchants', {
-        method: 'POST',
+      const response = await fetch(editingMerchantId ? `/api/merchants/${editingMerchantId}` : '/api/merchants', {
+        method: editingMerchantId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(
+          editingMerchantId
+            ? payload
+            : { ...payload, status: canSetLimits ? 'branch_approved' : 'pending' }
+        )
       })
 
       if (response.ok) {
         toast({
-          title: canSetLimits ? "Registration & Initial Review Complete" : "Application Submitted",
-          description: canSetLimits 
-            ? "Merchant registered and moved to activation queue." 
-            : "The merchant onboarding request has been queued for review."
+          title: editingMerchantId
+            ? "Application Updated"
+            : canSetLimits
+              ? "Registration & Initial Review Complete"
+              : "Application Submitted",
+          description: editingMerchantId
+            ? "Merchant application form updated successfully."
+            : canSetLimits
+              ? "Merchant registered and moved to activation queue."
+              : "The merchant onboarding request has been queued for review."
         })
         // Reset form
         setFormData({
@@ -448,6 +501,8 @@ export default function MerchantOnboardingPage() {
         setDocuments([])
         setRiskFactors([])
         setErrors({})
+        setEditingMerchantId(null)
+        setEditingOriginalContactUsername(null)
         
         // Refresh submissions
         const res = await fetch('/api/merchants')
@@ -525,7 +580,16 @@ export default function MerchantOnboardingPage() {
               <p className="text-sm text-slate-700/80">Lightweight queue management with high readability.</p>
             </div>
 
-            <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
+            <Dialog
+              open={isRegisterDialogOpen}
+              onOpenChange={(open) => {
+                setIsRegisterDialogOpen(open)
+                if (!open) {
+                  setEditingMerchantId(null)
+                  setEditingOriginalContactUsername(null)
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button
                   className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
@@ -547,17 +611,19 @@ export default function MerchantOnboardingPage() {
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30 shadow-sm w-fit">
                           <div className="w-1.5 h-1.5 rounded-full bg-[#f8b513] animate-pulse" />
                           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#754319]/80">
-                            Merchant Registration
+                            {editingMerchantId ? "Merchant Application Edit" : "Merchant Registration"}
                           </span>
                         </div>
 
                         <div>
                           <DialogTitle className="text-3xl font-black tracking-tight text-gray-900 font-headline flex items-center gap-3">
                             <Store className="w-8 h-8 text-[#f8b513]" />
-                            Register New Merchant
+                            {editingMerchantId ? "Edit Merchant Application" : "Register New Merchant"}
                           </DialogTitle>
                           <DialogDescription className="text-sm text-gray-500 font-medium mt-1">
-                            Provide legal entity details and compliance documents to initiate the onboarding process.
+                            {editingMerchantId
+                              ? "Update merchant details before final approval."
+                              : "Provide legal entity details and compliance documents to initiate the onboarding process."}
                           </DialogDescription>
                         </div>
                       </div>
@@ -963,7 +1029,7 @@ export default function MerchantOnboardingPage() {
                             className="button-honey-solid w-full h-14 rounded-2xl text-base font-bold shadow-lg shadow-amber-900/20" 
                             onClick={handleSubmit}
                           >
-                            Submit for Review
+                            {editingMerchantId ? "Save Changes" : "Submit for Review"}
                           </Button>
                         </div>
                       </div>
@@ -1534,5 +1600,17 @@ export default function MerchantOnboardingPage() {
               </DialogContent>
             </Dialog>
     </div>
+  )
+}
+
+export default function MerchantOnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <MerchantOnboardingContent />
+    </Suspense>
   )
 }
