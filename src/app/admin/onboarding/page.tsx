@@ -708,6 +708,7 @@ function MerchantOnboardingContent() {
                                     placeholder="Legal Entity Name" 
                                     value={formData.name} 
                                     onChange={handleInputChange} 
+                                    maxLength={50}
                                     className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.name ? "border-red-500" : ""}`}
                                   />
                                   {errors.name && <p className="text-[10px] text-red-500 font-medium">{errors.name}</p>}
@@ -720,6 +721,7 @@ function MerchantOnboardingContent() {
                                     placeholder="contact@business.com" 
                                     value={formData.email} 
                                     onChange={handleInputChange} 
+                                    maxLength={50}
                                     className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.email ? "border-red-500" : ""}`}
                                   />
                                   {errors.email && <p className="text-[10px] text-red-500 font-medium">{errors.email}</p>}
@@ -730,7 +732,7 @@ function MerchantOnboardingContent() {
                                 <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">
                                   Business Description 
                                   <span className="text-[10px] ml-2 font-bold text-slate-400">
-                                    ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words)
+                                    ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words, max 500 chars)
                                   </span>
                                 </Label>
                                 <div className="relative">
@@ -739,6 +741,7 @@ function MerchantOnboardingContent() {
                                     placeholder="Describe the nature of business and products sold..."
                                     className={`min-h-[120px] rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all pr-12 ${errors.businessDescription ? "border-red-500" : ""}`}
                                     value={formData.businessDescription}
+                                    maxLength={500}
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       const words = val.trim().split(/\s+/).filter(Boolean);
@@ -815,6 +818,7 @@ function MerchantOnboardingContent() {
                                   placeholder="Abebe Kebede" 
                                   value={formData.contactName} 
                                   onChange={handleInputChange} 
+                                  maxLength={50}
                                   className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.contactName ? "border-red-500" : ""}`}
                                 />
                                 {errors.contactName && <p className="text-[10px] text-red-500 font-medium">{errors.contactName}</p>}
@@ -826,6 +830,7 @@ function MerchantOnboardingContent() {
                                   placeholder="email@example.com or 0912345678" 
                                   value={formData.contactUsername} 
                                   onChange={handleInputChange} 
+                                  maxLength={50}
                                   className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.contactUsername ? "border-red-500" : ""}`}
                                 />
                                 {errors.contactUsername && <p className="text-[10px] text-red-500 font-medium">{errors.contactUsername}</p>}
@@ -858,6 +863,7 @@ function MerchantOnboardingContent() {
                                       placeholder="Bank Account Number" 
                                       value={formData.accountNumber} 
                                       onChange={handleInputChange} 
+                                      maxLength={15}
                                       className={`h-11 rounded-xl border-gray-200 pl-10 focus:ring-primary/20 focus:border-primary transition-all ${errors.accountNumber ? "border-red-500" : ""}`}
                                     />
                                   </div>
@@ -872,6 +878,7 @@ function MerchantOnboardingContent() {
                                       placeholder="https://..." 
                                       value={formData.websiteUrl} 
                                       onChange={handleInputChange} 
+                                      maxLength={255}
                                       className={`h-11 rounded-xl border-gray-200 pl-10 focus:ring-primary/20 focus:border-primary transition-all ${errors.websiteUrl ? "border-red-500" : ""}`}
                                     />
                                   </div>
@@ -887,6 +894,7 @@ function MerchantOnboardingContent() {
                                     placeholder="https://api.merchant.com/webhook" 
                                     value={formData.callbackUrl} 
                                     onChange={handleInputChange} 
+                                    maxLength={255}
                                     className={`h-11 rounded-xl border-gray-200 pl-10 focus:ring-primary/20 focus:border-primary transition-all ${errors.callbackUrl ? "border-red-500" : ""}`}
                                   />
                                 </div>

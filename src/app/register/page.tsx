@@ -495,6 +495,7 @@ export default function MerchantSelfRegistration() {
                         id="name" 
                         placeholder="Legal Entity Name" 
                         required 
+                        maxLength={50}
                         className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.name ? 'border-red-500' : ''}`}
                         value={formData.name}
                         onChange={e => setFormData({...formData, name: e.target.value})}
@@ -508,6 +509,7 @@ export default function MerchantSelfRegistration() {
                         type="email" 
                         placeholder="contact@business.com" 
                         required 
+                        maxLength={50}
                         className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.email ? 'border-red-500' : ''}`}
                         value={formData.email}
                         onChange={e => setFormData({...formData, email: e.target.value})}
@@ -522,6 +524,7 @@ export default function MerchantSelfRegistration() {
                         inputMode="numeric"
                         placeholder="e.g. 1234567890"
                         required
+                        maxLength={15}
                         className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.accountNumber ? 'border-red-500' : ''}`}
                         value={formData.accountNumber}
                         onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
@@ -551,6 +554,7 @@ export default function MerchantSelfRegistration() {
                         id="contactName" 
                         placeholder="Authorized Representative" 
                         required 
+                        maxLength={50}
                         className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.contactName ? 'border-red-500' : ''}`}
                         value={formData.contactName}
                         onChange={e => setFormData({...formData, contactName: e.target.value})}
@@ -563,6 +567,7 @@ export default function MerchantSelfRegistration() {
                         <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="contactUsername" 
+                          maxLength={50}
                           className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.contactUsername ? 'border-red-500' : ''}`}
                           placeholder="email@example.com or 0912345678" 
                           required 
@@ -652,13 +657,14 @@ export default function MerchantSelfRegistration() {
                       <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">
                         Business Description 
                         <span className="text-[10px] ml-2 font-bold text-slate-400">
-                          ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words)
+                          ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words, max 500 chars)
                         </span>
                       </Label>
                       <Textarea 
                         id="businessDescription" 
                         placeholder="Describe your business activities, products, and services" 
                         rows={3} 
+                        maxLength={500}
                         className={`rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.businessDescription ? 'border-red-500' : ''}`}
                         value={formData.businessDescription}
                         onChange={e => {
@@ -679,6 +685,7 @@ export default function MerchantSelfRegistration() {
                           id="websiteUrl" 
                           type="url" 
                           placeholder="https://yourbusiness.com" 
+                          maxLength={255}
                           className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.websiteUrl ? 'border-red-500' : ''}`}
                           value={formData.websiteUrl}
                           onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
@@ -694,6 +701,7 @@ export default function MerchantSelfRegistration() {
                           id="callbackUrl" 
                           type="url" 
                           placeholder="https://yourbusiness.com/callback" 
+                          maxLength={255}
                           className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
                           value={formData.callbackUrl}
                           onChange={e => setFormData({...formData, callbackUrl: e.target.value})}

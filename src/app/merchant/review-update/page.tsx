@@ -409,6 +409,7 @@ function ReviewUpdateForm() {
                   <div className="space-y-2">
                     <Label>Business Name</Label>
                     <Input 
+                      maxLength={50}
                       className={`h-11 rounded-xl ${errors.name ? 'border-red-500' : ''}`}
                       value={formData.name}
                       onChange={e => setFormData({...formData, name: e.target.value})}
@@ -417,6 +418,7 @@ function ReviewUpdateForm() {
                   <div className="space-y-2">
                     <Label>Business Email</Label>
                     <Input 
+                      maxLength={50}
                       className={`h-11 rounded-xl ${errors.email ? 'border-red-500' : ''}`}
                       value={formData.email}
                       onChange={e => setFormData({...formData, email: e.target.value})}
@@ -425,6 +427,7 @@ function ReviewUpdateForm() {
                   <div className="space-y-2 sm:col-span-2">
                     <Label>Settlement Account Number</Label>
                     <Input 
+                      maxLength={15}
                       className={`h-11 rounded-xl ${errors.accountNumber ? 'border-red-500' : ''}`}
                       value={formData.accountNumber}
                       onChange={e => setFormData({...formData, accountNumber: e.target.value})}
@@ -444,6 +447,7 @@ function ReviewUpdateForm() {
                   <div className="space-y-2">
                     <Label>Full Name</Label>
                     <Input 
+                      maxLength={50}
                       className={`h-11 rounded-xl ${errors.contactName ? 'border-red-500' : ''}`}
                       value={formData.contactName}
                       onChange={e => setFormData({...formData, contactName: e.target.value})}
@@ -452,6 +456,7 @@ function ReviewUpdateForm() {
                   <div className="space-y-2">
                     <Label>Email or Phone Number</Label>
                     <Input 
+                      maxLength={50}
                       className={`h-11 rounded-xl ${errors.contactUsername ? 'border-red-500' : ''}`}
                       value={formData.contactUsername}
                       onChange={e => setFormData({...formData, contactUsername: e.target.value})}
@@ -489,6 +494,7 @@ function ReviewUpdateForm() {
                       rows={3}
                       className="rounded-xl"
                       value={formData.businessDescription}
+                      maxLength={500}
                       onChange={e => setFormData({...formData, businessDescription: e.target.value})}
                     />
                   </div>
@@ -497,6 +503,7 @@ function ReviewUpdateForm() {
                     <Input 
                       className="h-11 rounded-xl"
                       value={formData.websiteUrl}
+                      maxLength={255}
                       onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
                     />
                   </div>
@@ -505,6 +512,7 @@ function ReviewUpdateForm() {
                     <Input 
                       className="h-11 rounded-xl"
                       value={formData.callbackUrl}
+                      maxLength={255}
                       onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
                     />
                   </div>
