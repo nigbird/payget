@@ -15,7 +15,6 @@ import {
   User as UserIcon,
   type LucideIcon,
 } from "lucide-react"
-import logo from "../../app/admin/logo/niblogo.png"
 import { 
   Sidebar, 
   SidebarContent, 
@@ -92,11 +91,9 @@ export function SidebarNav() {
       <SidebarHeader className="sidebar-proportional px-3.5 py-4">
         <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
           <div className="sidebar-logo-orb overflow-hidden">
-            <Image 
-              src={logo} 
+            <img 
+              src="/niblogo.png" 
               alt="NibTera Logo" 
-              width={38} 
-              height={38} 
               className="sidebar-logo-image"
             />
           </div>

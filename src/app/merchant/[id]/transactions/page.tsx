@@ -10,6 +10,10 @@ import {
   Clock,
   Search,
   ShieldCheck,
+  Download,
+  FileText,
+  User as UserIcon,
+  TrendingUp,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,7 +34,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
-import type { Merchant, Transaction } from "@/app/lib/db"
+import type { Merchant, Transaction, MerchantTeamMember } from "@/app/lib/db"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
 
@@ -43,9 +47,11 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [teamMembers, setTeamMembers] = useState<MerchantTeamMember[]>([])
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
+  const [salesUserFilter, setSalesUserFilter] = useState<string>("all")
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [amountMin, setAmountMin] = useState<string>("")
@@ -86,8 +92,21 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       return []
     }
 
+    const fetchTeam = async () => {
+      try {
+        const response = await fetch(`/api/merchants/${id}/team`)
+        if (response.ok) {
+          const members = await response.json()
+          setTeamMembers(members)
+        }
+      } catch (error) {
+        console.error('Failed to fetch team members:', error)
+      }
+    }
+
     fetchMerchant()
     fetchTransactions()
+    fetchTeam()
 
     const interval = setInterval(async () => {
       const txs = await fetchTransactions()

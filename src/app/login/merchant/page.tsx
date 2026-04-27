@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2, Lock, Mail, Phone, Eye, EyeOff, Hexagon, Building2 } from "lucide-react"
+import { Loader2, Lock, Mail, Phone, Eye, EyeOff, Building2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function MerchantLogin() {
@@ -210,8 +210,12 @@ export default function MerchantLogin() {
         <div className="w-full max-w-md animate-fade-in-up">
           <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
             <div className="flex justify-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#f8b513] to-[#754319] flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300">
-                <Hexagon className="w-8 h-8 text-white" />
+              <div className="w-20 h-20 flex items-center justify-center">
+                <img 
+                  src="/niblogo.png" 
+                  alt="Nib Bank Logo" 
+                  className="max-w-full max-h-full object-contain"
+                />
               </div>
             </div>
 

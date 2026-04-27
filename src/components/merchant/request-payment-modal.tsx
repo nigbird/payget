@@ -22,7 +22,6 @@ import {
   AlertCircle,
   FileText,
 } from "lucide-react"
-import nibLogo from "@/app/admin/logo/niblogo.png"
 
 export function RequestPaymentModal({
   merchantId,
@@ -209,15 +208,13 @@ export function RequestPaymentModal({
                       htmlFor="bank-modal"
                       className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[104px]"
                     >
-                      <span className="flex items-center justify-center w-12 h-12 mb-1 rounded-lg bg-white">
-                        <img
-                          src={nibLogo.src}
-                          alt="Nib Bank"
-                          width={40}
-                          height={40}
-                          className="object-contain"
-                        />
-                      </span>
+                        <div className="w-12 h-12 flex items-center justify-center">
+                          <img 
+                            src="/niblogo.png" 
+                            alt="Nib Bank" 
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
                       <span className="mt-1 text-xs font-medium text-slate-700">Nib Bank</span>
                     </Label>
                     <div className="absolute top-2 right-2 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
