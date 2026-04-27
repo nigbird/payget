@@ -316,9 +316,9 @@ function ReviewUpdateForm() {
           <CardTitle className="text-red-600">Invalid or Expired Link</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardFooter>
+        {/* <CardFooter>
           <Button variant="outline" className="w-full" onClick={() => router.push('/')}>Return Home</Button>
-        </CardFooter>
+        </CardFooter> */}
       </Card>
     )
   }

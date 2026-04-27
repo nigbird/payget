@@ -62,11 +62,11 @@ export function RequestPaymentModal({
 
   const handleRequestPayment = async (mode: "push" | "link") => {
     const amountNum = parseFloat(requestForm.amount)
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (isNaN(amountNum) || amountNum < 1) {
       toast({
         variant: "destructive",
         title: "Invalid Amount",
-        description: "Please enter a valid amount greater than 0.",
+        description: "Please enter a valid amount (minimum 1 ETB).",
       })
       return
     }
@@ -270,13 +270,18 @@ export function RequestPaymentModal({
                   <Wallet className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                   <Input
                     id="amount"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="0.00"
                     className="h-11 rounded-xl border-slate-200 bg-white pl-10 font-medium text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
                     required
                     value={requestForm.amount}
-                    onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) {
+                        setRequestForm({ ...requestForm, amount: val });
+                      }
+                    }}
                   />
                 </div>
               </div>

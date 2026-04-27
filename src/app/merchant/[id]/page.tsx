@@ -169,11 +169,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     const phone = retryData?.phone || requestForm.payerPhone
     
     const amountNum = parseFloat(amount)
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (isNaN(amountNum) || amountNum < 1) {
       toast({
         variant: "destructive",
         title: "Invalid Amount",
-        description: "Please enter a valid amount greater than 0.",
+        description: "Please enter a valid amount (minimum 1 ETB).",
       })
       return
     }
@@ -391,13 +391,18 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <Label htmlFor="amount" className="text-xs font-medium text-slate-500">Amount</Label>
                 <Input
                   id="amount"
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="0.00"
                   className="h-14 rounded-xl border border-slate-200 bg-white text-center text-2xl font-medium text-slate-800 shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
                   required
                   value={requestForm.amount}
-                  onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) {
+                      setRequestForm({ ...requestForm, amount: val });
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-1.5">
