@@ -311,9 +311,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[calc(100vw-40px)] max-w-[400px] p-0 rounded-2xl shadow-2xl border-slate-100" align="end">
+            <PopoverContent className="w-[calc(100vw-32px)] max-w-[400px] p-0 rounded-2xl shadow-2xl border-slate-100" align="end">
               <div className="p-5 space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <h3 className="font-bold text-slate-900">Filters & Reports</h3>
                   <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50">
                     Reset All
@@ -323,38 +323,38 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date Range</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-9 rounded-lg text-xs font-bold border-slate-100 hover:bg-slate-50"
-                        onClick={handleToday}
-                      >
-                        Today
-                      </Button>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs font-bold border-slate-100 truncate">
-                            <CalendarDays className="mr-2 h-3.5 w-3.5" />
-                            {dateRangeLabel}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                          <Calendar
-                            mode="range"
-                            selected={dateRange as any}
-                            onSelect={(range) => setDateRange((range ?? {}) as any)}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-9 rounded-lg text-xs font-bold border-slate-100 hover:bg-slate-50 w-full"
+                          onClick={handleToday}
+                        >
+                          Today
+                        </Button>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs font-bold border-slate-100 truncate w-full">
+                              <CalendarDays className="mr-2 h-3.5 w-3.5" />
+                              {dateRangeLabel}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[calc(100vw-32px)] max-w-[320px] p-0 sm:w-auto" align="end">
+                            <Calendar
+                              mode="range"
+                              selected={dateRange as any}
+                              onSelect={(range) => setDateRange((range ?? {}) as any)}
+                            />
+                          </PopoverContent>
+                        </Popover>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</Label>
                       <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -368,7 +368,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sales User</Label>
                       <Select value={salesUserFilter} onValueChange={setSalesUserFilter}>
-                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

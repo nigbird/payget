@@ -4,24 +4,23 @@ import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 
 /**
  * Notification system abstraction for Email and SMS.
- * Configured via environment variables for different providers.
  */
 
 export interface NotificationPayload {
-  to: string; // Email or Phone Number
+  to: string;
   subject?: string;
   message: string;
 }
 
 /**
- * Sends a notification via Email or SMS depending on the 'to' format.
+ * Main notification handler
  */
 export async function sendNotification(payload: NotificationPayload): Promise<boolean> {
   const { to, subject, message } = payload;
 
   const isEmail = isValidEmail(to);
   const isPhone = !isEmail && isValidPhoneNumber(to);
-  
+
   try {
     if (isEmail) {
       return await sendEmailNotification(to, subject || 'Notification', message);
@@ -38,11 +37,15 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
 }
 
 /**
- * Email provider integration using Nodemailer for SMTP.
+ * Email sender (SMTP via Nodemailer)
  */
-async function sendEmailNotification(email: string, subject: string, message: string): Promise<boolean> {
+async function sendEmailNotification(
+  email: string,
+  subject: string,
+  message: string
+): Promise<boolean> {
   const emailEnabled = process.env.EMAIL_ENABLED === 'true';
-  
+
   if (!emailEnabled) {
     console.log(`[EMAIL-DISABLED] Log only: Sending to ${email}`);
     console.log(`[EMAIL-DISABLED] Subject: ${subject}`);
@@ -59,6 +62,9 @@ async function sendEmailNotification(email: string, subject: string, message: st
         user: process.env.SMTP_EMAIL_USER,
         pass: process.env.SMTP_EMAIL_PASS,
       },
+      tls: {
+        rejectUnauthorized: false, //  bypass SSL certificate issue
+      },
     });
 
     const info = await transporter.sendMail({
@@ -66,12 +72,18 @@ async function sendEmailNotification(email: string, subject: string, message: st
       to: email,
       subject: subject,
       text: message,
-      html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px;">
-        <h2 style="color: #754319;">${subject}</h2>
-        <p style="font-size: 16px; line-height: 1.5; color: #333;">${message.replace(/\n/g, '<br>')}</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999;">This is an automated message from NibTera Merchants. Please do not reply directly to this email.</p>
-      </div>`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px;">
+          <h2 style="color: #754319;">${subject}</h2>
+          <p style="font-size: 16px; line-height: 1.5; color: #333;">
+            ${message.replace(/\n/g, '<br>')}
+          </p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="font-size: 12px; color: #999;">
+            This is an automated message from NibTera Merchants. Please do not reply directly to this email.
+          </p>
+        </div>
+      `,
     });
 
     console.log(`[EMAIL-SENT] Message ID: ${info.messageId} to ${email}`);
@@ -83,10 +95,11 @@ async function sendEmailNotification(email: string, subject: string, message: st
 }
 
 /**
- * Placeholder for SMS provider integration (e.g., Twilio, MessageBird, Infobip).
+ * SMS sender
  */
 async function sendSMSNotification(phone: string, message: string): Promise<boolean> {
   const result = await sendSms(phone, message);
+
   if (!result.ok) {
     console.error(`[SMS-ERROR] Failed to send to ${phone}:`, result);
     return false;
@@ -96,7 +109,7 @@ async function sendSMSNotification(phone: string, message: string): Promise<bool
 }
 
 /**
- * Generates a secure link for password setup.
+ * Password setup link
  */
 export function generatePasswordSetupLink(merchantId: string, token: string): string {
   const baseUrl =
@@ -105,12 +118,11 @@ export function generatePasswordSetupLink(merchantId: string, token: string): st
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
     'http://localhost:3000';
 
-  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
-  return `${normalizedBaseUrl}/merchant/setup-password?merchantId=${merchantId}&token=${token}`;
+  return `${baseUrl.replace(/\/$/, '')}/merchant/setup-password?merchantId=${merchantId}&token=${token}`;
 }
 
 /**
- * Generates a secure magic link for merchant application updates.
+ * Merchant update link (magic link)
  */
 export function generateMerchantUpdateLink(token: string): string {
   const baseUrl =
@@ -119,6 +131,5 @@ export function generateMerchantUpdateLink(token: string): string {
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
     'http://localhost:3000';
 
-  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
-  return `${normalizedBaseUrl}/merchant/review-update?token=${token}`;
+  return `${baseUrl.replace(/\/$/, '')}/merchant/review-update?token=${token}`;
 }

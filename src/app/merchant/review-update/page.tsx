@@ -327,35 +327,52 @@ function ReviewUpdateForm() {
 
   if (step === 'otp') {
     return (
-      <Card className="max-w-md w-full shadow-lg border-none">
-        <CardHeader className="text-center">
-          <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-4" />
-          <CardTitle>Verify Your Identity</CardTitle>
-          <CardDescription>
-            Enter the code sent to your registered {merchant.contactType}: <span className="font-bold text-slate-900">{merchant.contactUsername}</span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button variant="outline" className="w-full h-11" onClick={handleSendOtp} disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Send Verification Code"}
-          </Button>
-          <div className="space-y-2">
-            <Label>Verification Code</Label>
-            <Input 
-              placeholder="Enter 6-digit code" 
-              className="text-center text-lg tracking-[0.5em] h-12"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              maxLength={6}
-            />
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
+          <div className="p-8 text-center border-b border-slate-50">
+            <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-4">
+              <ShieldCheck className="w-6 h-6 text-amber-600" />
+            </div>
+            <h3 className="text-xl font-medium text-slate-800 tracking-tight">Verify Identity</h3>
+            <p className="text-slate-500 mt-1 text-sm">Security check</p>
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button className="w-full h-11" onClick={handleVerifyOtp} disabled={isSubmitting || otp.length < 6}>
-            {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Verify & Continue"}
-          </Button>
-        </CardFooter>
-      </Card>
+          <CardContent className="py-8 px-8 space-y-6">
+            <div className="bg-slate-50 rounded-xl p-5 text-center">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Enter the code sent to your {merchant.contactType}: <span className="font-bold text-slate-900">{merchant.contactUsername}</span>
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Verification Code</Label>
+                <Input 
+                  placeholder="Enter 6-digit code" 
+                  className="h-12 rounded-xl text-center text-lg tracking-widest font-bold border-slate-200 bg-white shadow-sm focus:ring-amber-500/20"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  maxLength={6}
+                />
+              </div>
+              <Button 
+                className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-bold shadow-sm transition-all" 
+                onClick={handleVerifyOtp} 
+                disabled={isSubmitting || otp.length < 6}
+              >
+                {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Verify & Continue"}
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full h-10 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50" 
+                onClick={handleSendOtp} 
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Resend code"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -583,24 +600,32 @@ function ReviewUpdateForm() {
 
   if (step === 'success') {
     return (
-      <Card className="max-w-md w-full shadow-2xl border-none animate-in zoom-in-95 rounded-3xl overflow-hidden text-center">
-        <div className="bg-gradient-to-br from-[#f4db9f] via-[#f8b513] to-[#754319] p-8 text-[#3f210f]">
-          <div className="mx-auto w-16 h-16 bg-white/30 rounded-2xl backdrop-blur-md flex items-center justify-center mb-4 border border-white/40">
-            <CheckCircle2 className="w-10 h-10" />
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
+          <div className="p-8 text-center border-b border-slate-50">
+            <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="text-xl font-medium text-slate-800 tracking-tight">Application Resubmitted</h3>
+            <p className="text-slate-500 mt-1 text-sm">Update received</p>
           </div>
-          <h3 className="text-2xl font-black tracking-tight uppercase">Resubmitted!</h3>
-        </div>
-        <CardContent className="py-8 px-8 space-y-4">
-          <p className="text-sm text-slate-600 font-medium">
-            Your corrections have been received. Our compliance team will review them shortly.
-          </p>
-        </CardContent>
-        <CardFooter className="px-8 pb-8">
-          <Button className="w-full h-14 rounded-2xl bg-slate-900 text-white font-bold" asChild>
-            <Link href="/">Return to Home</Link>
-          </Button>
-        </CardFooter>
-      </Card>
+          <CardContent className="py-8 px-8 space-y-6">
+            <div className="bg-slate-50 rounded-xl p-5 text-center">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Your corrections have been successfully received. Our compliance team will <span className="font-medium text-slate-900">Review Them Shortly</span>.
+              </p>
+              <p className="text-sm text-slate-500 mt-3">
+                You will be notified via email or SMS once the final decision has been made.
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="px-8 pb-8 pt-2">
+            <Button className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm transition-all" asChild>
+              <Link href="/">Return to Home</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     )
   }
 
