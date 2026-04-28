@@ -162,7 +162,7 @@ export default function MerchantPortalShell({
                   </p>
                 </div>
 
-                <div className={cn("flex w-full items-center justify-around gap-1 rounded-[24px] border border-amber-200/40 bg-white/80 backdrop-blur-md shadow-xl md:w-auto md:justify-start md:overflow-x-auto md:rounded-2xl md:border-white/60 md:bg-white/65 md:shadow-none md:backdrop-blur-sm md:bg-none")}>
+                <div className={cn("flex w-full items-center justify-around gap-0.5 rounded-[20px] border border-amber-200/40 bg-white/80 backdrop-blur-md shadow-lg md:w-auto md:justify-start md:overflow-x-auto md:rounded-2xl md:border-white/60 md:bg-white/65 md:shadow-none md:backdrop-blur-sm md:bg-none")}>
                   {visibleNavItems.map((item) => {
                     const Icon = item.icon
                     const isActive =
@@ -173,34 +173,31 @@ export default function MerchantPortalShell({
                         key={item.key}
                         href={item.href}
                         className={cn(
-                          "relative flex flex-col items-center justify-center gap-1.5 px-2 py-1 transition-all duration-500 md:flex-row md:min-h-9 md:gap-2 md:rounded-xl md:px-3 md:py-1.5 md:whitespace-nowrap",
+                          "relative flex flex-col items-center justify-center gap-1 px-1 py-1 transition-all duration-500 md:flex-row md:min-h-9 md:gap-2 md:rounded-xl md:px-4 md:py-1.5 md:whitespace-nowrap",
                           isActive
                             ? "text-[#754319] md:bg-gradient-to-r md:from-[#f8b513] md:to-[#754319] md:text-white md:shadow-lg md:shadow-amber-600/30"
-                            : "text-[#754319]/50 hover:text-[#754319] md:text-[#754319]/70 md:hover:bg-white/90"
+                            : "text-[#754319]/50 hover:text-[#754319] md:text-[#754319]/70 md:hover:bg-amber-50/50"
                         )}
                         title={item.label}
                       >
                         <div className={cn(
-                          "relative flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-500 md:h-auto md:w-auto md:bg-transparent",
-                          isActive && "bg-gradient-to-r from-[#f8b513] to-[#754319] md:bg-none shadow-lg shadow-amber-600/20 md:shadow-none"
+                          "relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-500 md:h-auto md:w-auto md:bg-transparent",
+                          isActive && "bg-amber-100/50 md:bg-none"
                         )}>
                           <Icon 
                             className={cn(
-                              "h-5 w-5 transition-all duration-500 md:h-5 md:w-5", 
+                              "h-4 w-4 transition-all duration-500 md:h-5 md:w-5", 
                               isActive 
-                                ? "scale-110 rotate-[5deg] text-white md:scale-100 md:rotate-0 md:text-white md:stroke-[2.5px]" 
-                                : "text-[#754319]/60 md:text-[#754319] md:stroke-[1.5px]"
+                                ? "scale-110 text-[#754319] md:scale-100 md:text-inherit md:stroke-[2.5px]" 
+                                : "text-[#754319]/60 md:text-inherit md:stroke-[1.5px]"
                             )} 
                           />
-                          {isActive && (
-                            <div className="absolute -bottom-0.5 h-1 w-4 rounded-full bg-[#f8b513] shadow-[0_0_8px_#f8b513] md:hidden animate-in fade-in zoom-in duration-500" />
-                          )}
                         </div>
                         <span className={cn(
-                          "text-[9px] font-bold uppercase tracking-wider md:tracking-tight md:text-sm md:font-bold md:capitalize md:inline",
-                          isActive ? "text-[#754319] md:text-inherit" : "text-[#754319]/40 md:text-inherit",
+                          "text-[8px] font-bold uppercase tracking-tight md:tracking-tight md:text-sm md:font-bold md:capitalize md:inline",
+                          isActive ? "text-[#754319] md:text-inherit" : "text-[#754319]/50 group-hover:text-[#754319] md:text-inherit"
                         )}>
-                          {item.label.split(' ')[0]}
+                          {item.label}
                         </span>
                       </Link>
                     )

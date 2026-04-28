@@ -14,8 +14,10 @@ import {
   subYears,
   startOfDay,
   startOfWeek,
+  endOfWeek,
   startOfMonth,
-  startOfYear
+  startOfYear,
+  format
 } from "date-fns"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -121,11 +123,32 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
     const trend = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0
 
+    const getFormattedDateRange = (range: "today" | "week" | "month" | "year") => {
+      const now = new Date()
+      switch (range) {
+        case "today":
+          return format(now, "M/d/yyyy")
+        case "week":
+          const start = startOfWeek(now, { weekStartsOn: 1 }) // Starts on Monday
+          const end = endOfWeek(now, { weekStartsOn: 1 })
+          return `${format(start, "M/d/yyyy")} - ${format(end, "M/d/yyyy")}`
+        case "month":
+          return format(now, "MMMM yyyy")
+        case "year":
+          return format(now, "yyyy")
+        default:
+          return ""
+      }
+    }
+
+    const formattedDateRange = getFormattedDateRange(timeRange)
+
     return {
       currentTotal,
       prevTotal,
       trend,
-      count: currentTxs.length
+      count: currentTxs.length,
+      formattedDateRange
     }
   }, [transactions, timeRange])
 
@@ -571,43 +594,43 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-4 pb-24 md:pb-4">
-      <section className="rounded-3xl border border-amber-200/30 bg-white/80 p-4 sm:p-5 md:p-7 shadow-xl backdrop-blur-md">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <section className="rounded-3xl border border-amber-200/30 bg-white/80 p-4 sm:p-5 md:p-6 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-amber-700/70">Merchant Dashboard</p>
-              <div className="mt-2 flex items-center gap-3">
-                <h1 className="text-[1.75rem] leading-tight md:text-3xl font-bold text-[#5b371f]">
+              <p className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-amber-700/70">Merchant Dashboard</p>
+              <div className="mt-1.5 md:mt-2 flex items-center gap-2 md:gap-3">
+                <h1 className="text-xl md:text-3xl leading-tight font-bold text-[#5b371f]">
                   Welcome back, {merchant.name}
                 </h1>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100/50">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Verified</span>
+                <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full bg-emerald-50 border border-emerald-100/50">
+                  <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-600" />
+                  <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-emerald-700">Verified</span>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => copyText(merchant.accountNumber, "acc")}>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50/50 border border-amber-100/50 transition-all hover:bg-amber-100/50 hover:border-amber-200/50">
-                <Wallet className="w-3.5 h-3.5 text-amber-700" />
-                <span className="text-xs font-bold text-amber-900/80 font-mono tracking-wider">{merchant.accountNumber}</span>
+            <div className="flex items-center gap-1.5 md:gap-2.5 group cursor-pointer" onClick={() => copyText(merchant.accountNumber, "acc")}>
+              <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-xl bg-amber-50/50 border border-amber-100/50 transition-all hover:bg-amber-100/50 hover:border-amber-200/50">
+                <Wallet className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-700" />
+                <span className="text-xs md:text-sm font-bold text-amber-900/80 font-mono tracking-wider">{merchant.accountNumber}</span>
                 {copied === "acc" ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-600" />
                 ) : (
-                  <Copy className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-600 transition-colors" />
+                  <Copy className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-400 group-hover:text-amber-600 transition-colors" />
                 )}
               </div>
-              <span className="text-[10px] font-bold text-amber-700/40 uppercase tracking-tight group-hover:text-amber-700/60 transition-colors">Settlement Account</span>
+              <span className="text-[9px] md:text-[10px] font-bold text-amber-700/40 uppercase tracking-tight group-hover:text-amber-700/60 transition-colors">Settlement Account</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
               disabled={!isApproved}
-              className="h-10 md:h-11 min-h-[40px] md:min-h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all px-4 md:px-6"
+              className="h-9 md:h-11 min-h-[36px] md:min-h-[44px] rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all px-3 md:px-6"
               onClick={() => setIsRequestPanelOpen(true)}
             >
-              <Sparkles className="mr-2 h-4 w-4" />
-              <span className="text-sm font-bold">Push Payment</span>
+              <Sparkles className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+              <span className="text-xs md:text-sm font-bold">Push Payment</span>
             </Button>
           </div>
         </div>
@@ -630,22 +653,29 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       )}
 
       <section className="mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex p-1 bg-amber-50/50 border border-amber-100/50 rounded-xl">
-            {(["today", "week", "month", "year"] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  timeRange === range
-                    ? "bg-white text-amber-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {range.charAt(0).toUpperCase() + range.slice(1)}
-              </button>
-            ))}
+        <div className="flex flex-col gap-2 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex p-1 bg-amber-50/50 border border-amber-100/50 rounded-xl">
+              {(["today", "week", "month", "year"] as const).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    timeRange === range
+                      ? "bg-white text-amber-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {range.charAt(0).toUpperCase() + range.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
+          {stats.formattedDateRange && (
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800/60 ml-1">
+              {stats.formattedDateRange}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
