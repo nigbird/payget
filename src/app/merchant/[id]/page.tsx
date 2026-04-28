@@ -1,8 +1,22 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
+import { use, useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { 
+  isSameDay, 
+  isSameWeek, 
+  isSameMonth, 
+  isSameYear, 
+  subDays, 
+  subWeeks, 
+  subMonths, 
+  subYears,
+  startOfDay,
+  startOfWeek,
+  startOfMonth,
+  startOfYear
+} from "date-fns"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -70,6 +84,49 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     payerPhone: "",
     method: "BANK" as "BANK" | "TELEBIRR",
   })
+
+  const [timeRange, setTimeRange] = useState<"today" | "week" | "month" | "year">("today")
+
+  const stats = useMemo(() => {
+    const now = new Date()
+    const successfulTxs = transactions.filter(tx => tx.status === "success")
+
+    const filterByRange = (date: Date, range: string, referenceDate: Date) => {
+      switch (range) {
+        case "today": return isSameDay(date, referenceDate)
+        case "week": return isSameWeek(date, referenceDate, { weekStartsOn: 0 })
+        case "month": return isSameMonth(date, referenceDate)
+        case "year": return isSameYear(date, referenceDate)
+        default: return false
+      }
+    }
+
+    const getPreviousReferenceDate = (range: string, referenceDate: Date) => {
+      switch (range) {
+        case "today": return subDays(referenceDate, 1)
+        case "week": return subWeeks(referenceDate, 1)
+        case "month": return subMonths(referenceDate, 1)
+        case "year": return subYears(referenceDate, 1)
+        default: return referenceDate
+      }
+    }
+
+    const currentTxs = successfulTxs.filter(tx => filterByRange(new Date(tx.timestamp), timeRange, now))
+    const currentTotal = currentTxs.reduce((acc, tx) => acc + tx.amount, 0)
+
+    const prevRef = getPreviousReferenceDate(timeRange, now)
+    const prevTxs = successfulTxs.filter(tx => filterByRange(new Date(tx.timestamp), timeRange, prevRef))
+    const prevTotal = prevTxs.reduce((acc, tx) => acc + tx.amount, 0)
+
+    const trend = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0
+
+    return {
+      currentTotal,
+      prevTotal,
+      trend,
+      count: currentTxs.length
+    }
+  }, [transactions, timeRange])
 
   useEffect(() => {
     async function fetchData() {
@@ -451,27 +508,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     </div>
   )
 
-  const totalReceived = transactions.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0)
-  const successfulToday = transactions.filter((tx) => {
-    const txDate = new Date(tx.timestamp)
-    const now = new Date()
-    return tx.status === "success" && txDate.toDateString() === now.toDateString()
-  })
   const recentTransactions = transactions.slice(0, 4)
-  const metricCards = [
-    {
-      title: "Balance",
-      value: `${(totalReceived * 0.98).toLocaleString(undefined, { minimumFractionDigits: 2 })} ETB`,
-      hint: "Net of fees",
-      icon: Wallet,
-    },
-    {
-      title: "Volume",
-      value: `${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })} ETB`,
-      hint: `${transactions.filter((tx) => tx.status === "success").length} successful`,
-      icon: TrendingUp,
-    },
-  ]
 
   const copyText = async (value: string, key: string) => {
     await navigator.clipboard.writeText(value)
@@ -550,7 +587,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       {!isApproved && (
         <Card className={`mt-4 rounded-3xl border ${isPending ? "border-amber-200 bg-amber-50/90" : "border-rose-200 bg-rose-50/90"}`}>
           <CardContent className="relative p-4">
-                    <div className="relative flex items-start justify-between">
+            <div className="relative flex items-start justify-between">
               {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />}
               <div>
                 <p className="font-semibold text-sm">Account status: {merchant.status}</p>
@@ -563,36 +600,83 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
-        {metricCards.map((item) => {
-          const Icon = item.icon
-          return (
-            <Card
-              key={item.title}
-              className="card-honey-glass overflow-hidden rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
-            >
-              <CardContent className="relative p-4 sm:p-5 h-full flex items-center justify-between gap-3">
+      <section className="mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex p-1 bg-amber-50/50 border border-amber-100/50 rounded-xl">
+            {(["today", "week", "month", "year"] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  timeRange === range
+                    ? "bg-white text-amber-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {range.charAt(0).toUpperCase() + range.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Revenue Card */}
+          <Card className="card-honey-glass overflow-hidden rounded-3xl border-amber-200/20 bg-white/80 shadow-xl backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:bg-white/90">
+            <CardContent className="p-6">
+              <div className="flex flex-col">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-800/60 mb-1">Revenue</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-[#5b371f]">
+                    {stats.currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                  <span className="text-sm font-bold text-amber-800/40">ETB</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sales Overview Card */}
+          <Card className="card-honey-glass overflow-hidden rounded-3xl border-amber-200/20 bg-white/80 shadow-xl backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:bg-white/90">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-800/70">{item.title}</p>
-                  <p className="mt-1 break-words text-[1.75rem] leading-tight font-black text-[#5b371f]">{item.value}</p>
-                  <p className="mt-1 text-xs leading-5 text-amber-900/60 font-semibold">{item.hint}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-800/60 mb-1">Sales Overview</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-[#5b371f]">
+                      {stats.currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-sm font-bold text-amber-800/40">ETB</span>
+                  </div>
                 </div>
-                <div className="shrink-0 p-3 rounded-2xl bg-gradient-to-br from-amber-100/80 to-amber-200/60 shadow-sm border border-amber-300/30 group-hover:scale-110 transition-transform">
-                  <Icon className="h-5 w-5 text-amber-700" />
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+                {stats.trend !== 0 && (
+                  <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                    stats.trend > 0 
+                      ? "bg-emerald-50 text-emerald-600 border border-emerald-100" 
+                      : "bg-rose-50 text-rose-600 border border-rose-100"
+                  }`}>
+                    {stats.trend > 0 ? (
+                      <TrendingUp className="w-3 h-3" />
+                    ) : (
+                      <TrendingUp className="w-3 h-3 rotate-180" />
+                    )}
+                    {Math.abs(stats.trend).toFixed(1)}%
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       <section className="mt-4 grid grid-cols-1 gap-4">
         <Card className="rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-sm">
           <CardContent className="p-4 sm:p-5">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div>
                 <h2 className="font-semibold text-[#5b371f] text-lg">Recent Activity</h2>
-                <p className="text-xs text-amber-800/60 leading-5">{successfulToday.length} successful payments today</p>
+                <p className="text-xs text-amber-800/60 leading-5">
+                  {stats.count} successful payments {timeRange === 'today' ? 'today' : `this ${timeRange}`}
+                </p>
               </div>
               <Link href={`/merchant/${id}/transactions`} className="inline-flex min-h-11 items-center text-sm font-medium text-amber-700">
                 View All Transactions <ArrowUpRight className="ml-1 h-4 w-4" />
