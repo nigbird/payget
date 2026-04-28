@@ -51,6 +51,7 @@ import {
   Info,
   Share2,
   ExternalLink,
+  FileText,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -244,6 +245,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       return
     }
 
+    const trimmedPhone = phone.trim()
+    const isValidEthiopianPhone = /^(?:\+251|251|09)\d{7,10}$/.test(trimmedPhone)
+    if (!isValidEthiopianPhone) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Phone",
+        description: "Please enter a valid Ethiopian phone number (e.g., 0912345678, +251..., or 251...).",
+      })
+      return
+    }
+
     setIsSubmitting(true)
     setLastMode(mode)
     setGeneratedResult(null)
@@ -368,90 +380,96 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
   const formContent = (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full px-6">
-          <div className="space-y-6 pb-6 pt-2">
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <Label className="text-xs font-medium text-slate-500">Payment Method</Label>
-                <RadioGroup
-                  defaultValue="BANK"
-                  value={requestForm.method}
-                  onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" })}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  <div className="relative">
-                    <RadioGroupItem
-                      value="BANK"
-                      id="bank"
-                      className="peer sr-only"
-                    />
-                    <Label
-                        htmlFor="bank"
-                        className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[104px]"
-                      >
-                        <div className="w-12 h-12 flex items-center justify-center">
-                          <img 
-                            src="/niblogo.png" 
-                            alt="Nib Bank" 
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        <span className="mt-2 text-xs font-medium text-slate-700">Nib Bank</span>
-                      </Label>
-                    <div className="absolute top-2 right-2 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
-                      <CheckCircle2 className="h-4 w-4 text-amber-600" />
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <RadioGroupItem
-                      value="TELEBIRR"
-                      id="telebirr"
-                      className="peer sr-only"
-                      disabled
-                    />
-                    <Label
-                      htmlFor="telebirr"
-                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-4 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[104px]"
-                    >
-                      <span className="flex items-center justify-center w-12 h-12 mb-1 rounded-lg bg-white border border-slate-200">
-                        <img
-                          src="/telebirr.png"
-                          alt="Telebirr"
-                          width={40}
-                          height={40}
-                          className="object-contain"
-                        />
-                      </span>
-                      <span className="mt-1 text-xs font-medium text-slate-700">Telebirr</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Customer Phone</Label>
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-5 py-3 space-y-4">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Payment Method</Label>
+              <RadioGroup
+                defaultValue="BANK"
+                value={requestForm.method}
+                onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" })}
+                className="grid grid-cols-2 gap-2"
+              >
                 <div className="relative">
-                  <Phone className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="0912345678"
-                    className="h-11 rounded-xl border-slate-200 bg-white pl-10 shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
-                    required
-                    value={requestForm.payerPhone}
-                    onChange={(e) => setRequestForm({ ...requestForm, payerPhone: e.target.value })}
+                  <RadioGroupItem
+                    value="BANK"
+                    id="bank"
+                    className="peer sr-only"
                   />
+                  <Label
+                      htmlFor="bank"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
+                    >
+                      <div className="w-10 h-10 flex items-center justify-center">
+                        <img 
+                          src="/niblogo.png" 
+                          alt="Nib Bank" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <span className="mt-1 text-[10px] font-medium text-slate-700">Nib Bank</span>
+                    </Label>
+                  <div className="absolute top-1.5 right-1.5 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+                  </div>
                 </div>
+                <div className="relative">
+                  <RadioGroupItem
+                    value="TELEBIRR"
+                    id="telebirr"
+                    className="peer sr-only"
+                    disabled
+                  />
+                  <Label
+                    htmlFor="telebirr"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[80px]"
+                  >
+                    <span className="flex items-center justify-center w-10 h-10 mb-1 rounded-lg bg-white border border-slate-200">
+                      <img
+                        src="/telebirr.png"
+                        alt="Telebirr"
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                      />
+                    </span>
+                    <span className="mt-1 text-[10px] font-medium text-slate-700">Telebirr</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="phone" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Phone</Label>
+              <div className="relative group transition-all duration-200">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="0912345678"
+                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                  required
+                  value={requestForm.payerPhone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^\d+]/g, '');
+                    if (val.length <= 13) {
+                      setRequestForm({ ...requestForm, payerPhone: val });
+                    }
+                  }}
+                />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="amount" className="text-xs font-medium text-slate-500">Amount</Label>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount</Label>
+              <div className="relative group transition-all duration-200">
+                <Wallet className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                 <Input
                   id="amount"
                   type="text"
                   inputMode="decimal"
                   placeholder="0.00"
-                  className="h-14 rounded-xl border border-slate-200 bg-white text-center text-2xl font-medium text-slate-800 shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
+                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 font-medium text-sm text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
                   required
                   value={requestForm.amount}
                   onChange={(e) => {
@@ -462,48 +480,59 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   }}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="description" className="text-xs font-medium text-slate-500">Description</Label>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="description" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description</Label>
+                <span className="text-[9px] font-medium text-slate-400">{requestForm.description.length}/50</span>
+              </div>
+              <div className="relative group transition-all duration-200">
+                <FileText className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                 <Textarea
                   id="description"
                   placeholder="Order #1022"
-                  className="min-h-[100px] rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 resize-none"
+                  className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm"
                   value={requestForm.description}
-                  onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 50) {
+                      setRequestForm({ ...requestForm, description: e.target.value });
+                    }
+                  }}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  onClick={() => handleRequestPayment("push")}
-                  className="h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:saturate-110 text-sm font-bold text-white shadow-lg shadow-amber-900/20 transition-all"
-                  disabled={isSubmitting || !isApproved}
-                >
-                  {isSubmitting && lastMode === "push" ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Push Payment
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => handleRequestPayment("link")}
-                  className="h-11 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-sm font-bold shadow-sm transition-all"
-                  disabled={isSubmitting || !isApproved}
-                >
-                  {isSubmitting && lastMode === "link" ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Copy className="mr-2 h-4 w-4" />
-                  )}
-                  Generate Link
-                </Button>
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
+      </div>
+      <div className="shrink-0 p-5 border-t border-slate-50 bg-white rounded-b-2xl">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Button
+            type="button"
+            onClick={() => handleRequestPayment("push")}
+            className="h-10 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:saturate-110 text-xs font-bold text-white shadow-lg shadow-amber-900/20 transition-all"
+            disabled={isSubmitting || !isApproved}
+          >
+            {isSubmitting && lastMode === "push" ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Push Payment
+          </Button>
+          <Button
+            type="button"
+            onClick={() => handleRequestPayment("link")}
+            className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-sm transition-all"
+            disabled={isSubmitting || !isApproved}
+          >
+            {isSubmitting && lastMode === "link" ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Copy className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Generate Link
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -716,17 +745,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
         <SheetContent
             side="bottom"
-            className="max-h-[90vh] overflow-y-auto rounded-t-3xl border-0 bg-white px-4 pb-[max(env(safe-area-inset-bottom),1.25rem)]"
+            className="max-h-[85vh] overflow-y-auto rounded-t-3xl border-0 bg-white px-4 pb-[max(env(safe-area-inset-bottom),1.25rem)]"
           >
-          <div className="mx-auto mb-3 mt-1 h-1.5 w-14 rounded-full bg-[#754319]/25" />
-          <SheetHeader className="text-left mb-4">
-            <SheetTitle className="text-2xl text-[#5b371f]">Request payment</SheetTitle>
-            <SheetDescription>
+          <div className="mx-auto mb-1 mt-1 h-1 w-10 shrink-0 rounded-full bg-[#754319]/25" />
+          <SheetHeader className="text-left mb-3">
+            <SheetTitle className="text-xl text-[#5b371f]">Request payment</SheetTitle>
+            <SheetDescription className="text-xs">
               {lastMode === "push"
-                ? "Push a USSD PIN prompt to the customer instantly"
+                ? "Push a USSD PIN prompt instantly"
                 : lastMode === "link"
-                ? "Generate a secure payment link your customer can open on any channel."
-                : "Choose how you want to receive payment from your customer."}
+                ? "Generate a secure link to share"
+                : "Choose payment method and details"}
             </SheetDescription>
           </SheetHeader>
           {formContent}
@@ -734,21 +763,21 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </Sheet>
 
       <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
-        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[90vh]">
-          <DialogHeader className="text-center p-6 border-b border-slate-50 shrink-0">
-            <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
-              <Wallet className="w-6 h-6 text-slate-600" />
+        <DialogContent className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[90vh]">
+          <DialogHeader className="text-center p-5 border-b border-slate-50 shrink-0">
+            <div className="mx-auto w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mb-2">
+              <Wallet className="w-5 h-5 text-slate-600" />
             </div>
-            <DialogTitle className="text-xl font-medium text-slate-800">Request payment</DialogTitle>
-            <DialogDescription className="text-slate-500">
+            <DialogTitle className="text-lg font-bold text-slate-800 leading-none">Request payment</DialogTitle>
+            <DialogDescription className="text-slate-500 text-[11px] mt-1.5">
               {lastMode === "push"
-                ? "Push a USSD PIN prompt to the customer instantly."
+                ? "USSD PIN prompt will be sent instantly"
                 : lastMode === "link"
-                ? "Generate a secure payment link your customer can open on any channel."
-                : "Choose how you want to receive payment from your customer."}
+                ? "Generate a secure link to share"
+                : "Choose payment method and details"}
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-hidden">
             {formContent}
           </div>
         </DialogContent>
@@ -759,107 +788,107 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         setIsSuccessModalOpen(open)
         if (!open) setCurrentTxStatus(null)
       }}>
-        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden max-h-[90vh]">
-          <div className="p-6 text-center border-b border-slate-50">
+        <DialogContent className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden max-h-[90vh]">
+          <div className="p-5 text-center border-b border-slate-50">
             {lastMode === "link" ? (
               <>
-                <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                <div className="mx-auto w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 </div>
-                <h3 className="text-xl font-medium text-slate-800 tracking-tight">Payment Link Ready</h3>
-                <p className="text-slate-500 mt-1 text-sm">Secure checkout link generated</p>
+                <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-none">Payment Link Ready</h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">Secure checkout link generated</p>
               </>
             ) : currentTxStatus === "success" ? (
               <>
-                <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                <div className="mx-auto w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 </div>
-                <h3 className="text-xl font-medium text-emerald-800 tracking-tight">Payment Successful</h3>
-                <p className="text-slate-500 mt-1 text-sm">Transaction completed successfully</p>
+                <h3 className="text-lg font-bold text-emerald-800 tracking-tight leading-none">Payment Successful</h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">Transaction completed successfully</p>
               </>
             ) : currentTxStatus === "failed" ? (
               <>
-                <div className="mx-auto w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mb-4">
-                  <ShieldAlert className="w-6 h-6 text-rose-600" />
+                <div className="mx-auto w-10 h-10 bg-rose-50 rounded-full flex items-center justify-center mb-3">
+                  <ShieldAlert className="w-5 h-5 text-rose-600" />
                 </div>
-                <h3 className="text-xl font-medium text-rose-800 tracking-tight">Payment Failed</h3>
-                <p className="text-slate-500 mt-1 text-sm">Transaction could not be completed</p>
+                <h3 className="text-lg font-bold text-rose-800 tracking-tight leading-none">Payment Failed</h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">Transaction could not be completed</p>
               </>
             ) : (
               <>
-                <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-4">
-                  <Loader2 className="w-6 h-6 text-amber-600 animate-spin" />
+                <div className="mx-auto w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center mb-3">
+                  <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
                 </div>
-                <h3 className="text-xl font-medium text-slate-800 tracking-tight">Processing Payment</h3>
-                <p className="text-slate-500 mt-1 text-sm">Sent to customer phone</p>
+                <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-none">Processing Payment</h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">Sent to customer phone</p>
               </>
             )}
           </div>
           
-          <div className="p-4 sm:p-6 space-y-6 bg-slate-50/50 overflow-y-auto">
+          <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
             {lastMode === "link" ? (
               <>
-                <div className="space-y-3">
-                  <Label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Shareable Payment Link</Label>
+                <div className="space-y-2">
+                  <Label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Shareable Payment Link</Label>
                   <div className="relative group">
                     <Input 
                       readOnly
                       value={generatedResult?.paymentUrl || ""}
-                      className="h-12 pr-24 rounded-xl bg-white border-slate-200 font-mono text-xs text-slate-600 focus-visible:ring-0 shadow-sm"
+                      className="h-10 pr-20 rounded-xl bg-white border-slate-200 font-mono text-[10px] text-slate-600 focus-visible:ring-0 shadow-sm"
                     />
                     <Button 
                       onClick={() => generatedResult?.paymentUrl && copyText(generatedResult.paymentUrl, "modalCopy")}
-                      className="absolute right-1 top-1 h-10 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm transition-all"
+                      className="absolute right-1 top-1 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm transition-all px-2"
                     >
                       {copied === "modalCopy" ? (
-                        <span className="flex items-center gap-1.5 text-emerald-600 font-medium text-xs">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Copied
+                        <span className="flex items-center gap-1 text-emerald-600 font-bold text-[10px]">
+                          <CheckCircle2 className="w-3 h-3" /> Copied
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1.5 font-medium text-xs">
-                          <Copy className="w-3.5 h-3.5" /> Copy
+                        <span className="flex items-center gap-1 font-bold text-[10px]">
+                          <Copy className="w-3 h-3" /> Copy
                         </span>
                       )}
                     </Button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Button 
                     onClick={handleShare}
-                    className="h-11 rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all"
+                    className="h-10 rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all text-xs font-bold"
                   >
-                    <Share2 className="w-4 h-4" />
-                    <span className="font-medium text-sm">Share Link</span>
+                    <Share2 className="w-3.5 h-3.5" />
+                    Share Link
                   </Button>
                   <Button 
                     variant="outline"
                     asChild
-                    className="h-11 rounded-xl border-amber-200 bg-white hover:bg-amber-50 flex items-center justify-center gap-2 shadow-sm transition-all text-amber-900"
+                    className="h-10 rounded-xl border-amber-200 bg-white hover:bg-amber-50 flex items-center justify-center gap-2 shadow-sm transition-all text-amber-900 text-xs font-bold"
                   >
                     <Link href={generatedResult?.paymentUrl || "#"} target="_blank">
-                      <ExternalLink className="w-4 h-4" />
-                      <span className="font-medium text-sm">Open Link</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Open Link
                     </Link>
                   </Button>
                 </div>
               </>
             ) : (
-              <div className="space-y-6">
-                <div className={`flex flex-col items-center justify-center gap-2 p-6 rounded-xl border shadow-sm ${
+              <div className="space-y-4">
+                <div className={`flex flex-col items-center justify-center gap-1.5 p-5 rounded-xl border shadow-sm ${
                   currentTxStatus === 'success' ? 'bg-emerald-50/50 border-emerald-100' : 
                   currentTxStatus === 'failed' ? 'bg-rose-50/50 border-rose-100' : 
                   'bg-white border-slate-200'
                 }`}>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Payment Amount</p>
-                  <p className={`text-3xl font-medium ${
+                  <p className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Payment Amount</p>
+                  <p className={`text-2xl font-bold ${
                     currentTxStatus === 'success' ? 'text-emerald-700' : 
                     currentTxStatus === 'failed' ? 'text-rose-700' : 
                     'text-slate-800'
                   }`}>{parseFloat(lastRequestDetails?.amount || "0").toFixed(2)} ETB</p>
-                  <div className="flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
-                    <Phone className="w-3 h-3 text-slate-500" />
-                    <span className="text-xs font-medium text-slate-600">{lastRequestDetails?.phone}</span>
+                  <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100">
+                    <Phone className="w-2.5 h-2.5 text-slate-500" />
+                    <span className="text-[10px] font-bold text-slate-600">{lastRequestDetails?.phone}</span>
                   </div>
                 </div>
                 
@@ -872,22 +901,22 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                         phone: lastRequestDetails?.phone || ""
                       })
                     }}
-                    className="button-honey-solid w-full h-12 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all"
+                    className="button-honey-solid w-full h-10 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all text-xs font-bold"
                   >
-                    <Sparkles className="w-4 h-4" />
-                    <span className="font-medium">Resend Push Notification</span>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Resend Push Notification
                   </Button>
                 )}
 
                 {currentTxStatus !== 'success' && currentTxStatus !== 'failed' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 border border-slate-200">
-                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                        <Clock className="w-4 h-4 text-blue-600 animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-100/50 border border-slate-200">
+                      <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
                       </div>
-                      <div className="text-xs text-slate-700">
-                        <p className="font-medium text-slate-900">Waiting for confirmation</p>
-                        <p className="text-slate-500 mt-0.5">Please ask the customer to authorize the payment on their phone.</p>
+                      <div className="text-[10px] text-slate-700">
+                        <p className="font-bold text-slate-900 leading-tight">Waiting for confirmation</p>
+                        <p className="text-slate-500 mt-0.5 leading-tight">Ask customer to authorize on phone.</p>
                       </div>
                     </div>
                   </div>
@@ -895,26 +924,26 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               </div>
             )}
 
-            <div className="pt-2">
-              <p className="text-[10px] text-center text-slate-500 leading-relaxed">
+            <div className="pt-1">
+              <p className="text-[9px] text-center text-slate-400 leading-relaxed">
                 {lastMode === "link" 
-                  ? "This link will direct your customer to a secure checkout page." 
+                  ? "Link directs customer to a secure checkout." 
                   : currentTxStatus === 'success' 
-                    ? "Funds have been added to your merchant balance." 
-                    : "Status updates will appear in your recent activity log."}<br/>
-                Payments are processed instantly upon successful authorization.
+                    ? "Funds added to your merchant balance." 
+                    : "Status updates in recent activity log."}<br/>
+                Processed instantly upon authorization.
               </p>
             </div>
           </div>
           
-          <div className="p-4 bg-white border-t border-slate-100 flex justify-center">
+          <div className="p-3 bg-white border-t border-slate-100 flex justify-center">
             <Button 
               variant="ghost" 
               onClick={() => {
                 setIsSuccessModalOpen(false)
                 setCurrentTxStatus(null)
               }}
-              className="text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-medium"
+              className="text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-bold text-xs h-8"
             >
               Done
             </Button>
