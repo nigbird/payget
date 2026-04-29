@@ -642,7 +642,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <div className="relative flex items-start justify-between">
               {isPending ? <Clock className="w-5 h-5 text-amber-600 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5" />}
               <div>
-                <p className="font-semibold text-sm">Account status: {merchant.status}</p>
+                <p className="font-semibold text-sm">Account status: {merchant.status === 'branch_approved' ? 'Initial Review OK' : merchant.status}</p>
                 <p className="text-xs text-muted-foreground">
                   {isPending ? "Payment requests unlock once your account is approved." : merchant.rejectionReason || "Application requires updates."}
                 </p>

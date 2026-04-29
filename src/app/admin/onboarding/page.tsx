@@ -479,22 +479,16 @@ function MerchantOnboardingContent() {
         body: JSON.stringify(
           editingMerchantId
             ? payload
-            : { ...payload, status: canSetLimits ? 'branch_approved' : 'pending' }
+            : { ...payload, status: 'pending' }
         )
       })
 
       if (response.ok) {
         toast({
-          title: editingMerchantId
-            ? "Application Updated"
-            : canSetLimits
-              ? "Registration & Initial Review Complete"
-              : "Application Submitted",
+          title: editingMerchantId ? "Application Updated" : "Application Submitted",
           description: editingMerchantId
             ? "Merchant application form updated successfully."
-            : canSetLimits
-              ? "Merchant registered and moved to activation queue."
-              : "The merchant onboarding request has been queued for review."
+            : "The merchant onboarding request has been queued for review."
         })
         // Reset form
         setFormData({
@@ -559,7 +553,7 @@ function MerchantOnboardingContent() {
       case 'active':
         return <Badge className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium gap-1.5"><CheckCircle className="w-3 h-3" /> Active</Badge>
       case 'branch_approved':
-        return <Badge className="rounded-full bg-blue-50 text-blue-700 border border-blue-100 font-medium gap-1.5"><ShieldCheck className="w-3 h-3" /> Approved</Badge>
+        return <Badge className="rounded-full bg-blue-50 text-blue-700 border border-blue-100 font-medium gap-1.5"><ShieldCheck className="w-3 h-3" /> Initial Review OK</Badge>
       case 'pending':
         return <Badge className="rounded-full bg-amber-50 text-amber-800 border border-amber-100 font-medium gap-1.5"><Clock className="w-3 h-3" /> Pending</Badge>
       case 'rejected':
