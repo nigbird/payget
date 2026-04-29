@@ -78,21 +78,22 @@ export async function requireAuthUser(request: Request): Promise<ResolvedAuthUse
 export function userHasPermission(user: ResolvedAuthUser | null, permission: string) {
   if (!user) return false
   const perms = user.permissions ?? []
-  if (perms.includes("DASHBOARD_GLOBAL_VIEW")) return true
+  // Maintain the Super Admin bypass logic for now, using DASHBOARD_VIEW as the indicator
+  if (perms.includes("DASHBOARD_VIEW") && perms.includes("CONFIGURATION_MANAGE")) return true
   return perms.includes(permission)
 }
 
 export function userHasAnyPermission(user: ResolvedAuthUser | null, permissions: string[]) {
   if (!user) return false
   const perms = user.permissions ?? []
-  if (perms.includes("DASHBOARD_GLOBAL_VIEW")) return true
+  if (perms.includes("DASHBOARD_VIEW") && perms.includes("CONFIGURATION_MANAGE")) return true
   return permissions.some((p) => perms.includes(p))
 }
 
 export function userCanAssignPermissions(user: ResolvedAuthUser | null, targetPermissions: string[]) {
   if (!user) return false
   const perms = user.permissions ?? []
-  if (perms.includes("DASHBOARD_GLOBAL_VIEW")) return true
+  if (perms.includes("DASHBOARD_VIEW") && perms.includes("CONFIGURATION_MANAGE")) return true
   return targetPermissions.every((p) => perms.includes(p))
 }
 

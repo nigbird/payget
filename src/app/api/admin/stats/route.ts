@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     }
 
     // Only allow admins or those with specific permission
-    const isAllowed = user.role === "ADMIN" || user.permissions?.includes("DASHBOARD_GLOBAL_VIEW")
+    const isAllowed = user.role === "ADMIN" || user.permissions?.includes("DASHBOARD_VIEW")
     if (!isAllowed) {
       return NextResponse.json({ error: "Permission denied" }, { status: 403 })
     }

@@ -31,7 +31,7 @@ import {
 import { useSession, signOut } from "next-auth/react"
 
 const mainMenuItems = [
-  { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_GLOBAL_VIEW" },
+  { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_VIEW" },
   { name: "Merchant Onboarding", href: "/admin/onboarding", icon: UserPlus, permission: "MERCHANT_REGISTER" },
   { name: "Review & Approvals", href: "/admin/review", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
 ]
@@ -39,7 +39,7 @@ const mainMenuItems = [
 const adminMenuItems = [
   { name: "Staff Management", href: "/admin/users", icon: Users, permission: "USER_CREATE" },
   { name: "Permission Governance", href: "/admin/roles", icon: Shield, permission: "ROLE_CREATE" },
-  { name: "Master Data Config", href: "/admin/configuration", icon: Settings, permission: "USER_CREATE" },
+  { name: "Master Data Config", href: "/admin/configuration", icon: Settings, permission: "CONFIGURATION_MANAGE" },
 ]
 
 type MenuItem = {

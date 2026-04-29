@@ -27,8 +27,7 @@ async function main() {
 
   // 2. Permissions
   const permissionsData = [
-    { name: 'DASHBOARD_GLOBAL_VIEW', category: 'DASHBOARD', description: 'Global admin oversight' },
-    { name: 'DASHBOARD_USER_VIEW', category: 'DASHBOARD', description: 'User-specific view' },
+    { name: 'DASHBOARD_VIEW', category: 'DASHBOARD', description: 'Access to the administration dashboard' },
     { name: 'MERCHANT_REGISTER', category: 'MERCHANT', description: 'Register new merchants' },
     { name: 'MERCHANT_APPROVE', category: 'MERCHANT', description: 'Approve merchant registrations' },
     { name: 'USER_CREATE', category: 'USER_ROLE', description: 'Create and manage users' },
@@ -37,6 +36,7 @@ async function main() {
     { name: 'ROLE_DELETE', category: 'USER_ROLE', description: 'Delete or deactivate roles' },
     { name: 'TRANSACTION_LIMIT_SET', category: 'TRANSACTION', description: 'Set transaction limits' },
     { name: 'TRANSACTION_LIMIT_OVERRIDE', category: 'TRANSACTION', description: 'Override transaction limits' },
+    { name: 'CONFIGURATION_MANAGE', category: 'SYSTEM', description: 'Manage system-wide configurations (branches, districts, etc.)' },
   ]
 
   const permissions = []
@@ -54,18 +54,18 @@ async function main() {
     {
       name: 'Super Admin',
       description: 'Full system access',
-      perms: ['DASHBOARD_GLOBAL_VIEW', 'DASHBOARD_USER_VIEW', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE']
+      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE']
     },
     
     {
       name: 'Final Approver',
       description: 'Performs final review and activates merchant accounts',
-      perms: ['DASHBOARD_GLOBAL_VIEW', 'DASHBOARD_USER_VIEW', 'MERCHANT_APPROVE']
+      perms: ['DASHBOARD_VIEW', 'MERCHANT_APPROVE']
     },
     {
       name: 'Merchant',
       description: 'Standard merchant access',
-      perms: ['DASHBOARD_USER_VIEW']
+      perms: ['DASHBOARD_VIEW']
     }
   ]
 
@@ -124,10 +124,8 @@ async function main() {
 
   // 5. Create Users for different portals
   const usersToSeed = [
-    { email: 'admin@finflow.io', name: 'Super Admin', role: UserRole.ADMIN, customRoleName: 'Super Admin' },
-    { email: 'approver@finflow.io', name: 'Final Approver', role: UserRole.HEAD_OFFICE, customRoleName: 'Final Approver' },
-    { email: 'onboarding@techgear.io', name: 'TechGear Owner', role: UserRole.MERCHANT, merchantId: 'm1', customRoleName: 'Merchant' },
-  ]
+    { email: 'admin@nibteramerchant', name: 'Super Admin', role: UserRole.ADMIN, customRoleName: 'Super Admin' },
+]
 
   for (const u of usersToSeed) {
     let customRoleId = null

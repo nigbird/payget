@@ -30,7 +30,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
 
-    if (roleToEdit.name === 'Super Admin' && !userHasPermission(user, 'DASHBOARD_GLOBAL_VIEW')) {
+    if (roleToEdit.name === 'Super Admin' && !userHasPermission(user, 'CONFIGURATION_MANAGE')) {
       return NextResponse.json({ error: 'Permission denied: Only Super Admins can edit the Super Admin role.' }, { status: 403 });
     }
 

@@ -60,11 +60,12 @@ export default auth((req) => {
     const userRole = user?.role
 
     const getAdminLandingPath = () => {
-      if (userPermissions.includes("DASHBOARD_GLOBAL_VIEW")) return "/admin"
+      if (userPermissions.includes("DASHBOARD_VIEW")) return "/admin"
       if (userPermissions.includes("MERCHANT_REGISTER")) return "/admin/onboarding"
       if (userPermissions.includes("MERCHANT_APPROVE")) return "/admin/review"
       if (userPermissions.includes("USER_CREATE")) return "/admin/users"
       if (userPermissions.includes("ROLE_CREATE")) return "/admin/roles"
+      if (userPermissions.includes("CONFIGURATION_MANAGE")) return "/admin/configuration"
       return null
     }
 
@@ -78,8 +79,8 @@ export default auth((req) => {
           return Response.redirect(new URL(landing, req.url))
         }
         // If logged in as admin but no specific landing found, 
-        // only redirect to /admin if they have global view permission
-        if (userPermissions.includes("DASHBOARD_GLOBAL_VIEW") && pathname !== "/admin") {
+        // only redirect to /admin if they have dashboard view permission
+        if (userPermissions.includes("DASHBOARD_VIEW") && pathname !== "/admin") {
           return Response.redirect(new URL("/admin", req.url))
         }
         // Otherwise, don't redirect to avoid potential loops
@@ -90,9 +91,12 @@ export default auth((req) => {
     // Admin routes require admin-level permissions or roles
     if (isAdminRoute) {
       const hasAdminAccess = 
-        userPermissions.includes('DASHBOARD_GLOBAL_VIEW') || 
+        userPermissions.includes('DASHBOARD_VIEW') || 
         userPermissions.includes('MERCHANT_REGISTER') || 
         userPermissions.includes('MERCHANT_APPROVE') ||
+        userPermissions.includes('USER_CREATE') ||
+        userPermissions.includes('ROLE_CREATE') ||
+        userPermissions.includes('CONFIGURATION_MANAGE') ||
         userRole === 'ADMIN' || userRole === 'MAKER' || userRole === 'CHECKER' || userRole === 'HEAD_OFFICE'
       
       if (!hasAdminAccess) {
@@ -102,12 +106,21 @@ export default auth((req) => {
       }
 
       // Special-case: `/admin` is the global dashboard and requires explicit permission.
-      if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_GLOBAL_VIEW")) {
+      if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_VIEW")) {
         const landing = getAdminLandingPath()
         if (landing && landing !== "/admin") {
           return Response.redirect(new URL(landing, req.url))
         }
         return Response.redirect(new URL("/login", req.url))
+      }
+
+      // Special-case: `/admin/configuration` requires explicit permission.
+      if (pathname.startsWith("/admin/configuration") && !userPermissions.includes("CONFIGURATION_MANAGE")) {
+        const landing = getAdminLandingPath()
+        if (landing) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        return Response.redirect(new URL("/admin", req.url))
       }
     }
 

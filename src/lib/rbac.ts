@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 
 export type PermissionName = 
-  | 'DASHBOARD_GLOBAL_VIEW'
-  | 'DASHBOARD_USER_VIEW'
+  | 'DASHBOARD_VIEW'
+  | 'CONFIGURATION_MANAGE'
   | 'MERCHANT_REGISTER'
   | 'MERCHANT_APPROVE'
   | 'USER_CREATE'
@@ -18,9 +18,13 @@ export async function hasPermission(permission: PermissionName): Promise<boolean
   
   const permissions = (session.user as any).permissions as string[] || [];
   
-  // Super Admin bypass: users with DASHBOARD_GLOBAL_VIEW are considered Super Admins
-  if (permissions.includes('DASHBOARD_GLOBAL_VIEW')) {
-    return true;
+  // Super Admin bypass: users with DASHBOARD_VIEW are considered to have high-level access
+  // but we should still check for specific permissions if they aren't explicit Super Admins.
+  // For now, let's maintain the "isSuperAdmin" logic if needed.
+  if (permissions.includes('DASHBOARD_VIEW')) {
+    // If the permission being checked IS DASHBOARD_VIEW, return true
+    if (permission === 'DASHBOARD_VIEW') return true;
+    // For other permissions, we still want to check if they have it explicitly or if they are a super admin
   }
 
   return permissions.includes(permission);
@@ -30,7 +34,10 @@ export async function isSuperAdmin(): Promise<boolean> {
   const session = await auth();
   if (!session?.user) return false;
   const permissions = (session.user as any).permissions as string[] || [];
-  return permissions.includes('DASHBOARD_GLOBAL_VIEW');
+  // For simplicity, let's assume Super Admin has all permissions, 
+  // and we'll identify them by a specific role or permission if needed.
+  // For now, let's keep it simple.
+  return permissions.includes('DASHBOARD_VIEW') && permissions.includes('CONFIGURATION_MANAGE');
 }
 
 export async function hasAllPermissions(perms: PermissionName[]): Promise<boolean> {

@@ -281,7 +281,7 @@ export default function UserManagementPage() {
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   const userPermissions = (session?.user as any)?.permissions || []
-  const isSuperAdmin = userPermissions.includes('DASHBOARD_GLOBAL_VIEW')
+  const isSuperAdmin = userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE')
   const canCreateUser = isSuperAdmin || userPermissions.includes('USER_CREATE')
 
   if (isLoading) {

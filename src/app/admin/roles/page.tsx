@@ -103,7 +103,7 @@ export default function RoleManagementPage() {
       const res = await fetch('/api/admin/roles')
       if (res.ok) {
         const data = await res.json()
-        setRoles(data.roles)
+        setRoles(data.roles.filter((role: Role) => role.name !== 'Merchant'))
         setAvailablePermissions(data.permissions)
       }
     } catch (error) {
@@ -218,7 +218,7 @@ export default function RoleManagementPage() {
   }
 
   const userPermissions = (session?.user as any)?.permissions || []
-  const isSuperAdmin = userPermissions.includes('DASHBOARD_GLOBAL_VIEW')
+  const isSuperAdmin = userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE')
   const canCreateRole = isSuperAdmin || userPermissions.includes('ROLE_CREATE')
   const canEditRole = isSuperAdmin || userPermissions.includes('ROLE_EDIT')
   const canDeleteRole = isSuperAdmin || userPermissions.includes('ROLE_DELETE')
@@ -320,7 +320,9 @@ export default function RoleManagementPage() {
                                       htmlFor={perm.id}
                                       className={`text-sm font-semibold tracking-tight transition-colors ${!hasThisPerm ? 'text-slate-400 cursor-not-allowed' : 'text-slate-700 cursor-pointer group-hover/perm:text-amber-700'}`}
                                     >
-                                      {perm.name.replace(/_/g, ' ')}
+                                      {perm.name === 'DASHBOARD_VIEW' ? 'dashboard.view' : 
+                                       perm.name === 'CONFIGURATION_MANAGE' ? 'configuration.manage' : 
+                                       perm.name.replace(/_/g, ' ').toLowerCase()}
                                       {!hasThisPerm && (
                                         <span className="ml-2 text-[9px] text-orange-500 font-bold uppercase flex items-center gap-1">
                                           <Lock className="w-2.5 h-2.5" /> Restricted
@@ -450,7 +452,9 @@ export default function RoleManagementPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {rolePerms.slice(0, 3).map(p => (
                       <Badge key={p.id} variant="outline" className="text-[9px] font-bold uppercase tracking-tight px-2 py-0.5 rounded-lg border-black/5 bg-white text-slate-500 group-hover:border-amber-200 group-hover:text-amber-700 transition-colors">
-                        {p.name.replace(/_/g, ' ')}
+                        {p.name === 'DASHBOARD_VIEW' ? 'dashboard.view' : 
+                         p.name === 'CONFIGURATION_MANAGE' ? 'configuration.manage' : 
+                         p.name.replace(/_/g, ' ').toLowerCase()}
                       </Badge>
                     ))}
                     {rolePerms.length > 3 && (
@@ -475,7 +479,11 @@ export default function RoleManagementPage() {
                             {perms.map(p => (
                               <div key={p.id} className="flex items-center gap-2 text-[11px]">
                                 <div className="w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                <span className="font-semibold text-slate-700 tracking-tight">{p.name.replace(/_/g, ' ')}</span>
+                                <span className="font-semibold text-slate-700 tracking-tight">
+                                  {p.name === 'DASHBOARD_VIEW' ? 'dashboard.view' : 
+                                   p.name === 'CONFIGURATION_MANAGE' ? 'configuration.manage' : 
+                                   p.name.replace(/_/g, ' ').toLowerCase()}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -626,7 +634,9 @@ export default function RoleManagementPage() {
                                 htmlFor={`edit-${perm.id}`}
                                 className={`text-sm font-semibold tracking-tight transition-colors ${!hasThisPerm ? 'text-slate-400 cursor-not-allowed' : 'text-slate-700 cursor-pointer group-hover/perm:text-amber-700'}`}
                               >
-                                {perm.name.replace(/_/g, ' ')}
+                                {perm.name === 'DASHBOARD_VIEW' ? 'dashboard.view' : 
+                                 perm.name === 'CONFIGURATION_MANAGE' ? 'configuration.manage' : 
+                                 perm.name.replace(/_/g, ' ').toLowerCase()}
                                 {!hasThisPerm && (
                                   <span className="ml-2 text-[9px] text-orange-500 font-bold uppercase flex items-center gap-1">
                                     <Lock className="w-2.5 h-2.5" /> Restricted
