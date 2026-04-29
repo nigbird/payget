@@ -67,6 +67,16 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState<MerchantTeamMember | null>(null)
 
+  // Safety fix for Radix UI modal pointer-events lock issue
+  useEffect(() => {
+    if (!isAddModalOpen && !isEditModalOpen) {
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = "auto"
+      }, 300) // Small delay to allow animations to finish
+      return () => clearTimeout(timer)
+    }
+  }, [isAddModalOpen, isEditModalOpen])
+
   const [memberForm, setMemberForm] = useState({
     name: "",
     email: "",
@@ -123,7 +133,6 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
         const member = await response.json()
         refreshTeam()
         setIsAddModalOpen(false)
-        setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
         toast({
           title: "Member Added",
           description: `${member.name} has been added to your team.`,
@@ -159,8 +168,6 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
       if (response.ok) {
         refreshTeam()
         setIsEditModalOpen(false)
-        setSelectedMember(null)
-        setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
         toast({
           title: "Member Updated",
           description: `Team member details have been updated.`,
@@ -353,7 +360,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                         {new Date(member.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="py-4 text-right">
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0 rounded-lg hover:bg-white/50">
                               <MoreVertical className="h-4 w-4 text-[#754319]" />
@@ -361,7 +368,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48 rounded-2xl border-white/60 bg-white/95 backdrop-blur-md p-1 shadow-xl">
                             <DropdownMenuLabel className="text-xs font-semibold text-[#754319]/50 px-2 py-1.5 uppercase tracking-wider">Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => openEditModal(member)} className="rounded-xl focus:bg-amber-50 focus:text-[#754319] cursor-pointer">
+                            <DropdownMenuItem 
+                              onSelect={(e) => {
+                                e.preventDefault()
+                                openEditModal(member)
+                              }} 
+                              className="rounded-xl focus:bg-amber-50 focus:text-[#754319] cursor-pointer"
+                            >
                               <UserCog className="mr-2 h-4 w-4" />
                               Edit Member
                             </DropdownMenuItem>
@@ -434,7 +447,15 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
       </section>
 
       {/* Add Member Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+      <Dialog 
+        open={isAddModalOpen} 
+        onOpenChange={(open) => {
+          setIsAddModalOpen(open)
+          if (!open) {
+            setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
+          }
+        }}
+      >
         <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm max-h-[90vh] overflow-hidden">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Add Team Member</DialogTitle>
@@ -513,7 +534,16 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
       </Dialog>
 
       {/* Edit Member Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      <Dialog 
+        open={isEditModalOpen} 
+        onOpenChange={(open) => {
+          setIsEditModalOpen(open)
+          if (!open) {
+            setSelectedMember(null)
+            setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
+          }
+        }}
+      >
         <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm max-h-[90vh] overflow-hidden">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Edit Team Member</DialogTitle>
@@ -575,10 +605,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setIsEditModalOpen(false)
-                  setSelectedMember(null)
-                }}
+                onClick={() => setIsEditModalOpen(false)}
                 className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
               >
                 Cancel
