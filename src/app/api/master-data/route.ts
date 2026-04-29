@@ -284,7 +284,11 @@ export async function POST(request: Request) {
     };
 
     const currentData = parseField((config as any)[type]);
-    const existingNames = new Set(currentData.map((entry) => entry.name.toLowerCase()));
+    const existingNames = new Set(
+      currentData
+        .filter((entry): entry is MasterDataEntry => typeof entry?.name === 'string' && entry.name.trim().length > 0)
+        .map((entry) => entry.name.toLowerCase())
+    );
 
     const newEntries: MasterDataEntry[] = [];
     const skippedEntries: { name: string; reason: string }[] = [];

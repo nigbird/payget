@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import {
   Building2,
   MapPin,
@@ -135,6 +135,17 @@ export default function MasterDataConfigPage() {
   const [importErrors, setImportErrors] = useState<{ row: number; error: string }[]>([])
   const [isImporting, setIsImporting] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const resetImportState = () => {
+    setIsDragging(false)
+    setImportFile(null)
+    setImportPreview([])
+    setImportErrors([])
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
 
   const fetchMasterData = useCallback(async () => {
     try {
@@ -391,10 +402,22 @@ export default function MasterDataConfigPage() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) processFile(file)
+    if (file) {
+      processFile(file)
+    }
+    if (e.target) {
+      e.target.value = ''
+    }
   }
 
-  const processFile = (file: File) => {
+  const handleImportDialogOpenChange = (open: boolean) => {
+    setIsImportDialogOpen(open)
+    if (!open) {
+      resetImportState()
+    }
+  }
+
+  const processFile = async (file: File) => {
     const validTypes = [
       "text/csv",
       "application/vnd.ms-excel",
@@ -412,12 +435,34 @@ export default function MasterDataConfigPage() {
     setImportFile(file)
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const text = e.target?.result as string
-        const lines = text.split("\n").filter((line) => line.trim())
-        const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+        let rows: unknown[][] = []
+        if (file.name.toLowerCase().endsWith(".xlsx")) {
+          const arrayBuffer = e.target?.result as ArrayBuffer
+          const xlsxModule = await import('xlsx')
+          const XLSX = (xlsxModule as any).default ?? xlsxModule
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+          rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as unknown[][]
+        } else {
+          const text = e.target?.result as string
+          rows = text
+            .split(/\r?\n/)
+            .filter((line) => line.trim())
+            .map((line) => line.split(",").map((value) => value.trim()))
+        }
 
+        if (rows.length === 0) {
+          toast({
+            variant: "destructive",
+            title: "Invalid Format",
+            description: "Uploaded file does not contain any rows.",
+          })
+          return
+        }
+
+        const headers = (rows[0] || []).map((h) => String(h || '').trim().toLowerCase())
         const nameIndex = headers.findIndex((h) => h.includes("name"))
         const codeIndex = headers.findIndex((h) => h.includes("code"))
 
@@ -425,7 +470,7 @@ export default function MasterDataConfigPage() {
           toast({
             variant: "destructive",
             title: "Invalid Format",
-            description: "CSV must have a 'Name' column",
+            description: "File must have a 'Name' column.",
           })
           return
         }
@@ -433,8 +478,8 @@ export default function MasterDataConfigPage() {
         const entries: MasterDataEntry[] = []
         const errors: { row: number; error: string }[] = []
 
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(",").map((v) => v.trim())
+        for (let i = 1; i < rows.length; i++) {
+          const values = Array.isArray(rows[i]) ? rows[i].map((v) => String(v ?? '').trim()) : []
           const name = values[nameIndex]?.replace(/^"|"$/g, "")
 
           if (!name) {
@@ -451,7 +496,8 @@ export default function MasterDataConfigPage() {
 
         setImportPreview(entries)
         setImportErrors(errors)
-      } catch {
+      } catch (error) {
+        console.error("Import parse error", error)
         toast({
           variant: "destructive",
           title: "Parse Error",
@@ -459,7 +505,12 @@ export default function MasterDataConfigPage() {
         })
       }
     }
-    reader.readAsText(file)
+
+    if (file.name.toLowerCase().endsWith(".xlsx")) {
+      reader.readAsArrayBuffer(file)
+    } else {
+      reader.readAsText(file)
+    }
   }
 
   const handleImport = async () => {
@@ -921,7 +972,7 @@ export default function MasterDataConfigPage() {
       </Dialog>
 
       {/* Import Dialog */}
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+      <Dialog open={isImportDialogOpen} onOpenChange={handleImportDialogOpenChange}>
         <DialogContent className="sm:max-w-[600px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Bulk Import {TAB_CONFIG[activeTab].label}</DialogTitle>
@@ -939,7 +990,7 @@ export default function MasterDataConfigPage() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <input type="file" accept=".csv,.xlsx" onChange={handleFileSelect} className="hidden" id="file-upload" />
+              <input ref={fileInputRef} type="file" accept=".csv,.xlsx" onChange={handleFileSelect} className="hidden" id="file-upload" />
               <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-4">
                 <div className="h-16 w-16 rounded-3xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-400 group-hover:text-amber-500 transition-colors">
                   <FileSpreadsheet className="h-8 w-8" />

@@ -64,6 +64,7 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
+  ArrowRight,
   SlidersHorizontal,
   CreditCard,
   Store,
