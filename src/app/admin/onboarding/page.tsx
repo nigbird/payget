@@ -116,6 +116,7 @@ function MerchantOnboardingContent() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   
   const [isLogoUploading, setIsLogoUploading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
@@ -319,6 +320,7 @@ function MerchantOnboardingContent() {
   }
 
   const handleInitialReview = async (id: string) => {
+    setIsSubmitting(true)
     try {
       const response = await fetch(`/api/merchants/${id}`, {
         method: 'PATCH',
@@ -351,6 +353,8 @@ function MerchantOnboardingContent() {
         title: "Review Error",
         description: error.message
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -452,6 +456,7 @@ function MerchantOnboardingContent() {
       return
     }
 
+    setIsSubmitting(true)
     try {
       // Normalize phone number if contactUsername is a phone number
       const finalFormData = { ...formData }
@@ -528,6 +533,8 @@ function MerchantOnboardingContent() {
         title: "Submission Error",
         description: error.message
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -1037,8 +1044,16 @@ function MerchantOnboardingContent() {
                           <Button 
                             className="button-honey-solid w-full h-14 rounded-2xl text-base font-bold shadow-lg shadow-amber-900/20" 
                             onClick={handleSubmit}
+                            disabled={isSubmitting}
                           >
-                            {editingMerchantId ? "Save Changes" : "Submit for Review"}
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              editingMerchantId ? "Save Changes" : "Submit for Review"
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -1601,9 +1616,16 @@ function MerchantOnboardingContent() {
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={() => selectedForReview && handleInitialReview(selectedForReview.id)}>
-                    Confirm & Queue for Activation
+                  <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                  <Button onClick={() => selectedForReview && handleInitialReview(selectedForReview.id)} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Queuing...
+                      </>
+                    ) : (
+                      'Confirm & Queue for Activation'
+                    )}
                   </Button>
                 </DialogFooter>
               </DialogContent>

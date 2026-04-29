@@ -104,6 +104,7 @@ function MerchantReviewContent() {
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
   const [isRequestingUpdate, setIsRequestingUpdate] = useState(false)
+  const [submittingAction, setSubmittingAction] = useState<string | null>(null)
   const [updateComments, setUpdateComments] = useState({
     general: "",
     fields: {} as Record<string, string>
@@ -190,6 +191,7 @@ function MerchantReviewContent() {
       return
     }
 
+    setSubmittingAction(action)
     try {
       let body: any = {}
       
@@ -232,6 +234,8 @@ function MerchantReviewContent() {
         title: "Update Failed",
         description: error.message
       })
+    } finally {
+      setSubmittingAction(null)
     }
   }
 
@@ -246,6 +250,7 @@ function MerchantReviewContent() {
       return
     }
 
+    setSubmittingAction('request_update')
     try {
       const response = await fetch(`/api/merchants/${selectedMerchant.id}/request-update`, {
         method: 'POST',
@@ -273,6 +278,8 @@ function MerchantReviewContent() {
         title: "Request Failed",
         description: error.message
       })
+    } finally {
+      setSubmittingAction(null)
     }
   }
 
@@ -731,9 +738,16 @@ function MerchantReviewContent() {
                             <Button 
                               className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'initial_approve')}
-                              disabled={!canSetLimits || !selectedMerchant._permissions?.canSetLimits}
+                              disabled={!canSetLimits || !selectedMerchant._permissions?.canSetLimits || submittingAction !== null}
                             >
-                              Confirm & Set Limits
+                              {submittingAction === 'initial_approve' ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                'Confirm & Set Limits'
+                              )}
                             </Button>
                           </div>
                         )}
@@ -760,9 +774,16 @@ function MerchantReviewContent() {
                             <Button 
                               className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'final_approve')}
-                              disabled={!canApprove || !selectedMerchant._permissions?.canApprove}
+                              disabled={!canApprove || !selectedMerchant._permissions?.canApprove || submittingAction !== null}
                             >
-                              Finalize Activation
+                              {submittingAction === 'final_approve' ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Activating...
+                                </>
+                              ) : (
+                                'Finalize Activation'
+                              )}
                             </Button>
                           </div>
                         )}
@@ -791,8 +812,21 @@ function MerchantReviewContent() {
                             />
                             <p className="text-[10px] text-slate-500 italic">Field-level comments can be added in a future update or via the general comments above.</p>
                             <div className="flex gap-2">
-                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRequestingUpdate(false)}>Cancel</Button>
-                              <Button className="flex-1 text-xs h-8 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm" onClick={handleRequestUpdate}>Send Request</Button>
+                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRequestingUpdate(false)} disabled={submittingAction !== null}>Cancel</Button>
+                              <Button 
+                                className="flex-1 text-xs h-8 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm" 
+                                onClick={handleRequestUpdate}
+                                disabled={submittingAction !== null}
+                              >
+                                {submittingAction === 'request_update' ? (
+                                  <>
+                                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  'Send Request'
+                                )}
+                              </Button>
                             </div>
                           </div>
                         )}
@@ -818,8 +852,22 @@ function MerchantReviewContent() {
                               onChange={(e) => setRejectionReason(e.target.value)}
                             />
                             <div className="flex gap-2">
-                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRejecting(false)}>Cancel</Button>
-                              <Button variant="destructive" className="flex-1 text-xs h-8 rounded-lg shadow-sm" onClick={() => handleAction(selectedMerchant.id, 'reject')}>Confirm Reject</Button>
+                              <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRejecting(false)} disabled={submittingAction !== null}>Cancel</Button>
+                              <Button 
+                                variant="destructive" 
+                                className="flex-1 text-xs h-8 rounded-lg shadow-sm" 
+                                onClick={() => handleAction(selectedMerchant.id, 'reject')}
+                                disabled={submittingAction !== null}
+                              >
+                                {submittingAction === 'reject' ? (
+                                  <>
+                                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                                    Rejecting...
+                                  </>
+                                ) : (
+                                  'Confirm Reject'
+                                )}
+                              </Button>
                             </div>
                           </div>
                         )}

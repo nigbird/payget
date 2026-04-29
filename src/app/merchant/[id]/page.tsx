@@ -818,7 +818,19 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         setIsSuccessModalOpen(open)
         if (!open) setCurrentTxStatus(null)
       }}>
-        <DialogContent className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden max-h-[90vh]">
+        <DialogContent 
+          className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden max-h-[90vh]"
+          onInteractOutside={(e) => {
+            if (lastMode === "push" && currentTxStatus !== "success" && currentTxStatus !== "failed") {
+              e.preventDefault();
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (lastMode === "push" && currentTxStatus !== "success" && currentTxStatus !== "failed") {
+              e.preventDefault();
+            }
+          }}
+        >
           <div className="p-5 text-center border-b border-slate-50">
             {lastMode === "link" ? (
               <>

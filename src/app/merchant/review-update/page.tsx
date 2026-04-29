@@ -45,7 +45,7 @@ function ReviewUpdateForm() {
   const [step, setStep] = useState<'validate' | 'otp' | 'review' | 'success'>('validate')
   const [merchant, setMerchant] = useState<any>(null)
   const [otp, setOtp] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submittingAction, setSubmittingAction] = useState<string | null>(null)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -124,7 +124,7 @@ function ReviewUpdateForm() {
   }
 
   const handleSendOtp = async () => {
-    setIsSubmitting(true)
+    setSubmittingAction('send_otp')
     try {
       const res = await fetch('/api/auth/merchant-update/otp/send', {
         method: 'POST',
@@ -140,13 +140,13 @@ function ReviewUpdateForm() {
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Failed to connect to server" })
     } finally {
-      setIsSubmitting(false)
+      setSubmittingAction(null)
     }
   }
 
   const handleVerifyOtp = async () => {
     if (!otp) return
-    setIsSubmitting(true)
+    setSubmittingAction('verify_otp')
     try {
       const res = await fetch('/api/auth/merchant-update/otp/verify', {
         method: 'POST',
@@ -162,7 +162,7 @@ function ReviewUpdateForm() {
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Failed to connect to server" })
     } finally {
-      setIsSubmitting(false)
+      setSubmittingAction(null)
     }
   }
 
@@ -230,7 +230,7 @@ function ReviewUpdateForm() {
 
     if (validFiles.length === 0) return
 
-    setIsSubmitting(true)
+    setSubmittingAction('upload_docs')
     try {
       const fd = new FormData()
       validFiles.forEach(file => fd.append("files", file))
@@ -242,7 +242,7 @@ function ReviewUpdateForm() {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Upload Failed", description: error.message })
     } finally {
-      setIsSubmitting(false)
+      setSubmittingAction(null)
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
@@ -288,7 +288,7 @@ function ReviewUpdateForm() {
       return
     }
 
-    setIsSubmitting(true)
+    setSubmittingAction('resubmit')
     try {
       const res = await fetch('/api/merchants/resubmit', {
         method: 'PATCH',
@@ -304,7 +304,7 @@ function ReviewUpdateForm() {
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Connection error" })
     } finally {
-      setIsSubmitting(false)
+      setSubmittingAction(null)
     }
   }
 
@@ -349,9 +349,9 @@ function ReviewUpdateForm() {
                   variant="link"
                   className="text-xs font-bold text-amber-600 hover:text-amber-700"
                   onClick={handleSendOtp}
-                  disabled={isSubmitting}
+                  disabled={submittingAction !== null}
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Send OTP"}
+                  {submittingAction === 'send_otp' ? <Loader2 className="animate-spin mr-2" /> : "Send OTP"}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -367,17 +367,17 @@ function ReviewUpdateForm() {
               <Button 
                 className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-bold shadow-sm transition-all" 
                 onClick={handleVerifyOtp} 
-                disabled={isSubmitting || otp.length < 6}
+                disabled={submittingAction !== null || otp.length < 6}
               >
-                {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Verify & Continue"}
+                {submittingAction === 'verify_otp' ? <Loader2 className="animate-spin mr-2" /> : "Verify & Continue"}
               </Button>
               <Button 
                 variant="ghost" 
                 className="w-full h-10 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50" 
                 onClick={handleSendOtp} 
-                disabled={isSubmitting}
+                disabled={submittingAction !== null}
               >
-                {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Resend code"}
+                {submittingAction === 'send_otp' ? <Loader2 className="animate-spin mr-2" /> : "Resend code"}
               </Button>
             </div>
           </CardContent>
@@ -572,11 +572,17 @@ function ReviewUpdateForm() {
                   <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Compliance Documents</h3>
                 </div>
                 <div 
-                  className="border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center bg-slate-50 transition-all ${submittingAction === 'upload_docs' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100 cursor-pointer'}`}
+                  onClick={() => submittingAction !== 'upload_docs' && fileInputRef.current?.click()}
                 >
-                  <Upload className="w-8 h-8 text-primary mb-2" />
-                  <p className="text-sm font-semibold">Upload Replacement or Additional Documents</p>
+                  {submittingAction === 'upload_docs' ? (
+                    <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+                  ) : (
+                    <Upload className="w-8 h-8 text-primary mb-2" />
+                  )}
+                  <p className="text-sm font-semibold">
+                    {submittingAction === 'upload_docs' ? "Uploading documents..." : "Upload Replacement or Additional Documents"}
+                  </p>
                   <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                 </div>
                 <div className="grid gap-3">
@@ -596,8 +602,8 @@ function ReviewUpdateForm() {
               </div>
 
               <div className="p-8 bg-slate-50/50">
-                <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl bg-amber-600 hover:bg-amber-700 shadow-lg" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="w-5 h-5 mr-2" />}
+                <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl bg-amber-600 hover:bg-amber-700 shadow-lg" disabled={submittingAction !== null}>
+                  {submittingAction === 'resubmit' ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="w-5 h-5 mr-2" />}
                   Resubmit Application
                 </Button>
               </div>
