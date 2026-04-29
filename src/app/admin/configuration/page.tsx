@@ -124,6 +124,16 @@ export default function MasterDataConfigPage() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [selectedEntryIndex, setSelectedEntryIndex] = useState<number | null>(null)
 
+  // Safety fix for Radix UI modal pointer-events lock issue
+  useEffect(() => {
+    if (!isAddDialogOpen && !isEditDialogOpen && !isImportDialogOpen) {
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = "auto"
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isAddDialogOpen, isEditDialogOpen, isImportDialogOpen])
+
   const [formName, setFormName] = useState("")
   const [formCode, setFormCode] = useState("")
   const [formActive, setFormActive] = useState(true)
@@ -641,7 +651,7 @@ export default function MasterDataConfigPage() {
                     <Plus className="h-4 w-4" /> Add New
                   </Button>
 
-                  <DropdownMenu>
+                  <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="icon" className="h-10 w-10 rounded-2xl border-black/10 bg-white">
                         <Upload className="h-4 w-4 text-slate-600" />
