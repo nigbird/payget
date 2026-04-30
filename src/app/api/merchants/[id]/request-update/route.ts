@@ -25,6 +25,14 @@ export async function POST(
     const body = await request.json();
     const { comments } = body; // comments: { general: string, fields: { [fieldName]: string } }
 
+    // Validate general comment length
+    if (!comments?.general?.trim()) {
+      return NextResponse.json({ error: 'General comment is required' }, { status: 400 });
+    }
+    if (comments.general.length > 500) {
+      return NextResponse.json({ error: 'General comment must not exceed 500 characters' }, { status: 400 });
+    }
+
     const merchant = await db.getMerchantById(id);
     if (!merchant) {
       return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });

@@ -416,7 +416,7 @@ function ReviewUpdateForm() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-amber-900 font-medium leading-relaxed">
+            <p className="text-sm text-amber-900 font-medium leading-relaxed break-words">
               {merchant.updateComments?.general || "Please review all fields and documents for accuracy."}
             </p>
           </CardContent>

@@ -191,11 +191,11 @@ function MerchantReviewContent() {
         })
         return
       }
-      if (rejectionReason.length > 50) {
+      if (rejectionReason.length > 500) {
         toast({
           variant: "destructive",
           title: "Reason Too Long",
-          description: "Rejection reason must not exceed 50 characters."
+          description: "Rejection reason must not exceed 500 characters."
         })
         return
       }
@@ -256,6 +256,14 @@ function MerchantReviewContent() {
         variant: "destructive",
         title: "Comment Required",
         description: "Please provide at least a general comment for the update request."
+      })
+      return
+    }
+    if (updateComments.general.length > 500) {
+      toast({
+        variant: "destructive",
+        title: "Comment Too Long",
+        description: "Update request comment must not exceed 500 characters."
       })
       return
     }
@@ -813,12 +821,18 @@ function MerchantReviewContent() {
                           </Button>
                         ) : (
                           <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                            <Label className="text-xs font-medium text-amber-900">Update Request Comments</Label>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-medium text-amber-900">Update Request Comments</Label>
+                              <span className={`text-[10px] font-medium ${updateComments.general.length > 500 ? 'text-rose-600' : 'text-slate-400'}`}>
+                                {updateComments.general.length}/500
+                              </span>
+                            </div>
                             <Textarea 
-                              className="min-h-[80px] text-xs rounded-lg border-slate-200" 
+                              className={`min-h-[80px] text-xs rounded-lg border-slate-200 ${updateComments.general.length > 500 ? 'border-rose-300 focus-visible:ring-rose-300/20' : ''}`} 
                               placeholder="General instructions for the merchant..."
                               value={updateComments.general}
                               onChange={(e) => setUpdateComments({...updateComments, general: e.target.value})}
+                              maxLength={500}
                             />
                             <p className="text-[10px] text-slate-500 italic">Field-level comments can be added in a future update or via the general comments above.</p>
                             <div className="flex gap-2">
@@ -856,17 +870,17 @@ function MerchantReviewContent() {
                           <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs font-medium text-rose-900">Reason for Rejection</Label>
-                              <span className={`text-[10px] font-medium ${rejectionReason.length > 50 ? 'text-rose-600' : 'text-slate-400'}`}>
-                                {rejectionReason.length}/50
+                              <span className={`text-[10px] font-medium ${rejectionReason.length > 500 ? 'text-rose-600' : 'text-slate-400'}`}>
+                                {rejectionReason.length}/500
                               </span>
                             </div>
                             <Textarea 
-                              className={`min-h-[80px] text-xs rounded-lg border-slate-200 ${rejectionReason.length > 50 ? 'border-rose-300 focus-visible:ring-rose-300/20' : ''}`}
+                              className={`min-h-[80px] text-xs rounded-lg border-slate-200 ${rejectionReason.length > 500 ? 'border-rose-300 focus-visible:ring-rose-300/20' : ''}`}
                               placeholder="Explain why this request is being denied..."
                               value={rejectionReason}
                               onChange={(e) => setRejectionReason(e.target.value)}
-                               maxLength={50}
-                             />
+                              maxLength={500}
+                            />
                             <div className="flex gap-2">
                               <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRejecting(false)} disabled={submittingAction !== null}>Cancel</Button>
                               <Button 

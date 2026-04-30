@@ -124,6 +124,16 @@ export async function PATCH(
         return NextResponse.json({ error: "Permission denied: MERCHANT_APPROVE required" }, { status: 403 })
       }
 
+      // Validate rejection reason if status is rejected
+      if ((incomingStatus === "rejected" || incomingStatus === "REJECTED")) {
+        if (!body.rejectionReason?.trim()) {
+          return NextResponse.json({ error: "Rejection reason is required" }, { status: 400 })
+        }
+        if (body.rejectionReason.length > 500) {
+          return NextResponse.json({ error: "Rejection reason must not exceed 500 characters" }, { status: 400 })
+        }
+      }
+
       // Maker-Checker principle: creator cannot approve/reject/activate
       if (currentMerchant.createdBy === user.id) {
         return NextResponse.json(
