@@ -155,6 +155,11 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     })
   }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter])
 
+  const totalFilteredReceived = useMemo(
+    () => filtered.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0),
+    [filtered]
+  )
+
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
 
   useEffect(() => {
@@ -426,6 +431,28 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       {/* Transaction List */}
       <main className="space-y-3">
+        {/* Filtered Summary */}
+        <Card className="rounded-[20px] border-amber-100 bg-amber-50/50 p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-amber-700/60">
+                Filtered Results
+              </p>
+              <p className="text-2xl font-black text-amber-900 mt-1">
+                {totalFilteredReceived.toFixed(2)} ETB
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-bold text-amber-700/80">
+                {filtered.filter(tx => tx.status === 'success').length} successful
+              </p>
+              <p className="text-[10px] font-medium text-amber-700/60">
+                of {filtered.length} transactions
+              </p>
+            </div>
+          </div>
+        </Card>
+        
         {pageItems.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
             <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
