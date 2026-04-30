@@ -182,13 +182,23 @@ function MerchantReviewContent() {
   }
 
   const handleAction = async (id: string, action: 'initial_approve' | 'final_approve' | 'reject') => {
-    if (action === 'reject' && !rejectionReason.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Reason Required",
-        description: "Please provide a reason for rejection."
-      })
-      return
+    if (action === 'reject') {
+      if (!rejectionReason.trim()) {
+        toast({
+          variant: "destructive",
+          title: "Reason Required",
+          description: "Please provide a reason for rejection."
+        })
+        return
+      }
+      if (rejectionReason.length > 50) {
+        toast({
+          variant: "destructive",
+          title: "Reason Too Long",
+          description: "Rejection reason must not exceed 50 characters."
+        })
+        return
+      }
     }
 
     setSubmittingAction(action)
@@ -844,13 +854,19 @@ function MerchantReviewContent() {
                           </Button>
                         ) : (
                           <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                            <Label className="text-xs font-medium text-rose-900">Reason for Rejection</Label>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-medium text-rose-900">Reason for Rejection</Label>
+                              <span className={`text-[10px] font-medium ${rejectionReason.length > 50 ? 'text-rose-600' : 'text-slate-400'}`}>
+                                {rejectionReason.length}/50
+                              </span>
+                            </div>
                             <Textarea 
-                              className="min-h-[80px] text-xs rounded-lg border-slate-200" 
+                              className={`min-h-[80px] text-xs rounded-lg border-slate-200 ${rejectionReason.length > 50 ? 'border-rose-300 focus-visible:ring-rose-300/20' : ''}`}
                               placeholder="Explain why this request is being denied..."
                               value={rejectionReason}
                               onChange={(e) => setRejectionReason(e.target.value)}
-                            />
+                               maxLength={50}
+                             />
                             <div className="flex gap-2">
                               <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRejecting(false)} disabled={submittingAction !== null}>Cancel</Button>
                               <Button 

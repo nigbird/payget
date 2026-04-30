@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission, userHasAnyPermission, canAccessMerchant } from '@/lib/request-auth';
-import { sendNotification, generatePasswordSetupLink } from '@/lib/notifications';
+import { sendNotification, generatePasswordSetupLink, generateMerchantRegisterLink } from '@/lib/notifications';
 import crypto from 'crypto';
 
 function isSafeLogoUrl(value: unknown) {
@@ -227,10 +227,11 @@ export async function PATCH(
           message: `Congratulations! Your merchant account for ${updated.name} has been approved. Please set up your password here: ${setupLink}`
         });
       } else if (body.status === 'rejected' || body.status === 'REJECTED') {
+        const registerLink = generateMerchantRegisterLink();
         await sendNotification({
           to: updated.contactUsername,
-          subject: 'Merchant Account Update Required',
-          message: `Your merchant account application for ${updated.name} requires updates. Reason: ${body.rejectionReason}`
+          subject: 'Merchant Account Rejected',
+          message: `We regret to inform you that your merchant account application for ${updated.name} has been rejected.\n\nReason: ${body.rejectionReason}\n\nIf you would like to try again, you can start a new application using this link: ${registerLink}`
         });
       }
     }

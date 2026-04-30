@@ -135,3 +135,11 @@ export function generateMerchantUpdateLink(token: string): string {
 
   return `${baseUrl}/merchant/review-update?token=${token}`;
 }
+
+/**
+ * Merchant registration link
+ */
+export function generateMerchantRegisterLink(): string {
+  const baseUrl = getNotificationBaseUrl();
+  return `${baseUrl}/register`;
+}
