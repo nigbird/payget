@@ -3,12 +3,22 @@ import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/a
 import { requireAuthUser } from "@/lib/request-auth"
 import { db } from "@/app/lib/db"
 import crypto from "crypto"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function POST(request: Request) {
+  let actorUserId: string | null = null
   try {
     const body = await request.json()
     const parsed = PaymentInitiateSchema.safeParse(body)
     if (!parsed.success) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "INVALID_PAYLOAD", details: parsed.error.flatten() },
+      })
       return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
     }
 
@@ -18,6 +28,7 @@ export async function POST(request: Request) {
     // 1. Try Session/Bearer Auth first
     const sessionUser = await requireAuthUser(request)
     if (sessionUser) {
+      actorUserId = sessionUser.id
       const isAssignedMerchant =
         sessionUser.merchantId === parsed.data.merchantId ||
         sessionUser.assignedMerchantIds?.includes(parsed.data.merchantId)
@@ -26,6 +37,14 @@ export async function POST(request: Request) {
         (sessionUser.role === 'MERCHANT' && sessionUser.merchantId !== parsed.data.merchantId) ||
         (sessionUser.role === 'SALES' && !isAssignedMerchant)
       ) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "PAYMENT_LINK_CREATE",
+          entityType: "TRANSACTION",
+          entityId: null,
+          newValue: { result: "failed", reason: "FORBIDDEN" },
+        })
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
       
@@ -61,15 +80,32 @@ export async function POST(request: Request) {
 
         authenticatedMerchantId = merchant.id
         initiatedBy = { id: `api_${merchant.id}`, name: `API (${merchant.name})` }
+        actorUserId = initiatedBy.id
       }
     }
 
     if (!authenticatedMerchantId) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      })
       return NextResponse.json({ error: 'Unauthorized: Session or valid signature required' }, { status: 401 })
     }
 
     const result = await createGatewayTransactionAndToken(parsed.data, { initiatedBy })
     if (!result.ok) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "GATEWAY_TRANSACTION_FAILED", error: result.error, limit: (result as any).limit },
+      })
       const status =
         result.error === "Merchant not found"
           ? 404
@@ -84,6 +120,16 @@ export async function POST(request: Request) {
 
     if (parsed.data.method === "TELEBIRR") {
       console.log('Telebirr payment link requested (not yet available)')
+
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: result.tx.id,
+        newValue: { result: "success", method: "TELEBIRR", status: "pending" },
+      })
+
       return NextResponse.json({ 
         message: "Telebirr integration is coming soon.",
         transactionReference: result.transactionReference,
@@ -95,6 +141,20 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
     const paymentUrl = `${baseUrl}/pay/link?token=${encodeURIComponent(token)}`
 
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "PAYMENT_LINK_CREATE",
+      entityType: "TRANSACTION",
+      entityId: result.tx.id,
+      oldValue: null,
+      newValue: {
+        result: "success",
+        status: result.tx.status,
+        paymentMethod: parsed.data.method,
+      },
+    })
+
     return NextResponse.json({
       transactionId: result.tx.id,
       transactionReference: result.transactionReference,
@@ -102,8 +162,16 @@ export async function POST(request: Request) {
       paymentUrl,
       token,
     })
-  } catch {
+  } catch (error) {
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "PAYMENT_LINK_CREATE",
+      entityType: "TRANSACTION",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
+
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

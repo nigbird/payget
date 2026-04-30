@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { sendNotification } from '@/lib/notifications';
+import { writeAuditLog } from '@/lib/audit-log';
 
 export async function POST(request: Request) {
   try {
@@ -8,12 +9,28 @@ export async function POST(request: Request) {
     const { token } = body;
 
     if (!token) {
+      await writeAuditLog({
+        request,
+        action: "MERCHANT_UPDATE_OTP_SEND",
+        entityType: "MERCHANT_UPDATE_TOKEN",
+        entityId: null,
+        newValue: { result: "failed", reason: "MISSING_TOKEN" },
+      })
+
       return NextResponse.json({ error: 'Token is required' }, { status: 400 });
     }
 
     const updateToken = await db.getMerchantUpdateToken(token);
 
     if (!updateToken || new Date(updateToken.expiresAt) < new Date() || updateToken.usedAt) {
+      await writeAuditLog({
+        request,
+        action: "MERCHANT_UPDATE_OTP_SEND",
+        entityType: "MERCHANT_UPDATE_TOKEN",
+        entityId: (updateToken as any)?.id ?? null,
+        newValue: { result: "failed", reason: "INVALID_OR_EXPIRED_TOKEN" },
+      })
+
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
     }
 
@@ -32,6 +49,14 @@ export async function POST(request: Request) {
       message: `Your verification code is: ${otp}. This code will expire in 5 minutes.`
     });
 
+    await writeAuditLog({
+      request,
+      action: "MERCHANT_UPDATE_OTP_SEND",
+      entityType: "MERCHANT_UPDATE_TOKEN",
+      entityId: updateToken.id,
+      newValue: { result: "success", merchantId: (updateToken as any).merchant?.id ?? null },
+    })
+
     return NextResponse.json({ 
       success: true, 
       message: 'OTP sent successfully',
@@ -40,6 +65,15 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Error sending OTP:', error);
+
+    await writeAuditLog({
+      request,
+      action: "MERCHANT_UPDATE_OTP_SEND",
+      entityType: "MERCHANT_UPDATE_TOKEN",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

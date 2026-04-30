@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
+import { writeAuditLog } from '@/lib/audit-log';
 
 export async function GET(request: Request) {
   try {
@@ -59,14 +60,32 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let userId: string | null = null;
   try {
     const authUser = await requireAuthUser(request);
     if (!authUser) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "ADMIN_USER_CREATE",
+        entityType: "USER",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    userId = authUser.id;
 
     const canCreateUser = userHasPermission(authUser, 'USER_CREATE');
     if (!canCreateUser) {
+      await writeAuditLog({
+        request,
+        userId,
+        action: "ADMIN_USER_CREATE",
+        entityType: "USER",
+        entityId: null,
+        newValue: { result: "failed", reason: "PERMISSION_DENIED_USER_CREATE" },
+      });
       return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
 
@@ -100,6 +119,14 @@ export async function POST(request: Request) {
         const targetPerms = targetRole.permissions.map(p => p.permission.name);
         const canAssign = userCanAssignPermissions(authUser, targetPerms);
         if (!canAssign) {
+          await writeAuditLog({
+            request,
+            userId,
+            action: "ADMIN_USER_CREATE",
+            entityType: "USER",
+            entityId: null,
+            newValue: { result: "failed", reason: "PRIVILEGE_ESCALATION" },
+          });
           return NextResponse.json({ 
             error: 'Privilege escalation attempt: You cannot assign a role that has more permissions than you.' 
           }, { status: 403 });
@@ -108,6 +135,14 @@ export async function POST(request: Request) {
     }
 
     if (!password) {
+      await writeAuditLog({
+        request,
+        userId,
+        action: "ADMIN_USER_CREATE",
+        entityType: "USER",
+        entityId: null,
+        newValue: { result: "failed", reason: "PASSWORD_REQUIRED" },
+      });
       return NextResponse.json({ error: 'Password is required to create a user.' }, { status: 400 });
     }
 
@@ -130,9 +165,28 @@ export async function POST(request: Request) {
       }
     });
 
+    await writeAuditLog({
+      request,
+      userId,
+      action: "ADMIN_USER_CREATE",
+      entityType: "USER",
+      entityId: createdUser.id,
+      newValue: { result: "success", email: createdUser.email, name: createdUser.name, role: createdUser.role },
+    });
+
     return NextResponse.json(createdUser, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
+
+    await writeAuditLog({
+      request,
+      userId,
+      action: "ADMIN_USER_CREATE",
+      entityType: "USER",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    });
+
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
   }
 }

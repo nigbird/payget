@@ -5,6 +5,7 @@ import { sendProviderPushRequest } from "@/lib/provider-client"
 import { db } from "@/app/lib/db"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
 import crypto from "crypto"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function POST(request: Request) {
   try {
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
     if (!authenticatedMerchantId) {
       return NextResponse.json({ error: 'Unauthorized: Session or valid signature required' }, { status: 401 })
     }
+
+    const actorUserId = initiatedBy?.id ?? null
 
     const result = await createGatewayTransactionAndToken(parsed.data, { initiatedBy })
     if (!result.ok) {
@@ -143,6 +146,20 @@ export async function POST(request: Request) {
       console.error('All provider flows failed:', providerResponse)
       // Update local transaction status to failed if provider rejected it
       await db.updateTransactionStatus(result.tx.id, "failed")
+
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_PUSH",
+        entityType: "TRANSACTION",
+        entityId: result.tx.id,
+        newValue: {
+          result: "failed",
+          reason: "PROVIDER_REJECTED",
+          statusCode: providerResponse.statusCode || (providerResponse as any).status,
+        },
+      })
+
       return NextResponse.json({ 
         error: providerResponse.message || "Provider rejected the request",
         details: providerResponse.details || providerResponse.error,
@@ -161,6 +178,19 @@ export async function POST(request: Request) {
     }
     // Set status to awaiting_pin after successful push initiation
     await db.updateTransactionStatus(result.tx.id, "awaiting_pin")
+
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "PAYMENT_PUSH",
+      entityType: "TRANSACTION",
+      entityId: result.tx.id,
+      newValue: {
+        result: "success",
+        status: "awaiting_pin",
+      },
+    })
+
     return NextResponse.json({
       transactionId: result.tx.id,
       transactionReference: result.transactionReference,
@@ -170,7 +200,19 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('Push payment error:', error)
+
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "PAYMENT_PUSH",
+      entityType: "TRANSACTION",
+      entityId: null,
+      newValue: {
+        result: "failed",
+        reason: "INTERNAL_ERROR",
+      },
+    })
+
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

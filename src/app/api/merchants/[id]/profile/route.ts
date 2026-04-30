@@ -3,6 +3,7 @@ import { db } from '@/app/lib/db'
 import { prisma } from '@/lib/prisma'
 import bcrypt from "bcryptjs"
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth'
+import { writeAuditLog } from '@/lib/audit-log'
 
 export async function PATCH(
   request: NextRequest,
@@ -10,10 +11,31 @@ export async function PATCH(
 ) {
   try {
     const user = await requireAuthUser(request);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const actorUserId = user?.id ?? null;
+    if (!user) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "MERCHANT_PROFILE_UPDATE",
+        entityType: "MERCHANT",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      });
+
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { id } = await params
     if (!canAccessMerchant(user, id)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_PROFILE_UPDATE",
+        entityType: "MERCHANT",
+        entityId: id,
+        newValue: { result: "failed", reason: "FORBIDDEN" },
+      });
+
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -23,6 +45,15 @@ export async function PATCH(
     const merchant = await db.getMerchantById(id)
 
     if (!merchant) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_PROFILE_UPDATE",
+        entityType: "MERCHANT",
+        entityId: id,
+        newValue: { result: "failed", reason: "MERCHANT_NOT_FOUND" },
+      });
+
       return NextResponse.json(
         { error: 'Merchant not found' },
         { status: 404 }
@@ -85,9 +116,29 @@ export async function PATCH(
       phoneNumber: (safeMerchantData as any).contactUsername
     }
 
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "MERCHANT_PROFILE_UPDATE",
+      entityType: "MERCHANT",
+      entityId: id,
+      oldValue: null,
+      newValue: { result: "success" },
+    })
+
     return NextResponse.json(response)
   } catch (error) {
     console.error('Profile update error:', error)
+
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "MERCHANT_PROFILE_UPDATE",
+      entityType: "MERCHANT",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
+
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }

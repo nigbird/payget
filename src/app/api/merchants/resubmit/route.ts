@@ -1,19 +1,40 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
+import { writeAuditLog } from '@/lib/audit-log';
 
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
     const { token, ...updateData } = body;
 
+    const actorUserId: string | null = null;
+
     if (!token) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_RESUBMIT",
+        entityType: "MERCHANT",
+        entityId: null,
+        newValue: { result: "failed", reason: "TOKEN_REQUIRED" },
+      });
+
       return NextResponse.json({ error: 'Token is required' }, { status: 400 });
     }
 
     const updateToken = await db.getMerchantUpdateToken(token);
 
     if (!updateToken || !updateToken.verified || updateToken.usedAt || new Date(updateToken.expiresAt) < new Date()) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_RESUBMIT",
+        entityType: "MERCHANT",
+        entityId: null,
+        newValue: { result: "failed", reason: "INVALID_OR_EXPIRED_TOKEN" },
+      });
+
       return NextResponse.json({ error: 'Unauthorized or invalid token' }, { status: 401 });
     }
 
@@ -69,14 +90,14 @@ export async function PATCH(request: Request) {
       usedAt: new Date()
     });
 
-    // Audit Log
-    await prisma.auditLog.create({
-      data: {
-        action: 'MERCHANT_RESUBMIT',
-        entityType: 'MERCHANT',
-        entityId: merchantId,
-        newValue: { status: 'resubmitted', ...finalUpdate } as any
-      }
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "MERCHANT_RESUBMIT",
+      entityType: "MERCHANT",
+      entityId: merchantId,
+      oldValue: null,
+      newValue: { result: "success", status: "resubmitted" },
     });
 
     return NextResponse.json({ 
@@ -86,6 +107,16 @@ export async function PATCH(request: Request) {
 
   } catch (error) {
     console.error('Error resubmitting application:', error);
+
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "MERCHANT_RESUBMIT",
+      entityType: "MERCHANT",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    });
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
