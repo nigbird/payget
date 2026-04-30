@@ -175,20 +175,12 @@ export async function PATCH(
 
     // Initial review requires limit permissions (not MERCHANT_APPROVE)
     if (isInitialReviewStatus || isLimitChange) {
-      const hasLimitPerm = userHasPermission(user, "TRANSACTION_LIMIT_SET")
-      const hasOverridePerm = userHasPermission(user, "TRANSACTION_LIMIT_OVERRIDE")
+      const canSetLimits = userHasPermission(user, "TRANSACTION_LIMIT_SET")
+      const canOverrideLimits = userHasPermission(user, "TRANSACTION_LIMIT_OVERRIDE")
 
-      if (!hasLimitPerm && !hasOverridePerm) {
+      if (!canSetLimits && !canOverrideLimits) {
         return NextResponse.json(
           { error: "Permission denied: You do not have permission to modify transaction limits." },
-          { status: 403 }
-        )
-      }
-
-      // Maker-Checker principle: creator cannot set limits / perform initial review
-      if (currentMerchant.createdBy === user.id) {
-        return NextResponse.json(
-          { error: "Maker-Checker violation: The user who registered this merchant cannot perform initial review or set limits." },
           { status: 403 }
         )
       }

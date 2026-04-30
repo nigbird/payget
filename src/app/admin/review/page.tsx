@@ -738,7 +738,7 @@ function MerchantReviewContent() {
                             <Button 
                               className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'initial_approve')}
-                              disabled={!canSetLimits || !selectedMerchant._permissions?.canSetLimits || selectedMerchant._permissions?.isCreator || submittingAction !== null}
+                              disabled={!canSetLimits || !selectedMerchant._permissions?.canSetLimits || submittingAction !== null}
                             >
                               {submittingAction === 'initial_approve' ? (
                                 <>
@@ -774,7 +774,7 @@ function MerchantReviewContent() {
                             <Button 
                               className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'final_approve')}
-                              disabled={!canApprove || !selectedMerchant._permissions?.canApprove || selectedMerchant._permissions?.isCreator || selectedMerchant._permissions?.isLimitSetter || submittingAction !== null}
+                              disabled={!canApprove || !selectedMerchant._permissions?.canApprove || submittingAction !== null}
                             >
                               {submittingAction === 'final_approve' ? (
                                 <>
@@ -857,7 +857,7 @@ function MerchantReviewContent() {
                                 variant="destructive" 
                                 className="flex-1 text-xs h-8 rounded-lg shadow-sm" 
                                 onClick={() => handleAction(selectedMerchant.id, 'reject')}
-                                disabled={submittingAction !== null || selectedMerchant._permissions?.isCreator}
+                                disabled={submittingAction !== null}
                               >
                                 {submittingAction === 'reject' ? (
                                   <>
