@@ -102,7 +102,47 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "Invalid encrypted payload", details: parsed.error.flatten() }, { status: 400 })
         }
         if (merchantIdHeader !== parsed.data.merchantId) {
+          await writeAuditLog({
+            request,
+            userId: actorUserId,
+            action: "PAYMENT_LINK_CREATE",
+            entityType: "TRANSACTION",
+            entityId: null,
+            newValue: { result: "failed", reason: "MERCHANT_ID_MISMATCH" },
+          })
           return NextResponse.json({ error: "Merchant ID mismatch" }, { status: 400 })
+        }
+
+        const merchant = await db.getMerchantById(merchantIdHeader)
+        if (!merchant) {
+          await writeAuditLog({
+            request,
+            userId: actorUserId,
+            action: "PAYMENT_LINK_CREATE",
+            entityType: "TRANSACTION",
+            entityId: null,
+            newValue: { result: "failed", reason: "MERCHANT_NOT_FOUND" },
+          })
+          return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
+        }
+
+        // Verify HMAC signature: HMAC-SHA256(JSON.stringify(body), jweSecret)
+        const expectedSignature = crypto
+          .createHmac("sha256", merchant.jweSecret)
+          .update(JSON.stringify(body))
+          .digest("hex")
+
+        if (signatureHeader !== expectedSignature) {
+          actorUserId = `api_${merchantIdHeader}`
+          await writeAuditLog({
+            request,
+            userId: actorUserId,
+            action: "PAYMENT_LINK_CREATE",
+            entityType: "TRANSACTION",
+            entityId: null,
+            newValue: { result: "failed", reason: "INVALID_SIGNATURE" },
+          })
+          return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
         }
 
         authenticatedMerchantId = merchant.id
