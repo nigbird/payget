@@ -13,6 +13,17 @@ export type AuditLogPayload = {
   newValue?: unknown;
 };
 
+export type AuditLogSearchParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  action?: string;
+  entityType?: string;
+  userId?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
 function getClientIp(request: Request): string | null {
   const xForwardedFor = request.headers.get("x-forwarded-for");
   const xRealIp = request.headers.get("x-real-ip");
@@ -41,4 +52,75 @@ export async function writeAuditLog(payload: AuditLogPayload) {
   } catch {
     // Intentionally ignore audit log write failures
   }
+}
+
+export async function searchAuditLogs(params: AuditLogSearchParams = {}) {
+  const {
+    page = 1,
+    limit = 50,
+    search,
+    action,
+    entityType,
+    userId,
+    startDate,
+    endDate,
+  } = params;
+
+  const where: any = {};
+
+  if (search) {
+    where.OR = [
+      { action: { contains: search, mode: "insensitive" } },
+      { entityType: { contains: search, mode: "insensitive" } },
+      { user: { name: { contains: search, mode: "insensitive" } } },
+      { user: { email: { contains: search, mode: "insensitive" } } },
+    ];
+  }
+
+  if (action) {
+    where.action = action;
+  }
+
+  if (entityType) {
+    where.entityType = entityType;
+  }
+
+  if (userId) {
+    where.userId = userId;
+  }
+
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) {
+      where.createdAt.gte = new Date(startDate);
+    }
+    if (endDate) {
+      where.createdAt.lte = new Date(endDate);
+    }
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return {
+    logs,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }

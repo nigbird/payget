@@ -37,6 +37,7 @@ async function main() {
     { name: 'TRANSACTION_LIMIT_SET', category: 'TRANSACTION', description: 'Set transaction limits' },
     { name: 'TRANSACTION_LIMIT_OVERRIDE', category: 'TRANSACTION', description: 'Override transaction limits' },
     { name: 'CONFIGURATION_MANAGE', category: 'SYSTEM', description: 'Manage system-wide configurations (branches, districts, etc.)' },
+    { name: 'AUDIT_LOG_VIEW', category: 'SYSTEM', description: 'View and search audit logs' },
   ]
 
   const permissions = []
@@ -54,7 +55,7 @@ async function main() {
     {
       name: 'Super Admin',
       description: 'Full system access',
-      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE']
+      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW']
     },
     
     {

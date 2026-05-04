@@ -13,6 +13,7 @@ import {
   Users,
   Settings,
   User as UserIcon,
+  FileText,
   type LucideIcon,
 } from "lucide-react"
 import { 
@@ -39,6 +40,7 @@ const mainMenuItems = [
 const adminMenuItems = [
   { name: "Staff Management", href: "/admin/users", icon: Users, permission: "USER_CREATE" },
   { name: "Permission Governance", href: "/admin/roles", icon: Shield, permission: "ROLE_CREATE" },
+  { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText, permission: "AUDIT_LOG_VIEW" },
   { name: "Master Data Config", href: "/admin/configuration", icon: Settings, permission: "CONFIGURATION_MANAGE" },
 ]
 
