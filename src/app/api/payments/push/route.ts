@@ -11,6 +11,8 @@ import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
 
 export async function POST(request: Request) {
+  let actorUserId: string | null = null
+  let merchantIdForLog: string | null = null
   try {
     const body = await request.json().catch(() => ({}))
 
@@ -18,7 +20,6 @@ export async function POST(request: Request) {
     let initiatedBy: { id: string; name?: string } | undefined
     let paymentInput: any = null
 
-    // 1. Try Session/Bearer Auth first
     const sessionUser = await requireAuthUser(request)
     if (sessionUser) {
       const parsed = PaymentInitiateSchema.safeParse(body)
@@ -43,8 +44,9 @@ export async function POST(request: Request) {
         id: sessionUser.id,
         name: sessionUser.name ?? undefined,
       }
+      actorUserId = sessionUser.id
+      merchantIdForLog = parsed.data.merchantId
     } else {
-      // Signature auth requires encrypted JWE payload + HMAC + anti-replay headers.
       const merchantIdHeader = request.headers.get("x-merchant-id")
       const signatureHeader = request.headers.get("x-signature")
       const timestampHeader = request.headers.get("x-timestamp")
@@ -88,6 +90,8 @@ export async function POST(request: Request) {
         authenticatedMerchantId = merchant.id
         paymentInput = parsed.data
         initiatedBy = { id: `api_${merchant.id}`, name: `API (${merchant.name})` }
+        actorUserId = initiatedBy.id
+        merchantIdForLog = parsed.data.merchantId
       } else {
         return NextResponse.json({
           error: "Missing required security headers. Required: x-merchant-id, x-signature, x-timestamp, x-nonce, x-encrypted-payload",
@@ -100,9 +104,7 @@ export async function POST(request: Request) {
     }
 
     const result = await createGatewayTransactionAndToken(paymentInput, { initiatedBy })
-    const actorUserId = initiatedBy?.id ?? null
 
-    const result = await createGatewayTransactionAndToken(parsed.data, { initiatedBy })
     if (!result.ok) {
       const status =
         result.error === "Merchant not found"
@@ -116,20 +118,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, limit: (result as any).limit }, { status })
     }
 
-    // 1. Route based on selected payment method
     if (paymentInput.method === "TELEBIRR") {
       console.log('Telebirr push requested (not yet available)')
-      // Update transaction status to pending or similar
       await db.updateTransactionStatus(result.tx.id, "pending")
       return NextResponse.json({ 
         message: "Telebirr integration is coming soon.",
         transactionReference: result.transactionReference,
         status: "pending"
-      }, { status: 202 }) // Accepted, but not processed
+      }, { status: 202 })
     }
 
-    // Default to BANK (existing flow)
-    // 1. Prepare request for the external provider (legacy flow)
     const providerRequest = {
       transactionRef: result.transactionReference,
       customerPhone: paymentInput.userCredentials.phone,
@@ -139,19 +137,16 @@ export async function POST(request: Request) {
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
 
-    // 2. Call the external provider API (legacy flow)
     console.log('Starting legacy provider push request...')
     let providerResponse = await sendProviderPushRequest(providerRequest)
     console.log('Legacy provider response status:', providerResponse.statusCode)
 
-    // If legacy provider fails, try the new encrypted provider flow
     if (providerResponse.statusCode !== 200) {
       console.log('Legacy flow failed. Trying new encrypted provider flow...', {
         message: providerResponse.message,
         error: providerResponse.error,
         details: providerResponse.details
       })
-      // Prepare payload for provider (new flow)
       const providerPayload = ProviderPushPayloadSchema.parse({
         transactionRef: result.transactionReference,
         customerPhone: result.tx.userCredentials.phone,
@@ -166,14 +161,12 @@ export async function POST(request: Request) {
       const password = process.env.PROVIDER_PASSWORD!
       const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl, username, password)
 
-      // Send to provider using their exact transfer endpoint
       providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
       console.log('New encrypted provider flow response status:', providerResponse.statusCode || (providerResponse as any).status)
     }
 
     if (providerResponse.statusCode !== 200 && (providerResponse as any).status !== 200) {
       console.error('All provider flows failed:', providerResponse)
-      // Update local transaction status to failed if provider rejected it
       await db.updateTransactionStatus(result.tx.id, "failed")
 
       await writeAuditLog({
@@ -201,7 +194,6 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    // 3. Update local transaction with shared secret for later callback decryption
     if (providerResponse.sharedSecret) {
       await db.updateTransaction(result.tx.id, {
         userCredentials: {
@@ -210,7 +202,6 @@ export async function POST(request: Request) {
         }
       })
     }
-    // Set status to awaiting_pin after successful push initiation
     await db.updateTransactionStatus(result.tx.id, "awaiting_pin")
 
     await writeAuditLog({
@@ -233,7 +224,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       transactionId: result.tx.id,
       transactionReference: result.transactionReference,
-      status: "awaiting_pin", // The customer will now see a PIN prompt
+      status: "awaiting_pin",
       ussdInitiatedTo: result.tx.userCredentials.phone,
       message: providerResponse.details || "Push payment request initiated successfully.",
     })
@@ -250,14 +241,14 @@ export async function POST(request: Request) {
 
     await writeAuditLog({
       request,
-      userId: null,
+      userId: actorUserId,
       action: "PAYMENT_PUSH",
       entityType: "TRANSACTION",
       entityId: null,
       newValue: {
         result: "failed",
         reason: "INTERNAL_ERROR",
-        merchantId: parsed?.data?.merchantId,
+        merchantId: merchantIdForLog,
       },
     })
 

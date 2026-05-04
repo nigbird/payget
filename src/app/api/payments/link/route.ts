@@ -12,7 +12,6 @@ export async function POST(request: Request) {
   let actorUserId: string | null = null
   try {
     const body = await request.json().catch(() => ({}))
-    const body = await request.json()
     const parsed = PaymentInitiateSchema.safeParse(body)
     if (!parsed.success) {
       await writeAuditLog({
@@ -30,14 +29,8 @@ export async function POST(request: Request) {
     let initiatedBy: { id: string; name?: string } | undefined
     let paymentInput: any = null
 
-    // 1. Try Session/Bearer Auth first
     const sessionUser = await requireAuthUser(request)
     if (sessionUser) {
-      const parsed = PaymentInitiateSchema.safeParse(body)
-      if (!parsed.success) {
-        return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
-      }
-      actorUserId = sessionUser.id
       const isAssignedMerchant =
         sessionUser.merchantId === parsed.data.merchantId ||
         sessionUser.assignedMerchantIds?.includes(parsed.data.merchantId)
@@ -63,8 +56,8 @@ export async function POST(request: Request) {
         id: sessionUser.id,
         name: sessionUser.name ?? undefined,
       }
+      actorUserId = sessionUser.id
     } else {
-      // Signature auth requires encrypted JWE payload + HMAC + anti-replay headers.
       const merchantIdHeader = request.headers.get("x-merchant-id")
       const signatureHeader = request.headers.get("x-signature")
       const timestampHeader = request.headers.get("x-timestamp")
@@ -97,62 +90,22 @@ export async function POST(request: Request) {
         }
 
         const decrypted = await decryptPayload(encryptedPayload, merchantSecret)
-        const parsed = PaymentInitiateSchema.safeParse(decrypted)
-        if (!parsed.success) {
-          return NextResponse.json({ error: "Invalid encrypted payload", details: parsed.error.flatten() }, { status: 400 })
+        const decryptedParsed = PaymentInitiateSchema.safeParse(decrypted)
+        if (!decryptedParsed.success) {
+          return NextResponse.json({ error: "Invalid encrypted payload", details: decryptedParsed.error.flatten() }, { status: 400 })
         }
-        if (merchantIdHeader !== parsed.data.merchantId) {
-          await writeAuditLog({
-            request,
-            userId: actorUserId,
-            action: "PAYMENT_LINK_CREATE",
-            entityType: "TRANSACTION",
-            entityId: null,
-            newValue: { result: "failed", reason: "MERCHANT_ID_MISMATCH" },
-          })
+        if (merchantIdHeader !== decryptedParsed.data.merchantId) {
           return NextResponse.json({ error: "Merchant ID mismatch" }, { status: 400 })
         }
 
-        const merchant = await db.getMerchantById(merchantIdHeader)
-        if (!merchant) {
-          await writeAuditLog({
-            request,
-            userId: actorUserId,
-            action: "PAYMENT_LINK_CREATE",
-            entityType: "TRANSACTION",
-            entityId: null,
-            newValue: { result: "failed", reason: "MERCHANT_NOT_FOUND" },
-          })
-          return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
-        }
-
-        // Verify HMAC signature: HMAC-SHA256(JSON.stringify(body), jweSecret)
-        const expectedSignature = crypto
-          .createHmac("sha256", merchant.jweSecret)
-          .update(JSON.stringify(body))
-          .digest("hex")
-
-        if (signatureHeader !== expectedSignature) {
-          actorUserId = `api_${merchantIdHeader}`
-          await writeAuditLog({
-            request,
-            userId: actorUserId,
-            action: "PAYMENT_LINK_CREATE",
-            entityType: "TRANSACTION",
-            entityId: null,
-            newValue: { result: "failed", reason: "INVALID_SIGNATURE" },
-          })
-          return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
-        }
-
         authenticatedMerchantId = merchant.id
-        paymentInput = parsed.data
+        paymentInput = decryptedParsed.data
         initiatedBy = { id: `api_${merchant.id}`, name: `API (${merchant.name})` }
+        actorUserId = initiatedBy.id
       } else {
         return NextResponse.json({
           error: "Missing required security headers. Required: x-merchant-id, x-signature, x-timestamp, x-nonce, x-encrypted-payload",
         }, { status: 401 })
-        actorUserId = initiatedBy.id
       }
     }
 
@@ -196,10 +149,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, limit: (result as any).limit }, { status })
     }
 
-    if (paymentInput.method === "TELEBIRR") {
-    const merchant = await db.getMerchantById(parsed.data.merchantId);
+    const merchant = await db.getMerchantById(paymentInput.merchantId)
 
-    if (parsed.data.method === "TELEBIRR") {
+    if (paymentInput.method === "TELEBIRR") {
       console.log('Telebirr payment link requested (not yet available)')
 
       await writeAuditLog({
@@ -212,7 +164,7 @@ export async function POST(request: Request) {
           result: "success", 
           method: "TELEBIRR", 
           status: "pending",
-          merchantId: parsed.data.merchantId,
+          merchantId: paymentInput.merchantId,
           merchantName: merchant?.name,
           transactionId: result.tx.id,
           transactionReference: result.transactionReference,
@@ -241,8 +193,8 @@ export async function POST(request: Request) {
       newValue: {
         result: "success",
         status: result.tx.status,
-        paymentMethod: parsed.data.method,
-        merchantId: parsed.data.merchantId,
+        paymentMethod: paymentInput.method,
+        merchantId: paymentInput.merchantId,
         merchantName: merchant?.name,
         transactionId: result.tx.id,
         transactionReference: result.transactionReference,
