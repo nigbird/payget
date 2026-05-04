@@ -68,8 +68,6 @@ export async function POST(request: Request) {
     try {
       const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
       const sessionPayload = await decryptSessionToken(merchantSessionToken, merchantSecret)
-      
-      const sessionPayload = await decryptSessionToken(merchantSessionToken, merchant.jweSecret)
 
       if (sessionPayload.merchantId !== merchant.id) {
         await writeAuditLog({
