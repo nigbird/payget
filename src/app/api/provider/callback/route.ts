@@ -68,6 +68,7 @@ export async function POST(request: Request) {
     // otherwise derive secret from provider callback pubkey + server private key.
     let tx: any = null;
     let sharedSecret: Buffer | null = null;
+    let sharedSecretSource: "transaction" | "server_private_key" | "unknown" = "unknown";
 
     if (transactionRef) {
       tx = await resolveTransactionByAnyReference(transactionRef);
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
       }
 
       sharedSecret = Buffer.from(sharedSecretBase64, 'base64');
+      sharedSecretSource = "transaction";
     } else if (providerPubKey) {
       const serverPrivateKeyBase64 = process.env.PROVIDER_SERVER_PRIVATE_KEY;
       if (!serverPrivateKeyBase64) {
@@ -93,6 +95,7 @@ export async function POST(request: Request) {
       try {
         const serverPrivateKey = Buffer.from(serverPrivateKeyBase64.trim(), 'base64');
         sharedSecret = deriveSharedSecret(providerPubKey, serverPrivateKey);
+        sharedSecretSource = "server_private_key";
       } catch (err) {
         console.error('[CALLBACK] Failed to derive shared secret from provider pubkey:', err);
         return NextResponse.json({ error: 'Failed to derive callback shared secret' }, { status: 400 });
@@ -109,6 +112,7 @@ export async function POST(request: Request) {
     // 3. Decrypt the payload
     let decryptedData: any;
     try {
+      console.log(`[CALLBACK] Decrypting using sharedSecretSource=${sharedSecretSource}`);
       decryptedData = decryptProviderPayload({ payload, salt, tag }, sharedSecret);
       console.log('[CALLBACK] Decrypted data:', decryptedData);
     } catch (err) {
@@ -141,35 +145,77 @@ export async function POST(request: Request) {
     }
 
     // 4. Update transaction status
-    // If decryptedData has a status, use it. Otherwise, if we got here, maybe it's failed if it wasn't successful.
-    // Some providers send error details in decryptedData.details or decryptedData.message
-    const providerStatus = decryptedData.status || decryptedData.state || decryptedData.result;
-    const finalStatus = providerStatus === 'success' || providerStatus === 'SUCCESS' ? 'success' : 'failed';
-    
-    console.log(`[CALLBACK] Updating transaction ${tx.id} status to: ${finalStatus} (Provider status: ${providerStatus})`);
-    
-    await db.updateTransactionStatus(tx.id, finalStatus);
-    
-    // Also update provider details if available
-    if (decryptedData.details || decryptedData.message || decryptedData.error) {
-       await db.updateTransaction(tx.id, {
-         userCredentials: {
-           ...tx.userCredentials,
-           providerDetails: decryptedData.details || decryptedData.message || decryptedData.error
-         }
-       });
-    }
+    const providerStatusDesc: unknown =
+      decryptedData.statusDesc ?? decryptedData.status_desc ?? decryptedData.statusDescription;
 
-    if (finalStatus === 'success' || finalStatus === 'failed') {
+    const providerStatusCodeRaw: unknown =
+      decryptedData.statusCode ?? decryptedData.status_code ?? decryptedData.resultCode;
+
+    const providerStatusString: unknown =
+      decryptedData.status ?? decryptedData.state ?? decryptedData.result;
+
+    const providerStatusCode = (() => {
+      if (typeof providerStatusCodeRaw === "number") return providerStatusCodeRaw;
+      if (typeof providerStatusCodeRaw === "string") {
+        const n = Number(providerStatusCodeRaw);
+        return Number.isFinite(n) ? n : NaN;
+      }
+      return NaN;
+    })();
+
+    // Convention used by your example: statusCode "0" => success, anything else => failed
+    const finalStatus: "success" | "failed" = Number.isFinite(providerStatusCode)
+      ? providerStatusCode === 0
+        ? "success"
+        : "failed"
+      : providerStatusString === "success" || providerStatusString === "SUCCESS"
+        ? "success"
+        : "failed";
+
+    const providerCbsReference: unknown =
+      decryptedData.cbsreference ?? decryptedData.cbsReference ?? decryptedData.cbs_reference ?? "";
+
+    const providerCompany: unknown = decryptedData.company ?? "";
+
+    console.log(
+      `[CALLBACK] Updating transaction ${tx.id} status to: ${finalStatus} (statusCode: ${String(
+        providerStatusCodeRaw
+      )}, statusDesc: ${String(providerStatusDesc)})`
+    );
+
+    await db.updateTransactionStatus(tx.id, finalStatus);
+
+    // Persist provider callback details into transaction.userCredentials (Json)
+    await db.updateTransaction(tx.id, {
+      userCredentials: {
+        ...tx.userCredentials,
+        providerCallback: {
+          transactionId:
+            decryptedData.transactionId ??
+            decryptedData.transactionRef ??
+            decryptedData.transactionReference ??
+            null,
+          cbsreference: providerCbsReference,
+          statusDesc: providerStatusDesc ?? null,
+          statusCode: providerStatusCodeRaw ?? null,
+          company: providerCompany ?? null,
+          amount: decryptedData.amount ?? null,
+          raw: decryptedData,
+        },
+        providerDetails: providerStatusDesc ?? decryptedData.details ?? decryptedData.message ?? decryptedData.error ?? null,
+      },
+    });
+
+    if (finalStatus === "success" || finalStatus === "failed") {
       await db.updateTransaction(tx.id, {
         userCredentials: {
           ...tx.userCredentials,
           link: {
-            ...((tx.userCredentials as any).link || {}),
-            status: 'USED',
-            usedAt: new Date().toISOString()
-          }
-        }
+            ...(((tx.userCredentials as any).link as any) || {}),
+            status: "USED",
+            usedAt: new Date().toISOString(),
+          },
+        },
       })
     }
 
@@ -178,20 +224,23 @@ export async function POST(request: Request) {
     if (merchant && merchant.callbackUrl) {
       try {
         await fetch(merchant.callbackUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            merchantId: merchant.id,
-            transactionId: tx.id,
+            transactionId: decryptedData.transactionId ?? null,
+            cbsreference: providerCbsReference,
+            statusDesc: providerStatusDesc ?? null,
+            statusCode: providerStatusCodeRaw ?? null,
+            company: providerCompany ?? null,
+            amount: decryptedData.amount ?? null,
+
+            // Keep extra context without breaking required fields above
             transactionReference: tx.transactionReference,
-            amount: tx.amount,
-            status: finalStatus,
             processedAt: new Date().toISOString(),
-            providerDetails: decryptedData.details
           }),
         });
       } catch (err) {
-        console.error('Failed to notify merchant callback:', err);
+        console.error("Failed to notify merchant callback:", err);
       }
     }
 
