@@ -10,6 +10,7 @@ import {
   accessTokenTtlSeconds
 } from "@/lib/token-auth"
 import crypto from "crypto"
+import { writeAuditLog } from "@/lib/audit-log"
 
 function normalizeLoginIdentifier(value: string) {
   const v = value.trim()
@@ -32,6 +33,18 @@ export async function POST(request: Request) {
     const password = typeof body.password === "string" ? body.password : ""
 
     if (!identifier || !password) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "LOGIN_FAILURE",
+        entityType: "USER",
+        entityId: null,
+        newValue: {
+          result: "failed",
+          reason: "MISSING_FIELDS",
+          identifier: identifier ? identifier.substring(0, 20) + "..." : null,
+        },
+      })
       return NextResponse.json({ error: "identifier and password are required" }, { status: 400 })
     }
 
@@ -46,24 +59,88 @@ export async function POST(request: Request) {
     }
 
     if (!user || !user.password) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "LOGIN_FAILURE",
+        entityType: "USER",
+        entityId: null,
+        newValue: {
+          result: "failed",
+          reason: "USER_NOT_FOUND",
+          identifier: identifier.substring(0, 20) + "...",
+        },
+      })
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
     // If the user is a merchant, ensure the merchant account is ACTIVE and username matches.
     if ((user as any).role === "MERCHANT" && (user as any).merchantId) {
       if ((user as any).merchant?.status !== "ACTIVE") {
+        await writeAuditLog({
+          request,
+          userId: user.id,
+          action: "LOGIN_FAILURE",
+          entityType: "USER",
+          entityId: user.id,
+          newValue: {
+            result: "failed",
+            reason: "ACCOUNT_NOT_ACTIVE",
+            merchantId: (user as any).merchantId,
+            merchantName: (user as any).merchant?.name,
+          },
+        })
         return NextResponse.json({ error: "Account not active" }, { status: 401 })
       }
 
       const currentUsername = (user as any).merchant?.contactUsername
-      if (!currentUsername) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      if (!currentUsername) {
+        await writeAuditLog({
+          request,
+          userId: user.id,
+          action: "LOGIN_FAILURE",
+          entityType: "USER",
+          entityId: user.id,
+          newValue: {
+            result: "failed",
+            reason: "INVALID_CREDENTIALS",
+          },
+        })
+        return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      }
       const provided = normalizeLoginIdentifier(identifier)
       const expected = normalizeLoginIdentifier(currentUsername)
-      if (provided !== expected) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      if (provided !== expected) {
+        await writeAuditLog({
+          request,
+          userId: user.id,
+          action: "LOGIN_FAILURE",
+          entityType: "USER",
+          entityId: user.id,
+          newValue: {
+            result: "failed",
+            reason: "INVALID_CREDENTIALS",
+          },
+        })
+        return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      }
     }
 
     const ok = await bcrypt.compare(password, user.password)
-    if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    if (!ok) {
+      await writeAuditLog({
+        request,
+        userId: user.id,
+        action: "LOGIN_FAILURE",
+        entityType: "USER",
+        entityId: user.id,
+        newValue: {
+          result: "failed",
+          reason: "INCORRECT_PASSWORD",
+        },
+      })
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
 
     const permissions =
       (user as any).customRole?.permissions?.map((p: any) => p.permission?.name).filter(Boolean) || []
@@ -93,6 +170,20 @@ export async function POST(request: Request) {
       }
     })
 
+    await writeAuditLog({
+      request,
+      userId: user.id,
+      action: "LOGIN_SUCCESS",
+      entityType: "USER",
+      entityId: user.id,
+      newValue: {
+        result: "success",
+        role: (user as any).role,
+        merchantId: (user as any).merchantId,
+        merchantName: (user as any).merchant?.name,
+      },
+    })
+
     const res = NextResponse.json({
       accessToken,
       tokenType: "Bearer",
@@ -120,6 +211,17 @@ export async function POST(request: Request) {
     return res
   } catch (e) {
     console.error("auth login error", e)
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "LOGIN_FAILURE",
+      entityType: "USER",
+      entityId: null,
+      newValue: {
+        result: "failed",
+        reason: "INTERNAL_ERROR",
+      },
+    })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

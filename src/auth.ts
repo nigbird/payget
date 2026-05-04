@@ -3,6 +3,14 @@ import Credentials from "next-auth/providers/credentials"
 import { db } from "@/app/lib/db"
 import bcrypt from "bcryptjs"
 import { verifySalesOtp } from "@/lib/otp"
+import { writeAuditLog } from "@/lib/audit-log"
+import { prisma } from "@/lib/prisma"
+import { 
+  generateRefreshTokenValue,
+  hashRefreshToken,
+  computeRefreshTokenExpiresAt,
+} from "@/lib/token-auth"
+import crypto from "crypto"
 
 function normalizeLoginIdentifier(value: string) {
   const v = value.trim()
@@ -20,7 +28,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         loginType: { label: "Login Type", type: "text" }
       },
       authorize: async (credentials) => {
-        if (!credentials?.email || !credentials?.password) return null
+        if (!credentials?.email || !credentials?.password) {
+          await writeAuditLog({
+          userId: null,
+          action: "LOGIN_FAILURE",
+          entityType: "USER",
+          entityId: null,
+          newValue: {
+            result: "failed",
+            reason: "MISSING_FIELDS",
+            identifier: credentials?.email ? String(credentials.email).substring(0, 20) + "..." : null,
+          },
+        });
+          return null;
+        }
 
         const identifier = String(credentials.email).trim()
         const loginType = String(credentials.loginType || "")
@@ -35,16 +56,49 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
 
-        if (!user || !user.password) return null
+        if (!user || !user.password) {
+          await writeAuditLog({
+          userId: null,
+          action: "LOGIN_FAILURE",
+          entityType: "USER",
+          entityId: null,
+          newValue: {
+            result: "failed",
+            reason: "USER_NOT_FOUND",
+            identifier: identifier.substring(0, 20) + "...",
+          },
+        });
+          return null;
+        }
         
         // Role-based validation
         if (loginType === "admin") {
           const adminRoles = ['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE']
           if (!adminRoles.includes(user.role)) {
+            await writeAuditLog({
+              userId: user.id,
+              action: "LOGIN_FAILURE",
+              entityType: "USER",
+              entityId: user.id,
+              newValue: {
+                result: "failed",
+                reason: "NOT_ADMIN_USER",
+              },
+            });
             throw new Error("AccessDenied: Not an admin user")
           }
         } else if (loginType === "merchant") {
           if (user.role !== 'MERCHANT') {
+            await writeAuditLog({
+              userId: user.id,
+              action: "LOGIN_FAILURE",
+              entityType: "USER",
+              entityId: user.id,
+              newValue: {
+                result: "failed",
+                reason: "NOT_MERCHANT_USER",
+              },
+            });
             throw new Error("AccessDenied: Not a merchant user")
           }
         }
@@ -52,19 +106,80 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // If the user is a merchant, ensure the merchant account is ACTIVE
         if (user.role === 'MERCHANT' && user.merchantId) {
           if (user.merchant?.status !== 'ACTIVE') {
+            await writeAuditLog({
+              userId: user.id,
+              action: "LOGIN_FAILURE",
+              entityType: "USER",
+              entityId: user.id,
+              newValue: {
+                result: "failed",
+                reason: "ACCOUNT_NOT_ACTIVE",
+                merchantId: user.merchantId,
+                merchantName: user.merchant?.name,
+              },
+            });
             return null; // Deny login for inactive/pending merchants
           }
 
           // Merchant login must match the current configured username only.
           const currentUsername = user.merchant?.contactUsername
-          if (!currentUsername) return null
+          if (!currentUsername) {
+            await writeAuditLog({
+              userId: user.id,
+              action: "LOGIN_FAILURE",
+              entityType: "USER",
+              entityId: user.id,
+              newValue: {
+                result: "failed",
+                reason: "INVALID_CREDENTIALS",
+              },
+            });
+            return null;
+          }
           const provided = normalizeLoginIdentifier(identifier)
           const expected = normalizeLoginIdentifier(currentUsername)
-          if (provided !== expected) return null
+          if (provided !== expected) {
+            await writeAuditLog({
+              userId: user.id,
+              action: "LOGIN_FAILURE",
+              entityType: "USER",
+              entityId: user.id,
+              newValue: {
+                result: "failed",
+                reason: "INVALID_CREDENTIALS",
+              },
+            });
+            return null;
+          }
         }
         
         const isValid = await bcrypt.compare(credentials.password as string, user.password)
-        if (!isValid) return null
+        if (!isValid) {
+          await writeAuditLog({
+            userId: user.id,
+            action: "LOGIN_FAILURE",
+            entityType: "USER",
+            entityId: user.id,
+            newValue: {
+              result: "failed",
+              reason: "INCORRECT_PASSWORD",
+            },
+          });
+          return null;
+        }
+        
+        await writeAuditLog({
+          userId: user.id,
+          action: "LOGIN_SUCCESS",
+          entityType: "USER",
+          entityId: user.id,
+          newValue: {
+            result: "success",
+            role: user.role,
+            merchantId: user.merchantId,
+            merchantName: user.merchant?.name,
+          },
+        });
         
         return {
           id: user.id,
@@ -95,9 +210,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const otp = typeof rawOtp === 'string' ? rawOtp.trim() : ''
         const merchantId = typeof rawMerchantId === 'string' ? rawMerchantId.trim() : ''
         
-        if (!phone || !otp) return null
+        if (!phone || !otp) {
+          await writeAuditLog({
+            userId: null,
+            action: "LOGIN_FAILURE",
+            entityType: "USER",
+            entityId: null,
+            newValue: {
+              result: "failed",
+              reason: "MISSING_FIELDS",
+              loginType: "SALES_OTP",
+            },
+          });
+          return null;
+        }
 
-        if (!verifySalesOtp(phone, otp)) return null
+        if (!verifySalesOtp(phone, otp)) {
+          await writeAuditLog({
+            userId: null,
+            action: "LOGIN_FAILURE",
+            entityType: "USER",
+            entityId: null,
+            newValue: {
+              result: "failed",
+              reason: "INVALID_OTP",
+              phone: phone.substring(0, 10) + "...",
+            },
+          });
+          return null;
+        }
 
         const members = (await db.findMerchantTeamMembersByPhone(phone)) as any[]
         const activeMembers = members.filter(
@@ -108,7 +249,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         )
 
         if (activeMembers.length === 0) {
-          return null
+          await writeAuditLog({
+            userId: null,
+            action: "LOGIN_FAILURE",
+            entityType: "USER",
+            entityId: null,
+            newValue: {
+              result: "failed",
+              reason: "NO_ACTIVE_MEMBERS",
+              phone: phone.substring(0, 10) + "...",
+            },
+          });
+          return null;
         }
 
         // If merchantId is provided, find that specific member/merchant association
@@ -128,6 +280,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           .filter((member) => member.merchant)
           .map((member) => ({ id: member.merchantId, name: member.merchant.name }))
 
+        await writeAuditLog({
+          userId: null,
+          action: "LOGIN_SUCCESS",
+          entityType: "USER",
+          entityId: `sales-${phone}`,
+          newValue: {
+            result: "success",
+            loginType: "SALES_OTP",
+            memberName: selectedMember.name,
+            merchantId: selectedMember.merchantId,
+            merchantName: selectedMember.merchant.name,
+          },
+        });
+        
         return {
           id: `sales-${phone}`,
           email: selectedMember.email,

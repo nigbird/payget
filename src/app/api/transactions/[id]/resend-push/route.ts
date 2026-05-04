@@ -3,6 +3,7 @@ import { db } from "@/app/lib/db"
 import { requireAuthUser } from "@/lib/request-auth"
 import { sendProviderPushRequest } from "@/lib/provider-client"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function POST(
   request: Request,
@@ -10,18 +11,47 @@ export async function POST(
 ) {
   try {
     const user = await requireAuthUser(request)
+    const actorUserId = user?.id ?? null
+
     if (!user) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "TRANSACTION_RESEND_PUSH",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      })
+
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id } = await params
     const tx = await db.getTransactionById(id)
     if (!tx) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "TRANSACTION_RESEND_PUSH",
+        entityType: "TRANSACTION",
+        entityId: id,
+        newValue: { result: "failed", reason: "TRANSACTION_NOT_FOUND" },
+      })
+
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
     }
 
     const merchant = await db.getMerchantById(tx.merchantId)
     if (!merchant) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "TRANSACTION_RESEND_PUSH",
+        entityType: "TRANSACTION",
+        entityId: id,
+        newValue: { result: "failed", reason: "MERCHANT_NOT_FOUND" },
+      })
+
       return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
     }
 
@@ -30,6 +60,15 @@ export async function POST(
       user.merchantId === merchant.id || (user.assignedMerchantIds && user.assignedMerchantIds.includes(merchant.id))
     
     if (user.role !== 'ADMIN' && !isAssigned) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "TRANSACTION_RESEND_PUSH",
+        entityType: "TRANSACTION",
+        entityId: tx.id,
+        newValue: { result: "failed", reason: "FORBIDDEN" },
+      })
+
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -66,6 +105,19 @@ export async function POST(
     }
 
     if (providerResponse.statusCode !== 200 && (providerResponse as any).status !== 200) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "TRANSACTION_RESEND_PUSH",
+        entityType: "TRANSACTION",
+        entityId: tx.id,
+        newValue: {
+          result: "failed",
+          reason: "PROVIDER_REJECTED",
+          statusCode: providerResponse.statusCode || (providerResponse as any).status,
+        },
+      })
+
       return NextResponse.json({ 
         error: providerResponse.message || "Provider rejected the USSD push",
         details: providerResponse.details || providerResponse.error
@@ -85,6 +137,16 @@ export async function POST(
     // Reset status to awaiting_pin if it was failed or something else
     await db.updateTransactionStatus(tx.id, "awaiting_pin")
 
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "TRANSACTION_RESEND_PUSH",
+      entityType: "TRANSACTION",
+      entityId: tx.id,
+      oldValue: null,
+      newValue: { result: "success", status: "awaiting_pin" },
+    })
+
     return NextResponse.json({
       success: true,
       message: "USSD push re-sent successfully",
@@ -92,6 +154,16 @@ export async function POST(
     })
   } catch (error) {
     console.error('USSD re-send error:', error)
+
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "TRANSACTION_RESEND_PUSH",
+      entityType: "TRANSACTION",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
+
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

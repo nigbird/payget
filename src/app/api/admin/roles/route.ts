@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
+import { writeAuditLog } from '@/lib/audit-log';
 
 export async function GET(request: Request) {
   try {
@@ -35,11 +36,27 @@ export async function POST(request: Request) {
   try {
     const user = await requireAuthUser(request);
     if (!user) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "ADMIN_ROLE_CREATE",
+        entityType: "ROLE",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const canCreateRole = userHasPermission(user, 'ROLE_CREATE');
     if (!canCreateRole) {
+      await writeAuditLog({
+        request,
+        userId: user.id,
+        action: "ADMIN_ROLE_CREATE",
+        entityType: "ROLE",
+        entityId: null,
+        newValue: { result: "failed", reason: "PERMISSION_DENIED_ROLE_CREATE" },
+      })
       return NextResponse.json({ error: 'Permission denied: ROLE_CREATE required' }, { status: 403 });
     }
 
@@ -48,6 +65,14 @@ export async function POST(request: Request) {
     // Privilege escalation check
     const canAssign = userCanAssignPermissions(user, permissionIds);
     if (!canAssign) {
+      await writeAuditLog({
+        request,
+        userId: user.id,
+        action: "ADMIN_ROLE_CREATE",
+        entityType: "ROLE",
+        entityId: null,
+        newValue: { result: "failed", reason: "PRIVILEGE_ESCALATION" },
+      })
       return NextResponse.json({ 
         error: 'Privilege escalation attempt: You cannot assign permissions you do not have.' 
       }, { status: 403 });
@@ -73,9 +98,26 @@ export async function POST(request: Request) {
       }
     });
 
+    await writeAuditLog({
+      request,
+      userId: user.id,
+      action: "ADMIN_ROLE_CREATE",
+      entityType: "ROLE",
+      entityId: role.id,
+      newValue: { result: "success", name: role.name },
+    })
+
     return NextResponse.json(role, { status: 201 });
   } catch (error) {
     console.error('Error creating role:', error);
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "ADMIN_ROLE_CREATE",
+      entityType: "ROLE",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
     return NextResponse.json({ error: 'Failed to create role' }, { status: 500 });
   }
 }

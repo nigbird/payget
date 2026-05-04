@@ -2,12 +2,23 @@ import { NextResponse } from 'next/server'
 import { db } from '@/app/lib/db'
 import { generateSalesOtp } from '@/lib/otp'
 import { sendNotification } from '@/lib/notifications'
+import { writeAuditLog } from '@/lib/audit-log'
 
 export async function POST(request: Request) {
   const body = await request.json()
   const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
+  const actorUserId: string | null = null
 
   if (!phone) {
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "SALES_OTP_SEND",
+      entityType: "SALES_OTP_REQUEST",
+      entityId: null,
+      newValue: { result: "failed", reason: "PHONE_REQUIRED" },
+    })
+
     return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 })
   }
 
@@ -20,6 +31,15 @@ export async function POST(request: Request) {
   )
 
   if (activeMembers.length === 0) {
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "SALES_OTP_SEND",
+      entityType: "SALES_OTP_REQUEST",
+      entityId: null,
+      newValue: { result: "failed", reason: "NO_ACTIVE_SALES_USER", phone },
+    })
+
     return NextResponse.json({ error: 'No active sales user found for this phone number.' }, { status: 404 })
   }
 
@@ -31,6 +51,15 @@ export async function POST(request: Request) {
     to: phone,
     subject: 'Your Sales Login OTP',
     message: `Your one-time login code is ${otp}. It expires in 5 minutes.`
+  })
+
+  await writeAuditLog({
+    request,
+    userId: actorUserId,
+    action: "SALES_OTP_SEND",
+    entityType: "SALES_OTP_REQUEST",
+    entityId: null,
+    newValue: { result: "success", phone },
   })
 
   const merchants = activeMembers.map(member => ({

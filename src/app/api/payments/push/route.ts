@@ -7,6 +7,8 @@ import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSch
 import { decryptPayload } from "@/lib/jwe"
 import { decryptMerchantSecretInMemory } from "@/lib/merchant-secret"
 import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
+import crypto from "crypto"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function POST(request: Request) {
   try {
@@ -98,6 +100,9 @@ export async function POST(request: Request) {
     }
 
     const result = await createGatewayTransactionAndToken(paymentInput, { initiatedBy })
+    const actorUserId = initiatedBy?.id ?? null
+
+    const result = await createGatewayTransactionAndToken(parsed.data, { initiatedBy })
     if (!result.ok) {
       const status =
         result.error === "Merchant not found"
@@ -170,6 +175,25 @@ export async function POST(request: Request) {
       console.error('All provider flows failed:', providerResponse)
       // Update local transaction status to failed if provider rejected it
       await db.updateTransactionStatus(result.tx.id, "failed")
+
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_PUSH",
+        entityType: "TRANSACTION",
+        entityId: result.tx.id,
+        newValue: {
+          result: "failed",
+          reason: "PROVIDER_REJECTED",
+          statusCode: providerResponse.statusCode || (providerResponse as any).status,
+          merchantId: result.merchant.id,
+          merchantName: result.merchant.name,
+          transactionId: result.tx.id,
+          transactionReference: result.transactionReference,
+          amount: result.tx.amount,
+        },
+      })
+
       return NextResponse.json({ 
         error: providerResponse.message || "Provider rejected the request",
         details: providerResponse.details || providerResponse.error,
@@ -188,6 +212,24 @@ export async function POST(request: Request) {
     }
     // Set status to awaiting_pin after successful push initiation
     await db.updateTransactionStatus(result.tx.id, "awaiting_pin")
+
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "PAYMENT_PUSH",
+      entityType: "TRANSACTION",
+      entityId: result.tx.id,
+      newValue: {
+        result: "success",
+        status: "awaiting_pin",
+        merchantId: result.merchant.id,
+        merchantName: result.merchant.name,
+        transactionId: result.tx.id,
+        transactionReference: result.transactionReference,
+        amount: result.tx.amount,
+      },
+    })
+
     return NextResponse.json({
       transactionId: result.tx.id,
       transactionReference: result.transactionReference,
@@ -205,7 +247,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 401 })
     }
     console.error('Push payment error:', error)
+
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "PAYMENT_PUSH",
+      entityType: "TRANSACTION",
+      entityId: null,
+      newValue: {
+        result: "failed",
+        reason: "INTERNAL_ERROR",
+        merchantId: parsed?.data?.merchantId,
+      },
+    })
+
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

@@ -5,10 +5,26 @@ import { db } from "@/app/lib/db"
 import { decryptPayload } from "@/lib/jwe"
 import { decryptMerchantSecretInMemory } from "@/lib/merchant-secret"
 import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
+import crypto from "crypto"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function POST(request: Request) {
+  let actorUserId: string | null = null
   try {
     const body = await request.json().catch(() => ({}))
+    const body = await request.json()
+    const parsed = PaymentInitiateSchema.safeParse(body)
+    if (!parsed.success) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "INVALID_PAYLOAD", details: parsed.error.flatten() },
+      })
+      return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
+    }
 
     let authenticatedMerchantId: string | null = null
     let initiatedBy: { id: string; name?: string } | undefined
@@ -21,6 +37,7 @@ export async function POST(request: Request) {
       if (!parsed.success) {
         return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
       }
+      actorUserId = sessionUser.id
       const isAssignedMerchant =
         sessionUser.merchantId === parsed.data.merchantId ||
         sessionUser.assignedMerchantIds?.includes(parsed.data.merchantId)
@@ -29,6 +46,14 @@ export async function POST(request: Request) {
         (sessionUser.role === 'MERCHANT' && sessionUser.merchantId !== parsed.data.merchantId) ||
         (sessionUser.role === 'SALES' && !isAssignedMerchant)
       ) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "PAYMENT_LINK_CREATE",
+          entityType: "TRANSACTION",
+          entityId: null,
+          newValue: { result: "failed", reason: "FORBIDDEN" },
+        })
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
       
@@ -87,15 +112,38 @@ export async function POST(request: Request) {
         return NextResponse.json({
           error: "Missing required security headers. Required: x-merchant-id, x-signature, x-timestamp, x-nonce, x-encrypted-payload",
         }, { status: 401 })
+        actorUserId = initiatedBy.id
       }
     }
 
     if (!authenticatedMerchantId) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      })
       return NextResponse.json({ error: 'Unauthorized: Session or valid signature required' }, { status: 401 })
     }
 
     const result = await createGatewayTransactionAndToken(paymentInput, { initiatedBy })
     if (!result.ok) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "GATEWAY_TRANSACTION_FAILED", 
+          error: result.error, 
+          limit: (result as any).limit,
+          merchantId: parsed.data.merchantId,
+        },
+      })
       const status =
         result.error === "Merchant not found"
           ? 404
@@ -109,7 +157,29 @@ export async function POST(request: Request) {
     }
 
     if (paymentInput.method === "TELEBIRR") {
+    const merchant = await db.getMerchantById(parsed.data.merchantId);
+
+    if (parsed.data.method === "TELEBIRR") {
       console.log('Telebirr payment link requested (not yet available)')
+
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: result.tx.id,
+        newValue: { 
+          result: "success", 
+          method: "TELEBIRR", 
+          status: "pending",
+          merchantId: parsed.data.merchantId,
+          merchantName: merchant?.name,
+          transactionId: result.tx.id,
+          transactionReference: result.transactionReference,
+          amount: result.tx.amount,
+        },
+      })
+
       return NextResponse.json({ 
         message: "Telebirr integration is coming soon.",
         transactionReference: result.transactionReference,
@@ -120,6 +190,25 @@ export async function POST(request: Request) {
     const token = result.token
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
     const paymentUrl = `${baseUrl}/pay/link?token=${encodeURIComponent(token)}`
+
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "PAYMENT_LINK_CREATE",
+      entityType: "TRANSACTION",
+      entityId: result.tx.id,
+      oldValue: null,
+      newValue: {
+        result: "success",
+        status: result.tx.status,
+        paymentMethod: parsed.data.method,
+        merchantId: parsed.data.merchantId,
+        merchantName: merchant?.name,
+        transactionId: result.tx.id,
+        transactionReference: result.transactionReference,
+        amount: result.tx.amount,
+      },
+    })
 
     return NextResponse.json({
       transactionId: result.tx.id,
@@ -137,7 +226,15 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json({ error: error.message }, { status: 401 })
     }
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "PAYMENT_LINK_CREATE",
+      entityType: "TRANSACTION",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
+
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

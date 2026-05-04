@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser } from '@/lib/request-auth';
+import { writeAuditLog } from '@/lib/audit-log';
 
 type MasterDataType = 'districts' | 'branches' | 'categories' | 'businessTypes';
 
@@ -76,7 +77,18 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const user = await requireAuthUser(request);
+    const actorUserId = user?.id ?? null;
+
     if (!user) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "MASTER_DATA_UPDATE",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      });
+
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -92,10 +104,28 @@ export async function PATCH(request: Request) {
     };
 
     if (!type || !action) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MASTER_DATA_UPDATE",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "MISSING_TYPE_OR_ACTION" },
+      });
+
       return NextResponse.json({ error: 'Missing required fields: type and action' }, { status: 400 });
     }
 
     if (!['districts', 'branches', 'categories', 'businessTypes'].includes(type)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MASTER_DATA_UPDATE",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "INVALID_MASTER_DATA_TYPE", type },
+      });
+
       return NextResponse.json({ error: 'Invalid master data type' }, { status: 400 });
     }
 
@@ -222,12 +252,37 @@ export async function PATCH(request: Request) {
       data: { [type]: JSON.stringify(updatedData) },
     });
 
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "MASTER_DATA_UPDATE",
+      entityType: "SYSTEM_CONFIG",
+      entityId: null,
+      oldValue: null,
+      newValue: {
+        result: "success",
+        type,
+        operation: action,
+        updatedCount: updatedData?.length ?? null,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       [type]: updatedData,
     });
   } catch (error) {
     console.error('Error updating master data:', error);
+
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "MASTER_DATA_UPDATE",
+      entityType: "SYSTEM_CONFIG",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    });
+
     return NextResponse.json({ error: 'Failed to update master data' }, { status: 500 });
   }
 }
@@ -235,7 +290,18 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   try {
     const user = await requireAuthUser(request);
+    const actorUserId = user?.id ?? null;
+
     if (!user) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "MASTER_DATA_BULK_IMPORT",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      });
+
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -246,10 +312,28 @@ export async function POST(request: Request) {
     };
 
     if (!type || !entries || !Array.isArray(entries)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MASTER_DATA_BULK_IMPORT",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "INVALID_REQUEST_BODY" },
+      });
+
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
     if (!['districts', 'branches', 'categories', 'businessTypes'].includes(type)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MASTER_DATA_BULK_IMPORT",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "INVALID_MASTER_DATA_TYPE", type },
+      });
+
       return NextResponse.json({ error: 'Invalid master data type' }, { status: 400 });
     }
 
@@ -317,6 +401,21 @@ export async function POST(request: Request) {
       data: { [type]: JSON.stringify(updatedData) },
     });
 
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "MASTER_DATA_BULK_IMPORT",
+      entityType: "SYSTEM_CONFIG",
+      entityId: null,
+      oldValue: null,
+      newValue: {
+        result: "success",
+        type,
+        imported: newEntries.length,
+        skipped: skippedEntries.length,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       imported: newEntries.length,
@@ -325,6 +424,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error bulk importing master data:', error);
+
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "MASTER_DATA_BULK_IMPORT",
+      entityType: "SYSTEM_CONFIG",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    });
+
     return NextResponse.json({ error: 'Failed to import master data' }, { status: 500 });
   }
 }
