@@ -126,9 +126,13 @@ function mapToPrismaTransactionStatus(s: TransactionStatus): PrismaTransactionSt
   return s.toUpperCase() as PrismaTransactionStatus;
 }
 
-function mapMerchant(m: PrismaMerchant & { documents?: PrismaMerchantDocument[], _count?: { transactions: number } }): Merchant {
+function mapMerchant(
+  m: PrismaMerchant & { documents?: PrismaMerchantDocument[], _count?: { transactions: number } },
+  options?: { includeSecret?: boolean }
+): Merchant {
   return {
     ...m,
+    jweSecret: options?.includeSecret ? m.jweSecret : "",
     status: mapMerchantStatus(m.status),
     createdAt: m.createdAt.toISOString(),
     passwordResetExpires: (m as any).passwordResetExpires ? (m as any).passwordResetExpires.toISOString() : null,
@@ -323,10 +327,10 @@ export const db = {
       },
       orderBy: { createdAt: 'desc' }
     });
-    return merchants.map(mapMerchant);
+    return merchants.map((m) => mapMerchant(m));
   },
   
-  getMerchantById: async (id: string) => {
+  getMerchantById: async (id: string, options?: { includeSecret?: boolean }) => {
     const m = await prisma.merchant.findUnique({
       where: { id },
       include: { 
@@ -337,10 +341,10 @@ export const db = {
       }
     });
     if (!m) return null;
-    return mapMerchant(m);
+    return mapMerchant(m, options);
   },
 
-  findMerchantByIdentifier: async (identifier: string) => {
+  findMerchantByIdentifier: async (identifier: string, options?: { includeSecret?: boolean }) => {
     const m = await prisma.merchant.findFirst({
       where: {
         OR: [
@@ -352,16 +356,16 @@ export const db = {
       include: { documents: true }
     });
     if (!m) return null;
-    return mapMerchant(m);
+    return mapMerchant(m, options);
   },
 
-  findMerchantByResetToken: async (token: string) => {
+  findMerchantByResetToken: async (token: string, options?: { includeSecret?: boolean }) => {
     const m = await prisma.merchant.findFirst({
       where: { passwordResetToken: token },
       include: { documents: true }
     }) as any
     if (!m) return null
-    return mapMerchant(m)
+    return mapMerchant(m, options)
   },
 
   addMerchant: async (data: any) => {

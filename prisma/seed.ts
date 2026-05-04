@@ -1,6 +1,7 @@
 import { PrismaClient, MerchantStatus, TeamRole, TeamMemberStatus, TransactionStatus, UserRole } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { encryptMerchantSecretAtRest } from '../src/lib/merchant-secret'
 
 const prisma = new PrismaClient()
 
@@ -94,6 +95,7 @@ async function main() {
   }
 
   // 4. Initial Merchant (TechGear Solutions)
+  const initialSecret = encryptMerchantSecretAtRest(crypto.randomBytes(32).toString('hex'))
   const merchant = await prisma.merchant.upsert({
     where: { id: 'm1' },
     update: {},
@@ -102,7 +104,7 @@ async function main() {
       name: 'TechGear Solutions',
       email: 'onboarding@techgear.io',
       password: hashedDefaultPassword,
-      jweSecret: crypto.randomBytes(32).toString('hex'),
+      jweSecret: initialSecret.ciphertext,
       accountNumber: '1234567890',
       dailyLimit: 50000,
       transactionLimit: 5000,
@@ -119,7 +121,7 @@ async function main() {
       businessType: 'Retail',
       riskFactors: [],
       createdAt: new Date(),
-    },
+    } as any,
   })
 
   // 5. Create Users for different portals

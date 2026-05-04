@@ -5,6 +5,7 @@ import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import bcrypt from 'bcryptjs';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import { generateJweSecret } from '@/lib/jwe';
+import { encryptMerchantSecretAtRest } from '@/lib/merchant-secret';
 
 export async function GET(request: Request) {
   const user = await requireAuthUser(request);
@@ -89,11 +90,14 @@ export async function POST(request: Request) {
     const merchant = await prisma.$transaction(async (tx) => {
       // Create the merchant record
       const { documents, id, ...rest } = data;
+      const rawSecret = rest.jweSecret || generateJweSecret();
+      const encryptedSecret = encryptMerchantSecretAtRest(rawSecret);
+
       const m = await tx.merchant.create({
         data: {
           ...rest,
           id: merchantId,
-          jweSecret: rest.jweSecret || generateJweSecret(),
+          jweSecret: encryptedSecret.ciphertext,
           createdBy: sessionUser?.id ?? null,
           status: 'PENDING', // Always start as pending
           documents: documents ? {
@@ -106,7 +110,7 @@ export async function POST(request: Request) {
               uploadedAt: new Date(doc.uploadedAt)
             }))
           } : undefined
-        }
+        } as any
       });
       
       // We do NOT create a user record at this stage. 

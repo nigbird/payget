@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { resolveEncryptedToken } from "@/app/api/payments/_shared"
 import { encryptSessionToken } from "@/lib/jwe"
+import { decryptMerchantSecretInMemory } from "@/lib/merchant-secret"
 
 export async function GET(request: Request) {
   try {
@@ -20,11 +21,12 @@ export async function GET(request: Request) {
     // Issue a temporary merchant session token tied to this specific payment interaction
     // Set a short expiration time for the session token (e.g., 15 minutes)
     const exp = Date.now() + 15 * 60 * 1000
+    const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
     const merchantSessionToken = await encryptSessionToken({
       merchantId: merchant.id,
       transactionId: payload.transactionId,
       exp,
-    }, merchant.jweSecret)
+    }, merchantSecret)
 
     const rawLogo = (merchant as any).logoUrl as string | null | undefined
     const normalizedLogo =

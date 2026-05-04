@@ -4,22 +4,26 @@ import { requireAuthUser } from "@/lib/request-auth"
 import { sendProviderPushRequest } from "@/lib/provider-client"
 import { db } from "@/app/lib/db"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
-import crypto from "crypto"
+import { decryptPayload } from "@/lib/jwe"
+import { decryptMerchantSecretInMemory } from "@/lib/merchant-secret"
+import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const parsed = PaymentInitiateSchema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
-    }
+    const body = await request.json().catch(() => ({}))
 
     let authenticatedMerchantId: string | null = null
     let initiatedBy: { id: string; name?: string } | undefined
+    let paymentInput: any = null
 
     // 1. Try Session/Bearer Auth first
     const sessionUser = await requireAuthUser(request)
     if (sessionUser) {
+      const parsed = PaymentInitiateSchema.safeParse(body)
+      if (!parsed.success) {
+        return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
+      }
+
       const isAssignedMerchant =
         sessionUser.merchantId === parsed.data.merchantId ||
         sessionUser.assignedMerchantIds?.includes(parsed.data.merchantId)
@@ -32,37 +36,60 @@ export async function POST(request: Request) {
       }
       
       authenticatedMerchantId = parsed.data.merchantId
+      paymentInput = parsed.data
       initiatedBy = {
         id: sessionUser.id,
         name: sessionUser.name ?? undefined,
       }
     } else {
-      // 2. Try Signature Auth (for external e-commerce apps)
+      // Signature auth requires encrypted JWE payload + HMAC + anti-replay headers.
       const merchantIdHeader = request.headers.get("x-merchant-id")
       const signatureHeader = request.headers.get("x-signature")
+      const timestampHeader = request.headers.get("x-timestamp")
+      const nonceHeader = request.headers.get("x-nonce")
+      const encryptedPayload = request.headers.get("x-encrypted-payload")
 
-      if (merchantIdHeader && signatureHeader) {
+      if (merchantIdHeader && signatureHeader && timestampHeader && nonceHeader && encryptedPayload) {
+        await enforceReplayProtection(merchantIdHeader, nonceHeader, timestampHeader)
+
+        const merchant = await db.getMerchantById(merchantIdHeader, { includeSecret: true })
+        if (!merchant) {
+          return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
+        }
+        const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
+
+        const path = new URL(request.url).pathname
+        if (
+          !verifyHmacSignature({
+            method: request.method,
+            path,
+            timestamp: timestampHeader,
+            nonce: nonceHeader,
+            encryptedPayload,
+            merchantSecret,
+            signature: signatureHeader,
+          })
+        ) {
+          await auditSecurityEvent({ action: "PAYMENT_API_SIGNATURE_INVALID", merchantId: merchant.id, detail: { path } })
+          return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+        }
+
+        const decrypted = await decryptPayload(encryptedPayload, merchantSecret)
+        const parsed = PaymentInitiateSchema.safeParse(decrypted)
+        if (!parsed.success) {
+          return NextResponse.json({ error: "Invalid encrypted payload", details: parsed.error.flatten() }, { status: 400 })
+        }
         if (merchantIdHeader !== parsed.data.merchantId) {
           return NextResponse.json({ error: "Merchant ID mismatch" }, { status: 400 })
         }
 
-        const merchant = await db.getMerchantById(merchantIdHeader)
-        if (!merchant) {
-          return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
-        }
-
-        // Verify HMAC signature: HMAC-SHA256(JSON.stringify(body), jweSecret)
-        const expectedSignature = crypto
-          .createHmac("sha256", merchant.jweSecret)
-          .update(JSON.stringify(body))
-          .digest("hex")
-
-        if (signatureHeader !== expectedSignature) {
-          return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
-        }
-
         authenticatedMerchantId = merchant.id
+        paymentInput = parsed.data
         initiatedBy = { id: `api_${merchant.id}`, name: `API (${merchant.name})` }
+      } else {
+        return NextResponse.json({
+          error: "Missing required security headers. Required: x-merchant-id, x-signature, x-timestamp, x-nonce, x-encrypted-payload",
+        }, { status: 401 })
       }
     }
 
@@ -70,7 +97,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized: Session or valid signature required' }, { status: 401 })
     }
 
-    const result = await createGatewayTransactionAndToken(parsed.data, { initiatedBy })
+    const result = await createGatewayTransactionAndToken(paymentInput, { initiatedBy })
     if (!result.ok) {
       const status =
         result.error === "Merchant not found"
@@ -85,7 +112,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Route based on selected payment method
-    if (parsed.data.method === "TELEBIRR") {
+    if (paymentInput.method === "TELEBIRR") {
       console.log('Telebirr push requested (not yet available)')
       // Update transaction status to pending or similar
       await db.updateTransactionStatus(result.tx.id, "pending")
@@ -100,9 +127,9 @@ export async function POST(request: Request) {
     // 1. Prepare request for the external provider (legacy flow)
     const providerRequest = {
       transactionRef: result.transactionReference,
-      customerPhone: parsed.data.userCredentials.phone,
+      customerPhone: paymentInput.userCredentials.phone,
       creditAccount: result.merchant.accountNumber,
-      amount: parsed.data.amount,
+      amount: paymentInput.amount,
       company: "NibterMerchant",
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
@@ -169,6 +196,14 @@ export async function POST(request: Request) {
       message: providerResponse.details || "Push payment request initiated successfully.",
     })
   } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message.includes("Nonce") ||
+        error.message.includes("timestamp") ||
+        error.message.includes("signature"))
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
     console.error('Push payment error:', error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

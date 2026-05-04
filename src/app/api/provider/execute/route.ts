@@ -4,6 +4,7 @@ import { resolveEncryptedToken } from "@/app/api/payments/_shared"
 import { sendProviderPushRequest } from "@/lib/provider-client"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
 import { decryptSessionToken } from "@/lib/jwe"
+import { decryptMerchantSecretInMemory } from "@/lib/merchant-secret"
 import bcrypt from "bcryptjs"
 
 export async function POST(request: Request) {
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
 
     // 2. Verify the merchant session token to confirm a legitimate interaction flow
     try {
-      const sessionPayload = await decryptSessionToken(merchantSessionToken, merchant.jweSecret)
+      const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
+      const sessionPayload = await decryptSessionToken(merchantSessionToken, merchantSecret)
       
       if (sessionPayload.merchantId !== merchant.id) {
         return NextResponse.json({ error: "Invalid session token: merchant mismatch" }, { status: 401 })

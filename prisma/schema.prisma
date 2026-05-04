@@ -148,6 +148,7 @@ model Merchant {
   transactions        Transaction[]
   teamMembers         MerchantTeamMember[]
   users               User[]
+  nonces              RequestNonce[]
 }
 
 enum MerchantStatus {
@@ -247,3 +248,16 @@ model SystemConfig {
   businessTypes       Json     @default("[]")
   resetTimeoutSeconds Int      @default(60)
 }
+
+model RequestNonce {
+  id            String   @id @default(cuid())
+  merchantId    String
+  merchant      Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  nonce         String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  
+  @@unique([merchantId, nonce])
+  @@index([expiresAt])
+}
+

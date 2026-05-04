@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { db, type Merchant, type Transaction } from "@/app/lib/db"
 import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPayload } from "@/lib/jwe"
+import { decryptMerchantSecretInMemory, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
+import { auditSecurityEvent } from "@/lib/request-security"
 
 export const PaymentInitiateSchema = z.object({
   merchantId: z.string().min(1),
@@ -41,7 +43,7 @@ function extractKidFromJwe(token: string): string | null {
 }
 
 export async function createGatewayTransactionAndToken(input: PaymentInitiate, options?: { initiatedBy?: InitiatedBy }) {
-  const merchant = await db.getMerchantById(input.merchantId)
+  const merchant = await db.getMerchantById(input.merchantId, { includeSecret: true })
   if (!merchant) return { ok: false as const, error: "Merchant not found" }
   if (merchant.status !== "approved" && merchant.status !== "active") return { ok: false as const, error: "Merchant account is not active" }
 
@@ -112,7 +114,8 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     linkStatus: "PENDING",
   })
 
-  const token = await encryptPayload(payload, merchant.jweSecret, merchant.id)
+  const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
+  const token = await encryptPayload(payload, merchantSecret, merchant.id)
 
   return {
     ok: true as const,
@@ -129,10 +132,26 @@ export async function resolveEncryptedToken(token: string) {
   const kid = extractKidFromJwe(token)
   if (!kid) return { ok: false as const, error: "Invalid token (missing key id)" }
 
-  const merchant = await db.getMerchantById(kid)
+  const merchant = await db.getMerchantById(kid, { includeSecret: true })
   if (!merchant) return { ok: false as const, error: "Merchant not found for token" }
 
-  const payload = await decryptPayload(token, merchant.jweSecret)
+  const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
+  const payload = await decryptPayload(token, merchantSecret)
+
+  if (requiresRewrap(merchant.jweSecret)) {
+    try {
+      const rewrapped = encryptMerchantSecretAtRest(merchantSecret)
+      await db.updateMerchant(merchant.id, {
+        jweSecret: rewrapped.ciphertext,
+      })
+      await auditSecurityEvent({
+        action: "MERCHANT_SECRET_REWRAPPED",
+        merchantId: merchant.id,
+        detail: { reason: "encryption_format_upgrade" },
+      })
+    } catch {
+    }
+  }
   const tx = await db.getTransactionById(payload.transactionId)
 
   if (!tx || tx.merchantId !== payload.merchantId) {
