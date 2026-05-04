@@ -49,6 +49,8 @@ export async function PATCH(
     if (body.branch !== undefined) updateData.branch = body.branch;
     if (body.status !== undefined) updateData.status = body.status;
 
+    const oldUser = await prisma.user.findUnique({ where: { id } });
+    
     const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
@@ -60,8 +62,19 @@ export async function PATCH(
       action: "ADMIN_USER_UPDATE",
       entityType: "USER",
       entityId: id,
-      oldValue: null,
-      newValue: { result: "success" },
+      oldValue: oldUser ? {
+        name: oldUser.name,
+        email: oldUser.email,
+        role: oldUser.role,
+        status: oldUser.status,
+      } : null,
+      newValue: { 
+        result: "success",
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        status: updatedUser.status,
+      },
     })
 
     return NextResponse.json({ user: updatedUser });
@@ -115,6 +128,8 @@ export async function DELETE(
     }
 
     // We prefer deactivation over hard deletion for audit purposes
+    const oldUser = await prisma.user.findUnique({ where: { id } });
+    
     await prisma.user.update({
       where: { id },
       data: { status: 'DEACTIVATED' },
@@ -126,8 +141,18 @@ export async function DELETE(
       action: "ADMIN_USER_DEACTIVATE",
       entityType: "USER",
       entityId: id,
-      oldValue: null,
-      newValue: { result: "success" },
+      oldValue: oldUser ? {
+        name: oldUser.name,
+        email: oldUser.email,
+        role: oldUser.role,
+        status: oldUser.status,
+      } : null,
+      newValue: { 
+        result: "success",
+        name: oldUser?.name,
+        email: oldUser?.email,
+        newStatus: "DEACTIVATED",
+      },
     })
 
     return NextResponse.json({ message: 'User deactivated successfully' });

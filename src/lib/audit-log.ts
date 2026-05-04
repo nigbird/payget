@@ -4,7 +4,7 @@ export type AuditLogAction = string;
 export type AuditLogEntityType = string;
 
 export type AuditLogPayload = {
-  request: Request;
+  request?: Request;
   userId?: string | null;
   action: AuditLogAction;
   entityType: AuditLogEntityType;
@@ -24,7 +24,8 @@ export type AuditLogSearchParams = {
   endDate?: string;
 };
 
-function getClientIp(request: Request): string | null {
+function getClientIp(request?: Request): string | null {
+  if (!request) return null;
   const xForwardedFor = request.headers.get("x-forwarded-for");
   const xRealIp = request.headers.get("x-real-ip");
   const forwarded = xForwardedFor?.split(",")[0]?.trim();
@@ -32,7 +33,7 @@ function getClientIp(request: Request): string | null {
 }
 
 export async function writeAuditLog(payload: AuditLogPayload) {
-  const userAgent = payload.request.headers.get("user-agent");
+  const userAgent = payload.request?.headers.get("user-agent") || null;
   const ipAddress = getClientIp(payload.request);
 
   // Don't block the request if audit logging fails

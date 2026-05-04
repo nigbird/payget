@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { decryptProviderPayload, deriveSharedSecret } from '@/lib/crypto-provider';
 import crypto from 'crypto';
+import { writeAuditLog } from '@/lib/audit-log';
 
 /**
  * Endpoint to receive payment results from the provider.
@@ -21,6 +22,14 @@ export async function POST(request: Request) {
 
     if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
       console.error('[CALLBACK] Unauthorized: Invalid or missing PROVIDER_CALLBACK_TOKEN');
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "PAYMENT_CALLBACK",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "UNAUTHORIZED" },
+      });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -39,6 +48,14 @@ export async function POST(request: Request) {
 
     if (!payload || !salt || !tag || !cksum) {
       console.error('[CALLBACK] Malformed payload. Missing one of: payload, salt, tag, cksum');
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "PAYMENT_CALLBACK",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "MALFORMED_PAYLOAD", transactionRef },
+      });
       return NextResponse.json({ error: 'Malformed callback payload' }, { status: 400 });
     }
 
@@ -60,6 +77,14 @@ export async function POST(request: Request) {
         'Computed(text):',
         computedCksumFromText
       );
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "PAYMENT_CALLBACK",
+        entityType: "TRANSACTION",
+        entityId: null,
+        newValue: { result: "failed", reason: "INTEGRITY_CHECK_FAILED", transactionRef },
+      });
       return NextResponse.json({ error: 'Integrity check failed' }, { status: 400 });
     }
 
@@ -183,7 +208,29 @@ export async function POST(request: Request) {
       )}, statusDesc: ${String(providerStatusDesc)})`
     );
 
+    const oldStatus = tx.status;
     await db.updateTransactionStatus(tx.id, finalStatus);
+    
+    const merchant = await db.getMerchantById(tx.merchantId);
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "PAYMENT_STATUS_UPDATE",
+      entityType: "TRANSACTION",
+      entityId: tx.id,
+      oldValue: { status: oldStatus },
+      newValue: {
+        result: "success",
+        status: finalStatus,
+        merchantId: tx.merchantId,
+        merchantName: merchant?.name,
+        transactionId: tx.id,
+        transactionReference: tx.transactionReference,
+        amount: tx.amount,
+        providerStatusCode: providerStatusCodeRaw,
+        providerStatusDesc: providerStatusDesc,
+      },
+    });
 
     // Persist provider callback details into transaction.userCredentials (Json)
     await db.updateTransaction(tx.id, {
@@ -220,7 +267,6 @@ export async function POST(request: Request) {
     }
 
     // 5. Notify the merchant (via their registered callback)
-    const merchant = await db.getMerchantById(tx.merchantId);
     if (merchant && merchant.callbackUrl) {
       try {
         await fetch(merchant.callbackUrl, {
@@ -247,6 +293,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Callback processed successfully' });
   } catch (error: any) {
     console.error('Error processing provider callback:', error);
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "PAYMENT_CALLBACK",
+      entityType: "TRANSACTION",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR", error: error?.message },
+    });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

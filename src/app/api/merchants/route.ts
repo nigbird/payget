@@ -5,6 +5,7 @@ import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import bcrypt from 'bcryptjs';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import { generateJweSecret } from '@/lib/jwe';
+import { writeAuditLog } from '@/lib/audit-log';
 
 export async function GET(request: Request) {
   const user = await requireAuthUser(request);
@@ -30,6 +31,17 @@ export async function POST(request: Request) {
     if (sessionUser) {
       const canRegister = userHasPermission(sessionUser, 'MERCHANT_REGISTER');
       if (!canRegister) {
+        await writeAuditLog({
+          request,
+          userId: sessionUser.id,
+          action: "MERCHANT_REGISTER",
+          entityType: "MERCHANT",
+          entityId: null,
+          newValue: {
+            result: "failed",
+            reason: "PERMISSION_DENIED",
+          },
+        });
         return NextResponse.json({ error: 'Permission denied: MERCHANT_REGISTER required' }, { status: 403 });
       }
     }
@@ -74,6 +86,19 @@ export async function POST(request: Request) {
     }
 
     if (Object.keys(errors).length > 0) {
+      await writeAuditLog({
+        request,
+        userId: sessionUser?.id ?? null,
+        action: "MERCHANT_REGISTER",
+        entityType: "MERCHANT",
+        entityId: null,
+        newValue: {
+          result: "failed",
+          reason: "VALIDATION_FAILED",
+          errors,
+          merchantName: data.name,
+        },
+      });
       return NextResponse.json({ error: 'Validation failed', errors }, { status: 400 });
     }
 
@@ -115,9 +140,37 @@ export async function POST(request: Request) {
       return m;
     });
 
+    await writeAuditLog({
+      request,
+      userId: sessionUser?.id ?? null,
+      action: "MERCHANT_REGISTER",
+      entityType: "MERCHANT",
+      entityId: merchant.id,
+      newValue: {
+        result: "success",
+        merchantId: merchant.id,
+        merchantName: merchant.name,
+        merchantEmail: merchant.email,
+        category: merchant.category,
+        businessType: merchant.businessType,
+        status: merchant.status,
+      },
+    });
+
     return NextResponse.json(merchant, { status: 201 });
   } catch (error) {
     console.error('Error adding merchant:', error);
+    await writeAuditLog({
+      request,
+      userId: null,
+      action: "MERCHANT_REGISTER",
+      entityType: "MERCHANT",
+      entityId: null,
+      newValue: {
+        result: "failed",
+        reason: "INTERNAL_ERROR",
+      },
+    });
     return NextResponse.json({ error: 'Failed to create merchant' }, { status: 500 });
   }
 }

@@ -104,7 +104,13 @@ export async function POST(request: Request) {
         action: "PAYMENT_LINK_CREATE",
         entityType: "TRANSACTION",
         entityId: null,
-        newValue: { result: "failed", reason: "GATEWAY_TRANSACTION_FAILED", error: result.error, limit: (result as any).limit },
+        newValue: { 
+          result: "failed", 
+          reason: "GATEWAY_TRANSACTION_FAILED", 
+          error: result.error, 
+          limit: (result as any).limit,
+          merchantId: parsed.data.merchantId,
+        },
       })
       const status =
         result.error === "Merchant not found"
@@ -118,6 +124,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, limit: (result as any).limit }, { status })
     }
 
+    const merchant = await db.getMerchantById(parsed.data.merchantId);
+
     if (parsed.data.method === "TELEBIRR") {
       console.log('Telebirr payment link requested (not yet available)')
 
@@ -127,7 +135,16 @@ export async function POST(request: Request) {
         action: "PAYMENT_LINK_CREATE",
         entityType: "TRANSACTION",
         entityId: result.tx.id,
-        newValue: { result: "success", method: "TELEBIRR", status: "pending" },
+        newValue: { 
+          result: "success", 
+          method: "TELEBIRR", 
+          status: "pending",
+          merchantId: parsed.data.merchantId,
+          merchantName: merchant?.name,
+          transactionId: result.tx.id,
+          transactionReference: result.transactionReference,
+          amount: result.tx.amount,
+        },
       })
 
       return NextResponse.json({ 
@@ -152,6 +169,11 @@ export async function POST(request: Request) {
         result: "success",
         status: result.tx.status,
         paymentMethod: parsed.data.method,
+        merchantId: parsed.data.merchantId,
+        merchantName: merchant?.name,
+        transactionId: result.tx.id,
+        transactionReference: result.transactionReference,
+        amount: result.tx.amount,
       },
     })
 

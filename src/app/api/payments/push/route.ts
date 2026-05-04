@@ -157,6 +157,11 @@ export async function POST(request: Request) {
           result: "failed",
           reason: "PROVIDER_REJECTED",
           statusCode: providerResponse.statusCode || (providerResponse as any).status,
+          merchantId: result.merchant.id,
+          merchantName: result.merchant.name,
+          transactionId: result.tx.id,
+          transactionReference: result.transactionReference,
+          amount: result.tx.amount,
         },
       })
 
@@ -188,6 +193,11 @@ export async function POST(request: Request) {
       newValue: {
         result: "success",
         status: "awaiting_pin",
+        merchantId: result.merchant.id,
+        merchantName: result.merchant.name,
+        transactionId: result.tx.id,
+        transactionReference: result.transactionReference,
+        amount: result.tx.amount,
       },
     })
 
@@ -210,6 +220,7 @@ export async function POST(request: Request) {
       newValue: {
         result: "failed",
         reason: "INTERNAL_ERROR",
+        merchantId: parsed?.data?.merchantId,
       },
     })
 
