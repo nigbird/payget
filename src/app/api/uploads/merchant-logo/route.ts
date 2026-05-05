@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAuthUser, userHasAnyPermission } from "@/lib/request-auth"
+import { requireCsrf } from '@/lib/request-security';
 import crypto from "crypto"
 import { mkdir, writeFile } from "fs/promises"
 import path from "path"
@@ -42,6 +43,9 @@ function looksLikeWebp(buf: Buffer) {
 
 export async function POST(request: Request) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     // allow: public self-registration OR admin/staff with merchant permissions
     const user = await requireAuthUser(request)
     if (user) {

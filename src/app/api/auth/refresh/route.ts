@@ -7,6 +7,7 @@ import {
   hashRefreshToken,
   signAccessToken
 } from "@/lib/token-auth"
+import { requireCsrf } from '@/lib/request-security';
 
 function refreshCookieName() {
   return process.env.REFRESH_TOKEN_COOKIE_NAME || "refresh_token"
@@ -18,6 +19,9 @@ function isProd() {
 
 export async function POST(request: Request) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const name = refreshCookieName()
     const raw = (request as NextRequest).cookies.get(name)?.value || ""
 

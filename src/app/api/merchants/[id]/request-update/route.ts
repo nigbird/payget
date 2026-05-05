@@ -5,12 +5,16 @@ import { auth } from '@/auth';
 import { hasPermission } from '@/lib/rbac';
 import { generateMerchantUpdateLink, sendNotification } from '@/lib/notifications';
 import crypto from 'crypto';
+import { requireCsrf } from '@/lib/request-security';
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

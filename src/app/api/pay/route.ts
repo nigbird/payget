@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/app/lib/db";
 import { requireAuthUser } from "@/lib/request-auth";
 import { writeAuditLog } from "@/lib/audit-log";
+import { requireCsrf } from '@/lib/request-security';
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null;

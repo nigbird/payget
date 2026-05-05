@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
+import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 
 export async function PATCH(
@@ -8,6 +9,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) {
+      return csrfError
+    }
+
     const authUser = await requireAuthUser(request);
     if (!authUser) {
       await writeAuditLog({
@@ -97,6 +103,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) {
+      return csrfError
+    }
+
     const authUser = await requireAuthUser(request);
     if (!authUser) {
       await writeAuditLog({

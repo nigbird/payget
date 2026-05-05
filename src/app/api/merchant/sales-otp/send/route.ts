@@ -3,9 +3,14 @@ import { db } from '@/app/lib/db'
 import { generateSalesOtp } from '@/lib/otp'
 import { sendNotification } from '@/lib/notifications'
 import { writeAuditLog } from '@/lib/audit-log'
+import { requireCsrf } from '@/lib/request-security';
 
 export async function POST(request: Request) {
-  const body = await request.json()
+  try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
+    const body = await request.json()
   const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
   const actorUserId: string | null = null
 
@@ -77,4 +82,8 @@ export async function POST(request: Request) {
     message: 'OTP sent to your phone number.',
     merchants: uniqueMerchants
   })
+  } catch (error) {
+    console.error('Error sending sales OTP:', error);
+    return NextResponse.json({ error: 'Failed to send OTP' }, { status: 500 });
+  }
 }

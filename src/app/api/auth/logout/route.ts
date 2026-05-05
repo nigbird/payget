@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { hashRefreshToken } from "@/lib/token-auth"
 import { writeAuditLog } from "@/lib/audit-log"
 import { requireAuthUser } from "@/lib/request-auth"
+import { requireCsrf } from '@/lib/request-security';
 
 function refreshCookieName() {
   return process.env.REFRESH_TOKEN_COOKIE_NAME || "refresh_token"
@@ -14,6 +15,9 @@ function isProd() {
 
 export async function POST(request: Request) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const name = refreshCookieName()
     const raw = (request as NextRequest).cookies.get(name)?.value || ""
     let userId: string | null = null

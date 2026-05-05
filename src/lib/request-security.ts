@@ -1,7 +1,58 @@
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
+import { NextRequest, NextResponse } from "next/server"
 
 const REPLAY_WINDOW_MS = Number(process.env.REQUEST_REPLAY_WINDOW_MS ?? 5 * 60 * 1000)
+
+function createHash(input: string) {
+  return crypto.createHash("sha256").update(input).digest("hex")
+}
+
+function randomString(length: number) {
+  return crypto.randomBytes(length).toString("hex")
+}
+
+export async function verifyCsrfToken(request: Request): Promise<boolean> {
+  const cookieName = "next-auth.csrf-token"
+  const cookieValue = request.headers.get("cookie")?.split("; ").find(c => c.startsWith(`${cookieName}=`))?.split("=")[1]
+  if (!cookieValue) return false
+
+  const [csrfToken, csrfTokenHash] = decodeURIComponent(cookieValue).split("|")
+  const expectedCsrfTokenHash = createHash(`${csrfToken}${process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || ""}`)
+  if (csrfTokenHash !== expectedCsrfTokenHash) return false
+
+  let bodyCsrfToken: string | undefined
+  const contentType = request.headers.get("content-type")
+  if (contentType?.includes("application/json")) {
+    try {
+      const clonedRequest = request.clone()
+      const body = await clonedRequest.json()
+      bodyCsrfToken = body.csrfToken
+    } catch {
+    }
+  } else if (contentType?.includes("application/x-www-form-urlencoded") || contentType?.includes("multipart/form-data")) {
+    try {
+      const clonedRequest = request.clone()
+      const formData = await clonedRequest.formData()
+      bodyCsrfToken = formData.get("csrfToken") as string | undefined
+    } catch {
+    }
+  }
+  
+  const headerCsrfToken = request.headers.get("x-csrf-token")
+  
+  const tokenFromRequest = bodyCsrfToken || headerCsrfToken
+  
+  return csrfToken === tokenFromRequest
+}
+
+export async function requireCsrf(request: Request): Promise<Response | null> {
+  const isCsrfValid = await verifyCsrfToken(request)
+  if (!isCsrfValid) {
+    return NextResponse.json({ error: "CSRF token invalid or missing" }, { status: 403 })
+  }
+  return null
+}
 
 function safeEqualHex(a: string, b: string): boolean {
   const aa = Buffer.from(a, "hex")

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/app/lib/db"
 import { requireAuthUser } from "@/lib/request-auth"
+import { requireCsrf } from '@/lib/request-security';
 import { sendProviderPushRequest } from "@/lib/provider-client"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
 import { writeAuditLog } from "@/lib/audit-log"
@@ -10,6 +11,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const user = await requireAuthUser(request)
     const actorUserId = user?.id ?? null
 

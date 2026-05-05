@@ -5,6 +5,7 @@ import {
   userCanAssignPermissions,
   userHasPermission,
 } from "@/lib/request-auth";
+import { requireCsrf } from "@/lib/request-security";
 import { writeAuditLog } from "@/lib/audit-log";
 
 export async function PATCH(
@@ -15,6 +16,11 @@ export async function PATCH(
   let roleId: string | null = null;
 
   try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) {
+      return csrfError
+    }
+
     const user = await requireAuthUser(request);
     if (!user) {
       await writeAuditLog({
@@ -174,6 +180,11 @@ export async function DELETE(
   let roleId: string | null = null;
 
   try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) {
+      return csrfError
+    }
+
     const user = await requireAuthUser(request);
     if (!user) {
       await writeAuditLog({

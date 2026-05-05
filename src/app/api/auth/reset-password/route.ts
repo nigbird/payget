@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
+import { requireCsrf } from '@/lib/request-security';
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null; // reset-password flows are unauthenticated
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const { identifier, action, token, password } = await request.json();
 
     if (action === 'request') {

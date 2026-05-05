@@ -11,6 +11,7 @@ import {
 } from "@/lib/token-auth"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
+import { requireCsrf } from '@/lib/request-security';
 
 function normalizeLoginIdentifier(value: string) {
   const v = value.trim()
@@ -28,6 +29,9 @@ function isProd() {
 
 export async function POST(request: Request) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const body = await request.json().catch(() => ({}))
     const identifier = typeof body.identifier === "string" ? body.identifier.trim() : ""
     const password = typeof body.password === "string" ? body.password : ""

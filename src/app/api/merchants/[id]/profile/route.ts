@@ -4,12 +4,16 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from "bcryptjs"
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth'
 import { writeAuditLog } from '@/lib/audit-log'
+import { requireCsrf } from '@/lib/request-security';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const user = await requireAuthUser(request);
     const actorUserId = user?.id ?? null;
     if (!user) {

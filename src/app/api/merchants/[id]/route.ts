@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission, userHasAnyPermission, canAccessMerchant } from '@/lib/request-auth';
+import { requireCsrf } from '@/lib/request-security';
 import { sendNotification, generatePasswordSetupLink, generateMerchantRegisterLink } from '@/lib/notifications';
 import crypto from 'crypto';
 
@@ -67,6 +68,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const user = await requireAuthUser(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

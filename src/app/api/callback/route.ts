@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/app/lib/db"
 import { writeAuditLog } from "@/lib/audit-log"
+import { requireCsrf } from '@/lib/request-security';
 
 // Assume callback payload is encrypted similarly, but for simplicity, assume it's plain for now
 // In reality, need to decrypt using stored shared secret
@@ -8,6 +9,9 @@ import { writeAuditLog } from "@/lib/audit-log"
 export async function POST(request: Request) {
   let actorUserId: string | null = null
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const body = await request.json()
     // Decrypt if needed
     // For now, assume body has { transactionRef, status, etc. }

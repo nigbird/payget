@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser } from '@/lib/request-auth';
 import { writeAuditLog } from '@/lib/audit-log';
+import { requireCsrf } from '@/lib/request-security';
 
 type MasterDataType = 'districts' | 'branches' | 'categories' | 'businessTypes';
 
@@ -76,6 +77,9 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const user = await requireAuthUser(request);
     const actorUserId = user?.id ?? null;
 
@@ -289,6 +293,9 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const user = await requireAuthUser(request);
     const actorUserId = user?.id ?? null;
 

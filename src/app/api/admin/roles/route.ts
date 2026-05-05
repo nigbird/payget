@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
+import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 
 export async function GET(request: Request) {
@@ -34,6 +35,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) {
+      return csrfError
+    }
+
     const user = await requireAuthUser(request);
     if (!user) {
       await writeAuditLog({

@@ -3,12 +3,17 @@ import { db } from "@/app/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { generateJweSecret } from "@/lib/jwe"
 import { encryptMerchantSecretAtRest } from "@/lib/merchant-secret"
-import { auditSecurityEvent } from "@/lib/request-security"
+import { auditSecurityEvent, requireCsrf } from "@/lib/request-security"
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const csrfError = await requireCsrf(request)
+  if (csrfError) {
+    return csrfError
+  }
+
   const user = await requireAuthUser(request)
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   if (!userHasPermission(user, "MERCHANT_APPROVE")) {

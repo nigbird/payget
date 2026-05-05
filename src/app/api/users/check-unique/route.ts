@@ -1,24 +1,28 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db'; // Assuming you have a db utility
 import { writeAuditLog } from '@/lib/audit-log';
+import { requireCsrf } from '@/lib/request-security';
 
 export async function POST(request: Request) {
-  const { username } = await request.json();
-
-  if (!username) {
-    await writeAuditLog({
-      request,
-      userId: null,
-      action: "USER_CHECK_UNIQUE",
-      entityType: "USER",
-      entityId: null,
-      newValue: { result: "failed", reason: "USERNAME_REQUIRED" },
-    });
-
-    return NextResponse.json({ error: 'Username is required' }, { status: 400 });
-  }
-
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
+    const { username } = await request.json();
+
+    if (!username) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "USER_CHECK_UNIQUE",
+        entityType: "USER",
+        entityId: null,
+        newValue: { result: "failed", reason: "USERNAME_REQUIRED" },
+      });
+
+      return NextResponse.json({ error: 'Username is required' }, { status: 400 });
+    }
+
     // Check if a user with this email or phone already exists
     const existingUser = await db.getUserByEmailOrPhone(username); // You'll need to implement this in your db utility
 

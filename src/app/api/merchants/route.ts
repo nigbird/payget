@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
+import { requireCsrf } from '@/lib/request-security';
 import bcrypt from 'bcryptjs';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import { generateJweSecret } from '@/lib/jwe';
@@ -27,6 +28,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const sessionUser = await requireAuthUser(request);
     // Allow public registration if no auth, or check for permission if auth exists
     if (sessionUser) {

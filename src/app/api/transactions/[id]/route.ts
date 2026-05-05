@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { requireAuthUser } from '@/lib/request-auth';
+import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 
 export async function GET(
@@ -22,6 +23,9 @@ export async function PATCH(
   let actorUserId: string | null = null;
 
   try {
+    const csrfError = await requireCsrf(request);
+    if (csrfError) return csrfError;
+
     const authUser = await requireAuthUser(request);
     actorUserId = authUser?.id ?? null;
 
