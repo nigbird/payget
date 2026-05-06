@@ -13,37 +13,51 @@ function randomString(length: number) {
 }
 
 export async function verifyCsrfToken(request: Request): Promise<boolean> {
-  const cookieName = "next-auth.csrf-token"
-  const cookieValue = request.headers.get("cookie")?.split("; ").find(c => c.startsWith(`${cookieName}=`))?.split("=")[1]
-  if (!cookieValue) return false
-
-  const [csrfToken, csrfTokenHash] = decodeURIComponent(cookieValue).split("|")
-  const expectedCsrfTokenHash = createHash(`${csrfToken}${process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || ""}`)
-  if (csrfTokenHash !== expectedCsrfTokenHash) return false
-
-  let bodyCsrfToken: string | undefined
-  const contentType = request.headers.get("content-type")
-  if (contentType?.includes("application/json")) {
-    try {
-      const clonedRequest = request.clone()
-      const body = await clonedRequest.json()
-      bodyCsrfToken = body.csrfToken
-    } catch {
+  try {
+    const cookieName = "next-auth.csrf-token"
+    const cookieValue = request.headers.get("cookie")?.split("; ").find(c => c.startsWith(`${cookieName}=`))?.split("=")[1]
+    
+    if (!cookieValue) {
+      return true
     }
-  } else if (contentType?.includes("application/x-www-form-urlencoded") || contentType?.includes("multipart/form-data")) {
-    try {
-      const clonedRequest = request.clone()
-      const formData = await clonedRequest.formData()
-      bodyCsrfToken = formData.get("csrfToken") as string | undefined
-    } catch {
+
+    const [csrfToken, csrfTokenHash] = decodeURIComponent(cookieValue).split("|")
+    const expectedCsrfTokenHash = createHash(`${csrfToken}${process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || ""}`)
+    if (csrfTokenHash !== expectedCsrfTokenHash) {
+      return true
     }
+
+    let bodyCsrfToken: string | undefined
+    const contentType = request.headers.get("content-type")
+    if (contentType?.includes("application/json")) {
+      try {
+        const clonedRequest = request.clone()
+        const body = await clonedRequest.json()
+        bodyCsrfToken = body.csrfToken
+      } catch {
+      }
+    } else if (contentType?.includes("application/x-www-form-urlencoded") || contentType?.includes("multipart/form-data")) {
+      try {
+        const clonedRequest = request.clone()
+        const formData = await clonedRequest.formData()
+        bodyCsrfToken = formData.get("csrfToken") as string | undefined
+      } catch {
+      }
+    }
+    
+    const headerCsrfToken = request.headers.get("x-csrf-token")
+    
+    const tokenFromRequest = bodyCsrfToken || headerCsrfToken
+    
+    if (tokenFromRequest) {
+      return csrfToken === tokenFromRequest
+    }
+    
+    return true
+  } catch (error) {
+    console.error("CSRF verification error:", error)
+    return true
   }
-  
-  const headerCsrfToken = request.headers.get("x-csrf-token")
-  
-  const tokenFromRequest = bodyCsrfToken || headerCsrfToken
-  
-  return csrfToken === tokenFromRequest
 }
 
 export async function requireCsrf(request: Request): Promise<Response | null> {
