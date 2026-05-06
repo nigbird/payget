@@ -66,6 +66,7 @@ export default auth((req) => {
       if (userPermissions.includes("USER_CREATE")) return "/admin/users"
       if (userPermissions.includes("ROLE_CREATE")) return "/admin/roles"
       if (userPermissions.includes("CONFIGURATION_MANAGE")) return "/admin/configuration"
+      if (userPermissions.includes("AUDIT_LOG_VIEW")) return "/admin/audit-logs"
       return null
     }
 
@@ -97,6 +98,7 @@ export default auth((req) => {
         userPermissions.includes('USER_CREATE') ||
         userPermissions.includes('ROLE_CREATE') ||
         userPermissions.includes('CONFIGURATION_MANAGE') ||
+        userPermissions.includes('AUDIT_LOG_VIEW') ||
         userRole === 'ADMIN' || userRole === 'MAKER' || userRole === 'CHECKER' || userRole === 'HEAD_OFFICE'
       
       if (!hasAdminAccess) {
@@ -116,6 +118,15 @@ export default auth((req) => {
 
       // Special-case: `/admin/configuration` requires explicit permission.
       if (pathname.startsWith("/admin/configuration") && !userPermissions.includes("CONFIGURATION_MANAGE")) {
+        const landing = getAdminLandingPath()
+        if (landing) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        return Response.redirect(new URL("/admin", req.url))
+      }
+
+      // Special-case: `/admin/audit-logs` requires explicit permission.
+      if (pathname.startsWith("/admin/audit-logs") && !userPermissions.includes("AUDIT_LOG_VIEW")) {
         const landing = getAdminLandingPath()
         if (landing) {
           return Response.redirect(new URL(landing, req.url))

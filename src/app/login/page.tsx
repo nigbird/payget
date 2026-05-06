@@ -49,7 +49,6 @@ export default function AdminLogin() {
           description: "Login successful. Redirecting..."
         })
         router.refresh()
-        router.push("/admin")
       }
     } catch (err) {
       toast({

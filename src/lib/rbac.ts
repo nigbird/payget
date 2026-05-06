@@ -10,7 +10,8 @@ export type PermissionName =
   | 'ROLE_EDIT'
   | 'ROLE_DELETE'
   | 'TRANSACTION_LIMIT_SET'
-  | 'TRANSACTION_LIMIT_OVERRIDE';
+  | 'TRANSACTION_LIMIT_OVERRIDE'
+  | 'AUDIT_LOG_VIEW';
 
 export async function hasPermission(permission: PermissionName): Promise<boolean> {
   const session = await auth();
