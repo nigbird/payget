@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
@@ -34,6 +34,35 @@ export default function MerchantLogin() {
   const [salesOtp, setSalesOtp] = useState("")
   const [merchants, setMerchants] = useState<{ id: string, name: string }[]>([])
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("")
+  const otpRefs = useRef<Array<HTMLInputElement | null>>([])
+
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, "").slice(0, 1)
+    const nextDigits = salesOtp.padEnd(6, "").split("").slice(0, 6)
+    nextDigits[index] = digit
+    const nextOtp = nextDigits.join("").trimEnd()
+    setSalesOtp(nextOtp)
+
+    if (digit && index < 5) {
+      otpRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Backspace" && !salesOtp[index] && index > 0) {
+      const prev = otpRefs.current[index - 1]
+      prev?.focus()
+    }
+  }
+
+  const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
+    if (!pasted) return
+    event.preventDefault()
+    setSalesOtp(pasted)
+    const focusIndex = Math.min(pasted.length, 5)
+    requestAnimationFrame(() => otpRefs.current[focusIndex]?.focus())
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -367,16 +396,28 @@ export default function MerchantLogin() {
                   )}
                   {otpSent && (
                     <div className="space-y-2.5">
-                      <Label htmlFor="sales-otp" className="text-sm font-semibold">OTP Code</Label>
-                      <Input
-                        id="sales-otp"
-                        type="text"
-                        placeholder="Enter 6-digit code"
-                        className="h-12 rounded-xl text-center text-lg tracking-widest font-bold border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
-                        value={salesOtp}
-                        onChange={(e) => setSalesOtp(e.target.value)}
-                      />
-                      <p className="text-xs text-[#6B7280] font-medium">Code expires in 5 minutes.</p>
+                      <Label className="text-sm font-semibold">OTP Code</Label>
+                      <div className="flex items-center justify-center gap-2">
+                        {Array.from({ length: 6 }).map((_, index) => {
+                          const digit = salesOtp[index] ?? ""
+                          return (
+                            <input
+                              key={index}
+                              ref={(el) => (otpRefs.current[index] = el)}
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={1}
+                              value={digit}
+                              onChange={(e) => handleOtpChange(index, e.target.value)}
+                              onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                              onPaste={handleOtpPaste}
+                              className="w-12 h-14 rounded-2xl border border-[#E5E7EB] bg-white/80 text-center text-xl font-semibold tracking-[0.35em] focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/20 outline-none transition shadow-sm"
+                            />
+                          )
+                        })}
+                      </div>
+                      <p className="text-xs text-[#6B7280] font-medium text-center">Code expires in 5 minutes.</p>
                     </div>
                   )}
                   <Button 
