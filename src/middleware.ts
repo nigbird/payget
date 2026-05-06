@@ -17,6 +17,7 @@ export default auth((req) => {
     pathname === "/merchant/review-update" ||
     pathname === "/merchant/setup-password" ||
     pathname.startsWith("/pay/") ||
+    pathname.startsWith("/l/") ||
     nextUrl.searchParams.has("token"); // If URL has a token, it is a magic link and should be exempt
 
   const isAuthRoute = 
@@ -24,7 +25,8 @@ export default auth((req) => {
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
-    pathname.startsWith("/pay/")
+    pathname.startsWith("/pay/") ||
+    pathname.startsWith("/l/")
 
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login") return
