@@ -11,6 +11,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const canViewRoles = userHasPermission(user, 'ROLE_CREATE');
+    if (!canViewRoles) {
+      return NextResponse.json({ error: 'Permission denied: ROLE_CREATE required' }, { status: 403 });
+    }
+
     const roles = await prisma.role.findMany({
       include: {
         permissions: {

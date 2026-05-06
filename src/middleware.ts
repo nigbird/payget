@@ -116,6 +116,51 @@ export default auth((req) => {
         return Response.redirect(new URL("/login", req.url))
       }
 
+      // Special-case: `/admin` (dashboard) requires explicit permission.
+      if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_VIEW")) {
+        const landing = getAdminLandingPath()
+        if (landing) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        return Response.redirect(new URL("/login", req.url))
+      }
+
+      // Special-case: `/admin/onboarding` requires explicit permission.
+      if (pathname.startsWith("/admin/onboarding") && !userPermissions.includes("MERCHANT_REGISTER")) {
+        const landing = getAdminLandingPath()
+        if (landing) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        return Response.redirect(new URL("/admin", req.url))
+      }
+
+      // Special-case: `/admin/review` requires explicit permission.
+      if (pathname.startsWith("/admin/review") && !userPermissions.includes("MERCHANT_APPROVE")) {
+        const landing = getAdminLandingPath()
+        if (landing) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        return Response.redirect(new URL("/admin", req.url))
+      }
+
+      // Special-case: `/admin/users` requires explicit permission.
+      if (pathname.startsWith("/admin/users") && !userPermissions.includes("USER_CREATE")) {
+        const landing = getAdminLandingPath()
+        if (landing) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        return Response.redirect(new URL("/admin", req.url))
+      }
+
+      // Special-case: `/admin/roles` requires explicit permission.
+      if (pathname.startsWith("/admin/roles") && !userPermissions.includes("ROLE_CREATE")) {
+        const landing = getAdminLandingPath()
+        if (landing) {
+          return Response.redirect(new URL(landing, req.url))
+        }
+        return Response.redirect(new URL("/admin", req.url))
+      }
+
       // Special-case: `/admin/configuration` requires explicit permission.
       if (pathname.startsWith("/admin/configuration") && !userPermissions.includes("CONFIGURATION_MANAGE")) {
         const landing = getAdminLandingPath()

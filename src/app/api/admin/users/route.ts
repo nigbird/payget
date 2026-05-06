@@ -12,6 +12,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const canViewUsers = userHasPermission(user, 'USER_CREATE');
+    if (!canViewUsers) {
+      return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
+    }
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
