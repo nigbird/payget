@@ -4,6 +4,8 @@ import { requireCsrf } from '@/lib/request-security';
 import crypto from "crypto"
 import { mkdir, writeFile } from "fs/promises"
 import path from "path"
+import { writeAuditLog } from "@/lib/audit-log"
+import { isDangerousExtension, extensionsMatch, validateFileUpload } from "@/lib/file-validation"
 
 const MAX_TOTAL_BYTES = 15 * 1024 * 1024 // 15MB total per application
 const MAX_SINGLE_FILE_BYTES = 5 * 1024 * 1024 // 5MB per file
@@ -48,13 +50,14 @@ function looksLikeWebp(buf: Buffer) {
 }
 
 export async function POST(request: Request) {
+  let actorUserId: string | null = null
   try {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
     const user = await requireAuthUser(request)
-    // allow public for self-registration, or restricted for logged in users
     if (user) {
+      actorUserId = user.id
       const isMerchantUser = user?.role === "MERCHANT"
       const hasStaffPermission = userHasAnyPermission(user, [
         "MERCHANT_REGISTER",
@@ -64,6 +67,14 @@ export async function POST(request: Request) {
       ])
 
       if (!isMerchantUser && !hasStaffPermission) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { result: "failed", reason: "FORBIDDEN" },
+        })
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
     }
@@ -72,29 +83,114 @@ export async function POST(request: Request) {
     const files = form.getAll("files")
     
     if (files.length === 0) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "COMPLIANCE_DOC_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { result: "failed", reason: "MISSING_FILES" },
+      })
       return NextResponse.json({ error: "Missing files" }, { status: 400 })
     }
 
     let totalSize = 0
     const uploadedDocs = []
+    const processedFileNames: string[] = []
 
     for (const file of files) {
       if (!(file instanceof File)) continue
       
       if (file.size <= 0) continue
       
+      processedFileNames.push(file.name)
+      
       if (file.size > MAX_SINGLE_FILE_BYTES) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { 
+            result: "failed", 
+            reason: "FILE_TOO_LARGE", 
+            fileName: file.name, 
+            fileSize: file.size 
+          },
+        })
         return NextResponse.json({ error: `File ${file.name} too large (max 5MB)` }, { status: 413 })
       }
 
       totalSize += file.size
       if (totalSize > MAX_TOTAL_BYTES) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { 
+            result: "failed", 
+            reason: "TOTAL_SIZE_EXCEEDED", 
+            totalSize 
+          },
+        })
         return NextResponse.json({ error: "Total files size exceeds 15MB limit" }, { status: 413 })
       }
 
       const ext = allowedMimeToExt[file.type]
       if (!ext) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { 
+            result: "failed", 
+            reason: "UNSUPPORTED_FILE_TYPE", 
+            fileName: file.name, 
+            mimeType: file.type 
+          },
+        })
         return NextResponse.json({ error: `Unsupported file type: ${file.type}` }, { status: 400 })
+      }
+
+      // Check if extension is dangerous (blocklist validation)
+      if (isDangerousExtension(`.${ext}`)) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { 
+            result: "failed", 
+            reason: "DANGEROUS_FILE_TYPE", 
+            fileName: file.name, 
+            extension: ext
+          },
+        })
+        return NextResponse.json({ error: "File type not permitted" }, { status: 400 })
+      }
+
+      // Validate filename extension matches detected type and is not dangerous
+      if (!extensionsMatch(file.name, ext)) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { 
+            result: "failed", 
+            reason: "EXTENSION_MISMATCH", 
+            fileName: file.name, 
+            declaredExtension: ext
+          },
+        })
+        return NextResponse.json({ error: "File extension does not match file type" }, { status: 400 })
       }
 
       const bytes = Buffer.from(await file.arrayBuffer())
@@ -108,6 +204,19 @@ export async function POST(request: Request) {
 
       if (!signatureOk) {
         console.warn(`File content mismatch for ${file.name} (type: ${file.type})`)
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { 
+            result: "failed", 
+            reason: "CONTENT_MISMATCH", 
+            fileName: file.name, 
+            mimeType: file.type 
+          },
+        })
         return NextResponse.json({ error: `File content for ${file.name} does not match declared type` }, { status: 400 })
       }
 
@@ -128,9 +237,31 @@ export async function POST(request: Request) {
       })
     }
 
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "COMPLIANCE_DOC_UPLOAD",
+      entityType: "DOCUMENT",
+      entityId: null,
+      newValue: { 
+        result: "success", 
+        files: processedFileNames, 
+        count: uploadedDocs.length,
+        totalSize
+      },
+    })
+
     return NextResponse.json({ documents: uploadedDocs })
   } catch (error) {
     console.error("Upload error:", error)
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "COMPLIANCE_DOC_UPLOAD",
+      entityType: "DOCUMENT",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
     return NextResponse.json({ error: "Upload failed" }, { status: 500 })
   }
 }

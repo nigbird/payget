@@ -4,6 +4,8 @@ import { requireCsrf } from '@/lib/request-security';
 import crypto from "crypto"
 import { mkdir, writeFile } from "fs/promises"
 import path from "path"
+import { writeAuditLog } from "@/lib/audit-log"
+import { isDangerousExtension, extensionsMatch } from "@/lib/file-validation"
 
 const MAX_BYTES = 5 * 1024 * 1024 // 5MB
 
@@ -42,6 +44,7 @@ function looksLikeWebp(buf: Buffer) {
 }
 
 export async function POST(request: Request) {
+  let actorUserId: string | null = null
   try {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
@@ -49,6 +52,7 @@ export async function POST(request: Request) {
     // allow: public self-registration OR admin/staff with merchant permissions
     const user = await requireAuthUser(request)
     if (user) {
+      actorUserId = user.id
       const isMerchantUser = user?.role === "MERCHANT"
       const hasStaffPermission = userHasAnyPermission(user, [
         "MERCHANT_REGISTER",
@@ -59,6 +63,14 @@ export async function POST(request: Request) {
 
       // Merchant account admins should be able to upload their own logo in configuration.
       if (!isMerchantUser && !hasStaffPermission) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "MERCHANT_LOGO_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { result: "failed", reason: "FORBIDDEN" },
+        })
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
     }
@@ -66,20 +78,102 @@ export async function POST(request: Request) {
     const form = await request.formData()
     const file = form.get("file")
     if (!(file instanceof File)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { result: "failed", reason: "MISSING_FILE" },
+      })
       return NextResponse.json({ error: "Missing file" }, { status: 400 })
     }
 
     if (file.size <= 0) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "EMPTY_FILE", 
+          fileName: file.name 
+        },
+      })
       return NextResponse.json({ error: "Empty file" }, { status: 400 })
     }
 
     if (file.size > MAX_BYTES) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "FILE_TOO_LARGE", 
+          fileName: file.name, 
+          fileSize: file.size 
+        },
+      })
       return NextResponse.json({ error: "File too large (max 2MB)" }, { status: 413 })
     }
 
     const ext = allowedMimeToExt[file.type]
     if (!ext) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "UNSUPPORTED_FILE_TYPE", 
+          fileName: file.name, 
+          mimeType: file.type 
+        },
+      })
       return NextResponse.json({ error: "Unsupported file type (allowed: PNG, JPG, WEBP)" }, { status: 400 })
+    }
+
+    // Check if extension is dangerous (blocklist validation)
+    if (isDangerousExtension(`.${ext}`)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "DANGEROUS_FILE_TYPE", 
+          fileName: file.name, 
+          extension: ext
+        },
+      })
+      return NextResponse.json({ error: "File type not permitted" }, { status: 400 })
+    }
+
+    // Validate filename extension matches detected type
+    if (!extensionsMatch(file.name, ext)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "EXTENSION_MISMATCH", 
+          fileName: file.name, 
+          declaredExtension: ext
+        },
+      })
+      return NextResponse.json({ error: "File extension does not match file type" }, { status: 400 })
     }
 
     const bytes = Buffer.from(await file.arrayBuffer())
@@ -88,6 +182,19 @@ export async function POST(request: Request) {
       (ext === "jpg" && looksLikeJpeg(bytes)) ||
       (ext === "webp" && looksLikeWebp(bytes))
     if (!signatureOk) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "CONTENT_MISMATCH", 
+          fileName: file.name, 
+          mimeType: file.type 
+        },
+      })
       return NextResponse.json({ error: "File content does not match declared type" }, { status: 400 })
     }
 
@@ -101,9 +208,32 @@ export async function POST(request: Request) {
     await writeFile(filePath, bytes)
 
     const url = `/api/uploads/merchant-logos/${encodeURIComponent(name)}`
+    
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "MERCHANT_LOGO_UPLOAD",
+      entityType: "DOCUMENT",
+      entityId: null,
+      newValue: { 
+        result: "success", 
+        fileName: file.name, 
+        fileSize: file.size,
+        url
+      },
+    })
+
     return NextResponse.json({ url })
   } catch (e) {
     console.error(e)
+    await writeAuditLog({
+      request,
+      userId: actorUserId,
+      action: "MERCHANT_LOGO_UPLOAD",
+      entityType: "DOCUMENT",
+      entityId: null,
+      newValue: { result: "failed", reason: "INTERNAL_ERROR" },
+    })
     return NextResponse.json({ error: "Upload failed" }, { status: 500 })
   }
 }

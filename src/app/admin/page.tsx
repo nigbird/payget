@@ -28,6 +28,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { validateAllowedFileTypes } from "@/lib/file-validation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -164,8 +165,14 @@ export default function AdminDashboard() {
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean)
+    const { valid: noDangerous, dangerous, invalidFormat } = validateAllowedFileTypes(types)
     const invalid = types.filter((t) => !t.startsWith(".") || t.length < 2)
-    return { invalid, normalized: types.filter((t) => t.startsWith(".")) }
+    return { 
+      invalid: [...invalid, ...invalidFormat], 
+      dangerous,
+      hasDangerous: dangerous.length > 0,
+      normalized: types.filter((t) => t.startsWith(".")) 
+    }
   }, [config.allowedFileTypes])
 
   const filteredMerchants = useMemo(() => {
@@ -396,11 +403,19 @@ export default function AdminDashboard() {
                         onChange={(e) => setConfig((p) => ({ ...p, allowedFileTypes: e.target.value }))}
                         className={cn(
                           "rounded-[18px]",
-                          allowedTypesValidation.invalid.length ? "border-rose-300 focus-visible:ring-rose-300/40" : ""
+                          allowedTypesValidation.invalid.length || allowedTypesValidation.hasDangerous 
+                            ? "border-rose-300 focus-visible:ring-rose-300/40" 
+                            : ""
                         )}
                         placeholder=".pdf, .png, .jpg"
                       />
-                      {allowedTypesValidation.invalid.length ? (
+                      {allowedTypesValidation.hasDangerous ? (
+                        <div className="text-[11px] text-rose-700 space-y-1">
+                          <div>⚠️ <strong>Dangerous file types detected:</strong></div>
+                          <div><span className="font-mono">{allowedTypesValidation.dangerous.join(", ")}</span></div>
+                          <div>These file types are blocked for security reasons.</div>
+                        </div>
+                      ) : allowedTypesValidation.invalid.length ? (
                         <div className="text-[11px] text-rose-700">
                           Invalid entries:{" "}
                           <span className="font-mono">{allowedTypesValidation.invalid.join(", ")}</span>
