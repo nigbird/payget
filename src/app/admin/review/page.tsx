@@ -100,6 +100,7 @@ function MerchantReviewContent() {
     transactionLimit: "1000",
     dailyCountLimit: "100"
   })
+  const [limitErrors, setLimitErrors] = useState<Record<string, string>>({})
   
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejecting, setIsRejecting] = useState(false)
@@ -114,6 +115,25 @@ function MerchantReviewContent() {
   const userPermissions = (session?.user as any)?.permissions || []
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')
+
+  const validateLimit = (value: string, fieldName: string): string | null => {
+    if (!value || value.trim() === '') {
+      return 'This field is required'
+    }
+    if (!/^\d+$/.test(value)) {
+      return 'Only numbers are allowed'
+    }
+    if (value.length > 10) {
+      return 'Maximum 10 digits allowed'
+    }
+    return null
+  }
+
+  const handleLimitChange = (field: keyof typeof limits, value: string) => {
+    setLimits(prev => ({ ...prev, [field]: value }))
+    const error = validateLimit(value, field)
+    setLimitErrors(prev => ({ ...prev, [field]: error || '' }))
+  }
 
   const fetchMerchantDetails = async (id: string) => {
     setIsFetchingDetails(true)
@@ -724,31 +744,43 @@ function MerchantReviewContent() {
                                   <Label htmlFor="dailyLimit" className="text-[10px]">Daily Volume (ETB)</Label>
                                   <Input 
                                     id="dailyLimit" 
-                                    className="h-8 text-sm" 
+                                    className={`h-8 text-sm ${limitErrors.dailyLimit ? 'border-red-500' : ''}`} 
                                     value={limits.dailyLimit}
-                                    onChange={(e) => setLimits({...limits, dailyLimit: e.target.value})}
+                                    onChange={(e) => handleLimitChange('dailyLimit', e.target.value)}
                                     disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
+                                    maxLength={10}
                                   />
+                                  {limitErrors.dailyLimit && (
+                                    <p className="text-[10px] text-red-500 font-medium">{limitErrors.dailyLimit}</p>
+                                  )}
                                 </div>
                                 <div className="grid gap-1">
                                   <Label htmlFor="transactionLimit" className="text-[10px]">Per Tx Limit (ETB)</Label>
                                   <Input 
                                     id="transactionLimit" 
-                                    className="h-8 text-sm" 
+                                    className={`h-8 text-sm ${limitErrors.transactionLimit ? 'border-red-500' : ''}`} 
                                     value={limits.transactionLimit}
-                                    onChange={(e) => setLimits({...limits, transactionLimit: e.target.value})}
+                                    onChange={(e) => handleLimitChange('transactionLimit', e.target.value)}
                                     disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
+                                    maxLength={10}
                                   />
+                                  {limitErrors.transactionLimit && (
+                                    <p className="text-[10px] text-red-500 font-medium">{limitErrors.transactionLimit}</p>
+                                  )}
                                 </div>
                                 <div className="grid gap-1">
                                   <Label htmlFor="dailyCountLimit" className="text-[10px]">Daily Count</Label>
                                   <Input 
                                     id="dailyCountLimit" 
-                                    className="h-8 text-sm" 
+                                    className={`h-8 text-sm ${limitErrors.dailyCountLimit ? 'border-red-500' : ''}`} 
                                     value={limits.dailyCountLimit}
-                                    onChange={(e) => setLimits({...limits, dailyCountLimit: e.target.value})}
+                                    onChange={(e) => handleLimitChange('dailyCountLimit', e.target.value)}
                                     disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
+                                    maxLength={10}
                                   />
+                                  {limitErrors.dailyCountLimit && (
+                                    <p className="text-[10px] text-red-500 font-medium">{limitErrors.dailyCountLimit}</p>
+                                  )}
                                 </div>
                               </div>
                             </div>

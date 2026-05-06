@@ -109,6 +109,7 @@ function MerchantOnboardingContent() {
     transactionLimit: "1000",
     dailyCountLimit: "100"
   })
+  const [limitErrors, setLimitErrors] = useState<Record<string, string>>({})
   const [resendLoadingId, setResendLoadingId] = useState<string | null>(null)
   
   // Pagination state
@@ -118,6 +119,31 @@ function MerchantOnboardingContent() {
   const [isLogoUploading, setIsLogoUploading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const validateLimit = (value: string, fieldName: string): string | null => {
+    if (!value || value.trim() === '') {
+      return 'This field is required'
+    }
+    if (!/^\d+$/.test(value)) {
+      return 'Only numbers are allowed'
+    }
+    if (value.length > 10) {
+      return 'Maximum 10 digits allowed'
+    }
+    return null
+  }
+
+  const handleLimitChange = (field: keyof typeof limits, value: string) => {
+    setLimits(prev => ({ ...prev, [field]: value }))
+    const error = validateLimit(value, field)
+    setLimitErrors(prev => ({ ...prev, [field]: error || '' }))
+  }
+
+  const handleFormLimitChange = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    const error = validateLimit(value, field)
+    setErrors(prev => ({ ...prev, [field]: error || '' }))
+  }
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
   const [formData, setFormData] = useState({
@@ -1579,8 +1605,13 @@ function MerchantOnboardingContent() {
                       id="dailyLimit" 
                       placeholder="e.g. 10000" 
                       value={limits.dailyLimit}
-                      onChange={(e) => setLimits({...limits, dailyLimit: e.target.value})}
+                      onChange={(e) => handleLimitChange('dailyLimit', e.target.value)}
+                      maxLength={10}
+                      className={limitErrors.dailyLimit ? 'border-red-500' : ''}
                     />
+                    {limitErrors.dailyLimit && (
+                      <p className="text-[10px] text-red-500 font-medium">{limitErrors.dailyLimit}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="transactionLimit">Maximum Per-Transaction Amount (ETB)</Label>
@@ -1588,8 +1619,13 @@ function MerchantOnboardingContent() {
                       id="transactionLimit" 
                       placeholder="e.g. 1000" 
                       value={limits.transactionLimit}
-                      onChange={(e) => setLimits({...limits, transactionLimit: e.target.value})}
+                      onChange={(e) => handleLimitChange('transactionLimit', e.target.value)}
+                      maxLength={10}
+                      className={limitErrors.transactionLimit ? 'border-red-500' : ''}
                     />
+                    {limitErrors.transactionLimit && (
+                      <p className="text-[10px] text-red-500 font-medium">{limitErrors.transactionLimit}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="dailyCountLimit">Maximum Daily Transaction Count</Label>
@@ -1597,8 +1633,13 @@ function MerchantOnboardingContent() {
                       id="dailyCountLimit" 
                       placeholder="e.g. 100" 
                       value={limits.dailyCountLimit}
-                      onChange={(e) => setLimits({...limits, dailyCountLimit: e.target.value})}
+                      onChange={(e) => handleLimitChange('dailyCountLimit', e.target.value)}
+                      maxLength={10}
+                      className={limitErrors.dailyCountLimit ? 'border-red-500' : ''}
                     />
+                    {limitErrors.dailyCountLimit && (
+                      <p className="text-[10px] text-red-500 font-medium">{limitErrors.dailyCountLimit}</p>
+                    )}
                   </div>
 
                   <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg flex gap-3">
