@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { isValidName, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -84,6 +85,63 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
     role: "payment_initiator" as MerchantTeamRole,
   })
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  const validateField = (field: string, value: string, isRequired = false): string | null => {
+    if (field === 'name') {
+      if (value.trim() && !isValidName(value)) {
+        if (value.trim().length < 2) {
+          return 'Name must be at least 2 characters'
+        }
+        if (value.trim().length > 50) {
+          return 'Name must not exceed 50 characters'
+        }
+      }
+    }
+    if (field === 'email') {
+      if (value.trim() && !isValidEmail(value)) {
+        if (value.trim().length > 50) {
+          return 'Email must not exceed 50 characters'
+        }
+        return 'Please enter a valid email address'
+      }
+    }
+    if (field === 'phone' && value.trim()) {
+      if (!isValidPhoneNumber(value)) {
+        return 'Valid formats: +2519XXXXXXXXX, 2519XXXXXXXXX, 09XXXXXXXX, 9XXXXXXXX'
+      }
+    }
+    return null
+  }
+
+  const handleFieldChange = (field: string, value: string) => {
+    setMemberForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {}
+    
+    if (!memberForm.name.trim()) {
+      errors.name = 'Name is required'
+    } else {
+      const nameError = validateField('name', memberForm.name)
+      if (nameError) errors.name = nameError
+    }
+    
+    if (!memberForm.email.trim()) {
+      errors.email = 'Email is required'
+    } else {
+      const emailError = validateField('email', memberForm.email)
+      if (emailError) errors.email = emailError
+    }
+    
+    const phoneError = memberForm.phone.trim() ? validateField('phone', memberForm.phone) : null
+    if (phoneError) errors.phone = phoneError
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   useEffect(() => {
     const fetchMerchant = async () => {
       try {
@@ -114,6 +172,9 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateForm()) {
+      return
+    }
     try {
       const newMemberData = {
         name: memberForm.name,
@@ -133,6 +194,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
         const member = await response.json()
         refreshTeam()
         setIsAddModalOpen(false)
+        setFormErrors({})
         toast({
           title: "Member Added",
           description: `${member.name} has been added to your team.`,
@@ -152,6 +214,9 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
   const handleEditMember = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedMember) return
+    if (!validateForm()) {
+      return
+    }
     try {
       const response = await fetch(`/api/merchants/${id}/team`, {
         method: 'PATCH',
@@ -168,6 +233,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
       if (response.ok) {
         refreshTeam()
         setIsEditModalOpen(false)
+        setFormErrors({})
         toast({
           title: "Member Updated",
           description: `Team member details have been updated.`,
@@ -453,6 +519,9 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           setIsAddModalOpen(open)
           if (!open) {
             setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
+            setFormErrors({})
+          } else {
+            setFormErrors({})
           }
         }}
       >
@@ -469,11 +538,15 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Input
                 id="name"
                 placeholder="Abebe Kebede"
-                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.name ? 'border-red-500' : ''}`}
                 required
+                maxLength={50}
                 value={memberForm.name}
                 onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
               />
+              {formErrors.name && (
+                <p className="text-[10px] text-red-500 font-medium">{formErrors.name}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs font-medium text-slate-500">Email Address</Label>
@@ -481,11 +554,15 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 id="email"
                 type="email"
                 placeholder="abebe@example.com"
-                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.email ? 'border-red-500' : ''}`}
                 required
+                maxLength={50}
                 value={memberForm.email}
                 onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
               />
+              {formErrors.email && (
+                <p className="text-[10px] text-red-500 font-medium">{formErrors.email}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Phone Number</Label>
@@ -493,10 +570,14 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 id="phone"
                 type="tel"
                 placeholder="0912345678"
-                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
+                maxLength={15}
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
               />
+              {formErrors.phone && (
+                <p className="text-[10px] text-red-500 font-medium">{formErrors.phone}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="role" className="text-xs font-medium text-slate-500">Role</Label>
@@ -541,6 +622,9 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           if (!open) {
             setSelectedMember(null)
             setMemberForm({ name: "", email: "", phone: "", role: "payment_initiator" })
+            setFormErrors({})
+          } else {
+            setFormErrors({})
           }
         }}
       >
@@ -557,11 +641,15 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <Input
                 id="edit-name"
                 placeholder="Abebe Kebede"
-                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.name ? 'border-red-500' : ''}`}
                 required
+                maxLength={50}
                 value={memberForm.name}
                 onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
               />
+              {formErrors.name && (
+                <p className="text-[10px] text-red-500 font-medium">{formErrors.name}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-email" className="text-xs font-medium text-slate-500">Email Address</Label>
@@ -569,11 +657,15 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 id="edit-email"
                 type="email"
                 placeholder="abebe@example.com"
-                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.email ? 'border-red-500' : ''}`}
                 required
+                maxLength={50}
                 value={memberForm.email}
                 onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
               />
+              {formErrors.email && (
+                <p className="text-[10px] text-red-500 font-medium">{formErrors.email}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-phone" className="text-xs font-medium text-slate-500">Phone Number</Label>
@@ -581,10 +673,14 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 id="edit-phone"
                 type="tel"
                 placeholder="+251934567890"
-                className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300"
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
+                maxLength={15}
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
               />
+              {formErrors.phone && (
+                <p className="text-[10px] text-red-500 font-medium">{formErrors.phone}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-role" className="text-xs font-medium text-slate-500">Role</Label>

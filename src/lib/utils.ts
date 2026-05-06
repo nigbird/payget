@@ -28,18 +28,50 @@ export function normalizePhoneNumber(phone: string): string {
 }
 
 /**
- * Validates an email address format
+ * Validates a name (at least 2 characters, max 50 characters)
  */
-export function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+export function isValidName(name: string): boolean {
+  const trimmed = name.trim();
+  return trimmed.length >= 2 && trimmed.length <= 50;
 }
 
 /**
- * Validates an Ethiopian phone number format after normalization
+ * Validates an email (max 50 characters)
+ */
+export function isValidEmail(email: string): boolean {
+  const trimmed = email.trim();
+  if (trimmed.length > 50) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(trimmed);
+}
+
+/**
+ * Validates an Ethiopian phone number format
+ * Valid formats:
+ * - +2519XXXXXXXXX (13 digits total: +251 followed by 9 digits including 9)
+ * - 2519XXXXXXXXX (12 digits total: 251 followed by 9 digits including 9)
+ * - 09XXXXXXXX (10 digits: 09 followed by 8 digits)
+ * - 9XXXXXXXX (9 digits: 9 followed by 8 digits)
  */
 export function isValidPhoneNumber(phone: string): boolean {
-  // Normalized format should be +251 followed by 9 digits (9 or 7)
-  const normalized = normalizePhoneNumber(phone);
-  return /^\+251[79]\d{8}$/.test(normalized);
+  const cleaned = phone.trim();
+  const normalized = cleaned.replace(/[\s\-()]/g, '');
+
+  if (/^\+2519\d{8}$/.test(normalized)) {
+    return true
+  }
+
+  if (/^2519\d{8}$/.test(normalized)) {
+    return true
+  }
+
+  if (/^09\d{8}$/.test(normalized)) {
+    return true
+  }
+
+  if (/^9\d{8}$/.test(normalized)) {
+    return true
+  }
+
+  return false
 }
