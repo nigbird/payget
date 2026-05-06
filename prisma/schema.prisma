@@ -249,6 +249,26 @@ model SystemConfig {
   resetTimeoutSeconds Int      @default(60)
 }
 
+enum TokenType {
+  PASSWORD_SETUP
+  MERCHANT_UPDATE
+  RESET_PASSWORD
+  PAYMENT
+}
+
+model OpaqueToken {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  type        TokenType
+  data        Json
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
 model RequestNonce {
   id            String   @id @default(cuid())
   merchantId    String

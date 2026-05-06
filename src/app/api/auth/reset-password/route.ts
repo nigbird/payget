@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
+import { generateResetPasswordLink } from '@/lib/notifications';
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null; // reset-password flows are unauthenticated
@@ -47,7 +48,8 @@ export async function POST(request: Request) {
         newValue: { result: 'success', expiry, identifier },
       });
 
-      return NextResponse.json({ token: resetToken });
+      const resetLink = await generateResetPasswordLink(resetToken);
+      return NextResponse.json({ token: resetToken, resetLink });
     }
 
     if (action === 'check') {

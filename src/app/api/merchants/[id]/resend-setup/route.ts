@@ -44,7 +44,7 @@ export async function POST(
       passwordResetExpires: expires
     });
 
-    const setupLink = generatePasswordSetupLink(id, token);
+    const setupLink = await generatePasswordSetupLink(id, token);
     const delivered = await sendNotification({
       to: merchant.contactUsername,
       subject: 'Merchant Account Setup Link Resent',

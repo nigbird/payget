@@ -234,7 +234,7 @@ export async function PATCH(
     // Trigger notification if approved or rejected
     if (updated) {
       if (body.status === 'approved' || body.status === 'APPROVED') {
-        const setupLink = generatePasswordSetupLink(id, body.passwordResetToken);
+        const setupLink = await generatePasswordSetupLink(id, body.passwordResetToken);
         await sendNotification({
           to: updated.contactUsername,
           subject: 'Merchant Account Approved',

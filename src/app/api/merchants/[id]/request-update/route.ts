@@ -56,7 +56,7 @@ export async function POST(
     await db.createMerchantUpdateToken(id, token, expiresAt);
 
     // Send notification
-    const updateLink = generateMerchantUpdateLink(token);
+    const updateLink = await generateMerchantUpdateLink(token);
     const generalComment = comments?.general ? `\n\nReviewer Comments:\n"${comments.general}"` : '';
     
     const delivered = await sendNotification({

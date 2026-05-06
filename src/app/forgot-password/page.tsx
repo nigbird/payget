@@ -15,6 +15,7 @@ export default function ForgotPassword() {
   const [identifier, setIdentifier] = useState("")
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [resetToken, setResetToken] = useState<string | null>(null)
+  const [resetLink, setResetLink] = useState<string | null>(null)
   const [timeoutSeconds, setTimeoutSeconds] = useState<number>(60)
 
   const handleRequestReset = async (e: FormEvent) => {
@@ -29,8 +30,9 @@ export default function ForgotPassword() {
       })
 
       if (response.ok) {
-        const { token } = await response.json()
+        const { token, resetLink: apiResetLink } = await response.json()
         setResetToken(token)
+        setResetLink(apiResetLink)
         
         // Fetch config for timeout display
         const configRes = await fetch('/api/system-config')

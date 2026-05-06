@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { sendSms } from '@/lib/sms';
 import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
+import { createOpaqueToken } from '@/lib/opaque-tokens';
 
 /**
  * Notification system abstraction for Email and SMS.
@@ -119,21 +120,48 @@ function getNotificationBaseUrl(): string {
 }
 
 /**
- * Password setup link
+ * Password setup link (uses opaque token)
  */
-export function generatePasswordSetupLink(merchantId: string, token: string): string {
+export async function generatePasswordSetupLink(merchantId: string, originalToken: string): Promise<string> {
   const baseUrl = getNotificationBaseUrl();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const opaqueToken = await createOpaqueToken('PASSWORD_SETUP', { merchantId, originalToken }, expiresAt);
 
-  return `${baseUrl}/merchant/setup-password?merchantId=${merchantId}&token=${token}`;
+  return `${baseUrl}/l/${opaqueToken}`;
 }
 
 /**
- * Merchant update link (magic link)
+ * Merchant update link (magic link, uses opaque token)
  */
-export function generateMerchantUpdateLink(token: string): string {
+export async function generateMerchantUpdateLink(originalToken: string): Promise<string> {
   const baseUrl = getNotificationBaseUrl();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const opaqueToken = await createOpaqueToken('MERCHANT_UPDATE', { originalToken }, expiresAt);
 
-  return `${baseUrl}/merchant/review-update?token=${token}`;
+  return `${baseUrl}/l/${opaqueToken}`;
+}
+
+/**
+ * Reset password link (uses opaque token)
+ */
+export async function generateResetPasswordLink(originalToken: string): Promise<string> {
+  const baseUrl = getNotificationBaseUrl();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const opaqueToken = await createOpaqueToken('RESET_PASSWORD', { originalToken }, expiresAt);
+
+  return `${baseUrl}/l/${opaqueToken}`;
+}
+
+/**
+ * Payment link (uses opaque token)
+ */
+export async function generatePaymentLink(originalToken: string): Promise<string> {
+  const baseUrl = getNotificationBaseUrl();
+  const ttlMinutes = Number(process.env.PAYMENT_LINK_TTL_MINUTES ?? 10);
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+  const opaqueToken = await createOpaqueToken('PAYMENT', { originalToken }, expiresAt);
+
+  return `${baseUrl}/l/${opaqueToken}`;
 }
 
 /**

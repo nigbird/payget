@@ -181,7 +181,8 @@ export async function POST(request: Request) {
 
     const token = result.token
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
-    const paymentUrl = `${baseUrl}/pay/link?token=${encodeURIComponent(token)}`
+    const { generatePaymentLink } = await import('@/lib/notifications')
+    const paymentUrl = await generatePaymentLink(token)
 
     await writeAuditLog({
       request,
