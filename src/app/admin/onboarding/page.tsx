@@ -852,7 +852,7 @@ function MerchantOnboardingContent() {
                                 {errors.contactName && <p className="text-[10px] text-red-500 font-medium">{errors.contactName}</p>}
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Username (Email or Phone)</Label>
+                                <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Email or Phone</Label>
                                 <Input 
                                   id="contactUsername" 
                                   placeholder="email@example.com or 0912345678" 

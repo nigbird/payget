@@ -371,7 +371,7 @@ export default function UserManagementPage() {
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-200 bg-white">
-                        {roles.map((role) => {
+                        {roles.filter(role => role.name.toLowerCase() !== 'merchant').map((role) => {
                           const rolePerms = role.permissions.map(p => p.permission.name)
                           const hasEscalation = !isSuperAdmin && rolePerms.some(p => !userPermissions.includes(p))
                           
@@ -605,14 +605,16 @@ export default function UserManagementPage() {
                     </TableCell>
                     <TableCell className="py-5 align-middle text-right pr-6">
                       <div className="flex justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 rounded-2xl text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-                          onClick={() => handleEditClick(user)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                        {user.role !== 'MERCHANT' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-2xl text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                            onClick={() => handleEditClick(user)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -767,7 +769,7 @@ export default function UserManagementPage() {
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-slate-200 bg-white">
-                    {roles.map((role) => (
+                    {roles.filter(role => role.name.toLowerCase() !== 'merchant').map((role) => (
                       <SelectItem key={role.id} value={role.id} className="rounded-lg">
                         {role.name}
                       </SelectItem>

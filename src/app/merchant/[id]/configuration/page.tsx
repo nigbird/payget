@@ -549,7 +549,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     <div className="grid gap-6 md:grid-cols-2">
                       <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="username">Username (Email or Phone)</Label>
+                        <Label htmlFor="username">Email or Phone</Label>
                         <Input
                           id="username"
                           value={profileData.username}
