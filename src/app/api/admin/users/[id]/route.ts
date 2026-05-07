@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
@@ -54,6 +55,10 @@ export async function PATCH(
     if (body.district !== undefined) updateData.district = body.district;
     if (body.branch !== undefined) updateData.branch = body.branch;
     if (body.status !== undefined) updateData.status = body.status;
+    if (body.firstLogin !== undefined) updateData.firstLogin = body.firstLogin;
+    if (body.password) {
+      updateData.password = await bcrypt.hash(body.password, 10);
+    }
 
     const oldUser = await prisma.user.findUnique({ where: { id } });
     

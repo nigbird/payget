@@ -29,6 +29,7 @@ export async function GET(request: Request) {
         district: true,
         branch: true,
         status: true,
+        firstLogin: true,
         createdAt: true,
         customRole: {
           select: {
@@ -159,17 +160,20 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const finalRole = legacyRole || (customRoleId ? 'ADMIN' : 'MERCHANT');
+    
     const createdUser = await prisma.user.create({
       data: {
         email,
         name,
         password: hashedPassword,
         customRoleId,
-        role: legacyRole || (customRoleId ? 'ADMIN' : 'MERCHANT'),
+        role: finalRole,
         merchantId: finalMerchantId,
         isHeadOffice: !!isHeadOffice,
         district: isHeadOffice ? null : district,
-        branch: isHeadOffice ? null : branch
+        branch: isHeadOffice ? null : branch,
+        firstLogin: finalRole !== 'MERCHANT'
       },
       include: {
         customRole: true

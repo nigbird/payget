@@ -80,6 +80,7 @@ interface UserRecord {
   district: string | null
   branch: string | null
   status: 'ACTIVE' | 'DEACTIVATED'
+  firstLogin: boolean
   createdAt: string
 }
 
@@ -109,7 +110,9 @@ export default function UserManagementPage() {
   const [newUserName, setNewUserName] = useState("")
   const [newUserEmail, setNewUserEmail] = useState("")
   const [newUserPassword, setNewUserPassword] = useState("")
+  const [newUserConfirmPassword, setNewUserConfirmPassword] = useState("")
   const [newUserPasswordVisible, setNewUserPasswordVisible] = useState(false)
+  const [newUserConfirmPasswordVisible, setNewUserConfirmPasswordVisible] = useState(false)
   const [selectedRoleId, setSelectedRoleId] = useState("")
   const [isHeadOffice, setIsHeadOffice] = useState(false)
   const [district, setDistrict] = useState("")
@@ -220,8 +223,13 @@ export default function UserManagementPage() {
   }
 
   const handleCreateUser = async () => {
-    if (!newUserName || !newUserEmail || !selectedRoleId || !newUserPassword) {
+    if (!newUserName || !newUserEmail || !selectedRoleId || !newUserPassword || !newUserConfirmPassword) {
       toast({ title: "Missing fields", variant: "destructive" })
+      return
+    }
+
+    if (newUserPassword !== newUserConfirmPassword) {
+      toast({ title: "Passwords do not match", variant: "destructive" })
       return
     }
 
@@ -251,6 +259,7 @@ export default function UserManagementPage() {
         setNewUserName("")
         setNewUserEmail("")
         setNewUserPassword("")
+        setNewUserConfirmPassword("")
         setSelectedRoleId("")
         setIsHeadOffice(false)
         setDistrict("")
@@ -361,6 +370,27 @@ export default function UserManagementPage() {
                         aria-label={newUserPasswordVisible ? "Hide password" : "Show password"}
                       >
                         {newUserPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirm-password" className="text-xs font-medium text-slate-500">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input 
+                        id="confirm-password" 
+                        type={newUserConfirmPasswordVisible ? "text" : "password"} 
+                        className="pr-11 pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
+                        value={newUserConfirmPassword}
+                        onChange={(e) => setNewUserConfirmPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewUserConfirmPasswordVisible((visible) => !visible)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors"
+                        aria-label={newUserConfirmPasswordVisible ? "Hide password" : "Show password"}
+                      >
+                        {newUserConfirmPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>

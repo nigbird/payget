@@ -190,6 +190,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           isHeadOffice: user.isHeadOffice,
           district: user.district,
           branch: user.branch,
+          firstLogin: (user as any).firstLogin,
           permissions: (user as any).customRole?.permissions.map((p: any) => p.permission.name) || []
         }
       }
@@ -319,6 +320,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.branch = (user as any).branch;
         token.assignedMerchantIds = (user as any).assignedMerchantIds;
         token.assignedMerchants = (user as any).assignedMerchants;
+        token.firstLogin = (user as any).firstLogin;
       }
       if (trigger === "update" && session) {
         // Update token with new session data
@@ -331,6 +333,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session.user?.branch !== undefined) token.branch = session.user.branch;
         if ((session.user as any).assignedMerchantIds) token.assignedMerchantIds = (session.user as any).assignedMerchantIds;
         if ((session.user as any).assignedMerchants) token.assignedMerchants = (session.user as any).assignedMerchants;
+        if ((session.user as any).firstLogin !== undefined) token.firstLogin = (session.user as any).firstLogin;
       }
       return token
     },
@@ -345,6 +348,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).branch = token.branch;
         (session.user as any).assignedMerchantIds = token.assignedMerchantIds;
         (session.user as any).assignedMerchants = token.assignedMerchants;
+        (session.user as any).firstLogin = token.firstLogin;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
       }

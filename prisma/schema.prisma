@@ -21,6 +21,7 @@ model User {
   district      String?
   branch        String?
   status        UserStatus @default(ACTIVE)
+  firstLogin    Boolean    @default(true)
   auditLogs     AuditLog[]
   createdRoles  Role[]    @relation("RoleCreator")
   createdMerchants  Merchant[] @relation("MerchantCreator")

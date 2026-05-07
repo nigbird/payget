@@ -35,7 +35,8 @@ export function SessionWatcher() {
   const isAuthPage = pathname?.startsWith("/login") || 
                      pathname === "/" || 
                      pathname?.startsWith("/forgot-password") || 
-                     pathname?.startsWith("/reset-password")
+                     pathname?.startsWith("/reset-password") ||
+                     pathname === "/change-password"
   
   const isAuthPageRef = useRef(isAuthPage)
 
@@ -186,6 +187,22 @@ export function SessionWatcher() {
       events.forEach(event => window.removeEventListener(event, throttledHandleActivity))
     }
   }, [handleActivity])
+
+  // Password change enforcement for first login
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      const user = session.user as any
+      const isFirstLogin = user.firstLogin === true
+      
+      // Check if user is a merchant - they shouldn't be enforced
+      const isMerchant = user.role === 'MERCHANT'
+      
+      if (isFirstLogin && !isMerchant && pathname !== "/change-password" && !isAuthPage) {
+        // Redirect to password change page
+        router.push("/change-password")
+      }
+    }
+  }, [status, session, pathname, isAuthPage, router])
 
   const handleLoginAgain = () => {
     setShowTimeoutModal(false)
