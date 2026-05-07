@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       customerPhone: paymentInput.userCredentials.phone,
       creditAccount: result.merchant.accountNumber,
       amount: paymentInput.amount,
-      company: "NibterMerchant",
+      company: "NTMerchant",
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
 
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
         customerPhone: result.tx.userCredentials.phone,
         creditAccount: result.merchant.accountNumber,
         amount: result.tx.amount,
-        company: "NibterMerchant",
+        company: "NTMerchant",
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
       })
 
