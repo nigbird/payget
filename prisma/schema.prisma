@@ -8,28 +8,30 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  password      String?
-  role          UserRole  @default(MERCHANT)
-  customRoleId  String?
-  customRole    Role?     @relation(fields: [customRoleId], references: [id])
-  merchantId    String?
-  merchant      Merchant? @relation(fields: [merchantId], references: [id])
-  isHeadOffice  Boolean   @default(false)
-  district      String?
-  branch        String?
-  status        UserStatus @default(ACTIVE)
-  firstLogin    Boolean    @default(true)
-  auditLogs     AuditLog[]
-  createdRoles  Role[]    @relation("RoleCreator")
-  createdMerchants  Merchant[] @relation("MerchantCreator")
-  limitsSetMerchants Merchant[] @relation("MerchantLimitsSetter")
-  approvedMerchants Merchant[] @relation("MerchantApprover")
-  refreshTokens RefreshToken[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id                    String    @id @default(cuid())
+  name                  String?
+  email                 String?   @unique
+  password              String?
+  role                  UserRole  @default(MERCHANT)
+  customRoleId          String?
+  customRole            Role?     @relation(fields: [customRoleId], references: [id])
+  merchantId            String?
+  merchant              Merchant? @relation(fields: [merchantId], references: [id])
+  isHeadOffice          Boolean   @default(false)
+  district              String?
+  branch                String?
+  status                UserStatus @default(ACTIVE)
+  firstLogin            Boolean    @default(true)
+  passwordResetToken    String?    @unique
+  passwordResetExpires  DateTime?
+  auditLogs             AuditLog[]
+  createdRoles          Role[]    @relation("RoleCreator")
+  createdMerchants      Merchant[] @relation("MerchantCreator")
+  limitsSetMerchants    Merchant[] @relation("MerchantLimitsSetter")
+  approvedMerchants     Merchant[] @relation("MerchantApprover")
+  refreshTokens         RefreshToken[]
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 }
 
 model RefreshToken {

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
+import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
-import { generateResetPasswordLink } from '@/lib/notifications';
+import { generateResetPasswordLink, sendNotification } from '@/lib/notifications';
+import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null; // reset-password flows are unauthenticated
@@ -13,68 +16,146 @@ export async function POST(request: Request) {
     const { identifier, action, token, password } = await request.json();
 
     if (action === 'request') {
-      const merchant = await db.findMerchantByIdentifier(identifier);
-
+      // First check if it's a merchant
+      let entityType: 'MERCHANT' | 'USER' = 'MERCHANT';
+      let entityId: string | null = null;
+      let contactEmail: string | null = null;
+      
+      let merchant = await db.findMerchantByIdentifier(identifier);
+      
+      // If not a merchant, check if it's an admin user
+      let user = null;
       if (!merchant) {
+        user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: identifier },
+              { name: identifier }
+            ]
+          }
+        });
+        if (user) {
+          entityType = 'USER';
+          entityId = user.id;
+          contactEmail = user.email;
+        }
+      } else {
+        entityId = merchant.id;
+        contactEmail = merchant.email;
+      }
+
+      if (!merchant && !user) {
         await writeAuditLog({
           request,
           userId: actorUserId,
           action: 'AUTH_RESET_PASSWORD_REQUEST',
-          entityType: 'MERCHANT',
+          entityType: 'GENERIC',
           entityId: null,
-          newValue: { result: 'failed', reason: 'MERCHANT_NOT_FOUND', identifier },
+          newValue: { result: 'failed', reason: 'NOT_FOUND', identifier },
         });
 
-        return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
+        return NextResponse.json({ error: 'No account found with that email or phone' }, { status: 404 });
       }
 
       const config = await db.getSystemConfig();
       const resetToken = Math.random().toString(36).substr(2, 12);
       const expiry = new Date(Date.now() + (config?.resetTimeoutSeconds || 60) * 1000).toISOString();
 
-      await db.updateMerchant(merchant.id, {
-        passwordResetToken: resetToken,
-        passwordResetExpires: expiry,
-      });
+      // Update the correct entity
+      if (entityType === 'MERCHANT' && merchant) {
+        await db.updateMerchant(merchant.id, {
+          passwordResetToken: resetToken,
+          passwordResetExpires: expiry,
+        });
+      } else if (entityType === 'USER' && user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            passwordResetToken: resetToken,
+            passwordResetExpires: new Date(expiry),
+          }
+        });
+      }
 
       // Do not log resetToken/password values
       await writeAuditLog({
         request,
         userId: actorUserId,
         action: 'AUTH_RESET_PASSWORD_REQUEST',
-        entityType: 'MERCHANT',
-        entityId: merchant.id,
+        entityType,
+        entityId,
         oldValue: null,
         newValue: { result: 'success', expiry, identifier },
       });
 
       const resetLink = await generateResetPasswordLink(resetToken);
-      return NextResponse.json({ token: resetToken, resetLink });
+      
+      // Determine which contact to use for notification
+      let recipient: string = identifier;
+      
+      // First check if the identifier they entered is a valid email or phone
+      const isIdentifierEmail = isValidEmail(identifier);
+      const isIdentifierPhone = isValidPhoneNumber(identifier);
+      
+      // If the identifier is a valid email or phone, use that!
+      // If it's just a username/id, fall back to the merchant/user email
+      if (!isIdentifierEmail && !isIdentifierPhone && contactEmail) {
+        recipient = contactEmail;
+      }
+
+      console.log('[RESET-PASSWORD] Attempting to send notification to:', recipient);
+
+      // Send the notification via email or SMS
+      const notificationSent = await sendNotification({
+        to: recipient,
+        subject: 'Password Reset Request',
+        message: `Hello,\n\nWe received a request to reset your password. Please use the link below to reset it:\n\n${resetLink}\n\nThis link will expire in ${config?.resetTimeoutSeconds || 60} seconds.\n\nIf you didn't request this, please ignore this message.\n\nBest regards,\nNibTera Merchants Team`
+      });
+
+      console.log('[RESET-PASSWORD] Notification sent status:', notificationSent);
+      
+      return NextResponse.json({ success: true, notificationSent, entityType });
     }
 
     if (action === 'check') {
-      const merchant = await db.findMerchantByResetToken(token);
-
+      // First check merchant token
+      let merchant = await db.findMerchantByResetToken(token);
+      let entityType: 'MERCHANT' | 'USER' = merchant ? 'MERCHANT' : 'USER';
+      
+      let user = null;
       if (!merchant) {
-        await writeAuditLog({
-          request,
-          userId: actorUserId,
-          action: 'AUTH_RESET_PASSWORD_CHECK',
-          entityType: 'MERCHANT',
-          entityId: null,
-          newValue: { result: 'failed', reason: 'INVALID_RESET_TOKEN' },
+        user = await prisma.user.findFirst({
+          where: { passwordResetToken: token }
         });
+        if (!user) {
+          await writeAuditLog({
+            request,
+            userId: actorUserId,
+            action: 'AUTH_RESET_PASSWORD_CHECK',
+            entityType: 'GENERIC',
+            entityId: null,
+            newValue: { result: 'failed', reason: 'INVALID_RESET_TOKEN' },
+          });
 
-        return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+          return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+        }
       }
 
-      if (merchant.passwordResetExpires && new Date(merchant.passwordResetExpires) < new Date()) {
+      // Check expiry
+      let expiryDate: Date | null = null;
+      if (merchant && merchant.passwordResetExpires) {
+        expiryDate = new Date(merchant.passwordResetExpires);
+      } else if (user && user.passwordResetExpires) {
+        expiryDate = user.passwordResetExpires;
+      }
+
+      if (expiryDate && expiryDate < new Date()) {
         await writeAuditLog({
           request,
           userId: actorUserId,
           action: 'AUTH_RESET_PASSWORD_CHECK',
-          entityType: 'MERCHANT',
-          entityId: merchant.id,
+          entityType,
+          entityId: merchant?.id || user?.id,
           newValue: { result: 'failed', reason: 'TOKEN_EXPIRED' },
         });
 
@@ -85,68 +166,119 @@ export async function POST(request: Request) {
         request,
         userId: actorUserId,
         action: 'AUTH_RESET_PASSWORD_CHECK',
-        entityType: 'MERCHANT',
-        entityId: merchant.id,
+        entityType,
+        entityId: merchant?.id || user?.id,
         newValue: { result: 'success' },
       });
 
-      return NextResponse.json({ merchantId: merchant.id });
+      return NextResponse.json({ 
+        entityId: merchant?.id || user?.id, 
+        entityType 
+      });
     }
 
     if (action === 'reset') {
-      const merchant = await db.findMerchantByResetToken(token);
-
+      // First check merchant token
+      let merchant = await db.findMerchantByResetToken(token);
+      let entityType: 'MERCHANT' | 'USER' = merchant ? 'MERCHANT' : 'USER';
+      
+      let user = null;
       if (!merchant) {
-        await writeAuditLog({
-          request,
-          userId: actorUserId,
-          action: 'AUTH_RESET_PASSWORD_RESET',
-          entityType: 'MERCHANT',
-          entityId: null,
-          newValue: { result: 'failed', reason: 'INVALID_OR_EXPIRED_TOKEN' },
+        user = await prisma.user.findFirst({
+          where: { passwordResetToken: token }
         });
+        if (!user) {
+          await writeAuditLog({
+            request,
+            userId: actorUserId,
+            action: 'AUTH_RESET_PASSWORD_RESET',
+            entityType: 'GENERIC',
+            entityId: null,
+            newValue: { result: 'failed', reason: 'INVALID_OR_EXPIRED_TOKEN' },
+          });
 
-        return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
+          return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
+        }
       }
 
-      if (merchant.passwordResetExpires && new Date(merchant.passwordResetExpires) < new Date()) {
+      // Check expiry
+      let expiryDate: Date | null = null;
+      if (merchant && merchant.passwordResetExpires) {
+        expiryDate = new Date(merchant.passwordResetExpires);
+      } else if (user && user.passwordResetExpires) {
+        expiryDate = user.passwordResetExpires;
+      }
+
+      if (expiryDate && expiryDate < new Date()) {
         await writeAuditLog({
           request,
           userId: actorUserId,
           action: 'AUTH_RESET_PASSWORD_RESET',
-          entityType: 'MERCHANT',
-          entityId: merchant.id,
+          entityType,
+          entityId: merchant?.id || user?.id,
           newValue: { result: 'failed', reason: 'TOKEN_EXPIRED' },
         });
 
         return NextResponse.json({ error: 'Token expired' }, { status: 400 });
       }
 
-      // Do not log password
-      await db.updateMerchant(merchant.id, {
-        password: password,
-        passwordResetToken: null,
-        passwordResetExpires: null,
-      });
+      // Hash password for both merchant and user
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Update the correct entity
+      if (entityType === 'MERCHANT' && merchant) {
+        // First update the merchant record
+        await db.updateMerchant(merchant.id, {
+          password: hashedPassword,
+          passwordResetToken: null,
+          passwordResetExpires: null,
+        });
+
+        // Then find and update the associated merchant user record (this is what's used for login!)
+        const merchantUser = await prisma.user.findFirst({
+          where: { merchantId: merchant.id, role: 'MERCHANT' }
+        });
+
+        if (merchantUser) {
+          await prisma.user.update({
+            where: { id: merchantUser.id },
+            data: {
+              password: hashedPassword,
+              passwordResetToken: null,
+              passwordResetExpires: null,
+            }
+          });
+        }
+      } else if (entityType === 'USER' && user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            password: hashedPassword,
+            passwordResetToken: null,
+            passwordResetExpires: null,
+            firstLogin: false
+          }
+        });
+      }
 
       await writeAuditLog({
         request,
         userId: actorUserId,
         action: 'AUTH_RESET_PASSWORD_RESET',
-        entityType: 'MERCHANT',
-        entityId: merchant.id,
+        entityType,
+        entityId: merchant?.id || user?.id,
         oldValue: null,
         newValue: { result: 'success' },
       });
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, entityType });
     }
 
     await writeAuditLog({
       request,
       userId: actorUserId,
       action: 'AUTH_RESET_PASSWORD',
-      entityType: 'MERCHANT',
+      entityType: 'GENERIC',
       entityId: null,
       newValue: { result: 'failed', reason: 'INVALID_ACTION', action },
     });
@@ -159,7 +291,7 @@ export async function POST(request: Request) {
       request,
       userId: actorUserId,
       action: 'AUTH_RESET_PASSWORD',
-      entityType: 'MERCHANT',
+      entityType: 'GENERIC',
       entityId: null,
       newValue: { result: 'failed', reason: 'INTERNAL_ERROR' },
     });

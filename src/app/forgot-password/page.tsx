@@ -5,8 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { ArrowLeft, Clock, Loader2, Mail, Phone, Sparkles } from "lucide-react"
+import { ArrowLeft, Loader2, Mail, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function ForgotPassword() {
@@ -14,9 +13,6 @@ export default function ForgotPassword() {
   const [isLoading, setIsLoading] = useState(false)
   const [identifier, setIdentifier] = useState("")
   const [sentTo, setSentTo] = useState<string | null>(null)
-  const [resetToken, setResetToken] = useState<string | null>(null)
-  const [resetLink, setResetLink] = useState<string | null>(null)
-  const [timeoutSeconds, setTimeoutSeconds] = useState<number>(60)
 
   const handleRequestReset = async (e: FormEvent) => {
     e.preventDefault()
@@ -30,28 +26,17 @@ export default function ForgotPassword() {
       })
 
       if (response.ok) {
-        const { token, resetLink: apiResetLink } = await response.json()
-        setResetToken(token)
-        setResetLink(apiResetLink)
-        
-        // Fetch config for timeout display
-        const configRes = await fetch('/api/system-config')
-        if (configRes.ok) {
-          const config = await configRes.json()
-          setTimeoutSeconds(config.resetTimeoutSeconds)
-        }
-
         setSentTo(identifier)
         toast({
-          title: "Reset Link Generated",
-          description: `A reset link has been simulated for your account.`
+          title: "Reset Link Sent!",
+          description: "Please check your email or SMS for the password reset link."
         })
       } else {
         const error = await response.json()
         toast({
           variant: "destructive",
           title: "Account Not Found",
-          description: error.error || "No merchant found with that email or phone number."
+          description: error.error || "No account found with that email or phone number."
         })
       }
     } catch (error) {
@@ -66,73 +51,87 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-4">
-        <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary">
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back to Login
-        </Link>
+    <div className="min-h-screen relative overflow-hidden bg-white">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
         
-        <Card className="shadow-xl border-none">
-          <CardHeader>
-            <CardTitle>Reset Password</CardTitle>
-            <CardDescription>
-              We'll send a secure link to your registered email or phone number.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="absolute inset-0 opacity-5">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="honeycomb" x="0" y="0" width="60" height="52" patternUnits="userSpaceOnUse">
+                <polygon points="30,5 50,15 50,35 30,45 10,35 10,15" fill="none" stroke="#754319" strokeWidth="1"/>
+                <polygon points="0,26 20,36 20,56 0,66 -20,56 -20,36" fill="none" stroke="#754319" strokeWidth="1"/>
+                <polygon points="60,26 80,36 80,56 60,66 40,56 40,36" fill="none" stroke="#754319" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#honeycomb)" />
+          </svg>
+        </div>
+      </div>
+
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
+        <div className="w-full max-w-md animate-fade-in-up space-y-4">
+          <Link href="/login" className="inline-flex items-center text-sm text-[#6B7280] hover:text-[#1F2937]">
+            <ArrowLeft className="w-4 h-4 mr-1" /> Back to Login
+          </Link>
+          
+          <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
             {!sentTo ? (
-              <form onSubmit={handleRequestReset} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="identifier">Email or Phone</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="identifier" 
-                      placeholder="Enter registered identifier" 
-                      className="pl-9"
-                      required
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Request Reset Link"}
-                </Button>
-              </form>
-            ) : (
-              <div className="space-y-6 text-center py-4">
-                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="text-primary w-6 h-6" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-bold">Reset Link Sent!</h3>
-                  <p className="text-sm text-muted-foreground">
-                    A simulation link has been created for <span className="text-foreground font-medium">{sentTo}</span>.
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">Reset Password</h1>
+                  <p className="text-[#6B7280] font-medium">
+                    We'll send a secure link to your registered email or phone number.
                   </p>
                 </div>
                 
-                <div className="p-4 bg-muted rounded-lg border text-left space-y-3">
-                  <p className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                    <Clock className="w-3 h-3" /> Simulation Notice
-                  </p>
-                  <p className="text-xs leading-relaxed">
-                    In a production environment, this link would be sent via SMS/Email. For this demo, use the link below:
-                  </p>
-                  <Button variant="outline" className="w-full text-xs font-mono" asChild>
-                    {/* Look up token from DB for the demo link */}
-                    <Link href={`/reset-password/${resetToken}`}>
-                      Proceed to Reset Form
-                    </Link>
+                <form onSubmit={handleRequestReset} className="space-y-6">
+                  <div className="space-y-2.5">
+                    <Label htmlFor="identifier" className="text-sm font-semibold text-[#374151]">Email or Phone</Label>
+                    <div className="relative group transition-all">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
+                      <Input 
+                        id="identifier" 
+                        placeholder="Enter registered identifier" 
+                        className="h-12 pl-10 pr-4 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                        required
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                        Requesting link...
+                      </>
+                    ) : "Request Reset Link"}
                   </Button>
-                  <p className="text-[10px] text-orange-600 font-medium">
-                    Link expires in {timeoutSeconds} seconds.
+                </form>
+              </div>
+            ) : (
+              <div className="space-y-6 text-center py-4">
+                <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle2 className="text-green-600 w-6 h-6" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-bold text-xl text-[#1F2937]">Reset Link Sent!</h3>
+                  <p className="text-sm text-[#6B7280]">
+                    We've sent a reset link to <span className="text-[#1F2937] font-medium">{sentTo}</span>.
                   </p>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
