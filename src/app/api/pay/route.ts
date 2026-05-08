@@ -159,7 +159,7 @@ export async function POST(request: Request) {
       callbackUrl,
       description: description || "Payment initiation",
       timestamp: new Date().toISOString(),
-      transactionReference: `ref_${transactionId}`,
+      transactionReference: `ref${transactionId.replaceAll("_", "")}`,
       serviceDescription: description || "Payment initiation",
       transactionTimestamp: new Date().toISOString(),
       userCredentials: {

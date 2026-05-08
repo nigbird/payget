@@ -70,7 +70,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
   const exists = await db.getTransactionById(input.transactionId)
   if (exists) return { ok: false as const, error: "Transaction ID already exists" }
 
-  const transactionReference = `ref_${Math.random().toString(36).substr(2, 9)}`
+  const transactionReference = `ref${Math.random().toString(36).substr(2, 9)}`
   const createdAt = new Date().toISOString()
   const ttlMinutes = Number(process.env.PAYMENT_LINK_TTL_MINUTES ?? 10)
   const expiresAt = new Date(Date.now() + ttlMinutes * 60_000).toISOString()

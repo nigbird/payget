@@ -1,9 +1,10 @@
 "use client"
 
+import Link from "next/link"
 import { useMemo } from "react"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { Bell, Search, Settings2 } from "lucide-react"
+import { Bell, KeyRound, Search, Settings2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { SidebarTrigger } from "@/components/ui/sidebar"
@@ -26,6 +27,7 @@ const routeTitles: Array<{ href: string; title: string; subtitle?: string }> = [
   { href: "/admin/users", title: "Staff Management", subtitle: "Teams, access, and assignments" },
   { href: "/admin/roles", title: "Permission Governance", subtitle: "Roles and granular permissions" },
   { href: "/admin/configuration", title: "Master Data Config", subtitle: "Manage dropdown values across the system" },
+  { href: "/admin/profile", title: "Profile Settings", subtitle: "Manage your account and security settings" },
 ]
 
 export function AdminTopbar({ className }: { className?: string }) {
@@ -131,6 +133,12 @@ export function AdminTopbar({ className }: { className?: string }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Account</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href="/admin/profile">
+                  <KeyRound className="h-4 w-4" />
+                  Profile settings
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600 focus:text-red-700"

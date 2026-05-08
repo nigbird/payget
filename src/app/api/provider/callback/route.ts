@@ -10,10 +10,27 @@ import { writeAuditLog } from '@/lib/audit-log';
  */
 export async function POST(request: Request) {
   try {
+    const getReferenceCandidates = (value: string) => {
+      const candidate = value.trim();
+      const candidates = [candidate];
+
+      if (candidate.startsWith('ref_')) {
+        candidates.push(candidate.replace(/^ref_/, 'ref'));
+      } else if (candidate.startsWith('ref') && !candidate.startsWith('ref_')) {
+        candidates.push(candidate.replace(/^ref/, 'ref_'));
+      }
+
+      return [...new Set(candidates)];
+    };
+
     const resolveTransactionByAnyReference = async (value: unknown) => {
       if (typeof value !== 'string' || !value.trim()) return null;
-      const candidate = value.trim();
-      return (await db.getTransactionByReference(candidate)) || (await db.getTransactionById(candidate));
+      for (const candidate of getReferenceCandidates(value)) {
+        const tx = await db.getTransactionByReference(candidate);
+        if (tx) return tx;
+      }
+
+      return await db.getTransactionById(value.trim());
     };
 
     // 0. Authenticate the provider request (Auth)

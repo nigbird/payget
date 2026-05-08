@@ -9,10 +9,39 @@ import { Label } from "@/components/ui/label"
 import { Loader2, Lock, Eye, EyeOff, LogOut } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
+type SessionUser = {
+  role?: string
+  firstLogin?: boolean
+  permissions?: string[]
+}
+
+const getAdminLandingPath = (user?: SessionUser) => {
+  const permissions = user?.permissions ?? []
+
+  if (permissions.includes("DASHBOARD_VIEW")) return "/admin"
+  if (permissions.includes("MERCHANT_REGISTER")) return "/admin/onboarding"
+  if (permissions.includes("MERCHANT_APPROVE")) return "/admin/review"
+  if (permissions.includes("USER_CREATE")) return "/admin/users"
+  if (permissions.includes("ROLE_CREATE")) return "/admin/roles"
+  if (permissions.includes("CONFIGURATION_MANAGE")) return "/admin/configuration"
+  if (permissions.includes("AUDIT_LOG_VIEW")) return "/admin/audit-logs"
+
+  return null
+}
+
+const getPostChangePasswordRedirect = (user?: SessionUser) => {
+  if (!user?.role) return "/login"
+  if (user.role === "MERCHANT" || user.role === "SALES") return "/merchant"
+  return getAdminLandingPath(user) ?? "/admin"
+}
+
 export default function ChangePasswordPage() {
   const { data: session, update } = useSession()
   const router = useRouter()
   const { toast } = useToast()
+  const sessionUser = session?.user as SessionUser | undefined
+  const isAdmin = !!sessionUser?.role && sessionUser.role !== "MERCHANT" && sessionUser.role !== "SALES"
+  const isFirstLogin = Boolean(sessionUser?.firstLogin)
   const [isLoading, setIsLoading] = useState(false)
   const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false)
   const [newPasswordVisible, setNewPasswordVisible] = useState(false)
@@ -36,8 +65,8 @@ export default function ChangePasswordPage() {
       return
     }
 
-    if (credentials.newPassword.length < 6) {
-      toast({ title: "New password must be at least 6 characters", variant: "destructive" })
+    if (credentials.newPassword.length < 8) {
+      toast({ title: "New password must be at least 8 characters", variant: "destructive" })
       return
     }
 
@@ -59,8 +88,7 @@ export default function ChangePasswordPage() {
         await update({ ...session, user: { ...session?.user, firstLogin: false } })
         
         // Redirect to appropriate dashboard
-        const isAdmin = session?.user?.role !== 'MERCHANT'
-        router.push(isAdmin ? "/admin" : "/merchant")
+        router.push(getPostChangePasswordRedirect(sessionUser))
       } else {
         const error = await res.json()
         toast({ title: "Failed to change password", description: error.error, variant: "destructive" })
@@ -113,7 +141,13 @@ export default function ChangePasswordPage() {
 
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">Change Password</h1>
-              <p className="text-[#6B7280] font-medium">Please set a new password before continuing</p>
+              <p className="text-[#6B7280] font-medium">
+                {isFirstLogin
+                  ? "Please set a new password before continuing"
+                  : isAdmin
+                    ? "Update your admin password to keep your account secure"
+                    : "Update your password to keep your account secure"}
+              </p>
             </div>
 
             <form onSubmit={handleChangePassword} className="space-y-6">
@@ -193,14 +227,27 @@ export default function ChangePasswordPage() {
               </div>
 
               <div className="flex items-center justify-end pt-1">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Log Out
-                </button>
+                <div className="flex items-center gap-4">
+                  {!isFirstLogin ? (
+                    <button
+                      type="button"
+                      onClick={() => router.push(getPostChangePasswordRedirect(sessionUser))}
+                      className="text-sm font-semibold text-[#6B7280] hover:text-[#374151] transition-colors"
+                      disabled={isLoading}
+                    >
+                      {isAdmin ? "Back to admin console" : "Back to dashboard"}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors flex items-center gap-2"
+                    disabled={isLoading}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Log Out
+                  </button>
+                </div>
               </div>
 
               <Button 
