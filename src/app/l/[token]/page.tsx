@@ -106,11 +106,13 @@ function OpaqueLinkContent() {
       return <PayLinkPageStandalone token={tokenData!.originalToken} />
     case 'PASSWORD_SETUP':
       return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-4">
-          <Suspense fallback={<Loader2 className="w-8 h-8 animate-spin text-amber-600" />}>
-            <SetupPasswordFormStandalone merchantId={tokenData!.merchantId} token={tokenData!.originalToken} />
-          </Suspense>
-        </div>
+        <Suspense fallback={
+          <div className="min-h-screen bg-white flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+          </div>
+        }>
+          <SetupPasswordFormStandalone merchantId={tokenData!.merchantId} token={tokenData!.originalToken} />
+        </Suspense>
       )
     case 'RESET_PASSWORD':
       router.push(`/reset-password/${tokenData!.originalToken}`)
@@ -129,6 +131,7 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
@@ -185,92 +188,158 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
 
   if (isSuccess) {
     return (
-      <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
-        <div className="p-8 text-center border-b border-slate-50">
-          <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+      <div className="min-h-screen relative overflow-hidden bg-white">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+          
+          <div className="absolute inset-0 opacity-5">
+            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="honeycomb" x="0" y="0" width="60" height="52" patternUnits="userSpaceOnUse">
+                  <polygon points="30,5 50,15 50,35 30,45 10,35 10,15" fill="none" stroke="#754319" strokeWidth="1"/>
+                  <polygon points="0,26 20,36 20,56 0,66 -20,56 -20,36" fill="none" stroke="#754319" strokeWidth="1"/>
+                  <polygon points="60,26 80,36 80,56 60,66 40,56 40,36" fill="none" stroke="#754319" strokeWidth="1"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#honeycomb)" />
+            </svg>
           </div>
-          <h3 className="text-xl font-medium text-slate-800 tracking-tight">Account Activated</h3>
-          <p className="text-slate-500 mt-1 text-sm">Setup complete</p>
         </div>
-        <CardContent className="py-6 px-8 text-center space-y-4">
-          <div className="bg-slate-50 rounded-xl p-5 text-center">
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Your account has been successfully approved and activated.
-            </p>
-            <p className="text-sm text-slate-500 mt-3">
-              You can now log in to the merchant portal using your registered Username (Email/Phone) and the password you just created.
-            </p>
+
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
+          <div className="w-full max-w-md animate-fade-in-up">
+            <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
+              <div className="text-center space-y-2">
+                <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                  <CheckCircle2 className="text-green-600 w-6 h-6" />
+                </div>
+                <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">Account Activated!</h1>
+                <p className="text-[#6B7280] font-medium">
+                  Your account has been successfully approved and activated.
+                </p>
+              </div>
+              <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#E5E7EB] text-left space-y-3">
+                <p className="text-sm leading-relaxed text-[#374151]">
+                  You can now log in to the merchant portal using your registered Username (Email/Phone) and the password you just created.
+                </p>
+              </div>
+              <Button 
+                className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                onClick={() => router.push('/login/merchant')}
+              >
+                Continue to Login
+              </Button>
+            </div>
           </div>
-        </CardContent>
-        <CardFooter className="px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 shadow-sm font-medium transition-all" onClick={() => router.push('/login/merchant')}>
-              Continue to Login
-            </Button>
-          </CardFooter>
-      </Card>
+        </div>
+      </div>
     )
   }
 
   return (
-    <Card className="max-w-md w-full shadow-lg border-none">
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-          <ShieldCheck className="w-8 h-8 text-primary" />
+    <div className="min-h-screen relative overflow-hidden bg-white">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+        
+        <div className="absolute inset-0 opacity-5">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="honeycomb" x="0" y="0" width="60" height="52" patternUnits="userSpaceOnUse">
+                <polygon points="30,5 50,15 50,35 30,45 10,35 10,15" fill="none" stroke="#754319" strokeWidth="1"/>
+                <polygon points="0,26 20,36 20,56 0,66 -20,56 -20,36" fill="none" stroke="#754319" strokeWidth="1"/>
+                <polygon points="60,26 80,36 80,56 60,66 40,56 40,36" fill="none" stroke="#754319" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#honeycomb)" />
+          </svg>
         </div>
-        <CardTitle className="text-2xl font-headline">Activate Account</CardTitle>
-        <CardDescription>
-          Set up your password to activate your merchant portal access.
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4 py-6">
-          <div className="space-y-2">
-            <Label htmlFor="password">New Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input 
-                id="password" 
-                type={showPassword ? "text" : "password"} 
-                className="pl-10 pr-10"
-                placeholder="••••••••"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
+      </div>
+
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
+        <div className="w-full max-w-md animate-fade-in-up">
+          <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">
+                Set Up Your Password
+              </h1>
+              <p className="text-[#6B7280] font-medium">
+                Create a password to activate your merchant portal access.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2.5">
+                <Label htmlFor="password" className="text-sm font-semibold text-[#374151]">New Password</Label>
+                <div className="relative group transition-all">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
+                  <Input 
+                    id="password" 
+                    type={showPassword ? "text" : "password"} 
+                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    placeholder="••••••••"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#6B7280] hover:text-[#f8b513] transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-[#6B7280] mt-1">Minimum 8 characters with letters and numbers.</p>
+              </div>
+              
+              <div className="space-y-2.5">
+                <Label htmlFor="confirmPassword" className="text-sm font-semibold text-[#374151]">Confirm Password</Label>
+                <div className="relative group transition-all">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
+                  <Input 
+                    id="confirmPassword" 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    placeholder="••••••••"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((visible) => !visible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#6B7280] hover:text-[#f8b513] transition-colors"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                disabled={isSubmitting}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <p className="text-[10px] text-muted-foreground">Minimum 8 characters with letters and numbers.</p>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Activating...
+                  </>
+                ) : "Activate & Set Password"}
+              </Button>
+            </form>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input 
-                id="confirmPassword" 
-                type={showPassword ? "text" : "password"} 
-                className="pl-10"
-                placeholder="••••••••"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Activate & Set Password"}
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
+        </div>
+      </div>
+    </div>
   )
 }
 
