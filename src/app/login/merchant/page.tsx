@@ -34,6 +34,7 @@ export default function MerchantLogin() {
   const [salesOtp, setSalesOtp] = useState("")
   const [merchants, setMerchants] = useState<{ id: string, name: string }[]>([])
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("")
+  const [lockoutError, setLockoutError] = useState<string | null>(null)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const handleOtpChange = (index: number, value: string) => {
@@ -67,6 +68,7 @@ export default function MerchantLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setLockoutError(null)
 
     try {
       const result = await signIn("credentials", {
@@ -78,7 +80,12 @@ export default function MerchantLogin() {
 
       if (result?.error) {
         let errorMessage = "Invalid username or password. Please try again."
-        if (result.error.includes("Not a merchant user")) {
+        
+        if (result.error.includes("LOCKOUT_IP") || result.error.includes("LOCKOUT_USER")) {
+          const minutes = result.error.split(":")[1] || "15"
+          errorMessage = `Too many failed attempts. Please try again after ${minutes} minutes.`
+          setLockoutError(errorMessage)
+        } else if (result.error.includes("Not a merchant user")) {
           errorMessage = "Access Denied: Please use the correct login portal for your account."
         }
 
@@ -307,6 +314,13 @@ export default function MerchantLogin() {
                       Forgot Password?
                     </Link>
                   </div>
+
+                  {lockoutError && (
+                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-100 flex items-center gap-3 text-rose-600 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Lock className="w-5 h-5 shrink-0" />
+                      <p className="text-sm font-semibold leading-tight">{lockoutError}</p>
+                    </div>
+                  )}
 
                   <Button 
                     type="submit" 
