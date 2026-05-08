@@ -15,6 +15,7 @@ export default function AdminLogin() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [lockoutError, setLockoutError] = useState<string | null>(null)
   const [credentials, setCredentials] = useState({
     email: "",
     password: ""
@@ -23,6 +24,7 @@ export default function AdminLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setLockoutError(null)
 
     try {
       const result = await signIn("credentials", {
@@ -34,7 +36,12 @@ export default function AdminLogin() {
 
       if (result?.error) {
         let errorMessage = "Invalid username or password. Please try again."
-        if (result.error.includes("Not an admin user")) {
+        
+        if (result.error.includes("LOCKOUT_IP") || result.error.includes("LOCKOUT_USER")) {
+          const minutes = result.error.split(":")[1] || "15"
+          errorMessage = `Too many failed attempts. Please try again after ${minutes} minutes.`
+          setLockoutError(errorMessage)
+        } else if (result.error.includes("Not an admin user")) {
           errorMessage = "Access Denied: Your account does not have admin privileges."
         }
 
@@ -102,8 +109,8 @@ export default function AdminLogin() {
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2.5">Email or Phone
-                <Label htmlFor="email" className="text-sm font-semibold text-[#374151]"></Label>
+              <div className="space-y-2.5">
+                <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Email or Phone</Label>
                 <div className="relative group transition-all">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
                   <Input 
@@ -149,10 +156,20 @@ export default function AdminLogin() {
                   <input type="checkbox" id="remember" className="w-4 h-4 rounded border-[#E5E7EB] text-[#f8b513] focus:ring-[#f8b513]/20" />
                   <Label htmlFor="remember" className="text-sm text-[#6B7280]">Remember me</Label>
                 </div>
-                <Link href="/forgot-password" className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors"
+                >
                   Forgot Password?
                 </Link>
               </div>
+
+              {lockoutError && (
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-100 flex items-center gap-3 text-rose-600 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Lock className="w-5 h-5 shrink-0" />
+                  <p className="text-sm font-semibold leading-tight">{lockoutError}</p>
+                </div>
+              )}
 
               <Button 
                 type="submit" 

@@ -12,6 +12,14 @@ import {
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
 import { requireCsrf } from '@/lib/request-security';
+import { 
+  checkIpLockout, 
+  recordIpFailure, 
+  resetIpLockout, 
+  checkUserLockout, 
+  recordUserFailure, 
+  resetUserLockout 
+} from "@/lib/rate-limit";
 
 function normalizeLoginIdentifier(value: string) {
   const v = value.trim()
@@ -31,6 +39,20 @@ export async function POST(request: Request) {
   try {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
+
+    const xForwardedFor = request.headers.get("x-forwarded-for")
+    const ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : "127.0.0.1"
+    
+    console.log(`[Login] Login attempt from IP: ${ip}`)
+
+    const ipLockout = await checkIpLockout(ip)
+    if (ipLockout.locked) {
+      console.log(`[Login] IP ${ip} is currently locked`)
+      return NextResponse.json(
+        { error: `Too many attempts from this IP. Please try again after ${ipLockout.remainingMinutes} minutes.` },
+        { status: 429 }
+      )
+    }
 
     const body = await request.json().catch(() => ({}))
     const identifier = typeof body.identifier === "string" ? body.identifier.trim() : ""
@@ -63,6 +85,7 @@ export async function POST(request: Request) {
     }
 
     if (!user || !user.password) {
+      await recordIpFailure(ip)
       await writeAuditLog({
         request,
         userId: null,
@@ -78,9 +101,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
+    const userLockout = await checkUserLockout(user.id)
+    if (userLockout.locked) {
+      return NextResponse.json(
+        { error: `Account temporarily suspended. Please try again after ${userLockout.remainingMinutes} minutes.` },
+        { status: 429 }
+      )
+    }
+
     // If the user is a merchant, ensure the merchant account is ACTIVE and username matches.
     if ((user as any).role === "MERCHANT" && (user as any).merchantId) {
       if ((user as any).merchant?.status !== "ACTIVE") {
+        await recordIpFailure(ip)
+        await recordUserFailure(user.id)
         await writeAuditLog({
           request,
           userId: user.id,
@@ -99,6 +132,8 @@ export async function POST(request: Request) {
 
       const currentUsername = (user as any).merchant?.contactUsername
       if (!currentUsername) {
+        await recordIpFailure(ip)
+        await recordUserFailure(user.id)
         await writeAuditLog({
           request,
           userId: user.id,
@@ -115,6 +150,8 @@ export async function POST(request: Request) {
       const provided = normalizeLoginIdentifier(identifier)
       const expected = normalizeLoginIdentifier(currentUsername)
       if (provided !== expected) {
+        await recordIpFailure(ip)
+        await recordUserFailure(user.id)
         await writeAuditLog({
           request,
           userId: user.id,
@@ -132,6 +169,9 @@ export async function POST(request: Request) {
 
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) {
+      console.log(`[Login] Password mismatch for user: ${user.id}`)
+      await recordIpFailure(ip)
+      await recordUserFailure(user.id)
       await writeAuditLog({
         request,
         userId: user.id,
@@ -163,6 +203,9 @@ export async function POST(request: Request) {
     const refreshValue = generateRefreshTokenValue()
     const refreshHash = hashRefreshToken(refreshValue)
     const expiresAt = computeRefreshTokenExpiresAt()
+
+    await resetIpLockout(ip)
+    await resetUserLockout(user.id)
 
     await prisma.refreshToken.create({
       data: {

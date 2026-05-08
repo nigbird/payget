@@ -11,6 +11,15 @@ import {
   computeRefreshTokenExpiresAt,
 } from "@/lib/token-auth"
 import crypto from "crypto"
+import { headers } from "next/headers"
+import { 
+  checkIpLockout, 
+  recordIpFailure, 
+  resetIpLockout, 
+  checkUserLockout, 
+  recordUserFailure, 
+  resetUserLockout 
+} from "@/lib/rate-limit"
 
 function normalizeLoginIdentifier(value: string) {
   const v = value.trim()
@@ -28,6 +37,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         loginType: { label: "Login Type", type: "text" }
       },
       authorize: async (credentials) => {
+        const headerList = await headers()
+        const xForwardedFor = headerList.get("x-forwarded-for")
+        const ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : "127.0.0.1"
+
+        const ipLockout = await checkIpLockout(ip)
+        if (ipLockout.locked) {
+          throw new Error(`LOCKOUT_IP:${ipLockout.remainingMinutes}`)
+        }
+
         if (!credentials?.email || !credentials?.password) {
           await writeAuditLog({
           userId: null,
@@ -57,6 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (!user || !user.password) {
+          await recordIpFailure(ip)
           await writeAuditLog({
           userId: null,
           action: "LOGIN_FAILURE",
@@ -75,6 +94,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (loginType === "admin") {
           const adminRoles = ['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE']
           if (!adminRoles.includes(user.role)) {
+            await recordIpFailure(ip)
+            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -89,6 +110,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         } else if (loginType === "merchant") {
           if (user.role !== 'MERCHANT') {
+            await recordIpFailure(ip)
+            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -103,9 +126,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
 
+        const userLockout = await checkUserLockout(user.id)
+        if (userLockout.locked) {
+          throw new Error(`LOCKOUT_USER:${userLockout.remainingMinutes}`)
+        }
+
         // If the user is a merchant, ensure the merchant account is ACTIVE
         if (user.role === 'MERCHANT' && user.merchantId) {
           if (user.merchant?.status !== 'ACTIVE') {
+            await recordIpFailure(ip)
+            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -124,6 +154,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Merchant login must match the current configured username only.
           const currentUsername = user.merchant?.contactUsername
           if (!currentUsername) {
+            await recordIpFailure(ip)
+            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -139,6 +171,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const provided = normalizeLoginIdentifier(identifier)
           const expected = normalizeLoginIdentifier(currentUsername)
           if (provided !== expected) {
+            await recordIpFailure(ip)
+            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -155,6 +189,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         
         const isValid = await bcrypt.compare(credentials.password as string, user.password)
         if (!isValid) {
+          await recordIpFailure(ip)
+          await recordUserFailure(user.id)
           await writeAuditLog({
             userId: user.id,
             action: "LOGIN_FAILURE",
@@ -181,6 +217,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           },
         });
         
+        await resetIpLockout(ip)
+        await resetUserLockout(user.id)
+
         return {
           id: user.id,
           email: user.email,
