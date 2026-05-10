@@ -262,6 +262,14 @@ model IpLockout {
   updatedAt    DateTime  @updatedAt
 }
 
+/// Tracks failed credential attempts per normalized login identifier (email / phone username).
+/// Separate from User.id so unknown identifiers still accrue lockouts.
+model LoginIdentifierLockout {
+  normalizedKey  String    @id
+  failedAttempts Int       @default(0)
+  lockoutUntil   DateTime?
+  updatedAt      DateTime  @updatedAt
+}
 
 enum TokenType {
   PASSWORD_SETUP

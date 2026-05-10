@@ -1,125 +1,216 @@
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 
-const MAX_ATTEMPTS = 5
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
-
-export async function checkIpLockout(ipAddress: string): Promise<{ locked: boolean; until?: Date; remainingMinutes?: number }> {
-  console.log(`[RateLimit] Checking IP lockout for: ${ipAddress}`)
-  const lockout = await prisma.ipLockout.findUnique({
-    where: { ipAddress },
-  })
-
-  if (lockout && lockout.lockoutUntil && lockout.lockoutUntil > new Date()) {
-    const remainingMs = lockout.lockoutUntil.getTime() - Date.now()
-    const remainingMinutes = Math.ceil(remainingMs / (60 * 1000))
-    console.log(`[RateLimit] IP ${ipAddress} is locked until ${lockout.lockoutUntil} (${remainingMinutes} mins left)`)
-    return { locked: true, until: lockout.lockoutUntil, remainingMinutes }
-  }
-
-  return { locked: false }
+function logRateLimitDbError(context: string, e: unknown) {
+  console.error(`[rate-limit] ${context}`, e)
 }
 
-export async function recordIpFailure(ipAddress: string) {
-  console.log(`[RateLimit] Recording IP failure for: ${ipAddress}`)
-  const now = new Date()
-  
+/** Failed logins from one IP across all identifiers before full IP block */
+const IP_MAX_ATTEMPTS = 20
+const IP_LOCKOUT_MS = 15 * 60 * 1000
+
+/** Failed logins for one normalized identifier before short cooldown */
+const IDENTIFIER_MAX_ATTEMPTS = 5
+const IDENTIFIER_LOCKOUT_MS = 60 * 1000
+
+function retryAfterSecondsFromUntil(until: Date): number {
+  return Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000))
+}
+
+export type ActiveLockout =
+  | { locked: false }
+  | { locked: true; until: Date; retryAfterSeconds: number }
+
+export { normalizeLoginIdentifierForLockout } from "@/lib/login-identifier-normalize"
+
+export async function checkIpLockout(ipAddress: string): Promise<ActiveLockout> {
   const lockout = await prisma.ipLockout.findUnique({
     where: { ipAddress },
   })
 
-  if (!lockout) {
-    await prisma.ipLockout.create({
+  if (!lockout?.lockoutUntil) {
+    return { locked: false }
+  }
+
+  const now = new Date()
+  if (lockout.lockoutUntil <= now) {
+    await prisma.ipLockout.update({
+      where: { ipAddress },
+      data: { attempts: 0, lockoutUntil: null },
+    })
+    return { locked: false }
+  }
+
+  return {
+    locked: true,
+    until: lockout.lockoutUntil,
+    retryAfterSeconds: retryAfterSecondsFromUntil(lockout.lockoutUntil),
+  }
+}
+
+export async function checkLoginIdentifierLockout(normalizedKey: string): Promise<ActiveLockout> {
+  if (!normalizedKey) return { locked: false }
+
+  try {
+    const row = await prisma.loginIdentifierLockout.findUnique({
+      where: { normalizedKey },
+    })
+
+    if (!row?.lockoutUntil) {
+      return { locked: false }
+    }
+
+    const now = new Date()
+    if (row.lockoutUntil <= now) {
+      await prisma.loginIdentifierLockout.update({
+        where: { normalizedKey },
+        data: { failedAttempts: 0, lockoutUntil: null },
+      })
+      return { locked: false }
+    }
+
+    return {
+      locked: true,
+      until: row.lockoutUntil,
+      retryAfterSeconds: retryAfterSecondsFromUntil(row.lockoutUntil),
+    }
+  } catch (e) {
+    logRateLimitDbError("checkLoginIdentifierLockout", e)
+    return { locked: false }
+  }
+}
+
+/**
+ * Increments failed-attempt count for an IP under row lock.
+ * Does not increment while an active IP lockout is in effect (caller should gate before auth).
+ */
+export async function recordIpFailure(ipAddress: string): Promise<void> {
+  const now = new Date()
+
+  try {
+  await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<
+      { id: string; attempts: number; lockoutUntil: Date | null }[]
+    >(
+      Prisma.sql`SELECT "id", "attempts", "lockoutUntil" FROM "IpLockout" WHERE "ipAddress" = ${ipAddress} FOR UPDATE`
+    )
+
+    if (rows.length === 0) {
+      await tx.ipLockout.create({
+        data: { ipAddress, attempts: 1, lockoutUntil: null },
+      })
+      return
+    }
+
+    const row = rows[0]
+    if (row.lockoutUntil && row.lockoutUntil > now) {
+      return
+    }
+
+    const nextAttempts =
+      row.lockoutUntil && row.lockoutUntil <= now ? 1 : row.attempts + 1
+
+    await tx.ipLockout.update({
+      where: { ipAddress },
       data: {
-        ipAddress,
-        attempts: 1,
+        attempts: nextAttempts,
+        lockoutUntil:
+          nextAttempts >= IP_MAX_ATTEMPTS ? new Date(now.getTime() + IP_LOCKOUT_MS) : null,
       },
     })
-    return
-  }
-
-  // If previous lockout expired, reset attempts to 1
-  let newAttempts = lockout.attempts + 1
-  if (lockout.lockoutUntil && lockout.lockoutUntil < now) {
-    newAttempts = 1
-  }
-
-  const updateData: any = { attempts: newAttempts }
-
-  if (newAttempts >= MAX_ATTEMPTS) {
-    updateData.lockoutUntil = new Date(now.getTime() + LOCKOUT_DURATION_MS)
-    console.log(`[RateLimit] IP ${ipAddress} reached max attempts. Locking until ${updateData.lockoutUntil}`)
-  }
-
-  await prisma.ipLockout.update({
-    where: { ipAddress },
-    data: updateData,
   })
+  } catch (e) {
+    logRateLimitDbError("recordIpFailure", e)
+  }
 }
 
-export async function resetIpLockout(ipAddress: string) {
-  console.log(`[RateLimit] Resetting IP lockout for: ${ipAddress}`)
-  await prisma.ipLockout.upsert({
-    where: { ipAddress },
-    create: { ipAddress, attempts: 0, lockoutUntil: null },
-    update: { attempts: 0, lockoutUntil: null },
-  })
-}
-
-export async function checkUserLockout(userId: string): Promise<{ locked: boolean; until?: Date; remainingMinutes?: number }> {
-  console.log(`[RateLimit] Checking user lockout for: ${userId}`)
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { lockoutUntil: true, failedLoginAttempts: true },
-  })
-
-  if (user && user.lockoutUntil && user.lockoutUntil > new Date()) {
-    const remainingMs = user.lockoutUntil.getTime() - Date.now()
-    const remainingMinutes = Math.ceil(remainingMs / (60 * 1000))
-    console.log(`[RateLimit] User ${userId} is locked until ${user.lockoutUntil} (${remainingMinutes} mins left)`)
-    return { locked: true, until: user.lockoutUntil, remainingMinutes }
+export async function resetIpLockout(ipAddress: string): Promise<void> {
+  try {
+    await prisma.ipLockout.upsert({
+      where: { ipAddress },
+      create: { ipAddress, attempts: 0, lockoutUntil: null },
+      update: { attempts: 0, lockoutUntil: null },
+    })
+  } catch (e) {
+    logRateLimitDbError("resetIpLockout", e)
   }
-
-  return { locked: false }
 }
 
-export async function recordUserFailure(userId: string) {
-  console.log(`[RateLimit] Recording user failure for: ${userId}`)
+export async function recordLoginIdentifierFailure(normalizedKey: string): Promise<void> {
+  if (!normalizedKey) return
+
   const now = new Date()
-  
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { failedLoginAttempts: true, lockoutUntil: true },
+
+  try {
+  await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<
+      { normalizedKey: string; failedAttempts: number; lockoutUntil: Date | null }[]
+    >(
+      Prisma.sql`SELECT "normalizedKey", "failedAttempts", "lockoutUntil" FROM "LoginIdentifierLockout" WHERE "normalizedKey" = ${normalizedKey} FOR UPDATE`
+    )
+
+    if (rows.length === 0) {
+      await tx.loginIdentifierLockout.create({
+        data: { normalizedKey, failedAttempts: 1, lockoutUntil: null },
+      })
+      return
+    }
+
+    const row = rows[0]
+    if (row.lockoutUntil && row.lockoutUntil > now) {
+      return
+    }
+
+    const nextFailed =
+      row.lockoutUntil && row.lockoutUntil <= now ? 1 : row.failedAttempts + 1
+
+    await tx.loginIdentifierLockout.update({
+      where: { normalizedKey },
+      data: {
+        failedAttempts: nextFailed,
+        lockoutUntil:
+          nextFailed >= IDENTIFIER_MAX_ATTEMPTS
+            ? new Date(now.getTime() + IDENTIFIER_LOCKOUT_MS)
+            : null,
+      },
+    })
   })
-
-  if (!user) return
-
-  // If previous lockout expired, reset attempts to 1
-  let newAttempts = user.failedLoginAttempts + 1
-  if (user.lockoutUntil && user.lockoutUntil < now) {
-    newAttempts = 1
+  } catch (e) {
+    logRateLimitDbError("recordLoginIdentifierFailure", e)
   }
-
-  const updateData: any = { failedLoginAttempts: newAttempts }
-
-  if (newAttempts >= MAX_ATTEMPTS) {
-    updateData.lockoutUntil = new Date(now.getTime() + LOCKOUT_DURATION_MS)
-    console.log(`[RateLimit] User ${userId} reached max attempts. Locking until ${updateData.lockoutUntil}`)
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: updateData,
-  })
 }
 
-export async function resetUserLockout(userId: string) {
-  console.log(`[RateLimit] Resetting user lockout for: ${userId}`)
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      failedLoginAttempts: 0,
-      lockoutUntil: null,
-    },
-  })
+export async function resetLoginIdentifierLockout(normalizedKey: string): Promise<void> {
+  if (!normalizedKey) return
+  try {
+    await prisma.loginIdentifierLockout.delete({ where: { normalizedKey } })
+  } catch {
+    /* row may not exist or table missing */
+  }
 }
 
+/** Records one failed attempt for identifier and IP, then returns current lockout state. */
+export async function recordFailedLoginAttempt(
+  ipAddress: string,
+  normalizedKey: string
+): Promise<{ ip: ActiveLockout; identifier: ActiveLockout }> {
+  await recordLoginIdentifierFailure(normalizedKey)
+  await recordIpFailure(ipAddress)
+  const ip = await checkIpLockout(ipAddress)
+  const identifier = await checkLoginIdentifierLockout(normalizedKey)
+  return { ip, identifier }
+}
+
+export async function resetUserLockout(userId: string): Promise<void> {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        failedLoginAttempts: 0,
+        lockoutUntil: null,
+      },
+    })
+  } catch (e) {
+    logRateLimitDbError("resetUserLockout", e)
+  }
+}

@@ -1,4 +1,4 @@
-import NextAuth from "next-auth"
+import NextAuth, { CredentialsSignin } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { db } from "@/app/lib/db"
 import bcrypt from "bcryptjs"
@@ -12,19 +12,35 @@ import {
 } from "@/lib/token-auth"
 import crypto from "crypto"
 import { headers } from "next/headers"
-import { 
-  checkIpLockout, 
-  recordIpFailure, 
-  resetIpLockout, 
-  checkUserLockout, 
-  recordUserFailure, 
-  resetUserLockout 
+import {
+  checkIpLockout,
+  checkLoginIdentifierLockout,
+  recordFailedLoginAttempt,
+  resetIpLockout,
+  resetLoginIdentifierLockout,
+  resetUserLockout,
 } from "@/lib/rate-limit"
+import { normalizeLoginIdentifierForLockout } from "@/lib/login-identifier-normalize"
 
-function normalizeLoginIdentifier(value: string) {
-  const v = value.trim()
-  if (v.includes("@")) return v.toLowerCase()
-  return v.replace(/[\s\-\(\)]/g, "")
+function throwCredentialsLockoutCode(code: string): never {
+  const err = new CredentialsSignin()
+  err.code = code
+  throw err
+}
+
+async function recordCredentialFailureAndThrowIfLocked(ip: string, normalizedKey: string) {
+  try {
+    const { ip: ipSt, identifier: idSt } = await recordFailedLoginAttempt(ip, normalizedKey)
+    if (ipSt.locked) {
+      throwCredentialsLockoutCode(`LOCKOUT_IP_${ipSt.retryAfterSeconds}`)
+    }
+    if (idSt.locked) {
+      throwCredentialsLockoutCode(`LOCKOUT_IDENT_${idSt.retryAfterSeconds}`)
+    }
+  } catch (e) {
+    if (e instanceof CredentialsSignin) throw e
+    console.error("[auth] recordCredentialFailureAndThrowIfLocked", e)
+  }
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -43,7 +59,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const ipLockout = await checkIpLockout(ip)
         if (ipLockout.locked) {
-          throw new Error(`LOCKOUT_IP:${ipLockout.remainingMinutes}`)
+          throwCredentialsLockoutCode(`LOCKOUT_IP_${ipLockout.retryAfterSeconds}`)
         }
 
         if (!credentials?.email || !credentials?.password) {
@@ -63,6 +79,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const identifier = String(credentials.email).trim()
         const loginType = String(credentials.loginType || "")
+        const normalizedKey = normalizeLoginIdentifierForLockout(identifier)
+
+        const identifierLockout = await checkLoginIdentifierLockout(normalizedKey)
+        if (identifierLockout.locked) {
+          throwCredentialsLockoutCode(`LOCKOUT_IDENT_${identifierLockout.retryAfterSeconds}`)
+        }
 
         let user = await db.findUserByEmail(identifier)
 
@@ -75,7 +97,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (!user || !user.password) {
-          await recordIpFailure(ip)
           await writeAuditLog({
           userId: null,
           action: "LOGIN_FAILURE",
@@ -87,6 +108,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             identifier: identifier.substring(0, 20) + "...",
           },
         });
+          await recordCredentialFailureAndThrowIfLocked(ip, normalizedKey)
           return null;
         }
         
@@ -94,8 +116,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (loginType === "admin") {
           const adminRoles = ['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE']
           if (!adminRoles.includes(user.role)) {
-            await recordIpFailure(ip)
-            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -106,12 +126,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 reason: "NOT_ADMIN_USER",
               },
             });
+            await recordCredentialFailureAndThrowIfLocked(ip, normalizedKey)
             throw new Error("AccessDenied: Not an admin user")
           }
         } else if (loginType === "merchant") {
           if (user.role !== 'MERCHANT') {
-            await recordIpFailure(ip)
-            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -122,20 +141,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 reason: "NOT_MERCHANT_USER",
               },
             });
+            await recordCredentialFailureAndThrowIfLocked(ip, normalizedKey)
             throw new Error("AccessDenied: Not a merchant user")
           }
-        }
-
-        const userLockout = await checkUserLockout(user.id)
-        if (userLockout.locked) {
-          throw new Error(`LOCKOUT_USER:${userLockout.remainingMinutes}`)
         }
 
         // If the user is a merchant, ensure the merchant account is ACTIVE
         if (user.role === 'MERCHANT' && user.merchantId) {
           if (user.merchant?.status !== 'ACTIVE') {
-            await recordIpFailure(ip)
-            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -148,14 +161,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 merchantName: user.merchant?.name,
               },
             });
+            await recordCredentialFailureAndThrowIfLocked(ip, normalizedKey)
             return null; // Deny login for inactive/pending merchants
           }
 
           // Merchant login must match the current configured username only.
           const currentUsername = user.merchant?.contactUsername
           if (!currentUsername) {
-            await recordIpFailure(ip)
-            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -166,13 +178,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 reason: "INVALID_CREDENTIALS",
               },
             });
+            await recordCredentialFailureAndThrowIfLocked(ip, normalizedKey)
             return null;
           }
-          const provided = normalizeLoginIdentifier(identifier)
-          const expected = normalizeLoginIdentifier(currentUsername)
+          const provided = normalizeLoginIdentifierForLockout(identifier)
+          const expected = normalizeLoginIdentifierForLockout(currentUsername)
           if (provided !== expected) {
-            await recordIpFailure(ip)
-            await recordUserFailure(user.id)
             await writeAuditLog({
               userId: user.id,
               action: "LOGIN_FAILURE",
@@ -183,14 +194,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 reason: "INVALID_CREDENTIALS",
               },
             });
+            await recordCredentialFailureAndThrowIfLocked(ip, normalizedKey)
             return null;
           }
         }
         
         const isValid = await bcrypt.compare(credentials.password as string, user.password)
         if (!isValid) {
-          await recordIpFailure(ip)
-          await recordUserFailure(user.id)
           await writeAuditLog({
             userId: user.id,
             action: "LOGIN_FAILURE",
@@ -201,6 +211,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               reason: "INCORRECT_PASSWORD",
             },
           });
+          await recordCredentialFailureAndThrowIfLocked(ip, normalizedKey)
           return null;
         }
         
@@ -217,8 +228,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           },
         });
         
-        await resetIpLockout(ip)
-        await resetUserLockout(user.id)
+        try {
+          await resetIpLockout(ip)
+          await resetLoginIdentifierLockout(normalizedKey)
+          await resetUserLockout(user.id)
+        } catch (e) {
+          console.error("[auth] reset lockouts after successful login", e)
+        }
 
         return {
           id: user.id,

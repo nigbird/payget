@@ -12,19 +12,43 @@ import {
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
 import { requireCsrf } from '@/lib/request-security';
-import { 
-  checkIpLockout, 
-  recordIpFailure, 
-  resetIpLockout, 
-  checkUserLockout, 
-  recordUserFailure, 
-  resetUserLockout 
+import {
+  type ActiveLockout,
+  checkIpLockout,
+  checkLoginIdentifierLockout,
+  recordFailedLoginAttempt,
+  resetIpLockout,
+  resetLoginIdentifierLockout,
+  resetUserLockout,
 } from "@/lib/rate-limit";
+import { normalizeLoginIdentifierForLockout } from "@/lib/login-identifier-normalize";
 
-function normalizeLoginIdentifier(value: string) {
-  const v = value.trim()
-  if (v.includes("@")) return v.toLowerCase()
-  return v.replace(/[\s\-\(\)]/g, "")
+function lockoutResponseIp(retryAfterSeconds: number) {
+  return NextResponse.json(
+    {
+      error: "Too many failed login attempts from this network. Try again after the cooldown.",
+      code: "IP_LOCKOUT" as const,
+      retryAfterSeconds,
+    },
+    { status: 429 }
+  )
+}
+
+function lockoutResponseIdentifier(retryAfterSeconds: number) {
+  return NextResponse.json(
+    {
+      error: "Too many failed attempts for this login. Try again after the cooldown.",
+      code: "IDENTIFIER_LOCKOUT" as const,
+      retryAfterSeconds,
+    },
+    { status: 429 }
+  )
+}
+
+function firstLockoutResponse(ip: ActiveLockout, identifier: ActiveLockout) {
+  if (ip.locked) return lockoutResponseIp(ip.retryAfterSeconds)
+  if (identifier.locked) return lockoutResponseIdentifier(identifier.retryAfterSeconds)
+  return null
 }
 
 function refreshCookieName() {
@@ -48,15 +72,13 @@ export async function POST(request: Request) {
     const ipLockout = await checkIpLockout(ip)
     if (ipLockout.locked) {
       console.log(`[Login] IP ${ip} is currently locked`)
-      return NextResponse.json(
-        { error: `Too many attempts from this IP. Please try again after ${ipLockout.remainingMinutes} minutes.` },
-        { status: 429 }
-      )
+      return lockoutResponseIp(ipLockout.retryAfterSeconds)
     }
 
     const body = await request.json().catch(() => ({}))
     const identifier = typeof body.identifier === "string" ? body.identifier.trim() : ""
     const password = typeof body.password === "string" ? body.password : ""
+    const normalizedKey = normalizeLoginIdentifierForLockout(identifier)
 
     if (!identifier || !password) {
       await writeAuditLog({
@@ -74,6 +96,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "identifier and password are required" }, { status: 400 })
     }
 
+    const identifierLockoutEarly = await checkLoginIdentifierLockout(normalizedKey)
+    if (identifierLockoutEarly.locked) {
+      return lockoutResponseIdentifier(identifierLockoutEarly.retryAfterSeconds)
+    }
+
     let user = await db.findUserByEmail(identifier)
 
     // Fallback: allow merchant login by contact username (email or phone).
@@ -85,7 +112,6 @@ export async function POST(request: Request) {
     }
 
     if (!user || !user.password) {
-      await recordIpFailure(ip)
       await writeAuditLog({
         request,
         userId: null,
@@ -98,22 +124,15 @@ export async function POST(request: Request) {
           identifier: identifier.substring(0, 20) + "...",
         },
       })
+      const after = await recordFailedLoginAttempt(ip, normalizedKey)
+      const lr = firstLockoutResponse(after.ip, after.identifier)
+      if (lr) return lr
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
-    }
-
-    const userLockout = await checkUserLockout(user.id)
-    if (userLockout.locked) {
-      return NextResponse.json(
-        { error: `Account temporarily suspended. Please try again after ${userLockout.remainingMinutes} minutes.` },
-        { status: 429 }
-      )
     }
 
     // If the user is a merchant, ensure the merchant account is ACTIVE and username matches.
     if ((user as any).role === "MERCHANT" && (user as any).merchantId) {
       if ((user as any).merchant?.status !== "ACTIVE") {
-        await recordIpFailure(ip)
-        await recordUserFailure(user.id)
         await writeAuditLog({
           request,
           userId: user.id,
@@ -127,13 +146,14 @@ export async function POST(request: Request) {
             merchantName: (user as any).merchant?.name,
           },
         })
+        const after = await recordFailedLoginAttempt(ip, normalizedKey)
+        const lr = firstLockoutResponse(after.ip, after.identifier)
+        if (lr) return lr
         return NextResponse.json({ error: "Account not active" }, { status: 401 })
       }
 
       const currentUsername = (user as any).merchant?.contactUsername
       if (!currentUsername) {
-        await recordIpFailure(ip)
-        await recordUserFailure(user.id)
         await writeAuditLog({
           request,
           userId: user.id,
@@ -145,13 +165,14 @@ export async function POST(request: Request) {
             reason: "INVALID_CREDENTIALS",
           },
         })
+        const after = await recordFailedLoginAttempt(ip, normalizedKey)
+        const lr = firstLockoutResponse(after.ip, after.identifier)
+        if (lr) return lr
         return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
       }
-      const provided = normalizeLoginIdentifier(identifier)
-      const expected = normalizeLoginIdentifier(currentUsername)
+      const provided = normalizeLoginIdentifierForLockout(identifier)
+      const expected = normalizeLoginIdentifierForLockout(currentUsername)
       if (provided !== expected) {
-        await recordIpFailure(ip)
-        await recordUserFailure(user.id)
         await writeAuditLog({
           request,
           userId: user.id,
@@ -163,6 +184,9 @@ export async function POST(request: Request) {
             reason: "INVALID_CREDENTIALS",
           },
         })
+        const after = await recordFailedLoginAttempt(ip, normalizedKey)
+        const lr = firstLockoutResponse(after.ip, after.identifier)
+        if (lr) return lr
         return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
       }
     }
@@ -170,8 +194,6 @@ export async function POST(request: Request) {
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) {
       console.log(`[Login] Password mismatch for user: ${user.id}`)
-      await recordIpFailure(ip)
-      await recordUserFailure(user.id)
       await writeAuditLog({
         request,
         userId: user.id,
@@ -183,6 +205,9 @@ export async function POST(request: Request) {
           reason: "INCORRECT_PASSWORD",
         },
       })
+      const after = await recordFailedLoginAttempt(ip, normalizedKey)
+      const lr = firstLockoutResponse(after.ip, after.identifier)
+      if (lr) return lr
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
@@ -205,6 +230,7 @@ export async function POST(request: Request) {
     const expiresAt = computeRefreshTokenExpiresAt()
 
     await resetIpLockout(ip)
+    await resetLoginIdentifierLockout(normalizedKey)
     await resetUserLockout(user.id)
 
     await prisma.refreshToken.create({

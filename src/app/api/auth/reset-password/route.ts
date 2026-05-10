@@ -6,7 +6,8 @@ import { requireCsrf } from '@/lib/request-security';
 import { generateResetPasswordLink, sendNotification } from '@/lib/notifications';
 import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
-import { resetUserLockout } from '@/lib/rate-limit';
+import { resetUserLockout, resetLoginIdentifierLockout } from '@/lib/rate-limit';
+import { normalizeLoginIdentifierForLockout } from '@/lib/login-identifier-normalize';
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null; // reset-password flows are unauthenticated
@@ -242,6 +243,8 @@ export async function POST(request: Request) {
 
         if (merchantUser) {
           await resetUserLockout(merchantUser.id);
+          await resetLoginIdentifierLockout(normalizeLoginIdentifierForLockout(merchant.contactUsername));
+          await resetLoginIdentifierLockout(normalizeLoginIdentifierForLockout(merchant.email));
           await prisma.user.update({
             where: { id: merchantUser.id },
             data: {
@@ -253,6 +256,9 @@ export async function POST(request: Request) {
         }
       } else if (entityType === 'USER' && user) {
         await resetUserLockout(user.id);
+        if (user.email) {
+          await resetLoginIdentifierLockout(normalizeLoginIdentifierForLockout(user.email));
+        }
         await prisma.user.update({
           where: { id: user.id },
           data: {

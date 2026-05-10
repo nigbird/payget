@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
+import { safeCredentialsSignIn } from "@/lib/safe-credentials-signin"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +17,8 @@ import {
 } from "@/components/ui/select"
 import { Loader2, Lock, Mail, Phone, Eye, EyeOff, Building2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useLoginLockoutUi } from "@/app/login/use-login-lockout-ui"
+import { formatLockoutCountdown } from "@/lib/login-lockout-ui"
 
 export default function MerchantLogin() {
   const router = useRouter()
@@ -34,7 +37,8 @@ export default function MerchantLogin() {
   const [salesOtp, setSalesOtp] = useState("")
   const [merchants, setMerchants] = useState<{ id: string, name: string }[]>([])
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("")
-  const [lockoutError, setLockoutError] = useState<string | null>(null)
+  const [credentialError, setCredentialError] = useState<string | null>(null)
+  const lockout = useLoginLockoutUi()
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const handleOtpChange = (index: number, value: string) => {
@@ -67,47 +71,60 @@ export default function MerchantLogin() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (lockout.submitBlockedFor(credentials.email)) {
+      return
+    }
     setIsLoading(true)
-    setLockoutError(null)
+    setCredentialError(null)
 
     try {
-      const result = await signIn("credentials", {
+      const result = await safeCredentialsSignIn("credentials", {
         email: credentials.email,
         password: credentials.password,
         loginType: "merchant",
         redirect: false,
       })
 
-      if (result?.error) {
-        let errorMessage = "Invalid username or password. Please try again."
-        
-        if (result.error.includes("LOCKOUT_IP") || result.error.includes("LOCKOUT_USER")) {
-          const minutes = result.error.split(":")[1] || "15"
-          errorMessage = `Too many failed attempts. Please try again after ${minutes} minutes.`
-          setLockoutError(errorMessage)
-        } else if (result.error.includes("Not a merchant user")) {
-          errorMessage = "Access Denied: Please use the correct login portal for your account."
-        }
-
+      if (!result) {
         toast({
           variant: "destructive",
-          title: "Authentication Failed",
-          description: errorMessage
+          title: "Login unavailable",
+          description: "Could not reach authentication services. Refresh and try again.",
         })
-      } else {
-        toast({
-          title: "Welcome back",
-          description: "Login successful. Redirecting..."
-        })
-        router.refresh()
-        router.push("/merchant")
+        return
       }
+
+      const authFailed = Boolean(result.error) || result.ok === false
+      const lockoutActive = lockout.applyLockoutFromSignInResult(result, credentials.email)
+
+      if (authFailed) {
+        if (!lockoutActive) {
+          let errorMessage = "Invalid username or password. Please try again."
+          if (result.error === "AccessDenied" || result.code === "AccessDenied") {
+            errorMessage = "Access Denied: Please use the correct login portal for your account."
+          }
+          setCredentialError(errorMessage)
+          toast({
+            variant: "destructive",
+            title: "Authentication Failed",
+            description: errorMessage,
+          })
+        }
+        return
+      }
+
+      toast({
+        title: "Welcome back",
+        description: "Login successful. Redirecting...",
+      })
+      router.refresh()
+      router.replace("/merchant")
     } catch (err) {
       toast({
         variant: "destructive",
         title: "Login Error",
-        description: "Could not connect to the auth services."
-      });
+        description: "Could not connect to the auth services.",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -274,9 +291,19 @@ export default function MerchantLogin() {
                         className="h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                         required
                         value={credentials.email}
-                        onChange={(e) => setCredentials({...credentials, email: e.target.value})}
+                        onChange={(e) => {
+                          lockout.onIdentifierFieldChange(e.target.value)
+                          setCredentialError(null)
+                          setCredentials({ ...credentials, email: e.target.value })
+                        }}
+                        aria-invalid={lockout.identSecondsLeftFor(credentials.email) > 0}
                       />
                     </div>
+                    {lockout.identSecondsLeftFor(credentials.email) > 0 && lockout.identInline && (
+                      <p className="text-sm font-medium text-rose-600" role="alert">
+                        {lockout.identInline} (remaining {formatLockoutCountdown(lockout.identSecondsLeftFor(credentials.email))})
+                      </p>
+                    )}
                   </div>
                   
                   <div className="space-y-2.5">
@@ -292,7 +319,11 @@ export default function MerchantLogin() {
                         placeholder="Enter your password"
                         required
                         value={credentials.password}
-                        onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+                        onChange={(e) => {
+                          setCredentialError(null)
+                          setCredentials({ ...credentials, password: e.target.value })
+                        }}
+                        aria-invalid={Boolean(credentialError)}
                       />
                       <button
                         type="button"
@@ -303,6 +334,11 @@ export default function MerchantLogin() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {credentialError && (
+                      <p className="text-sm font-medium text-rose-600" role="alert">
+                        {credentialError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
@@ -315,17 +351,19 @@ export default function MerchantLogin() {
                     </Link>
                   </div>
 
-                  {lockoutError && (
+                  {lockout.ipSecondsLeft > 0 && lockout.ipBanner && (
                     <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-100 flex items-center gap-3 text-rose-600 animate-in fade-in slide-in-from-top-2 duration-300">
                       <Lock className="w-5 h-5 shrink-0" />
-                      <p className="text-sm font-semibold leading-tight">{lockoutError}</p>
+                      <p className="text-sm font-semibold leading-tight" role="alert">
+                        {lockout.ipBanner} (remaining {formatLockoutCountdown(lockout.ipSecondsLeft)})
+                      </p>
                     </div>
                   )}
 
                   <Button 
                     type="submit" 
                     className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
-                    disabled={isLoading}
+                    disabled={isLoading || lockout.submitBlockedFor(credentials.email)}
                   >
                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}
                   </Button>
