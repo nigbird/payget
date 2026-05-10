@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
 import { Eye, EyeOff, KeyRound, Loader2, Shield, UserCircle2 } from "lucide-react"
 
-import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,10 +19,11 @@ type SessionUser = {
 
 export default function AdminProfilePage() {
   const { data: session, update } = useSession()
-  const { toast } = useToast()
   const user = session?.user as SessionUser | undefined
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -51,19 +51,21 @@ export default function AdminProfilePage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setFormError(null)
+    setSuccessMessage(null)
 
     if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
-      toast({ title: "All fields are required", variant: "destructive" })
+      setFormError("Fill in every password field.")
       return
     }
 
     if (form.newPassword.length < 8) {
-      toast({ title: "New password must be at least 8 characters", variant: "destructive" })
+      setFormError("New password must be at least 8 characters.")
       return
     }
 
     if (form.newPassword !== form.confirmPassword) {
-      toast({ title: "New passwords do not match", variant: "destructive" })
+      setFormError("New password and confirmation must match.")
       return
     }
 
@@ -81,11 +83,7 @@ export default function AdminProfilePage() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: "Failed to change password" }))
-        toast({
-          title: "Failed to change password",
-          description: error.error,
-          variant: "destructive",
-        })
+        setFormError(error?.error ?? "Could not update your password.")
         return
       }
 
@@ -95,16 +93,9 @@ export default function AdminProfilePage() {
         newPassword: "",
         confirmPassword: "",
       })
-      toast({
-        title: "Password changed",
-        description: "Your admin password was updated successfully.",
-      })
+      setSuccessMessage("Password updated successfully. You remain signed in on this device.")
     } catch {
-      toast({
-        title: "Network error",
-        description: "Could not reach the password service.",
-        variant: "destructive",
-      })
+      setFormError("Could not reach the password service. Try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -181,7 +172,11 @@ export default function AdminProfilePage() {
                     id="currentPassword"
                     type={showCurrentPassword ? "text" : "password"}
                     value={form.currentPassword}
-                    onChange={(event) => setForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+                    onChange={(event) => {
+                      setFormError(null)
+                      setSuccessMessage(null)
+                      setForm((prev) => ({ ...prev, currentPassword: event.target.value }))
+                    }}
                     placeholder="Enter your current password"
                     className="h-11 rounded-[18px] border-[#F1E7D0] pr-11"
                     disabled={isSubmitting}
@@ -205,7 +200,11 @@ export default function AdminProfilePage() {
                     id="newPassword"
                     type={showNewPassword ? "text" : "password"}
                     value={form.newPassword}
-                    onChange={(event) => setForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+                    onChange={(event) => {
+                      setFormError(null)
+                      setSuccessMessage(null)
+                      setForm((prev) => ({ ...prev, newPassword: event.target.value }))
+                    }}
                     placeholder="Enter your new password"
                     className="h-11 rounded-[18px] border-[#F1E7D0] pr-11"
                     disabled={isSubmitting}
@@ -239,7 +238,11 @@ export default function AdminProfilePage() {
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     value={form.confirmPassword}
-                    onChange={(event) => setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                    onChange={(event) => {
+                      setFormError(null)
+                      setSuccessMessage(null)
+                      setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                    }}
                     placeholder="Confirm your new password"
                     className="h-11 rounded-[18px] border-[#F1E7D0] pr-11"
                     disabled={isSubmitting}
@@ -259,6 +262,17 @@ export default function AdminProfilePage() {
               <div className="rounded-[20px] border border-[#F1E7D0] bg-[#FFFDF7] p-4 text-sm text-slate-600">
                 Password changes apply immediately to your admin account and keep you signed in to the current session.
               </div>
+
+              {formError ? (
+                <p className="text-sm font-medium text-rose-600" role="alert">
+                  {formError}
+                </p>
+              ) : null}
+              {successMessage ? (
+                <p className="text-sm font-medium text-emerald-700" role="status">
+                  {successMessage}
+                </p>
+              ) : null}
 
               <Button type="submit" className="h-11 rounded-[18px]" disabled={isSubmitting}>
                 {isSubmitting ? (

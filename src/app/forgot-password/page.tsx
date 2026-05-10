@@ -6,17 +6,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2, Mail, CheckCircle2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-
 export default function ForgotPassword() {
-  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [identifier, setIdentifier] = useState("")
   const [sentTo, setSentTo] = useState<string | null>(null)
+  const [requestError, setRequestError] = useState<string | null>(null)
 
   const handleRequestReset = async (e: FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setRequestError(null)
 
     try {
       const response = await fetch('/api/auth/reset-password', {
@@ -27,24 +26,14 @@ export default function ForgotPassword() {
 
       if (response.ok) {
         setSentTo(identifier)
-        toast({
-          title: "Reset Link Sent!",
-          description: "Please check your email or SMS for the password reset link."
-        })
       } else {
         const error = await response.json()
-        toast({
-          variant: "destructive",
-          title: "Account Not Found",
-          description: error.error || "No account found with that email or phone number."
-        })
+        setRequestError(
+          error.error || "No account found with that email or phone number."
+        )
       }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Request Failed",
-        description: "Could not process your request at this time."
-      })
+    } catch {
+      setRequestError("Could not process your request right now. Try again shortly.")
     } finally {
       setIsLoading(false)
     }
@@ -99,9 +88,18 @@ export default function ForgotPassword() {
                         className="h-12 pl-10 pr-4 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                         required
                         value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
+                        aria-invalid={Boolean(requestError)}
+                        onChange={(e) => {
+                          setRequestError(null)
+                          setIdentifier(e.target.value)
+                        }}
                       />
                     </div>
+                    {requestError && (
+                      <p className="text-sm font-medium text-rose-600" role="alert">
+                        {requestError}
+                      </p>
+                    )}
                   </div>
                   <Button 
                     type="submit" 

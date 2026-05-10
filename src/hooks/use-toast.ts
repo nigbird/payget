@@ -8,11 +8,14 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 2
+/** After close animation completes, drop from DOM (Radix default ~250ms swipe + settle) */
+const TOAST_REMOVE_DELAY = 380
 
 type ToasterToast = ToastProps & {
   id: string
+  /** When set, replaces an existing toast with the same key instead of stacking. */
+  dedupeKey?: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
@@ -79,7 +82,10 @@ export const reducer = (state: State, action: Action): State => {
     case "ADD_TOAST":
       return {
         ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+        toasts: [action.toast, ...state.toasts.filter((t) => t.id !== action.toast.id)].slice(
+          0,
+          TOAST_LIMIT
+        ),
       }
 
     case "UPDATE_TOAST":
@@ -142,30 +148,54 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
-  const id = genId()
+/**
+ * Show a toast. Pass `dedupeKey` to replace an existing notification with the same key
+ * (avoids duplicate / stacked messages for repeated actions).
+ */
+function toast(payload: Toast) {
+  const { dedupeKey, ...restProps } = payload
 
-  const update = (props: ToasterToast) =>
+  let id = genId()
+  let existing: ToasterToast | undefined
+
+  if (dedupeKey) {
+    existing = memoryState.toasts.find((t) => t.dedupeKey === dedupeKey)
+    if (existing) {
+      id = existing.id
+    }
+  }
+
+  const update = (patch: Partial<ToasterToast> & { id?: string }) =>
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...patch, id },
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
-      },
+  const next: ToasterToast = {
+    ...restProps,
+    dedupeKey,
+    id,
+    open: true,
+    onOpenChange: (open) => {
+      if (!open) dismiss()
     },
-  })
+  }
+
+  if (existing) {
+    dispatch({
+      type: "UPDATE_TOAST",
+      toast: { ...next, id },
+    })
+  } else {
+    dispatch({
+      type: "ADD_TOAST",
+      toast: next,
+    })
+  }
 
   return {
-    id: id,
+    id,
     dismiss,
     update,
   }

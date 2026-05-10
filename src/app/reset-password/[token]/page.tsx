@@ -7,14 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertCircle, Loader2, Lock, Eye, EyeOff } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
 
 export default function ResetPassword({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
   const router = useRouter()
-  const { toast } = useToast()
   
   const [isLoading, setIsLoading] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [redirecting, setRedirecting] = useState(false)
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [entityId, setEntityId] = useState<string | null>(null)
   const [entityType, setEntityType] = useState<'MERCHANT' | 'USER' | null>(null)
@@ -51,26 +52,20 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    setFormError(null)
+
     if (passwords.new !== passwords.confirm) {
-      toast({
-        variant: "destructive",
-        title: "Mismatch",
-        description: "Passwords do not match."
-      })
+      setFormError("Passwords do not match.")
       return
     }
 
     if (passwords.new.length < 8) {
-      toast({
-        variant: "destructive",
-        title: "Too Weak",
-        description: "Password must be at least 8 characters."
-      })
+      setFormError("Password must be at least 8 characters.")
       return
     }
 
     setIsLoading(true)
+    let ok = false
 
     try {
       const response = await fetch('/api/auth/reset-password', {
@@ -84,13 +79,9 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
       })
 
       if (response.ok) {
+        ok = true
         const data = await response.json()
-        toast({
-          title: "Password Updated",
-          description: "Your new password has been set successfully."
-        })
-        
-        // Redirect to appropriate login page
+        setRedirecting(true)
         if (data.entityType === 'USER') {
           router.push("/login")
         } else {
@@ -98,20 +89,12 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
         }
       } else {
         const error = await response.json()
-        toast({
-          variant: "destructive",
-          title: "Reset Failed",
-          description: error.error || "Could not reset your password."
-        })
+        setFormError(error.error || "Could not reset your password.")
       }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Reset Failed",
-        description: "An error occurred during password reset."
-      })
+    } catch {
+      setFormError("Something went wrong. Try again in a moment.")
     } finally {
-      setIsLoading(false)
+      if (!ok) setIsLoading(false)
     }
   }
 
@@ -168,6 +151,9 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-white">
+      {redirecting ? (
+        <SigningInOverlay message="Password saved" subMessage="Taking you to sign in…" />
+      ) : null}
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
@@ -211,7 +197,10 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
                     className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                     required
                     value={passwords.new}
-                    onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                    onChange={(e) => {
+                      setFormError(null)
+                      setPasswords({ ...passwords, new: e.target.value })
+                    }}
                   />
                   <button
                     type="button"
@@ -235,7 +224,10 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
                     className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                     required
                     value={passwords.confirm}
-                    onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                    onChange={(e) => {
+                      setFormError(null)
+                      setPasswords({ ...passwords, confirm: e.target.value })
+                    }}
                   />
                   <button
                     type="button"
@@ -247,6 +239,12 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
                   </button>
                 </div>
               </div>
+
+              {formError ? (
+                <p className="text-sm font-medium text-rose-600 text-center" role="alert">
+                  {formError}
+                </p>
+              ) : null}
               
               <Button 
                 type="submit" 

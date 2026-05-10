@@ -3,7 +3,6 @@
 import { useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
 import { safeCredentialsSignIn } from "@/lib/safe-credentials-signin"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,13 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Loader2, Lock, Mail, Phone, Eye, EyeOff, Building2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 import { useLoginLockoutUi } from "@/app/login/use-login-lockout-ui"
 import { formatLockoutCountdown } from "@/lib/login-lockout-ui"
+import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
 
 export default function MerchantLogin() {
   const router = useRouter()
-  const { toast } = useToast()
   const [loginMode, setLoginMode] = useState<'email' | 'sales'>('email')
   const [isLoading, setIsLoading] = useState(false)
   const [isSendingOtp, setIsSendingOtp] = useState(false)
@@ -38,6 +36,10 @@ export default function MerchantLogin() {
   const [merchants, setMerchants] = useState<{ id: string, name: string }[]>([])
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("")
   const [credentialError, setCredentialError] = useState<string | null>(null)
+  const [salesPhoneError, setSalesPhoneError] = useState<string | null>(null)
+  const [salesOtpBanner, setSalesOtpBanner] = useState<string | null>(null)
+  const [salesOtpError, setSalesOtpError] = useState<string | null>(null)
+  const [signingIn, setSigningIn] = useState(false)
   const lockout = useLoginLockoutUi()
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
 
@@ -64,6 +66,7 @@ export default function MerchantLogin() {
     const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
     if (!pasted) return
     event.preventDefault()
+    setSalesOtpError(null)
     setSalesOtp(pasted)
     const focusIndex = Math.min(pasted.length, 5)
     requestAnimationFrame(() => otpRefs.current[focusIndex]?.focus())
@@ -77,6 +80,7 @@ export default function MerchantLogin() {
     setIsLoading(true)
     setCredentialError(null)
 
+    let authenticated = false
     try {
       const result = await safeCredentialsSignIn("credentials", {
         email: credentials.email,
@@ -86,11 +90,9 @@ export default function MerchantLogin() {
       })
 
       if (!result) {
-        toast({
-          variant: "destructive",
-          title: "Login unavailable",
-          description: "Could not reach authentication services. Refresh and try again.",
-        })
+        setCredentialError(
+          "We could not reach the sign-in service. Check your connection and try again."
+        )
         return
       }
 
@@ -104,43 +106,33 @@ export default function MerchantLogin() {
             errorMessage = "Access Denied: Please use the correct login portal for your account."
           }
           setCredentialError(errorMessage)
-          toast({
-            variant: "destructive",
-            title: "Authentication Failed",
-            description: errorMessage,
-          })
         }
         return
       }
 
-      toast({
-        title: "Welcome back",
-        description: "Login successful. Redirecting...",
-      })
+      authenticated = true
+      setSigningIn(true)
       router.refresh()
       router.replace("/merchant")
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Login Error",
-        description: "Could not connect to the auth services.",
-      })
+    } catch {
+      setCredentialError(
+        "Something went wrong while signing in. Check your connection and try again."
+      )
     } finally {
-      setIsLoading(false)
+      if (!authenticated) setIsLoading(false)
     }
   }
 
   const handleSendSalesOtp = async () => {
+    setSalesPhoneError(null)
+    setSalesOtpError(null)
     if (!salesPhone.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Phone Required",
-        description: "Please provide your sales phone number."
-      })
+      setSalesPhoneError("Enter the phone number registered for sales access.")
       return
     }
 
     setIsSendingOtp(true)
+    setSalesOtpBanner(null)
     try {
       const response = await fetch('/api/merchant/sales-otp/send', {
         method: 'POST',
@@ -150,11 +142,7 @@ export default function MerchantLogin() {
 
       const result = await response.json()
       if (!response.ok) {
-        toast({
-          variant: "destructive",
-          title: "OTP Error",
-          description: result.error || 'Unable to send OTP. Please try again.'
-        })
+        setSalesOtpError(result.error || "Unable to send a code right now. Try again shortly.")
         return
       }
 
@@ -163,16 +151,10 @@ export default function MerchantLogin() {
       if (result.merchants && result.merchants.length > 0) {
         setSelectedMerchantId(result.merchants[0].id)
       }
-      toast({
-        title: "OTP Sent",
-        description: result.message || 'A one-time code has been sent to your phone.'
-      })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "OTP Error",
-        description: "Unable to send OTP. Please check your connection."
-      })
+      setSalesOtpBanner(result.message || "A one-time code was sent to your phone.")
+      setSalesOtpError(null)
+    } catch {
+      setSalesOtpError("Unable to send OTP. Check your connection and try again.")
     } finally {
       setIsSendingOtp(false)
     }
@@ -180,6 +162,8 @@ export default function MerchantLogin() {
 
   const handleSalesLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSalesPhoneError(null)
+    setSalesOtpError(null)
 
     if (!otpSent) {
       await handleSendSalesOtp()
@@ -187,45 +171,39 @@ export default function MerchantLogin() {
     }
 
     if (!salesOtp.trim()) {
-      toast({
-        variant: "destructive",
-        title: "OTP Required",
-        description: "Please enter the one-time code sent to your phone."
-      })
+      setSalesOtpError("Enter the one-time code we sent to your phone.")
       return
     }
 
     setIsVerifyingOtp(true)
+    let otpSuccess = false
     try {
-      const result = await signIn("sales-otp", {
+      const result = await safeCredentialsSignIn("sales-otp", {
         phone: salesPhone,
         otp: salesOtp,
         merchantId: selectedMerchantId,
         redirect: false,
       })
 
-      if (result?.error) {
-        toast({
-          variant: "destructive",
-          title: "Verification Failed",
-          description: "The OTP is invalid or expired. Please request a new code."
-        })
-      } else {
-        toast({
-          title: "Welcome",
-          description: "Sales access granted. Redirecting to your merchant page."
-        })
-        router.refresh()
-        router.push("/merchant")
+      if (!result) {
+        setSalesOtpError("Unable to verify the code right now. Try again.")
+        return
       }
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Login Error",
-        description: "Could not verify your OTP at this time."
-      })
+
+      const failed = Boolean(result.error) || result.ok === false
+      if (failed) {
+        setSalesOtpError("That code is invalid or expired. Request a new code and try again.")
+        return
+      }
+
+      otpSuccess = true
+      setSigningIn(true)
+      router.refresh()
+      router.replace("/merchant")
+    } catch {
+      setSalesOtpError("Could not verify your code. Check your connection and try again.")
     } finally {
-      setIsVerifyingOtp(false)
+      if (!otpSuccess) setIsVerifyingOtp(false)
     }
   }
 
@@ -235,10 +213,16 @@ export default function MerchantLogin() {
     setOtpSent(false)
     setMerchants([])
     setSelectedMerchantId("")
+    setSalesPhoneError(null)
+    setSalesOtpError(null)
+    setSalesOtpBanner(null)
   }
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-white">
+      {signingIn ? (
+        <SigningInOverlay message="Signing you in…" subMessage="Opening your merchant portal" />
+      ) : null}
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
@@ -372,7 +356,10 @@ export default function MerchantLogin() {
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        onClick={() => setLoginMode('sales')}
+                        onClick={() => {
+                          resetSalesState()
+                          setLoginMode('sales')
+                        }}
                         className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors"
                       >
                         Sales Login
@@ -412,9 +399,19 @@ export default function MerchantLogin() {
                         className="h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                         required
                         value={salesPhone}
-                        onChange={(e) => setSalesPhone(e.target.value)}
+                        onChange={(e) => {
+                          setSalesPhoneError(null)
+                          setSalesOtpError(null)
+                          setSalesPhone(e.target.value)
+                        }}
+                        aria-invalid={Boolean(salesPhoneError)}
                       />
                     </div>
+                    {salesPhoneError && (
+                      <p className="text-sm font-medium text-rose-600" role="alert">
+                        {salesPhoneError}
+                      </p>
+                    )}
                   </div>
                   {otpSent && merchants.length > 1 && (
                     <div className="space-y-2.5 animate-fade-in">
@@ -455,13 +452,18 @@ export default function MerchantLogin() {
                           return (
                             <input
                               key={index}
-                              ref={(el) => (otpRefs.current[index] = el)}
+                              ref={(el) => {
+                                otpRefs.current[index] = el
+                              }}
                               type="text"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               maxLength={1}
                               value={digit}
-                              onChange={(e) => handleOtpChange(index, e.target.value)}
+                              onChange={(e) => {
+                                setSalesOtpError(null)
+                                handleOtpChange(index, e.target.value)
+                              }}
                               onKeyDown={(event) => handleOtpKeyDown(index, event)}
                               onPaste={handleOtpPaste}
                               className="w-12 h-14 rounded-2xl border border-[#E5E7EB] bg-white/80 text-center text-xl font-semibold tracking-[0.35em] focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/20 outline-none transition shadow-sm"
@@ -470,7 +472,17 @@ export default function MerchantLogin() {
                         })}
                       </div>
                       <p className="text-xs text-[#6B7280] font-medium text-center">Code expires in 5 minutes.</p>
+                      {salesOtpBanner && !salesOtpError && (
+                        <p className="text-sm font-medium text-emerald-700 text-center" role="status">
+                          {salesOtpBanner}
+                        </p>
+                      )}
                     </div>
+                  )}
+                  {salesOtpError && (
+                    <p className="text-sm font-medium text-rose-600 text-center px-1" role="alert">
+                      {salesOtpError}
+                    </p>
                   )}
                   <Button 
                     type="submit" 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Lock, Eye, EyeOff, LogOut } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
 
 type SessionUser = {
   role?: string
@@ -38,7 +38,6 @@ const getPostChangePasswordRedirect = (user?: SessionUser) => {
 export default function ChangePasswordPage() {
   const { data: session, update } = useSession()
   const router = useRouter()
-  const { toast } = useToast()
   const sessionUser = session?.user as SessionUser | undefined
   const isAdmin = !!sessionUser?.role && sessionUser.role !== "MERCHANT" && sessionUser.role !== "SALES"
   const isFirstLogin = Boolean(sessionUser?.firstLogin)
@@ -51,26 +50,30 @@ export default function ChangePasswordPage() {
     newPassword: "",
     confirmPassword: ""
   })
+  const [formError, setFormError] = useState<string | null>(null)
+  const [redirecting, setRedirecting] = useState(false)
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError(null)
 
     if (!credentials.currentPassword || !credentials.newPassword || !credentials.confirmPassword) {
-      toast({ title: "All fields are required", variant: "destructive" })
+      setFormError("Fill in every field below.")
       return
     }
 
     if (credentials.newPassword !== credentials.confirmPassword) {
-      toast({ title: "New passwords do not match", variant: "destructive" })
+      setFormError("New password and confirmation must match.")
       return
     }
 
     if (credentials.newPassword.length < 8) {
-      toast({ title: "New password must be at least 8 characters", variant: "destructive" })
+      setFormError("New password must be at least 8 characters.")
       return
     }
 
     setIsLoading(true)
+    let completed = false
     try {
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
@@ -82,21 +85,18 @@ export default function ChangePasswordPage() {
       })
 
       if (res.ok) {
-        toast({ title: "Password changed successfully!" })
-        
-        // Update the session to clear firstLogin
+        completed = true
+        setRedirecting(true)
         await update({ ...session, user: { ...session?.user, firstLogin: false } })
-        
-        // Redirect to appropriate dashboard
         router.push(getPostChangePasswordRedirect(sessionUser))
       } else {
         const error = await res.json()
-        toast({ title: "Failed to change password", description: error.error, variant: "destructive" })
+        setFormError(error?.error || "Could not update your password. Try again.")
       }
-    } catch (error) {
-      toast({ title: "Network error", variant: "destructive" })
+    } catch {
+      setFormError("Something went wrong. Check your connection and try again.")
     } finally {
-      setIsLoading(false)
+      if (!completed) setIsLoading(false)
     }
   }
 
@@ -106,6 +106,12 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-white">
+      {redirecting ? (
+        <SigningInOverlay
+          message="Saving your password…"
+          subMessage="Redirecting to your dashboard"
+        />
+      ) : null}
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
@@ -162,7 +168,10 @@ export default function ChangePasswordPage() {
                     placeholder="Enter your current password"
                     required
                     value={credentials.currentPassword}
-                    onChange={(e) => setCredentials({...credentials, currentPassword: e.target.value})}
+                    onChange={(e) => {
+                      setFormError(null)
+                      setCredentials({ ...credentials, currentPassword: e.target.value })
+                    }}
                     disabled={isLoading}
                   />
                   <button
@@ -187,7 +196,10 @@ export default function ChangePasswordPage() {
                     placeholder="Enter your new password"
                     required
                     value={credentials.newPassword}
-                    onChange={(e) => setCredentials({...credentials, newPassword: e.target.value})}
+                    onChange={(e) => {
+                      setFormError(null)
+                      setCredentials({ ...credentials, newPassword: e.target.value })
+                    }}
                     disabled={isLoading}
                   />
                   <button
@@ -212,7 +224,10 @@ export default function ChangePasswordPage() {
                     placeholder="Confirm your new password"
                     required
                     value={credentials.confirmPassword}
-                    onChange={(e) => setCredentials({...credentials, confirmPassword: e.target.value})}
+                    onChange={(e) => {
+                      setFormError(null)
+                      setCredentials({ ...credentials, confirmPassword: e.target.value })
+                    }}
                     disabled={isLoading}
                   />
                   <button
@@ -249,6 +264,12 @@ export default function ChangePasswordPage() {
                   </button>
                 </div>
               </div>
+
+              {formError ? (
+                <p className="text-sm font-medium text-rose-600 text-center" role="alert">
+                  {formError}
+                </p>
+              ) : null}
 
               <Button 
                 type="submit" 

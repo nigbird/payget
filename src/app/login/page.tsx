@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Lock, Mail, Eye, EyeOff } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 import { useLoginLockoutUi } from "@/app/login/use-login-lockout-ui"
 import { formatLockoutCountdown } from "@/lib/login-lockout-ui"
+import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
 
 export default function AdminLogin() {
   const router = useRouter()
-  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [signingIn, setSigningIn] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [credentials, setCredentials] = useState({
     email: "",
@@ -32,6 +32,7 @@ export default function AdminLogin() {
     setIsLoading(true)
     setCredentialError(null)
 
+    let authenticated = false
     try {
       const result = await safeCredentialsSignIn("credentials", {
         email: credentials.email,
@@ -41,11 +42,9 @@ export default function AdminLogin() {
       })
 
       if (!result) {
-        toast({
-          variant: "destructive",
-          title: "Login unavailable",
-          description: "Could not reach authentication services. Refresh and try again.",
-        })
+        setCredentialError(
+          "We could not reach the sign-in service. Check your connection and try again."
+        )
         return
       }
 
@@ -59,34 +58,26 @@ export default function AdminLogin() {
             errorMessage = "Access Denied: Your account does not have admin privileges."
           }
           setCredentialError(errorMessage)
-          toast({
-            variant: "destructive",
-            title: "Authentication Failed",
-            description: errorMessage,
-          })
         }
         return
       }
 
-      toast({
-        title: "Welcome back",
-        description: "Login successful. Redirecting...",
-      })
+      authenticated = true
+      setSigningIn(true)
       router.refresh()
       router.replace("/admin")
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Login Error",
-        description: "Could not connect to the auth services.",
-      })
+    } catch {
+      setCredentialError(
+        "Something went wrong while signing in. Check your connection and try again."
+      )
     } finally {
-      setIsLoading(false)
+      if (!authenticated) setIsLoading(false)
     }
   }
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-white">
+      {signingIn ? <SigningInOverlay message="Signing you in…" subMessage="Preparing your admin workspace" /> : null}
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />

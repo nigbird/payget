@@ -7,13 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
 function SetupPasswordForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { toast } = useToast()
   
   const merchantId = searchParams.get('merchantId')
   const token = searchParams.get('token')
@@ -23,25 +21,19 @@ function SetupPasswordForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    setFormError(null)
+
     if (password !== confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Passwords do not match",
-        description: "Please ensure both password fields match."
-      })
+      setFormError("Both password fields must match.")
       return
     }
 
     if (password.length < 8) {
-      toast({
-        variant: "destructive",
-        title: "Password too short",
-        description: "Password must be at least 8 characters long."
-      })
+      setFormError("Password must be at least 8 characters long.")
       return
     }
 
@@ -56,20 +48,12 @@ function SetupPasswordForm() {
 
       if (response.ok) {
         setIsSuccess(true)
-        toast({
-          title: "Account Activated!",
-          description: "Your password has been set and your account is now active."
-        })
       } else {
         const error = await response.json()
-        throw new Error(error.error || 'Failed to set password')
+        setFormError(error.error || "Failed to set password.")
       }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Setup Failed",
-        description: error.message
-      })
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Something went wrong. Try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -151,7 +135,10 @@ function SetupPasswordForm() {
                 placeholder="••••••••"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setFormError(null)
+                  setPassword(e.target.value)
+                }}
               />
               <button
                 type="button"
@@ -174,11 +161,21 @@ function SetupPasswordForm() {
                 placeholder="••••••••"
                 required
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setFormError(null)
+                  setConfirmPassword(e.target.value)
+                }}
               />
             </div>
           </div>
         </CardContent>
+        {formError ? (
+          <div className="px-6 pb-2">
+            <p className="text-sm font-medium text-destructive text-center" role="alert">
+              {formError}
+            </p>
+          </div>
+        ) : null}
         <CardFooter>
           <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Activate & Set Password"}
