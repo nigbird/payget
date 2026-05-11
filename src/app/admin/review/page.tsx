@@ -672,7 +672,7 @@ function MerchantReviewContent() {
                               <a 
                                 href={doc.url} 
                                 download={doc.name}
-                                className="flex-1 inline-flex items-center justify-center h-8 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                                className="flex-1 inline-flex items-center justify-center h-8 text-[10px] font-bold uppercase tracking-wider rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
                               >
                                 <Download className="w-3 h-3 mr-1.5" /> Download
                               </a>
@@ -786,7 +786,7 @@ function MerchantReviewContent() {
                             </div>
                             
                             <Button 
-                              className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
+                              className="w-full h-12 text-sm font-medium rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'initial_approve')}
                               disabled={!canSetLimits || !selectedMerchant._permissions?.canSetLimits || submittingAction !== null}
                             >
@@ -822,7 +822,7 @@ function MerchantReviewContent() {
                               </div>
                             )}
                             <Button 
-                              className="w-full h-12 text-sm font-medium rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all duration-300" 
+                              className="w-full h-12 text-sm font-medium rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'final_approve')}
                               disabled={!canApprove || !selectedMerchant._permissions?.canApprove || submittingAction !== null}
                             >
@@ -870,7 +870,7 @@ function MerchantReviewContent() {
                             <div className="flex gap-2">
                               <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRequestingUpdate(false)} disabled={submittingAction !== null}>Cancel</Button>
                               <Button 
-                                className="flex-1 text-xs h-8 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm" 
+                                className="flex-1 text-xs h-8 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" 
                                 onClick={handleRequestUpdate}
                                 disabled={submittingAction !== null}
                               >
@@ -1003,7 +1003,7 @@ function MerchantReviewContent() {
                     <a 
                       href={previewFile?.url} 
                       download={previewFile?.name}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-600 text-white rounded-xl font-medium shadow-sm hover:bg-amber-700 transition-all duration-300"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300"
                     >
                       <Download className="w-4 h-4" /> Download File
                     </a>

@@ -125,3 +125,59 @@ export async function searchAuditLogs(params: AuditLogSearchParams = {}) {
     totalPages: Math.ceil(total / limit),
   };
 }
+
+export async function exportAuditLogs(params: AuditLogSearchParams = {}) {
+  const {
+    search,
+    action,
+    entityType,
+    userId,
+    startDate,
+    endDate,
+  } = params;
+
+  const where: any = {};
+
+  if (search) {
+    where.OR = [
+      { action: { contains: search, mode: "insensitive" } },
+      { entityType: { contains: search, mode: "insensitive" } },
+      { user: { name: { contains: search, mode: "insensitive" } } },
+      { user: { email: { contains: search, mode: "insensitive" } } },
+    ];
+  }
+
+  if (action) {
+    where.action = action;
+  }
+
+  if (entityType) {
+    where.entityType = entityType;
+  }
+
+  if (userId) {
+    where.userId = userId;
+  }
+
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) {
+      where.createdAt.gte = new Date(startDate);
+    }
+    if (endDate) {
+      where.createdAt.lte = new Date(endDate);
+    }
+  }
+
+  const logs = await prisma.auditLog.findMany({
+    where,
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return logs;
+}

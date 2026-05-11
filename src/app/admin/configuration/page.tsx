@@ -596,7 +596,7 @@ export default function MasterDataConfigPage() {
                     className={cn(
                       "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border-2",
                       isActive
-                        ? "bg-amber-600 border-amber-600 text-white shadow-lg shadow-amber-900/20 translate-y-[-1px]"
+                        ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] border-white/30 text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all translate-y-[-1px]"
                         : "bg-white border-black/5 text-slate-600 hover:bg-amber-50/50 hover:border-amber-200"
                     )}
                   >
@@ -646,7 +646,7 @@ export default function MasterDataConfigPage() {
                   
                   <Button 
                     onClick={openAddDialog} 
-                    className="h-10 rounded-2xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 transition-colors gap-2"
+                    className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2"
                   >
                     <Plus className="h-4 w-4" /> Add New
                   </Button>
@@ -905,7 +905,7 @@ export default function MasterDataConfigPage() {
             <Button
               onClick={handleAdd}
               disabled={isSubmitting}
-              className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Entry"}
             </Button>
@@ -973,7 +973,7 @@ export default function MasterDataConfigPage() {
             <Button
               onClick={handleUpdate}
               disabled={isSubmitting}
-              className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
             </Button>
@@ -1105,7 +1105,7 @@ export default function MasterDataConfigPage() {
             <Button
               onClick={handleImport}
               disabled={isImporting || importPreview.length === 0}
-              className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
             >
               {isImporting ? (
                 <>

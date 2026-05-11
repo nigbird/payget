@@ -312,7 +312,7 @@ export default function UserManagementPage() {
           {canCreateUser && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="h-11 rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all gap-2 px-6">
+                <Button className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2 px-6">
                   <Plus className="w-4 h-4" /> Add User
                 </Button>
               </DialogTrigger>
@@ -480,7 +480,7 @@ export default function UserManagementPage() {
                   </Button>
                   <Button 
                     onClick={handleCreateUser}
-                    className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors"
+                    className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
                   >
                     Create User
                   </Button>
@@ -863,7 +863,7 @@ export default function UserManagementPage() {
               </Button>
               <Button 
                 onClick={handleUpdateUser}
-                className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors"
+                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
               >
                 Update User
               </Button>

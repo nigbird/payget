@@ -31,7 +31,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Eye,
-  Code2
+  Code2,
+  Download
 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { Badge } from "@/components/ui/badge"
@@ -138,6 +139,34 @@ export default function AuditLogsPage() {
     setIsDetailDialogOpen(true)
   }
 
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams()
+      params.set("export", "true")
+      
+      if (searchQuery) params.set("search", searchQuery)
+      if (selectedAction) params.set("action", selectedAction)
+      if (selectedEntityType) params.set("entityType", selectedEntityType)
+      if (startDate) params.set("startDate", startDate)
+      if (endDate) params.set("endDate", endDate)
+
+      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`)
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      }
+    } catch (error) {
+      console.error("Failed to export audit logs:", error)
+    }
+  }
+
   const formatAction = (action: string) => {
     return action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
   }
@@ -180,6 +209,12 @@ export default function AuditLogsPage() {
           <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Audit Logs</h2>
           <p className="text-sm text-amber-800/60 font-medium">Comprehensive audit trail of all system activities.</p>
         </div>
+        <Button 
+          onClick={handleExport}
+          className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+        >
+          <Download className="w-4 h-4 mr-2" /> Export Logs
+        </Button>
       </div>
 
       <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
@@ -252,7 +287,7 @@ export default function AuditLogsPage() {
               <div className="flex gap-2">
                 <Button 
                   onClick={handleFilter}
-                  className="h-10 rounded-2xl bg-amber-600 text-white shadow-sm hover:bg-amber-700"
+                  className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
                 >
                   <Filter className="w-4 h-4 mr-2" /> Apply Filters
                 </Button>

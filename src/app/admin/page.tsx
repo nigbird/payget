@@ -471,7 +471,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <Button className="w-full rounded-[18px]" onClick={handleSaveConfig}>
+                    <Button className="w-full rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" onClick={handleSaveConfig}>
                       Save changes
                     </Button>
                   </div>

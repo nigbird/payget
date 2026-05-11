@@ -257,7 +257,7 @@ export default function RoleManagementPage() {
           {canCreateRole && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="h-11 rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all gap-2 px-6">
+                <Button className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2 px-6">
                   <Plus className="w-4 h-4" /> Create New Role
                 </Button>
               </DialogTrigger>
@@ -345,7 +345,7 @@ export default function RoleManagementPage() {
 
                 <DialogFooter className="p-6 border-t border-slate-50 bg-slate-50/50">
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 px-6">Cancel</Button>
-                  <Button onClick={handleCreateRole} className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 px-8 transition-all">Create Role</Button>
+                  <Button onClick={handleCreateRole} className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-8">Create Role</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -659,7 +659,7 @@ export default function RoleManagementPage() {
 
           <DialogFooter className="p-6 border-t border-slate-50 bg-slate-50/50">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 px-6">Cancel</Button>
-            <Button onClick={handleEditRole} className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 px-8 transition-all">Save Changes</Button>
+            <Button onClick={handleEditRole} className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-8">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
