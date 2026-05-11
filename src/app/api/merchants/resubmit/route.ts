@@ -3,6 +3,7 @@ import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
+import { validateUrl } from '@/lib/url-validation';
 
 export async function PATCH(request: Request) {
   try {
@@ -11,6 +12,33 @@ export async function PATCH(request: Request) {
 
     const body = await request.json();
     const { token, ...updateData } = body;
+
+    // Server-side URL validation
+    const errors: Record<string, string> = {};
+
+    // Website URL validation
+    const websiteUrlValidation = validateUrl(updateData.websiteUrl, 'website');
+    if (!websiteUrlValidation.valid) {
+      errors.websiteUrl = websiteUrlValidation.error;
+    }
+
+    // Callback URL validation
+    const callbackUrlValidation = validateUrl(updateData.callbackUrl, 'callback');
+    if (!callbackUrlValidation.valid) {
+      errors.callbackUrl = callbackUrlValidation.error;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "MERCHANT_RESUBMIT",
+        entityType: "MERCHANT",
+        entityId: null,
+        newValue: { result: "failed", reason: "VALIDATION_FAILED", errors },
+      });
+      return NextResponse.json({ error: 'Validation failed', errors }, { status: 400 });
+    }
 
     const actorUserId: string | null = null;
 

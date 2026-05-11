@@ -5,6 +5,7 @@ import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import bcrypt from 'bcryptjs';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
+import { validateUrl } from '@/lib/url-validation';
 import { generateJweSecret } from '@/lib/jwe';
 import { encryptMerchantSecretAtRest } from '@/lib/merchant-secret';
 import { writeAuditLog } from '@/lib/audit-log';
@@ -81,6 +82,18 @@ export async function POST(request: Request) {
     if (!data.category) errors.category = 'Industry category is required';
     if (!data.businessType) errors.businessType = 'Business type is required';
     if (!data.accountNumber?.trim()) errors.accountNumber = 'Account number is required';
+
+    // Website URL validation
+    const websiteUrlValidation = validateUrl(data.websiteUrl, 'website');
+    if (!websiteUrlValidation.valid) {
+      errors.websiteUrl = websiteUrlValidation.error;
+    }
+
+    // Callback URL validation
+    const callbackUrlValidation = validateUrl(data.callbackUrl, 'callback');
+    if (!callbackUrlValidation.valid) {
+      errors.callbackUrl = callbackUrlValidation.error;
+    }
 
     // Business description word count validation (max 50 words)
     if (data.businessDescription) {

@@ -98,11 +98,11 @@ export default function AdminLogin() {
         </div>
       </div>
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-6 sm:p-8">
         <div className="w-full max-w-md animate-fade-in-up">
-          <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
+          <div className="backdrop-blur-md bg-white/70 rounded-2xl shadow-2xl px-5 py-6 sm:p-8 space-y-5 sm:space-y-8">
             <div className="flex justify-center">
-              <div className="w-20 h-20 flex items-center justify-center">
+              <div className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center">
                 <img 
                   src="/niblogo.png" 
                   alt="Nib Bank Logo" 
@@ -111,13 +111,13 @@ export default function AdminLogin() {
               </div>
             </div>
 
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">Admin Login</h1>
-              <p className="text-[#6B7280] font-medium">Please login to your admin account</p>
+            <div className="text-center space-y-1.5 sm:space-y-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#1F2937] tracking-tight">Admin Login</h1>
+              <p className="text-sm sm:text-base text-[#6B7280] font-medium">Please login to your admin account</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2.5">
+            <form onSubmit={handleLogin} className="space-y-4 sm:space-y-6">
+              <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Email or Phone</Label>
                 <div className="relative group transition-all">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
@@ -125,7 +125,7 @@ export default function AdminLogin() {
                     id="email" 
                     type="text"
                     placeholder="enter your email or phone number" 
-                    className="h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-11 sm:h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                     required
                     value={credentials.email}
                     onChange={(e) => {
@@ -143,7 +143,7 @@ export default function AdminLogin() {
                 )}
               </div>
               
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-sm font-semibold text-[#374151]">Password</Label>
                 </div>
@@ -152,7 +152,7 @@ export default function AdminLogin() {
                   <Input 
                     id="password" 
                     type={showPassword ? "text" : "password"} 
-                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-11 sm:h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                     placeholder="Enter your password"
                     required
                     value={credentials.password}
@@ -178,7 +178,7 @@ export default function AdminLogin() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between pt-0.5">
                 <div className="flex items-center space-x-2">
                   <input type="checkbox" id="remember" className="w-4 h-4 rounded border-[#E5E7EB] text-[#f8b513] focus:ring-[#f8b513]/20" />
                   <Label htmlFor="remember" className="text-sm text-[#6B7280]">Remember me</Label>
@@ -202,7 +202,7 @@ export default function AdminLogin() {
 
               <Button 
                 type="submit" 
-                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
+                className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
                 disabled={isLoading || lockout.submitBlockedFor(credentials.email)}
               >
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}

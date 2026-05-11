@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
 import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from "@/lib/utils"
+import { validateUrl } from "@/lib/url-validation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 function ReviewUpdateForm() {
@@ -310,6 +311,18 @@ function ReviewUpdateForm() {
     if (isNaN(Number(formData.dailyLimit))) newErrors.dailyLimit = "Daily limit must be a number"
     if (isNaN(Number(formData.transactionLimit))) newErrors.transactionLimit = "Transaction limit must be a number"
     if (documents.length === 0) newErrors.documents = "Upload at least one document"
+
+    // Website URL validation
+    const websiteUrlValidation = validateUrl(formData.websiteUrl, 'website')
+    if (!websiteUrlValidation.valid) {
+      newErrors.websiteUrl = websiteUrlValidation.error
+    }
+
+    // Callback URL validation
+    const callbackUrlValidation = validateUrl(formData.callbackUrl, 'callback')
+    if (!callbackUrlValidation.valid) {
+      newErrors.callbackUrl = callbackUrlValidation.error
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -603,20 +616,22 @@ function ReviewUpdateForm() {
                   <div className="space-y-2">
                     <Label>Website URL (Optional)</Label>
                     <Input 
-                      className="h-11 rounded-xl"
+                      className={`h-11 rounded-xl ${errors.websiteUrl ? 'border-red-500' : ''}`}
                       value={formData.websiteUrl}
                       maxLength={255}
                       onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
                     />
+                    {errors.websiteUrl && <p className="text-[11px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Callback URL (Optional)</Label>
                     <Input 
-                      className="h-11 rounded-xl"
+                      className={`h-11 rounded-xl ${errors.callbackUrl ? 'border-red-500' : ''}`}
                       value={formData.callbackUrl}
-                      maxLength={255}
+                      maxLength={2048}
                       onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
                     />
+                    {errors.callbackUrl && <p className="text-[11px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Industry Category</Label>

@@ -34,6 +34,7 @@ import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
 import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
+import { validateUrl } from "@/lib/url-validation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 
@@ -281,8 +282,17 @@ export default function MerchantSelfRegistration() {
     if (!formData.businessType) newErrors.businessType = "Business type is required"
     if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
 
-    // Ensure no error is set for callbackUrl
-    delete newErrors.callbackUrl;
+    // Website URL validation
+    const websiteUrlValidation = validateUrl(formData.websiteUrl, 'website')
+    if (!websiteUrlValidation.valid) {
+      newErrors.websiteUrl = websiteUrlValidation.error
+    }
+
+    // Callback URL validation
+    const callbackUrlValidation = validateUrl(formData.callbackUrl, 'callback')
+    if (!callbackUrlValidation.valid) {
+      newErrors.callbackUrl = callbackUrlValidation.error
+    }
 
     if (documents.length === 0) {
       newErrors.documents = "Please upload at least one compliance document"
@@ -368,15 +378,15 @@ export default function MerchantSelfRegistration() {
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
-          <div className="p-8 text-center border-b border-slate-50">
+        <Card className="max-w-md w-full shadow-lg shadow-slate-900/5 border-0 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
+          <div className="px-6 py-7 sm:p-8 text-center border-b border-slate-100/60">
             <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
               <CheckCircle2 className="w-6 h-6 text-emerald-600" />
             </div>
             <h3 className="text-xl font-medium text-slate-800 tracking-tight">Application Submitted</h3>
             <p className="text-slate-500 mt-1 text-sm">In review</p>
           </div>
-          <CardContent className="py-6 px-8 space-y-6">
+          <CardContent className="py-6 px-6 sm:px-8 space-y-6">
             <div className="bg-slate-50 rounded-xl p-5 text-center">
               <p className="text-sm text-slate-600 leading-relaxed">
                 Thank you for applying. Your application is currently <span className="font-medium text-slate-900">Pending Review</span>.
@@ -386,7 +396,7 @@ export default function MerchantSelfRegistration() {
               </p>
             </div>
           </CardContent>
-          <CardFooter className="px-8 pb-8 pt-2">
+          <CardFooter className="px-6 sm:px-8 pb-8 pt-2">
             <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" asChild>
               <Link href="/login/merchant">Return to Login</Link>
             </Button>
@@ -405,10 +415,10 @@ export default function MerchantSelfRegistration() {
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </Link>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              {/* <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <CreditCard className="text-primary w-5 h-5" />
-              </div>
-              <h1 className="text-lg font-bold text-gray-900">Merchant Onboarding</h1>
+              </div> */}
+              {/* <h1 className="text-lg font-bold text-gray-900">Merchant Onboarding</h1> */}
             </div>
           </div>
           <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-medium">
@@ -417,7 +427,7 @@ export default function MerchantSelfRegistration() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
         <div className="space-y-10">
           {/* New Premium Header Section */}
           <div className="relative overflow-hidden">
@@ -441,10 +451,10 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 <div className="space-y-1">
-                  <h2 className="text-4xl font-black tracking-tight text-gray-900 font-headline">
+                  <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-gray-900 font-headline">
                     Register Your Business
                   </h2>
-                  <p className="text-sm text-gray-500 font-medium max-w-xl">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium max-w-xl">
                     Provide your legal entity details and compliance documents to start processing payments.
                   </p>
                 </div>
@@ -473,24 +483,24 @@ export default function MerchantSelfRegistration() {
             <div className="absolute bottom-0 left-0 h-[2px] w-24 bg-gradient-to-r from-[#f8b513] to-transparent" />
           </div>
 
-          <Card className="overflow-hidden rounded-[26px] border border-[#eddcc0] bg-white/90 shadow-[0_20px_60px_rgba(117,67,25,0.07)]">
+          <Card className="overflow-hidden rounded-[20px] sm:rounded-[26px] border-0 bg-white/95 shadow-[0_18px_55px_rgba(117,67,25,0.08)]">
             <CardContent className="p-0">
               <form onSubmit={handleSubmit} className="divide-y divide-gray-100">
                 {/* Section 1: Company Profile */}
-                <div className="p-8 space-y-6">
+                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <Building2 className="h-5 w-5 text-[#754319]" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Company Profile</h3>
-                      <p className="text-xs text-gray-400">Basic information about your legal entity</p>
+                      <h3 className="text-xs sm:text-sm font-semibold text-gray-900 uppercase tracking-wider">Company Profile</h3>
+                      <p className="text-[10px] sm:text-xs text-gray-400">Basic information about your legal entity</p>
                     </div>
                   </div>
 
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-sm font-medium text-gray-700">Business Name</Label>
+                      <Label htmlFor="name" className="text-xs sm:text-sm font-medium text-gray-700">Business Name</Label>
                       <Input 
                         id="name" 
                         placeholder="Legal Entity Name" 
@@ -503,7 +513,7 @@ export default function MerchantSelfRegistration() {
                       {errors.name && <p className="text-[11px] text-red-500 font-medium">{errors.name}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium text-gray-700">Business Email</Label>
+                      <Label htmlFor="email" className="text-xs sm:text-sm font-medium text-gray-700">Business Email</Label>
                       <Input 
                         id="email" 
                         type="email" 
@@ -518,7 +528,7 @@ export default function MerchantSelfRegistration() {
                     </div>
 
                     <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">Settlement Account Number</Label>
+                      <Label htmlFor="accountNumber" className="text-xs sm:text-sm font-medium text-gray-700">Settlement Account Number</Label>
                       <Input
                         id="accountNumber"
                         inputMode="numeric"
@@ -536,7 +546,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 {/* Section 2: Authorized Contact */}
-                <div className="p-8 space-y-6">
+                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <User className="h-5 w-5 text-[#754319]" />
@@ -549,7 +559,7 @@ export default function MerchantSelfRegistration() {
 
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="contactName" className="text-sm font-medium text-gray-700">Full Name</Label>
+                      <Label htmlFor="contactName" className="text-xs sm:text-sm font-medium text-gray-700">Full Name</Label>
                       <Input 
                         id="contactName" 
                         placeholder="Authorized Representative" 
@@ -562,7 +572,7 @@ export default function MerchantSelfRegistration() {
                       {errors.contactName && <p className="text-[11px] text-red-500 font-medium">{errors.contactName}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Email or Phone Number</Label>
+                      <Label htmlFor="contactUsername" className="text-xs sm:text-sm font-medium text-gray-700">Email or Phone Number</Label>
                       <div className="relative group">
                         <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                         <Input 
@@ -581,7 +591,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 {/* Section 3: Business Details */}
-                <div className="p-8 space-y-6">
+                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <Store className="h-5 w-5 text-[#754319]" />
@@ -594,7 +604,7 @@ export default function MerchantSelfRegistration() {
 
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-2 sm:col-span-2">
-                      <Label className="text-sm font-medium text-gray-700">Business Logo (Optional)</Label>
+                      <Label className="text-xs sm:text-sm font-medium text-gray-700">Business Logo (Optional)</Label>
                       <div
                         className="relative border-2 border-dashed border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-1 bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group"
                         onClick={() => logoInputRef.current?.click()}
@@ -654,7 +664,7 @@ export default function MerchantSelfRegistration() {
                     </div>
 
                     <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">
+                      <Label htmlFor="businessDescription" className="text-xs sm:text-sm font-medium text-gray-700">
                         Business Description 
                         <span className="text-[10px] ml-2 font-bold text-slate-400">
                           ({formData.businessDescription.trim().split(/\s+/).filter(Boolean).length}/50 words, max 500 chars)
@@ -678,7 +688,7 @@ export default function MerchantSelfRegistration() {
                       {errors.businessDescription && <p className="text-[11px] text-red-500 font-medium">{errors.businessDescription}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="websiteUrl" className="text-sm font-medium text-gray-700">Website URL (Optional)</Label>
+                      <Label htmlFor="websiteUrl" className="text-xs sm:text-sm font-medium text-gray-700">Website URL (Optional)</Label>
                       <div className="relative group">
                         <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                         <Input 
@@ -694,23 +704,24 @@ export default function MerchantSelfRegistration() {
                       {errors.websiteUrl && <p className="text-[11px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="callbackUrl" className="text-sm font-medium text-gray-700">Callback URL (Optional)</Label>
+                      <Label htmlFor="callbackUrl" className="text-xs sm:text-sm font-medium text-gray-700">Callback URL (Optional)</Label>
                       <div className="relative group">
                         <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="callbackUrl" 
                           type="url" 
                           placeholder="https://yourbusiness.com/callback" 
-                          maxLength={255}
-                          className="pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                          maxLength={2048}
+                          className={`pl-10 h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.callbackUrl ? 'border-red-500' : ''}`}
                           value={formData.callbackUrl}
                           onChange={e => setFormData({...formData, callbackUrl: e.target.value})}
                         />
                       </div>
+                      {errors.callbackUrl && <p className="text-[11px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="category" className="text-sm font-medium text-gray-700">Industry Category</Label>
+                      <Label htmlFor="category" className="text-xs sm:text-sm font-medium text-gray-700">Industry Category</Label>
                       <Select onValueChange={(v) => setFormData({...formData, category: v})} value={formData.category}>
                         <SelectTrigger className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.category ? 'border-red-500' : ''}`}>
                           <SelectValue placeholder="Select Category" />
@@ -724,7 +735,7 @@ export default function MerchantSelfRegistration() {
                       {errors.category && <p className="text-[11px] text-red-500 font-medium">{errors.category}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="businessType" className="text-sm font-medium text-gray-700">Business Type</Label>
+                      <Label htmlFor="businessType" className="text-xs sm:text-sm font-medium text-gray-700">Business Type</Label>
                       <Select onValueChange={(v) => setFormData({...formData, businessType: v})} value={formData.businessType}>
                         <SelectTrigger className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.businessType ? 'border-red-500' : ''}`}>
                           <SelectValue placeholder="Select Type" />
@@ -741,7 +752,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 {/* Section 4: Compliance Documents */}
-                <div className="p-8 space-y-6">
+                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <FileText className="h-5 w-5 text-[#754319]" />
@@ -817,8 +828,8 @@ export default function MerchantSelfRegistration() {
                   </div>
                 </div>
 
-                <div className="p-8 bg-gray-50/50">
-                  <Button type="submit" className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all" disabled={isSubmitting}>
+                <div className="px-5 py-6 sm:p-8 bg-gray-50/50">
+                  <Button type="submit" className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />
