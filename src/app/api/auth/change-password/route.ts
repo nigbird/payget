@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import { requireAuthUser } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
+import { validatePassword } from '@/lib/password-policy';
+import { getPwnedCount } from '@/lib/pwned-password.server';
 
 export async function POST(request: Request) {
   try {
@@ -43,8 +45,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Current and new password are required' }, { status: 400 });
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json({ error: 'New password must be at least 8 characters long' }, { status: 400 });
+    const policy = validatePassword(newPassword);
+    if (!policy.valid) {
+      return NextResponse.json({ error: policy.errors[0] ?? 'Password does not meet policy requirements' }, { status: 400 });
+    }
+
+    const pwnedCount = await getPwnedCount(newPassword);
+    if (pwnedCount > 0) {
+      return NextResponse.json({ error: `For your security, this password isn’t safe to use. Please choose a different one.` }, { status: 400 });
     }
 
     if (!dbUser.password) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { Eye, EyeOff, KeyRound, Loader2, Shield, UserCircle2 } from "lucide-react"
 
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordStrength } from "@/components/auth/password-strength"
+import { validatePassword } from "@/lib/password-policy"
 
 type SessionUser = {
   name?: string | null
@@ -33,22 +35,6 @@ export default function AdminProfilePage() {
     confirmPassword: "",
   })
 
-  const passwordStrength = useMemo(() => {
-    const password = form.newPassword
-    if (!password) return { label: "Not set", width: "0%", color: "bg-slate-200" }
-
-    let score = 0
-    if (password.length >= 8) score += 1
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1
-    if (/\d/.test(password)) score += 1
-    if (/[^a-zA-Z\d]/.test(password)) score += 1
-
-    if (score <= 1) return { label: "Weak", width: "25%", color: "bg-rose-500" }
-    if (score === 2) return { label: "Fair", width: "50%", color: "bg-amber-500" }
-    if (score === 3) return { label: "Good", width: "75%", color: "bg-yellow-500" }
-    return { label: "Strong", width: "100%", color: "bg-emerald-500" }
-  }, [form.newPassword])
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFormError(null)
@@ -59,8 +45,9 @@ export default function AdminProfilePage() {
       return
     }
 
-    if (form.newPassword.length < 8) {
-      setFormError("New password must be at least 8 characters.")
+    const policy = validatePassword(form.newPassword)
+    if (!policy.valid) {
+      setFormError(policy.errors[0] ?? "Password does not meet the required policy.")
       return
     }
 
@@ -219,16 +206,7 @@ export default function AdminProfilePage() {
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>Strength</span>
-                    <span>{passwordStrength.label}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className={`h-full rounded-full transition-all ${passwordStrength.color}`} style={{ width: passwordStrength.width }} />
-                  </div>
-                  <p className="text-xs text-slate-500">Use at least 8 characters with mixed case, numbers, and symbols.</p>
-                </div>
+                <PasswordStrength password={form.newPassword} className="pt-1" />
               </div>
 
               <div className="space-y-2">

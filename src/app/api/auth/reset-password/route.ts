@@ -8,6 +8,8 @@ import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
 import { resetUserLockout, resetLoginIdentifierLockout } from '@/lib/rate-limit';
 import { normalizeLoginIdentifierForLockout } from '@/lib/login-identifier-normalize';
+import { validatePassword } from '@/lib/password-policy';
+import { getPwnedCount } from '@/lib/pwned-password.server';
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null; // reset-password flows are unauthenticated
@@ -222,6 +224,20 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json({ error: 'Token expired' }, { status: 400 });
+      }
+
+      if (!password) {
+        return NextResponse.json({ error: 'Password is required' }, { status: 400 });
+      }
+
+      const policy = validatePassword(password);
+      if (!policy.valid) {
+        return NextResponse.json({ error: policy.errors[0] ?? 'Password does not meet policy requirements' }, { status: 400 });
+      }
+
+      const pwnedCount = await getPwnedCount(password);
+      if (pwnedCount > 0) {
+        return NextResponse.json({ error: `For your security, this password isn’t safe to use. Please choose a different one.` }, { status: 400 });
       }
 
       // Hash password for both merchant and user

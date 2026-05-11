@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { requireCsrf } from '@/lib/request-security';
+import { validatePassword } from '@/lib/password-policy';
+import { getPwnedCount } from '@/lib/pwned-password.server';
 
 export async function POST(
   request: Request,
@@ -16,6 +18,16 @@ export async function POST(
 
     if (!password || !token) {
       return NextResponse.json({ error: 'Password and token are required' }, { status: 400 });
+    }
+
+    const policy = validatePassword(password);
+    if (!policy.valid) {
+      return NextResponse.json({ error: policy.errors[0] ?? 'Password does not meet policy requirements' }, { status: 400 });
+    }
+
+    const pwnedCount = await getPwnedCount(password);
+    if (pwnedCount > 0) {
+      return NextResponse.json({ error: `For your security, this password isn’t safe to use. Please choose a different one.` }, { status: 400 });
     }
 
     const merchant = await prisma.merchant.findUnique({

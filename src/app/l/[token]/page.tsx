@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { PasswordStrength } from "@/components/auth/password-strength"
+import { validatePassword } from "@/lib/password-policy"
 
 type ResolvedPayment = {
   merchantId: string
@@ -147,11 +149,12 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
       return
     }
 
-    if (password.length < 8) {
+    const policy = validatePassword(password)
+    if (!policy.valid) {
       toast({
         variant: "destructive",
-        title: "Password too short",
-        description: "Password must be at least 8 characters long."
+        title: "Password does not meet requirements",
+        description: policy.errors[0] ?? "Password does not meet the required policy."
       })
       return
     }
@@ -296,7 +299,7 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-[#6B7280] mt-1">Minimum 8 characters with letters and numbers.</p>
+                <PasswordStrength password={password} />
               </div>
               
               <div className="space-y-2.5">

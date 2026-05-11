@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react"
 import Link from "next/link"
+import { PasswordStrength } from "@/components/auth/password-strength"
+import { validatePassword } from "@/lib/password-policy"
 
 function SetupPasswordForm() {
   const searchParams = useSearchParams()
@@ -32,8 +34,9 @@ function SetupPasswordForm() {
       return
     }
 
-    if (password.length < 8) {
-      setFormError("Password must be at least 8 characters long.")
+    const policy = validatePassword(password)
+    if (!policy.valid) {
+      setFormError(policy.errors[0] ?? "Password does not meet the required policy.")
       return
     }
 
@@ -148,7 +151,7 @@ function SetupPasswordForm() {
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            <p className="text-[10px] text-muted-foreground">Minimum 8 characters with letters and numbers.</p>
+            <PasswordStrength password={password} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm Password</Label>

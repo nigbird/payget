@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertCircle, Loader2, Lock, Eye, EyeOff } from "lucide-react"
 import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
+import { PasswordStrength } from "@/components/auth/password-strength"
+import { validatePassword } from "@/lib/password-policy"
 
 export default function ResetPassword({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -59,8 +61,9 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
       return
     }
 
-    if (passwords.new.length < 8) {
-      setFormError("Password must be at least 8 characters.")
+    const policy = validatePassword(passwords.new)
+    if (!policy.valid) {
+      setFormError(policy.errors[0] ?? "Password does not meet the required policy.")
       return
     }
 
@@ -211,7 +214,7 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-[#6B7280] mt-1">Minimum 8 characters with letters and numbers.</p>
+                <PasswordStrength password={passwords.new} />
               </div>
               
               <div className="space-y-2.5">

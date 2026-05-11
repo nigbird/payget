@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Lock, Eye, EyeOff, LogOut } from "lucide-react"
 import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
+import { PasswordStrength } from "@/components/auth/password-strength"
+import { validatePassword } from "@/lib/password-policy"
 
 type SessionUser = {
   role?: string
@@ -67,8 +69,9 @@ export default function ChangePasswordPage() {
       return
     }
 
-    if (credentials.newPassword.length < 8) {
-      setFormError("New password must be at least 8 characters.")
+    const policy = validatePassword(credentials.newPassword)
+    if (!policy.valid) {
+      setFormError(policy.errors[0] ?? "Password does not meet the required policy.")
       return
     }
 
@@ -211,6 +214,7 @@ export default function ChangePasswordPage() {
                     {newPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <PasswordStrength password={credentials.newPassword} />
               </div>
               
               <div className="space-y-2.5">
