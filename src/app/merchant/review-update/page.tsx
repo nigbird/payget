@@ -39,6 +39,7 @@ function ReviewUpdateForm() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const otpRefs = useRef<Array<HTMLInputElement | null>>([])
   
   const token = searchParams.get('token')
   
@@ -75,6 +76,34 @@ function ReviewUpdateForm() {
   
   const [documents, setDocuments] = useState<MerchantDocument[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, "").slice(0, 1)
+    const nextDigits = otp.padEnd(6, "").split("").slice(0, 6)
+    nextDigits[index] = digit
+    const nextOtp = nextDigits.join("").trimEnd()
+    setOtp(nextOtp)
+
+    if (digit && index < 5) {
+      otpRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Backspace" && !otp[index] && index > 0) {
+      const prev = otpRefs.current[index - 1]
+      prev?.focus()
+    }
+  }
+
+  const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
+    if (!pasted) return
+    event.preventDefault()
+    setOtp(pasted)
+    const focusIndex = Math.min(pasted.length, 5)
+    requestAnimationFrame(() => otpRefs.current[focusIndex]?.focus())
+  }
 
   useEffect(() => {
     if (!token) {
@@ -310,85 +339,131 @@ function ReviewUpdateForm() {
 
   if (error) {
     return (
-      <Card className="max-w-md w-full shadow-lg border-none">
-        <CardHeader className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <CardTitle className="text-red-600">Invalid or Expired Link</CardTitle>
-          <CardDescription>{error}</CardDescription>
-        </CardHeader>
-        {/* <CardFooter>
-          <Button variant="outline" className="w-full" onClick={() => router.push('/')}>Return Home</Button>
-        </CardFooter> */}
-      </Card>
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-lg border-none">
+          <CardHeader className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <CardTitle className="text-red-600">Invalid or Expired Link</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          {/* <CardFooter>
+            <Button variant="outline" className="w-full" onClick={() => router.push('/')}>Return Home</Button>
+          </CardFooter> */}
+        </Card>
+      </div>
     )
   }
 
-  if (step === 'validate') return <div className="flex items-center gap-2"><Loader2 className="animate-spin" /> Validating link...</div>
+  if (step === 'validate') return <div className="min-h-screen bg-white flex items-center gap-2"><Loader2 className="animate-spin" /> Validating link...</div>
 
   if (step === 'otp') {
+
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
-          <div className="p-8 text-center border-b border-slate-50">
-            <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-4">
-              <ShieldCheck className="w-6 h-6 text-amber-600" />
-            </div>
-            <h3 className="text-xl font-medium text-slate-800 tracking-tight">Verify Identity</h3>
-            <p className="text-slate-500 mt-1 text-sm">Security check</p>
+      <div className="min-h-screen relative overflow-hidden bg-white">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+          
+          <div className="absolute inset-0 opacity-5">
+            <svg className="w-full h-full min-w-full min-h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="honeycomb" x="0" y="0" width="60" height="52" patternUnits="userSpaceOnUse">
+                  <polygon points="30,5 50,15 50,35 30,45 10,35 10,15" fill="none" stroke="#754319" strokeWidth="1"/>
+                  <polygon points="0,26 20,36 20,56 0,66 -20,56 -20,36" fill="none" stroke="#754319" strokeWidth="1"/>
+                  <polygon points="60,26 80,36 80,56 60,66 40,56 40,36" fill="none" stroke="#754319" strokeWidth="1"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#honeycomb)" />
+            </svg>
           </div>
-          <CardContent className="py-8 px-8 space-y-6">
-            <div className="bg-slate-50 rounded-xl p-5 text-center">
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Enter the code sent to your {merchant.contactType}: <span className="font-bold text-slate-900">{merchant.contactUsername}</span>
-              </p>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <Button
-                  variant="link"
-                  className="text-xs font-bold text-amber-600 hover:text-amber-700"
-                  onClick={handleSendOtp}
-                  disabled={submittingAction !== null}
-                >
-                  {submittingAction === 'send_otp' ? <Loader2 className="animate-spin mr-2" /> : "Send OTP"}
-                </Button>
+        </div>
+
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
+          <div className="w-full max-w-md animate-fade-in-up">
+            <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
+              <div className="text-center space-y-2">
+                <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">Verify Identity</h1>
+                <p className="text-[#6B7280] font-medium">
+                  Security check
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Verification Code</Label>
-                <Input 
-                  placeholder="Enter 6-digit code" 
-                  className="h-12 rounded-xl text-center text-lg tracking-widest font-bold border-slate-200 bg-white shadow-sm focus:ring-amber-500/20"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  maxLength={6}
-                />
+
+              <div className="space-y-6">
+                <div className="bg-slate-50 rounded-xl p-5 text-center">
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Enter the code sent to your {merchant.contactType}: <span className="font-bold text-slate-900">{merchant.contactUsername}</span>
+                  </p>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-end">
+                    <Button
+                      variant="link"
+                      className="text-xs font-bold text-[#f8b513] hover:text-[#754319]"
+                      onClick={handleSendOtp}
+                      disabled={submittingAction !== null}
+                    >
+                      {submittingAction === 'send_otp' ? <Loader2 className="animate-spin mr-2" /> : "Send OTP"}
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-medium uppercase tracking-widest text-amber-800/60">OTP Code</Label>
+                    <div className="flex items-center justify-center gap-2">
+                      {Array.from({ length: 6 }).map((_, index) => {
+                        const digit = otp[index] ?? ""
+                        return (
+                          <input
+                            key={index}
+                            ref={(el) => {
+                              otpRefs.current[index] = el
+                            }}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => {
+                              handleOtpChange(index, e.target.value)
+                            }}
+                            onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                            onPaste={handleOtpPaste}
+                            className="w-12 h-14 rounded-2xl border border-[#E5E7EB] bg-white/80 text-center text-xl font-semibold tracking-[0.35em] focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/20 outline-none transition shadow-sm"
+                          />
+                        )
+                      })}
+                    </div>
+                    <p className="text-xs text-[#6B7280] mt-1 text-center">Code expires in 5 minutes.</p>
+                  </div>
+                  <Button 
+                    className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
+                    onClick={handleVerifyOtp} 
+                    disabled={submittingAction !== null || otp.length < 6}
+                  >
+                    {submittingAction === 'verify_otp' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Verify & Continue"}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full h-10 text-xs font-bold text-[#f8b513] hover:text-[#754319] transition-colors" 
+                    onClick={handleSendOtp} 
+                    disabled={submittingAction !== null}
+                  >
+                    {submittingAction === 'send_otp' ? <Loader2 className="animate-spin mr-2" /> : "Resend verification code"}
+                  </Button>
+                </div>
               </div>
-              <Button 
-                className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-bold transition-all" 
-                onClick={handleVerifyOtp} 
-                disabled={submittingAction !== null || otp.length < 6}
-              >
-                {submittingAction === 'verify_otp' ? <Loader2 className="animate-spin mr-2" /> : "Verify & Continue"}
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full h-10 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50" 
-                onClick={handleSendOtp} 
-                disabled={submittingAction !== null}
-              >
-                {submittingAction === 'send_otp' ? <Loader2 className="animate-spin mr-2" /> : "Resend code"}
-              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (step === 'review') {
     return (
-      <div className="max-w-5xl w-full py-8 space-y-10">
+      <div className="min-h-screen bg-white flex items-start justify-center p-4">
+        <div className="max-w-5xl w-full py-8 space-y-10">
         <div className="relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#eadcc4]/40">
             <div className="space-y-4">
@@ -610,6 +685,7 @@ function ReviewUpdateForm() {
             </form>
           </CardContent>
         </Card>
+        </div>
       </div>
     )
   }
@@ -650,8 +726,8 @@ function ReviewUpdateForm() {
 
 export default function ReviewUpdatePage() {
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <Suspense fallback={<Loader2 className="w-8 h-8 animate-spin text-primary" />}>
+    <div className="min-h-screen w-full">
+      <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
         <ReviewUpdateForm />
       </Suspense>
     </div>
