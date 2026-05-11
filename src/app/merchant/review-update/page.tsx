@@ -365,7 +365,7 @@ function ReviewUpdateForm() {
                 />
               </div>
               <Button 
-                className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-bold shadow-sm transition-all" 
+                className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-bold transition-all" 
                 onClick={handleVerifyOtp} 
                 disabled={submittingAction !== null || otp.length < 6}
               >
@@ -602,7 +602,7 @@ function ReviewUpdateForm() {
               </div>
 
               <div className="p-8 bg-slate-50/50">
-                <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl bg-amber-600 hover:bg-amber-700 shadow-lg" disabled={submittingAction !== null}>
+                <Button type="submit" className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={submittingAction !== null}>
                   {submittingAction === 'resubmit' ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="w-5 h-5 mr-2" />}
                   Resubmit Application
                 </Button>
@@ -636,7 +636,7 @@ function ReviewUpdateForm() {
             </div>
           </CardContent>
           <CardFooter className="px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm transition-all" asChild>
+            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" asChild>
               <Link href="/">Return to Home</Link>
             </Button>
           </CardFooter>

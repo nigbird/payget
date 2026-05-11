@@ -346,7 +346,7 @@ export default function MerchantLogin() {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                    className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
                     disabled={isLoading || lockout.submitBlockedFor(credentials.email)}
                   >
                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}
@@ -367,7 +367,7 @@ export default function MerchantLogin() {
                     </div>
                     <Link 
                       href="/register" 
-                      className="w-full flex items-center justify-center h-12 text-base font-bold rounded-xl bg-[#f8b513]/10 text-[#754319] hover:bg-[#f8b513]/20 transition-all duration-300"
+                      className="w-full flex items-center justify-center h-12 text-base font-bold rounded-2xl bg-[#f8b513]/10 text-[#754319] hover:bg-[#f8b513]/20 transition-all duration-300"
                     >
                       Register as New Merchant
                     </Link>

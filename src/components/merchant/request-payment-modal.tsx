@@ -386,7 +386,7 @@ export function RequestPaymentModal({
           <Button
             type="button"
             onClick={() => handleRequestPayment("push")}
-            className="h-10 rounded-xl bg-amber-600 hover:bg-amber-700 text-xs font-bold text-white shadow-sm transition-all"
+            className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 text-xs font-bold transition-all"
             disabled={isSubmitting || !isMerchantApproved}
           >
             {isSubmitting && lastMode === "push" ? (

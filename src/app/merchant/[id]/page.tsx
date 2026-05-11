@@ -532,7 +532,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           <Button
             type="button"
             onClick={() => handleRequestPayment("push")}
-            className="h-10 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:saturate-110 text-xs font-bold text-white shadow-lg shadow-amber-900/20 transition-all"
+            className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
             disabled={isSubmitting || !isApproved}
           >
             {isSubmitting && lastMode === "push" ? (
@@ -626,7 +626,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           <div className="flex items-center gap-2">
             <Button
               disabled={!isApproved}
-              className="h-9 md:h-11 min-h-[36px] md:min-h-[44px] rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-900/30 hover:-translate-y-0.5 transition-all px-3 md:px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all px-3 md:px-6"
               onClick={() => setIsRequestPanelOpen(true)}
             >
               <Sparkles className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -898,7 +898,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Button 
                     onClick={handleShare}
-                    className="h-10 rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm flex items-center justify-center gap-2 transition-all text-xs font-bold"
+                    className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all flex items-center justify-center gap-2 text-xs font-bold"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     Share Link

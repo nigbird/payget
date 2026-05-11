@@ -325,7 +325,7 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
               
               <Button 
                 type="submit" 
-                className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -577,7 +577,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
                 <div className="space-y-4">
                   {!pushSent ? (
                     <Button
-                      className="h-12 w-full rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm transition-all"
+                      className="h-12 w-full rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all"
                       onClick={handleExecute}
                       disabled={processing}
                     >

@@ -387,7 +387,7 @@ export default function MerchantSelfRegistration() {
             </div>
           </CardContent>
           <CardFooter className="px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm transition-all" asChild>
+            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" asChild>
               <Link href="/login/merchant">Return to Login</Link>
             </Button>
           </CardFooter>
@@ -818,7 +818,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 <div className="p-8 bg-gray-50/50">
-                  <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={isSubmitting}>
+                  <Button type="submit" className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />

@@ -308,7 +308,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           </div>
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="h-11 min-h-11 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg shadow-amber-700/30 hover:-translate-y-0.5 transition-all"
+            className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
           >
             <UserPlus className="mr-2 h-4 w-4" />
             Add Team Member
@@ -605,7 +605,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               </Button>
               <Button
                 type="submit"
-                className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors"
+                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
               >
                 Add Member
               </Button>
@@ -708,7 +708,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               </Button>
               <Button
                 type="submit"
-                className="rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 h-11 transition-colors"
+                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
               >
                 Save Changes
               </Button>

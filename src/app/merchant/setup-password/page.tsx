@@ -80,7 +80,7 @@ function SetupPasswordForm() {
           </div>
         </CardContent>
         <CardFooter className="px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-xl bg-amber-600 text-white hover:bg-amber-700 shadow-sm font-medium transition-all" onClick={() => router.push('/login/merchant')}>
+            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" onClick={() => router.push('/login/merchant')}>
               Continue to Login
             </Button>
           </CardFooter>
@@ -177,7 +177,7 @@ function SetupPasswordForm() {
           </div>
         ) : null}
         <CardFooter>
-          <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
+          <Button type="submit" className="w-full h-11 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Activate & Set Password"}
           </Button>
         </CardFooter>

@@ -569,7 +569,7 @@ export default function RoleManagementPage() {
           <p className="text-slate-500 text-sm max-w-xs mx-auto mt-1 font-medium leading-relaxed">
             Define specialized access levels by creating your first custom security role.
           </p>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="mt-6 rounded-xl bg-amber-600 text-white shadow-sm hover:bg-amber-700 px-6 font-bold h-11 transition-all">
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="mt-6 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 px-6 font-bold h-11 transition-all">
             Get Started
           </Button>
         </div>

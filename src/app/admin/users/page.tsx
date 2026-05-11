@@ -719,9 +719,9 @@ export default function UserManagementPage() {
                         key={pageNum}
                         variant={currentPage === pageNum ? "default" : "outline"}
                         size="sm"
-                        className={`h-8 min-w-[32px] rounded-xl border-black/10 text-xs font-bold transition-all ${
+                        className={`h-8 min-w-[32px] rounded-2xl border-black/10 text-xs font-bold transition-all ${
                           currentPage === pageNum 
-                            ? "bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-900/20" 
+                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-sm shadow-amber-950/15" 
                             : "bg-white text-slate-600 hover:bg-amber-50/50"
                         }`}
                         onClick={() => setCurrentPage(pageNum)}

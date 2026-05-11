@@ -526,7 +526,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   key={i} 
                   className={cn(
                     "w-1.5 h-1.5 rounded-full transition-all",
-                    i === pageItems.safePageIndex ? "bg-amber-600 w-4" : "bg-slate-200"
+                    i === pageItems.safePageIndex ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] w-4" : "bg-slate-200"
                   )} 
                 />
               ))}

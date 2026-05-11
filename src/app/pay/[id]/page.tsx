@@ -184,7 +184,7 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
                   <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{request.amount.toFixed(2)} ETB</p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <Button
-                      className="rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-sm"
+                      className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium shadow-sm"
                       disabled={processing}
                       onClick={() => handlePayment(request.id)}
                     >
