@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { PASSWORD_POLICY_TEXT, scorePassword, validatePassword } from "@/lib/password-policy"
-import { sha1HexUpper } from "@/lib/pwned-password"
+async function sha1HexUpper(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text)
+  const digest = await crypto.subtle.digest("SHA-1", data)
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()
+}
 
 type Props = {
   password: string
@@ -26,7 +33,11 @@ export function PasswordStrength({ password, className, showHint = true }: Props
   const lastChecked = useRef<string>("")
   const base = useMemo(() => validatePassword(password), [password])
   const strength = useMemo(() => scorePassword(password), [password])
-  const value = (strength.score / 4) * 100
+
+  const blockedForSecurity = base.valid && pwned.status === "pwned"
+  const effectiveScore = blockedForSecurity ? (1 as const) : strength.score
+  const effectiveLabel = blockedForSecurity ? ("Weak" as const) : strength.label
+  const value = (effectiveScore / 4) * 100
 
   useEffect(() => {
     let cancelled = false
@@ -98,22 +109,22 @@ export function PasswordStrength({ password, className, showHint = true }: Props
         <span
           className={cn(
             "text-[11px] font-semibold",
-            strength.score <= 1
+            effectiveScore <= 1
               ? "text-rose-600"
-              : strength.score === 2
+              : effectiveScore === 2
                 ? "text-amber-600"
-                : strength.score === 3
+                : effectiveScore === 3
                   ? "text-yellow-700"
                   : "text-emerald-600"
           )}
         >
-          {strength.label}
+          {effectiveLabel}
         </span>
       </div>
       <Progress
         value={value}
         className="h-2 rounded-full bg-slate-100"
-        indicatorClassName={barColor(strength.score)}
+        indicatorClassName={barColor(effectiveScore)}
       />
       {base.errors.length > 0 ? (
         <p className="text-[11px] font-medium text-rose-600">{base.errors[0]}</p>
