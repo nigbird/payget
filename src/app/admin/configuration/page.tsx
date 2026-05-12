@@ -450,11 +450,30 @@ export default function MasterDataConfigPage() {
         let rows: unknown[][] = []
         if (file.name.toLowerCase().endsWith(".xlsx")) {
           const arrayBuffer = e.target?.result as ArrayBuffer
-          const xlsxModule = await import('xlsx')
-          const XLSX = (xlsxModule as any).default ?? xlsxModule
-          const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-          rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as unknown[][]
+          const exceljsModule = await import('exceljs')
+          const ExcelJS = (exceljsModule as any).default ?? exceljsModule
+          const workbook = new ExcelJS.Workbook()
+          await workbook.xlsx.load(arrayBuffer)
+          const worksheet = workbook.worksheets[0]
+
+          if (!worksheet) {
+            throw new Error("No worksheet found")
+          }
+
+          worksheet.eachRow({ includeEmpty: false }, (row: any) => {
+            const rowValues = row.values.slice(1).map((cell: any) => {
+              if (cell == null) return ''
+              if (typeof cell === 'object') {
+                if (cell.text != null) return String(cell.text)
+                if (Array.isArray(cell.richText)) return cell.richText.map((chunk: any) => String(chunk.text ?? '')).join('')
+              }
+              return String(cell)
+            })
+
+            if (rowValues.some((value: string) => value !== '')) {
+              rows.push(rowValues)
+            }
+          })
         } else {
           const text = e.target?.result as string
           rows = text
