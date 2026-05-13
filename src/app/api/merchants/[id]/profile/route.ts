@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs"
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth'
 import { writeAuditLog } from '@/lib/audit-log'
 import { requireCsrf } from '@/lib/request-security';
+import { validatePassword } from '@/lib/password-policy';
+import { getPwnedCount } from '@/lib/pwned-password.server';
 
 export async function PATCH(
   request: NextRequest,
@@ -79,6 +81,24 @@ export async function PATCH(
 
     // Handle password change
     if (body.currentPassword && body.newPassword) {
+      // Validate password policy
+      const policy = validatePassword(body.newPassword);
+      if (!policy.valid) {
+        return NextResponse.json(
+          { error: policy.errors[0] ?? 'Password does not meet policy requirements' },
+          { status: 400 }
+        );
+      }
+
+      // Check if password is pwned
+      const pwnedCount = await getPwnedCount(body.newPassword);
+      if (pwnedCount > 0) {
+        return NextResponse.json(
+          { error: `For your security, this password isn’t safe to use. Please choose a different one.` },
+          { status: 400 }
+        );
+      }
+
       // Verify current password
       const currentHashed = merchant.password
       if (currentHashed) {

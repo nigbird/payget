@@ -4,7 +4,7 @@ import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { z } from "zod"
-import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Clock, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, LogOut } from "lucide-react"
+import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff } from "lucide-react"
 import { useSession } from "next-auth/react"
 
 import type { Merchant } from "@/app/lib/db"
@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { PasswordStrength } from "@/components/auth/password-strength"
+import { validatePassword } from "@/lib/password-policy"
 
 const callbackUrlSchema = z
   .string()
@@ -176,34 +178,18 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       if (!profileData.currentPassword) {
         nextErrors.currentPassword = "Current password is required to set a new password."
       }
-      if (profileData.newPassword.length < 8) {
-        nextErrors.newPassword = "Password must be at least 8 characters long."
+      
+      const policy = validatePassword(profileData.newPassword)
+      if (!policy.valid) {
+        nextErrors.newPassword = policy.errors[0] ?? "Password does not meet policy requirements."
       }
+      
       if (profileData.newPassword !== profileData.confirmPassword) {
         nextErrors.confirmPassword = "Passwords do not match."
       }
     }
 
     return nextErrors
-  }
-
-  const getPasswordStrength = (password: string) => {
-    if (!password) return { strength: 0, label: "", color: "" }
-    
-    let strength = 0
-    if (password.length >= 8) strength++
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++
-    if (/\d/.test(password)) strength++
-    if (/[^a-zA-Z\d]/.test(password)) strength++
-    
-    const labels = ["Weak", "Fair", "Good", "Strong"]
-    const colors = ["rose", "amber", "yellow", "emerald"]
-    
-    return {
-      strength: (strength / 4) * 100,
-      label: labels[strength - 1] || "",
-      color: colors[strength - 1] || "rose"
-    }
   }
 
   const handleSaveSystem = async () => {
@@ -358,27 +344,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     } finally {
       setIsLogoUploading(false)
       setLogoInputKey((k) => k + 1)
-    }
-  }
-
-  const handleLogoutOtherSessions = async () => {
-    try {
-      const response = await fetch(`/api/merchants/${id}/logout-sessions`, {
-        method: 'POST'
-      })
-      
-      if (response.ok) {
-        toast({
-          title: "Sessions terminated",
-          description: "All other sessions have been logged out successfully.",
-        })
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Failed to logout sessions",
-        description: "Could not terminate other sessions at this time."
-      })
     }
   }
 
@@ -654,25 +619,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
-                        {profileData.newPassword && (
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-muted-foreground">Password Strength</span>
-                              <span className={`text-xs font-medium ${
-                                getPasswordStrength(profileData.newPassword).color === "rose" ? "text-rose-600" :
-                                getPasswordStrength(profileData.newPassword).color === "amber" ? "text-amber-600" :
-                                getPasswordStrength(profileData.newPassword).color === "yellow" ? "text-yellow-600" :
-                                "text-emerald-600"
-                              }`}>
-                                {getPasswordStrength(profileData.newPassword).label}
-                              </span>
-                            </div>
-                            <Progress 
-                              value={getPasswordStrength(profileData.newPassword).strength} 
-                              className="h-1.5"
-                            />
-                          </div>
-                        )}
+                        {profileData.newPassword && <PasswordStrength password={profileData.newPassword} />}
                         {errors.newPassword && <p className="text-xs text-rose-600">{errors.newPassword}</p>}
                       </div>
 
@@ -697,36 +644,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         </div>
                         {errors.confirmPassword && <p className="text-xs text-rose-600">{errors.confirmPassword}</p>}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Session Management Card */}
-                <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
-                      <Shield className="h-5 w-5 text-[#754319]" />
-                      Session Management
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/80 p-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[#5b371f]">Active Sessions</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Last updated: {new Date().toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleLogoutOtherSessions}
-                        className="h-11 border-[#754319]/30 text-[#754319] hover:bg-[#754319]/10"
-                      >
-                        <LogOut className="mr-2 h-3 w-3" />
-                        Log out others
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
