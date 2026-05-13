@@ -113,7 +113,7 @@ export async function POST(request: Request) {
       const notificationSent = await sendNotification({
         to: recipient,
         subject: 'Password Reset Request',
-        message: `Hello,\n\nWe received a request to reset your password. Please use the link below to reset it:\n\n${resetLink}\n\nThis link will expire in ${config?.resetTimeoutSeconds || 60} seconds.\n\nIf you didn't request this, please ignore this message.\n\nBest regards,\nNibTera Merchants Team`
+        message: `Hello,\n\nWe received a request to reset your password. Please use the link below to reset it:\n\n${resetLink}\n\nThis link will expire in 5 minutes.\n\nIf you didn't request this, please ignore this message.\n\nBest regards,\nNibTera Merchants Team`
       });
 
       console.log('[RESET-PASSWORD] Notification sent status:', notificationSent);

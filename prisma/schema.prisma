@@ -251,7 +251,7 @@ model SystemConfig {
   branches            Json     @default("[]")
   categories          Json     @default("[]")
   businessTypes       Json     @default("[]")
-  resetTimeoutSeconds Int      @default(60)
+  resetTimeoutSeconds Int      @default(300)
 }
 
 model IpLockout {
