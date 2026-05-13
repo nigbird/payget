@@ -18,7 +18,7 @@ export default auth((req) => {
     pathname === "/merchant/setup-password" ||
     pathname.startsWith("/pay/") ||
     pathname.startsWith("/l/") ||
-    nextUrl.searchParams.has("token"); // If URL has a token, it is a magic link and should be exempt
+    nextUrl.searchParams.has("token");
 
   const isAuthRoute = 
     pathname.startsWith("/login") ||
@@ -36,17 +36,14 @@ export default auth((req) => {
   if (isMerchantRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login/merchant") return
     const loginUrl = new URL("/login/merchant", req.url)
-    // Add callbackUrl so NextAuth knows where to redirect after login
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
     return Response.redirect(loginUrl)
   }
 
   if (!isLoggedIn && !isAuthRoute) {
-    // Redirect to login if not authenticated
     return Response.redirect(new URL("/login", req.url))
   }
 
-  // Check if session is expired
   const sessionExpiry = req.cookies.get("next-auth.session-token")?.expires
   if (sessionExpiry && new Date(sessionExpiry) < new Date()) {
     console.warn("Session expired. Redirecting to login.")
@@ -54,9 +51,6 @@ export default auth((req) => {
   }
 
   if (isLoggedIn) {
-    // If user is logged in, they shouldn't be accessing setup/review-update links
-    // unless they logout first, but we can allow it for flexibility or redirect them.
-    // For now, let's just make sure they can access them if they have the link.
     if (isAuthExemptRoute) return
     const userPermissions = user?.permissions || []
     const userRole = user?.role
@@ -81,17 +75,13 @@ export default auth((req) => {
         if (landing && landing !== pathname) {
           return Response.redirect(new URL(landing, req.url))
         }
-        // If logged in as admin but no specific landing found, 
-        // only redirect to /admin if they have dashboard view permission
         if (userPermissions.includes("DASHBOARD_VIEW") && pathname !== "/admin") {
           return Response.redirect(new URL("/admin", req.url))
         }
-        // Otherwise, don't redirect to avoid potential loops
         return
       }
     }
 
-    // Admin routes require admin-level permissions or roles
     if (isAdminRoute) {
       const hasAdminAccess = 
         userPermissions.includes('DASHBOARD_VIEW') || 
@@ -104,12 +94,9 @@ export default auth((req) => {
         userRole === 'ADMIN' || userRole === 'MAKER' || userRole === 'CHECKER' || userRole === 'HEAD_OFFICE'
       
       if (!hasAdminAccess) {
-        // Don't send non-admin users to the global dashboard.
-        // Default to merchant portal if applicable, otherwise home.
         return Response.redirect(new URL(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login", req.url))
       }
 
-      // Special-case: `/admin` is the global dashboard and requires explicit permission.
       if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_VIEW")) {
         const landing = getAdminLandingPath()
         if (landing && landing !== "/admin") {
@@ -118,73 +105,44 @@ export default auth((req) => {
         return Response.redirect(new URL("/login", req.url))
       }
 
-      // Special-case: `/admin` (dashboard) requires explicit permission.
-      if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_VIEW")) {
-        const landing = getAdminLandingPath()
-        if (landing) {
-          return Response.redirect(new URL(landing, req.url))
-        }
-        return Response.redirect(new URL("/login", req.url))
-      }
-
-      // Special-case: `/admin/onboarding` requires explicit permission.
       if (pathname.startsWith("/admin/onboarding") && !userPermissions.includes("MERCHANT_REGISTER")) {
         const landing = getAdminLandingPath()
-        if (landing) {
-          return Response.redirect(new URL(landing, req.url))
-        }
+        if (landing) return Response.redirect(new URL(landing, req.url))
         return Response.redirect(new URL("/admin", req.url))
       }
 
-      // Special-case: `/admin/review` requires explicit permission.
       if (pathname.startsWith("/admin/review") && !userPermissions.includes("MERCHANT_APPROVE")) {
         const landing = getAdminLandingPath()
-        if (landing) {
-          return Response.redirect(new URL(landing, req.url))
-        }
+        if (landing) return Response.redirect(new URL(landing, req.url))
         return Response.redirect(new URL("/admin", req.url))
       }
 
-      // Special-case: `/admin/users` requires explicit permission.
       if (pathname.startsWith("/admin/users") && !userPermissions.includes("USER_CREATE")) {
         const landing = getAdminLandingPath()
-        if (landing) {
-          return Response.redirect(new URL(landing, req.url))
-        }
+        if (landing) return Response.redirect(new URL(landing, req.url))
         return Response.redirect(new URL("/admin", req.url))
       }
 
-      // Special-case: `/admin/roles` requires explicit permission.
       if (pathname.startsWith("/admin/roles") && !userPermissions.includes("ROLE_CREATE")) {
         const landing = getAdminLandingPath()
-        if (landing) {
-          return Response.redirect(new URL(landing, req.url))
-        }
+        if (landing) return Response.redirect(new URL(landing, req.url))
         return Response.redirect(new URL("/admin", req.url))
       }
 
-      // Special-case: `/admin/configuration` requires explicit permission.
       if (pathname.startsWith("/admin/configuration") && !userPermissions.includes("CONFIGURATION_MANAGE")) {
         const landing = getAdminLandingPath()
-        if (landing) {
-          return Response.redirect(new URL(landing, req.url))
-        }
+        if (landing) return Response.redirect(new URL(landing, req.url))
         return Response.redirect(new URL("/admin", req.url))
       }
 
-      // Special-case: `/admin/audit-logs` requires explicit permission.
       if (pathname.startsWith("/admin/audit-logs") && !userPermissions.includes("AUDIT_LOG_VIEW")) {
         const landing = getAdminLandingPath()
-        if (landing) {
-          return Response.redirect(new URL(landing, req.url))
-        }
+        if (landing) return Response.redirect(new URL(landing, req.url))
         return Response.redirect(new URL("/admin", req.url))
       }
     }
 
-    // Merchant routes require MERCHANT or SALES role
     if (isMerchantRoute && userRole !== 'MERCHANT' && userRole !== 'SALES') {
-      // Don't redirect to the global admin dashboard unless permitted.
       const landing = getAdminLandingPath()
       if (landing) return Response.redirect(new URL(landing, req.url))
       return Response.redirect(new URL("/login", req.url))
