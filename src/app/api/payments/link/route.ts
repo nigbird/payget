@@ -11,26 +11,26 @@ import { writeAuditLog } from "@/lib/audit-log"
 export async function POST(request: Request) {
   let actorUserId: string | null = null
   try {
-    const body = await request.json().catch(() => ({}))
-    const parsed = PaymentInitiateSchema.safeParse(body)
-    if (!parsed.success) {
-      await writeAuditLog({
-        request,
-        userId: actorUserId,
-        action: "PAYMENT_LINK_CREATE",
-        entityType: "TRANSACTION",
-        entityId: null,
-        newValue: { result: "failed", reason: "INVALID_PAYLOAD", details: parsed.error.flatten() },
-      })
-      return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
-    }
-
     let authenticatedMerchantId: string | null = null
     let initiatedBy: { id: string; name?: string } | undefined
     let paymentInput: any = null
 
     const sessionUser = await requireAuthUser(request)
     if (sessionUser) {
+      const body = await request.json().catch(() => ({}))
+      const parsed = PaymentInitiateSchema.safeParse(body)
+      if (!parsed.success) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "PAYMENT_LINK_CREATE",
+          entityType: "TRANSACTION",
+          entityId: null,
+          newValue: { result: "failed", reason: "INVALID_PAYLOAD", details: parsed.error.flatten() },
+        })
+        return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
+      }
+
       const isAssignedMerchant =
         sessionUser.merchantId === parsed.data.merchantId ||
         sessionUser.assignedMerchantIds?.includes(parsed.data.merchantId)
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
           reason: "GATEWAY_TRANSACTION_FAILED", 
           error: result.error, 
           limit: (result as any).limit,
-          merchantId: parsed.data.merchantId,
+          merchantId: paymentInput.merchantId,
         },
       })
       const status =
