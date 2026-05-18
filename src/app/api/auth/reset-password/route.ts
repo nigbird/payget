@@ -3,7 +3,7 @@ import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
-import { generateResetPasswordLink, sendNotification } from '@/lib/notifications';
+import { generateResetPasswordLink, sendNotification, formatPasswordResetExpiryMessage, PASSWORD_RESET_TIMEOUT_SECONDS } from '@/lib/notifications';
 import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
 import { resetUserLockout, resetLoginIdentifierLockout } from '@/lib/rate-limit';
@@ -62,8 +62,10 @@ export async function POST(request: Request) {
       }
 
       const config = await db.getSystemConfig();
+      const resetTimeoutSeconds = config?.resetTimeoutSeconds ?? PASSWORD_RESET_TIMEOUT_SECONDS;
       const resetToken = Math.random().toString(36).substr(2, 12);
-      const expiry = new Date(Date.now() + (config?.resetTimeoutSeconds || 60) * 1000).toISOString();
+      const expiryDate = new Date(Date.now() + resetTimeoutSeconds * 1000);
+      const expiry = expiryDate.toISOString();
 
       // Update the correct entity
       if (entityType === 'MERCHANT' && merchant) {
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
         newValue: { result: 'success', expiry, identifier },
       });
 
-      const resetLink = await generateResetPasswordLink(resetToken);
+      const resetLink = await generateResetPasswordLink(resetToken, expiryDate);
       
       // Determine which contact to use for notification
       let recipient: string = identifier;
@@ -109,11 +111,13 @@ export async function POST(request: Request) {
 
       console.log('[RESET-PASSWORD] Attempting to send notification to:', recipient);
 
+      const expiryLabel = formatPasswordResetExpiryMessage(resetTimeoutSeconds);
+
       // Send the notification via email or SMS
       const notificationSent = await sendNotification({
         to: recipient,
         subject: 'Password Reset Request',
-        message: `Hello,\n\nWe received a request to reset your password. Please use the link below to reset it:\n\n${resetLink}\n\nThis link will expire in 5 minutes.\n\nIf you didn't request this, please ignore this message.\n\nBest regards,\nNibTera Merchants Team`
+        message: `Hello,\n\nWe received a request to reset your password. Please use the link below to reset it:\n\n${resetLink}\n\nThis link will expire in ${expiryLabel}.\n\nIf you didn't request this, please ignore this message.\n\nBest regards,\nNibTera Merchants Team`
       });
 
       console.log('[RESET-PASSWORD] Notification sent status:', notificationSent);

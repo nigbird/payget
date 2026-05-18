@@ -22,7 +22,7 @@ async function main() {
       branches: ['Downtown HQ', 'North Hub', 'South Plaza', 'East Wing', 'West Station'],
       categories: ['Retail', 'E-commerce', 'Services', 'Healthcare', 'Education', 'Hospitality', 'Technology', 'Manufacturing'],
       businessTypes: ['Sole Proprietorship', 'Partnership', 'Private Limited', 'Public Limited', 'Non-Profit Organization'],
-      resetTimeoutSeconds: 60,
+      resetTimeoutSeconds: 300,
     },
   })
 

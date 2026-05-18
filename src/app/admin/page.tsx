@@ -128,7 +128,7 @@ export default function AdminDashboard() {
   const [config, setConfig] = useState<SystemConfigState>({
     maxFileSizeMB: 5,
     allowedFileTypes: ".pdf, .jpg, .jpeg, .png",
-    resetTimeoutSeconds: 60,
+    resetTimeoutSeconds: 300,
     requireTwoFactor: true,
     maintenanceMode: false,
   })

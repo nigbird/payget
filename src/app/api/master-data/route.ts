@@ -144,7 +144,7 @@ export async function PATCH(request: Request) {
           businessTypes: '[]',
           allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
           maxFileSizeMB: 5,
-          resetTimeoutSeconds: 60,
+          resetTimeoutSeconds: 300,
         },
       });
     }
@@ -355,7 +355,7 @@ export async function POST(request: Request) {
           businessTypes: '[]',
           allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
           maxFileSizeMB: 5,
-          resetTimeoutSeconds: 60,
+          resetTimeoutSeconds: 300,
         },
       });
     }

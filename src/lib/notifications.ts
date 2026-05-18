@@ -3,6 +3,18 @@ import { sendSms } from '@/lib/sms';
 import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import { createOpaqueToken } from '@/lib/opaque-tokens';
 
+/** Default password reset link lifetime (5 minutes). 
+export const PASSWORD_RESET_TIMEOUT_SECONDS = 300
+
+export function passwordResetExpiryDate(timeoutSeconds: number = PASSWORD_RESET_TIMEOUT_SECONDS): Date {
+  return new Date(Date.now() + timeoutSeconds * 1000)
+}
+
+export function formatPasswordResetExpiryMessage(timeoutSeconds: number = PASSWORD_RESET_TIMEOUT_SECONDS): string {
+  const minutes = Math.max(1, Math.round(timeoutSeconds / 60))
+  return minutes === 1 ? "1 minute" : `${minutes} minutes`
+}
+
 /**
  * Notification system abstraction for Email and SMS.
  */
@@ -144,9 +156,11 @@ export async function generateMerchantUpdateLink(originalToken: string): Promise
 /**
  * Reset password link (uses opaque token)
  */
-export async function generateResetPasswordLink(originalToken: string): Promise<string> {
+export async function generateResetPasswordLink(
+  originalToken: string,
+  expiresAt: Date = passwordResetExpiryDate()
+): Promise<string> {
   const baseUrl = getNotificationBaseUrl();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
   const opaqueToken = await createOpaqueToken('RESET_PASSWORD', { originalToken }, expiresAt);
 
   return `${baseUrl}/l/${opaqueToken}`;
