@@ -40,8 +40,12 @@ export async function POST(request: Request) {
       
       authenticatedMerchantId = parsed.data.merchantId
       paymentInput = parsed.data
+      const salesTeamMemberId = (sessionUser as { teamMemberId?: string }).teamMemberId
       initiatedBy = {
-        id: sessionUser.id,
+        id:
+          sessionUser.role === "SALES" && salesTeamMemberId
+            ? salesTeamMemberId
+            : sessionUser.id,
         name: sessionUser.name ?? undefined,
       }
       actorUserId = sessionUser.id

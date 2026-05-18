@@ -356,6 +356,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: selectedMember.name,
           role: 'SALES',
           merchantId: selectedMember.merchantId,
+          teamMemberId: selectedMember.id,
           assignedMerchantIds,
           assignedMerchants,
           permissions: []
@@ -376,6 +377,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.assignedMerchantIds = (user as any).assignedMerchantIds;
         token.assignedMerchants = (user as any).assignedMerchants;
         token.firstLogin = (user as any).firstLogin;
+        token.teamMemberId = (user as any).teamMemberId;
       }
       if (trigger === "update" && session) {
         // Update token with new session data
@@ -404,6 +406,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).assignedMerchantIds = token.assignedMerchantIds;
         (session.user as any).assignedMerchants = token.assignedMerchants;
         (session.user as any).firstLogin = token.firstLogin;
+        (session.user as any).teamMemberId = token.teamMemberId;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
       }

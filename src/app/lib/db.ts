@@ -182,6 +182,8 @@ export interface MerchantTeamMember {
   role: MerchantTeamRole;
   status: MerchantTeamMemberStatus;
   createdAt: string;
+  /** When team member email matches a User on this merchant, that user's id (for transaction initiator matching). */
+  linkedUserId?: string | null;
 }
 
 function mapTeamRole(r: TeamRole): MerchantTeamRole {

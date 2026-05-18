@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/app/lib/db'
+import { prisma } from '@/lib/prisma'
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth'
 import { writeAuditLog } from '@/lib/audit-log'
 import { requireCsrf } from '@/lib/request-security';
@@ -17,7 +18,23 @@ export async function GET(
   }
 
   const members = await db.getMerchantTeamMembersByMerchantId(id)
-  return NextResponse.json(members)
+  const portalUsers = await prisma.user.findMany({
+    where: { merchantId: id },
+    select: { id: true, email: true },
+  })
+  const emailToUserId = new Map<string, string>()
+  for (const u of portalUsers) {
+    if (u.email?.trim()) emailToUserId.set(u.email.trim().toLowerCase(), u.id)
+  }
+
+  const enriched = members.map((m) => ({
+    ...m,
+    linkedUserId: m.email?.trim()
+      ? emailToUserId.get(m.email.trim().toLowerCase()) ?? null
+      : null,
+  }))
+
+  return NextResponse.json(enriched)
 }
 
 export async function POST(

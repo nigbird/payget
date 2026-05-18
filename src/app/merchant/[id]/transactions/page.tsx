@@ -40,6 +40,10 @@ import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import type { Merchant, Transaction, MerchantTeamMember } from "@/app/lib/db"
+import {
+  buildSalesUserFilterOptions,
+  transactionMatchesSalesUserFilter,
+} from "@/lib/transaction-initiator"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
 
@@ -117,14 +121,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return () => clearInterval(interval)
   }, [id])
 
-  const totalReceived = useMemo(
-    () => transactions.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0),
-    [transactions]
-  )
-
-  const successCount = useMemo(
-    () => transactions.filter((tx) => tx.status === "success").length,
-    [transactions]
+  const salesUserOptions = useMemo(
+    () => buildSalesUserFilterOptions(teamMembers, transactions),
+    [teamMembers, transactions]
   )
 
   const filtered = useMemo(() => {
@@ -139,7 +138,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return transactions.filter((tx) => {
       if (statusFilter === "success" && tx.status !== "success") return false
       if (statusFilter === "failed" && tx.status === "success") return false
-      if (salesUserFilter !== "all" && tx.userCredentials.initiatedById !== salesUserFilter) return false
+      if (!transactionMatchesSalesUserFilter(tx, salesUserFilter, teamMembers)) return false
 
       const txMs = new Date(tx.timestamp).getTime()
       if (fromMs !== undefined && txMs < fromMs) return false
@@ -153,14 +152,26 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       return true
     })
-  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter])
+  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, teamMembers])
 
-  const totalFilteredReceived = useMemo(
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+
+  const filteredSuccessCount = useMemo(
+    () => filtered.filter((tx) => tx.status === "success").length,
+    [filtered]
+  )
+
+  const filteredTotalReceived = useMemo(
     () => filtered.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0),
     [filtered]
   )
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const hasActiveFilters =
+    statusFilter !== "all" ||
+    salesUserFilter !== "all" ||
+    !!dateRange.from ||
+    !!dateRange.to ||
+    search.trim().length > 0
 
   useEffect(() => {
     setPageIndex(0)
@@ -281,10 +292,17 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       {/* Minimal Header */}
       <header className="flex flex-col gap-4 pt-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{merchant.name}</h1>
-          <p className="text-sm font-medium text-slate-500">
-            {successCount} successful of {transactions.length} total
-          </p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Transactions</h1>
+          {hasActiveFilters ? (
+            <p className="text-sm font-medium text-slate-500 mt-1">
+              {filteredSuccessCount} successful · {filtered.length} shown
+              {filteredTotalReceived > 0 && <> · {filteredTotalReceived.toFixed(2)} ETB received</>}
+            </p>
+          ) : (
+            <p className="text-sm font-medium text-slate-500 mt-1">
+              {transactions.length} total
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -304,12 +322,12 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 variant="outline"
                 className={cn(
                   "h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm gap-2",
-                  (statusFilter !== "all" || dateRange.from || salesUserFilter !== "all") && "border-amber-200 bg-amber-50 text-amber-700"
+                  hasActiveFilters && "border-amber-200 bg-amber-50 text-amber-700"
                 )}
               >
                 <Filter className="h-4 w-4" />
                 <span className="hidden sm:inline">Filter</span>
-                {(statusFilter !== "all" || dateRange.from || salesUserFilter !== "all") && (
+                {hasActiveFilters && (
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-600 text-[10px] text-white">
                     !
                   </span>
@@ -378,9 +396,10 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Users</SelectItem>
-                          {teamMembers.filter(m => m.role === 'payment_initiator').map(member => (
-                            <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                          {salesUserOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -431,28 +450,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       {/* Transaction List */}
       <main className="space-y-3">
-        {/* Filtered Summary */}
-        <Card className="rounded-[20px] border-amber-100 bg-amber-50/50 p-4 sm:p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-amber-700/60">
-                Filtered Results
-              </p>
-              <p className="text-2xl font-black text-amber-900 mt-1">
-                {totalFilteredReceived.toFixed(2)} ETB
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-bold text-amber-700/80">
-                {filtered.filter(tx => tx.status === 'success').length} successful
-              </p>
-              <p className="text-[10px] font-medium text-amber-700/60">
-                of {filtered.length} transactions
-              </p>
-            </div>
-          </div>
-        </Card>
-        
         {pageItems.items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
             <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
