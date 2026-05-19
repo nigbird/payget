@@ -4,6 +4,8 @@ import { decryptProviderPayload, deriveSharedSecret } from '@/lib/crypto-provide
 import crypto from 'crypto';
 import { writeAuditLog } from '@/lib/audit-log';
 
+const TERMINAL_STATUSES = new Set(['success', 'failed']);
+
 /**
  * Endpoint to receive payment results from the provider.
  * Follows Section 5 (Callback Mechanism) of the Integration Guide.
@@ -186,7 +188,30 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Update transaction status
+    // 4. TERMINAL STATE PROTECTION: Never modify a transaction that's already in success or failed state
+    if (TERMINAL_STATUSES.has(tx.status)) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "PAYMENT_CALLBACK",
+        entityType: "TRANSACTION",
+        entityId: tx.id,
+        oldValue: { status: tx.status },
+        newValue: {
+          result: "no_op",
+          reason: "TRANSACTION_ALREADY_TERMINAL",
+          currentStatus: tx.status,
+          transactionReference: tx.transactionReference,
+        },
+      });
+
+      // Still return 200 OK to provider to acknowledge receipt
+      return NextResponse.json({ 
+        message: 'Callback received (transaction already in terminal state)' 
+      });
+    }
+
+    // 5. Update transaction status (source of truth: provider statusCode)
     const providerStatusDesc: unknown =
       decryptedData.statusDesc ?? decryptedData.status_desc ?? decryptedData.statusDescription;
 
@@ -205,14 +230,43 @@ export async function POST(request: Request) {
       return NaN;
     })();
 
-    // Convention used by your example: statusCode "0" => success, anything else => failed
-    const finalStatus: "success" | "failed" = Number.isFinite(providerStatusCode)
-      ? providerStatusCode === 0
-        ? "success"
-        : "failed"
-      : providerStatusString === "success" || providerStatusString === "SUCCESS"
-        ? "success"
-        : "failed";
+    // statusCode is source of truth: 0 = success, 1 = failed
+    let finalStatus: "success" | "failed" | null = null;
+    if (Number.isFinite(providerStatusCode)) {
+      if (providerStatusCode === 0) {
+        finalStatus = "success";
+      } else if (providerStatusCode === 1) {
+        finalStatus = "failed";
+      }
+    }
+
+    // Fallback to status string only if statusCode not available
+    if (!finalStatus && providerStatusString) {
+      const lowerStatus = String(providerStatusString).toLowerCase();
+      if (lowerStatus === "success") {
+        finalStatus = "success";
+      } else if (lowerStatus === "failed" || lowerStatus === "failure") {
+        finalStatus = "failed";
+      }
+    }
+
+    if (!finalStatus) {
+      await writeAuditLog({
+        request,
+        userId: null,
+        action: "PAYMENT_CALLBACK",
+        entityType: "TRANSACTION",
+        entityId: tx.id,
+        newValue: {
+          result: "failed",
+          reason: "AMBIGUOUS_PROVIDER_STATUS",
+          providerStatusCodeRaw,
+          providerStatusString,
+          providerStatusDesc,
+        },
+      });
+      return NextResponse.json({ error: 'Ambiguous provider status' }, { status: 400 });
+    }
 
     const providerCbsReference: unknown =
       decryptedData.cbsreference ?? decryptedData.cbsReference ?? decryptedData.cbs_reference ?? "";
@@ -250,6 +304,7 @@ export async function POST(request: Request) {
     });
 
     // Persist provider callback details into transaction.userCredentials (Json)
+    // PRESERVE ALL EXISTING DATA including providerSharedSecret!
     await db.updateTransaction(tx.id, {
       userCredentials: {
         ...tx.userCredentials,
@@ -283,17 +338,21 @@ export async function POST(request: Request) {
       })
     }
 
-    // 5. Notify the merchant (via their registered callback)
+    // 6. Notify the merchant (via their registered callback) with canonical status fields
     if (merchant && merchant.callbackUrl) {
       try {
         await fetch(merchant.callbackUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            // Canonical payment status fields (source of truth)
+            statusCode: providerStatusCodeRaw ?? null,
+            status: finalStatus,
+            
+            // Provider-specific fields
             transactionId: decryptedData.transactionId ?? null,
             cbsreference: providerCbsReference,
             statusDesc: providerStatusDesc ?? null,
-            statusCode: providerStatusCodeRaw ?? null,
             company: providerCompany ?? null,
             amount: decryptedData.amount ?? null,
 
