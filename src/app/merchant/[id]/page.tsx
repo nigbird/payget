@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useState, useMemo } from "react"
+import { use, useEffect, useState, useMemo, useRef, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import type { TransactionStatus } from "@/app/lib/db"
@@ -69,7 +69,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [currentTxStatus, setCurrentTxStatus] = useState<TransactionStatus | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  type PaymentFlowPhase = "idle" | "push_submitting" | "awaiting_pin" | "link_submitting"
+  const [paymentFlowPhase, setPaymentFlowPhase] = useState<PaymentFlowPhase>("idle")
+  const pushPollRef = useRef<{
+    intervalId?: ReturnType<typeof setInterval>
+    timeoutId?: ReturnType<typeof setTimeout>
+    transactionReference?: string
+  }>({})
   const [copied, setCopied] = useState<string | null>(null)
   const [lastMode, setLastMode] = useState<"push" | "link" | null>(null)
   const [lastRequestDetails, setLastRequestDetails] = useState<{
@@ -195,6 +201,76 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     return () => clearInterval(interval);
   }, [id]);
 
+  const stopPushPolling = useCallback(() => {
+    if (pushPollRef.current.intervalId) clearInterval(pushPollRef.current.intervalId)
+    if (pushPollRef.current.timeoutId) clearTimeout(pushPollRef.current.timeoutId)
+    pushPollRef.current.intervalId = undefined
+    pushPollRef.current.timeoutId = undefined
+  }, [])
+
+  const refreshTransactions = useCallback(async () => {
+    try {
+      const tRes = await fetch(`/api/merchants/${id}/transactions`)
+      if (tRes.ok) {
+        const newTransactions = await tRes.json()
+        setTransactions(
+          newTransactions.sort(
+            (a: { timestamp: string }, b: { timestamp: string }) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          )
+        )
+      }
+    } catch (err) {
+      console.error("Failed to refresh transactions", err)
+    }
+  }, [id])
+
+  const startPushStatusPolling = useCallback(
+    (transactionReference: string) => {
+      stopPushPolling()
+      pushPollRef.current.transactionReference = transactionReference
+      setCurrentTxStatus("awaiting_pin")
+
+      pushPollRef.current.intervalId = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/merchants/${id}/transactions/${transactionReference}`)
+          if (!res.ok) return
+          const tx = await res.json()
+          setCurrentTxStatus(tx.status)
+          if (tx.status === "success" || tx.status === "failed") {
+            stopPushPolling()
+            pushPollRef.current.transactionReference = undefined
+            await refreshTransactions()
+            if (tx.status === "success") {
+              toast({
+                title: "Payment Successful",
+                description: "The customer completed authorization on their phone.",
+              })
+              setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
+            } else {
+              toast({
+                variant: "destructive",
+                title: "Payment Failed",
+                description: "The provider reported this payment did not complete.",
+              })
+            }
+            setPaymentFlowPhase("idle")
+          }
+        } catch (err) {
+          console.error("Push status polling error:", err)
+        }
+      }, 2000)
+
+      pushPollRef.current.timeoutId = setTimeout(() => {
+        stopPushPolling()
+        // Polling timeout does not fail the transaction — callback settlement is authoritative.
+      }, 120_000)
+    },
+    [id, stopPushPolling, refreshTransactions, toast]
+  )
+
+  useEffect(() => () => stopPushPolling(), [stopPushPolling])
+
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-muted/20 gap-4">
@@ -252,10 +328,49 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     )
   }
 
+  const isFormLocked = paymentFlowPhase !== "idle"
+  const isPushSubmitting = paymentFlowPhase === "push_submitting"
+  const isLinkSubmitting = paymentFlowPhase === "link_submitting"
+
+  const handleRequestPanelOpenChange = (open: boolean) => {
+    if (open) {
+      setIsRequestPanelOpen(true)
+      return
+    }
+    // Closing via X only dismisses UI; in-flight push / awaiting_pin continue in background.
+    setIsRequestPanelOpen(false)
+  }
+
+  const preventLockedModalDismiss = (e: Event) => {
+    if (isFormLocked) e.preventDefault()
+  }
+
+  const isSuccessPushActive =
+    lastMode === "push" &&
+    (paymentFlowPhase === "push_submitting" ||
+      (!!currentTxStatus && currentTxStatus !== "success" && currentTxStatus !== "failed"))
+
+  const preventSuccessModalDismiss = (e: Event) => {
+    if (isSuccessPushActive) e.preventDefault()
+  }
+
+  const handleSuccessModalOpenChange = (open: boolean) => {
+    if (open) {
+      setIsSuccessModalOpen(true)
+      return
+    }
+    setIsSuccessModalOpen(false)
+    if (!pushPollRef.current.transactionReference) {
+      setCurrentTxStatus(null)
+    }
+  }
+
   const handleRequestPayment = async (mode: "push" | "link", retryData?: { amount: string; phone: string }) => {
+    if (isFormLocked && !(mode === "push" && isSuccessModalOpen)) return
+
     const amount = retryData?.amount || requestForm.amount
     const phone = retryData?.phone || requestForm.payerPhone
-    
+
     const amountNum = parseFloat(amount)
     if (isNaN(amountNum) || amountNum < 1) {
       toast({
@@ -286,23 +401,28 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       return
     }
 
-    setIsSubmitting(true)
     setLastMode(mode)
     setGeneratedResult(null)
+    if (mode === "push") {
+      setCurrentTxStatus(null)
+    }
+    setPaymentFlowPhase(mode === "push" ? "push_submitting" : "link_submitting")
+
+    const controller = new AbortController()
+    const requestTimeoutMs = 90_000
+    const requestTimeoutId = setTimeout(() => controller.abort(), requestTimeoutMs)
 
     try {
       const transactionId = `tx_${Math.random().toString(36).slice(2, 10)}`
       const timestamp = new Date().toISOString()
-      const serviceDescription =
-        requestForm.description || `Payment Request for Customer`
-
+      const serviceDescription = requestForm.description || `Payment Request for Customer`
       const authToken = `demo_auth_${Math.random().toString(36).slice(2, 10)}`
 
       const payload = {
         merchantId: id,
         transactionId,
         userCredentials: {
-          phone: phone,
+          phone,
           authToken,
         },
         amount: amountNum,
@@ -316,6 +436,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       })
 
       const data = await res.json().catch(() => ({}))
@@ -325,81 +446,63 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           title: "Request Failed",
           description: data?.error || "Please check the inputs and try again.",
         })
+        setPaymentFlowPhase("idle")
         return
       }
 
-      const txRefresh = await fetch(`/api/merchants/${id}/transactions`);
-      if (txRefresh.ok) setTransactions(await txRefresh.json());
+      await refreshTransactions()
+
+      setLastRequestDetails({ amount, phone })
 
       if (mode === "push") {
-        const customerPinToken = data?.customerPinToken as string | undefined
         const transactionReference = data?.transactionReference as string | undefined
-        const paymentUrl =
-          customerPinToken && typeof window !== "undefined"
-            ? `${window.location.origin}/pay/link?token=${encodeURIComponent(customerPinToken)}`
-            : undefined
+        setGeneratedResult({ transactionReference })
 
-        setGeneratedResult({ customerPinToken, transactionReference, paymentUrl })
-        
-        // Start polling for this specific transaction status
         if (transactionReference) {
-          setCurrentTxStatus("initiated")
-          const pollInterval = setInterval(async () => {
-            try {
-              const res = await fetch(`/api/merchants/${id}/transactions/${transactionReference}`)
-              if (res.ok) {
-                const tx = await res.json()
-                if (tx.status === "success" || tx.status === "failed") {
-                  setCurrentTxStatus(tx.status)
-                  clearInterval(pollInterval)
-                }
-              }
-            } catch (err) {
-              console.error("Polling current transaction error:", err)
-            }
-          }, 2000)
-          
-          // Stop polling if modal is closed
-          setTimeout(() => {
-            if (!isSuccessModalOpen) clearInterval(pollInterval)
-          }, 120000) // 2 minute timeout for polling
+          setPaymentFlowPhase("idle")
+          setIsRequestPanelOpen(false)
+          setIsSuccessModalOpen(true)
+          startPushStatusPolling(transactionReference)
+          toast({
+            title: "USSD PIN Prompt Sent",
+            description: "Ask the customer to authorize the payment on their phone.",
+          })
+        } else {
+          setPaymentFlowPhase("idle")
+          toast({
+            variant: "destructive",
+            title: "Unexpected Response",
+            description: "Payment was accepted but no transaction reference was returned.",
+          })
         }
-      } else {
-        setGeneratedResult({
-          paymentUrl: data?.paymentUrl as string | undefined,
-          customerPinToken: data?.token as string | undefined,
-          transactionReference: data?.transactionReference as string | undefined,
-        })
+        return
       }
 
-      toast({
-        title: mode === "push" ? "USSD Request Initiated" : "Payment Link Generated",
-        description:
-          mode === "push"
-            ? `A customer PIN entry prompt is ready (demo token returned).`
-            : `Share the secure payment link with your customer.`,
+      setGeneratedResult({
+        paymentUrl: data?.paymentUrl as string | undefined,
+        customerPinToken: data?.token as string | undefined,
+        transactionReference: data?.transactionReference as string | undefined,
       })
-      
-      setLastRequestDetails({
-        amount: amount,
-        phone: phone
-      })
-
-      // Close the request panel
+      setPaymentFlowPhase("idle")
       setIsRequestPanelOpen(false)
-      
-      // Open the success modal for both modes
       setIsSuccessModalOpen(true)
-
       setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
-    } catch {
+      toast({
+        title: "Payment Link Generated",
+        description: "Share the secure payment link with your customer.",
+      })
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError"
       toast({
         variant: "destructive",
-        title: "Unexpected Error",
-        description: "Could not create payment request. Please try again.",
+        title: isAbort ? "Request Timed Out" : "Connection Error",
+        description: isAbort
+          ? "The provider did not respond in time. You can retry the push payment."
+          : "Could not reach the payment provider. Please check your connection and try again.",
       })
+      setPaymentFlowPhase("idle")
     } finally {
-      setIsSubmitting(false)
+      clearTimeout(requestTimeoutId)
     }
   }
 
@@ -412,7 +515,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
         <div className="px-5 py-3 space-y-4">
-          <div className="space-y-4">
+          <div className={`space-y-4 ${isFormLocked ? "pointer-events-none opacity-60" : ""}`}>
             <div className="space-y-2">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Payment Method</Label>
               <RadioGroup
@@ -420,6 +523,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 value={requestForm.method}
                 onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" })}
                 className="grid grid-cols-2 gap-2"
+                disabled={isFormLocked}
               >
                 <div className="relative">
                   <RadioGroupItem
@@ -480,6 +584,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   placeholder="0912345678"
                   className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
                   required
+                  disabled={isFormLocked}
                   value={requestForm.payerPhone}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^\d+]/g, '');
@@ -501,6 +606,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   placeholder="0.00"
                   className="h-10 rounded-lg border-slate-200 bg-white pl-9 font-medium text-sm text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
                   required
+                  disabled={isFormLocked}
                   value={requestForm.amount}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -522,6 +628,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   id="description"
                   placeholder="Order #1022"
                   className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm"
+                  disabled={isFormLocked}
                   value={requestForm.description}
                   onChange={(e) => {
                     if (e.target.value.length <= 50) {
@@ -540,22 +647,22 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             type="button"
             onClick={() => handleRequestPayment("push")}
             className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
-            disabled={isSubmitting || !isApproved}
+            disabled={isFormLocked || !isApproved}
           >
-            {isSubmitting && lastMode === "push" ? (
+            {isPushSubmitting ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Push Payment
+            {isPushSubmitting ? "Sending…" : "Push Payment"}
           </Button>
           <Button
             type="button"
             onClick={() => handleRequestPayment("link")}
             className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-sm transition-all"
-            disabled={isSubmitting || !isApproved}
+            disabled={isFormLocked || !isApproved}
           >
-            {isSubmitting && lastMode === "link" ? (
+            {isLinkSubmitting ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
               <Copy className="mr-1.5 h-3.5 w-3.5" />
@@ -779,10 +886,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
       </section>
 
-      <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
+      <Sheet open={isMobile && isRequestPanelOpen} onOpenChange={handleRequestPanelOpenChange}>
         <SheetContent
             side="bottom"
             className="max-h-[85vh] overflow-y-auto rounded-t-3xl border-0 bg-white px-4 pb-[max(env(safe-area-inset-bottom),1.25rem)]"
+            onInteractOutside={preventLockedModalDismiss}
+            onEscapeKeyDown={preventLockedModalDismiss}
           >
           <div className="mx-auto mb-1 mt-1 h-1 w-10 shrink-0 rounded-full bg-[#754319]/25" />
           <SheetHeader className="text-left mb-3">
@@ -799,8 +908,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </SheetContent>
       </Sheet>
 
-      <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={setIsRequestPanelOpen}>
-        <DialogContent className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[90vh]">
+      <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={handleRequestPanelOpenChange}>
+        <DialogContent
+          className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[90vh]"
+          onInteractOutside={preventLockedModalDismiss}
+          onEscapeKeyDown={preventLockedModalDismiss}
+        >
           <DialogHeader className="text-center p-5 border-b border-slate-50 shrink-0">
             <div className="mx-auto w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mb-2">
               <Wallet className="w-5 h-5 text-slate-600" />
@@ -821,22 +934,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </Dialog>
 
       {/* Success Modal (Link or Push) */}
-      <Dialog open={isSuccessModalOpen} onOpenChange={(open) => {
-        setIsSuccessModalOpen(open)
-        if (!open) setCurrentTxStatus(null)
-      }}>
+      <Dialog open={isSuccessModalOpen} onOpenChange={handleSuccessModalOpenChange}>
         <DialogContent 
           className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden max-h-[90vh]"
-          onInteractOutside={(e) => {
-            if (lastMode === "push" && currentTxStatus !== "success" && currentTxStatus !== "failed") {
-              e.preventDefault();
-            }
-          }}
-          onEscapeKeyDown={(e) => {
-            if (lastMode === "push" && currentTxStatus !== "success" && currentTxStatus !== "failed") {
-              e.preventDefault();
-            }
-          }}
+          onInteractOutside={preventSuccessModalDismiss}
+          onEscapeKeyDown={preventSuccessModalDismiss}
         >
           <div className="p-5 text-center border-b border-slate-50">
             {lastMode === "link" ? (
@@ -846,6 +948,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-none">Payment Link Ready</h3>
                 <p className="text-slate-500 mt-1.5 text-[11px]">Secure checkout link generated</p>
+              </>
+            ) : paymentFlowPhase === "push_submitting" ? (
+              <>
+                <div className="mx-auto w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center mb-3">
+                  <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-none">Sending Push…</h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">Contacting payment provider</p>
               </>
             ) : currentTxStatus === "success" ? (
               <>
@@ -943,17 +1053,21 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 
                 {currentTxStatus === 'failed' && (
                   <Button 
-                    onClick={() => {
-                      setIsSuccessModalOpen(false)
+                    disabled={paymentFlowPhase === "push_submitting"}
+                    onClick={() =>
                       handleRequestPayment("push", {
                         amount: lastRequestDetails?.amount || "",
-                        phone: lastRequestDetails?.phone || ""
+                        phone: lastRequestDetails?.phone || "",
                       })
-                    }}
+                    }
                     className="button-honey-solid w-full h-10 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all text-xs font-bold"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Resend Push Notification
+                    {paymentFlowPhase === "push_submitting" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                    {paymentFlowPhase === "push_submitting" ? "Sending…" : "Resend Push Notification"}
                   </Button>
                 )}
 
@@ -987,11 +1101,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           
           <div className="p-3 bg-white border-t border-slate-100 flex justify-center">
             <Button 
-              variant="ghost" 
-              onClick={() => {
-                setIsSuccessModalOpen(false)
-                setCurrentTxStatus(null)
-              }}
+              variant="ghost"
+              disabled={paymentFlowPhase === "push_submitting"}
+              onClick={() => handleSuccessModalOpenChange(false)}
               className="text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-bold text-xs h-8"
             >
               Done
