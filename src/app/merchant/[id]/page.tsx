@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import type { TransactionStatus } from "@/app/lib/db"
 import { 
   isSameDay, 
   isSameWeek, 
@@ -121,7 +122,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     const prevTxs = successfulTxs.filter(tx => filterByRange(new Date(tx.timestamp), timeRange, prevRef))
     const prevTotal = prevTxs.reduce((acc, tx) => acc + tx.amount, 0)
 
-    const trend = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0
+    const trend = prevTotal > 0 ? Math.min(((currentTotal - prevTotal) / prevTotal) * 100, 100) : 0
+    const trendLabel = prevTotal > 0
+      ? Math.abs(trend) >= 100
+        ? "100%"
+        : `${Math.abs(trend).toFixed(1)}%`
+      : ""
 
     const getFormattedDateRange = (range: "today" | "week" | "month" | "year") => {
       const now = new Date()
@@ -147,6 +153,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       currentTotal,
       prevTotal,
       trend,
+      trendLabel,
       count: currentTxs.length,
       formattedDateRange
     }
@@ -718,7 +725,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     ) : (
                       <TrendingUp className="w-3 h-3 rotate-180" />
                     )}
-                    {Math.abs(stats.trend).toFixed(1)}%
+                    {stats.trend > 0 ? "+" : "-"}{stats.trendLabel}
                   </div>
                 )}
               </div>
