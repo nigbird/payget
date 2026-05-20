@@ -178,11 +178,7 @@ export default function AdminLogin() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-0.5">
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="remember" className="w-4 h-4 rounded border-[#E5E7EB] text-[#f8b513] focus:ring-[#f8b513]/20" />
-                  <Label htmlFor="remember" className="text-sm text-[#6B7280]">Remember me</Label>
-                </div>
+              <div className="flex justify-end pt-0.5">
                 <Link
                   href="/forgot-password"
                   className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors"
