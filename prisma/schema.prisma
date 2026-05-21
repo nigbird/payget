@@ -154,6 +154,21 @@ model Merchant {
   teamMembers         MerchantTeamMember[]
   users               User[]
   nonces              RequestNonce[]
+  qrEnabled           Boolean          @default(false)
+  qrLogoUrl           String?
+  qrCodes             MerchantQrCode[]
+}
+
+model MerchantQrCode {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  token      String   @unique // The unique identifier in the QR URL
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([token])
 }
 
 enum MerchantStatus {

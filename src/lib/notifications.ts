@@ -4,7 +4,7 @@ import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import { createOpaqueToken } from '@/lib/opaque-tokens';
 
 /** Default password reset link lifetime (5 minutes). */
-export const PASSWORD_RESET_TIMEOUT_SECONDS = 300
+export const PASSWORD_RESET_TIMEOUT_SECONDS = 360
 
 export function passwordResetExpiryDate(timeoutSeconds: number = PASSWORD_RESET_TIMEOUT_SECONDS): Date {
   return new Date(Date.now() + timeoutSeconds * 1000)
