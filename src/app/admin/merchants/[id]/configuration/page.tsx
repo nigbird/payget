@@ -6,7 +6,6 @@ import {
   Building2, 
   Settings2, 
   QrCode, 
-  History, 
   Save, 
   RotateCw, 
   Download, 
@@ -42,7 +41,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   
   const [merchant, setMerchant] = useState<any>(null)
   const [qrConfig, setQrConfig] = useState<any>(null)
-  const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
@@ -55,18 +53,13 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [mRes, qrRes, logsRes] = await Promise.all([
+      const [mRes, qrRes] = await Promise.all([
         fetch(`/api/merchants/${id}`),
-        fetch(`/api/merchants/${id}/qr`),
-        fetch(`/api/admin/audit-logs?entityId=${id}&limit=10`)
+        fetch(`/api/merchants/${id}/qr`)
       ])
 
       if (mRes.ok) setMerchant(await mRes.json())
       if (qrRes.ok) setQrConfig(await qrRes.json())
-      if (logsRes.ok) {
-        const logsData = await logsRes.json()
-        setAuditLogs(logsData.logs || [])
-      }
     } catch (error) {
       console.error("Failed to fetch configuration data:", error)
     } finally {
@@ -356,58 +349,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 Save Configuration
               </Button>
             </CardFooter>
-          </Card>
-
-          {/* Audit Logs Section */}
-          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10 overflow-hidden">
-            <CardHeader className="border-b border-black/5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                  <History className="w-5 h-5 text-slate-600" />
-                </div>
-                <CardTitle className="text-base">Configuration Audit Logs</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="pl-6 text-[10px] uppercase font-bold text-slate-500">Timestamp</TableHead>
-                    <TableHead className="text-[10px] uppercase font-bold text-slate-500">Action</TableHead>
-                    <TableHead className="text-[10px] uppercase font-bold text-slate-500">Admin</TableHead>
-                    <TableHead className="text-right pr-6 text-[10px] uppercase font-bold text-slate-500">Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {auditLogs.length > 0 ? auditLogs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-slate-50/50">
-                      <TableCell className="pl-6 py-3 text-xs text-slate-600">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <Badge variant="outline" className="text-[10px] font-bold border-slate-200">
-                          {log.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-3 text-xs font-medium text-slate-800">
-                        {log.user?.name || 'System'}
-                      </TableCell>
-                      <TableCell className="py-3 text-right pr-6">
-                        <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold text-primary">
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center text-slate-400 text-xs">
-                        No logs found for this configuration.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
           </Card>
         </div>
 
