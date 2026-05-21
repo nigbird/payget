@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { 
   Building2, 
@@ -24,7 +24,12 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
-import { QRCodeSVG } from "qrcode.react"
+import { QRCodeCanvas } from "qrcode.react"
+import {
+  downloadQrFromCanvasElement,
+  downloadQrFromSvgElement,
+  triggerBlobDownload,
+} from "@/lib/qr-download"
 import {
   Table,
   TableBody,
@@ -33,6 +38,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+
+const QR_DISPLAY_SIZE = 200
+const QR_DOWNLOAD_SIZE = 1024
+
+function toAbsoluteImageUrl(url: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) return url
+  if (url.startsWith("/")) return `${window.location.origin}${url}`
+  return `${window.location.origin}/${url}`
+}
 
 export default function MerchantConfigurationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -45,6 +59,27 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [isSaving, setIsSaving] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isDownloadingQr, setIsDownloadingQr] = useState(false)
+
+  const qrUrl = useMemo(() => {
+    if (!qrConfig?.activeQr?.token) return ""
+    const origin = (
+      process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
+      (typeof window !== "undefined" ? window.location.origin : "")
+    )
+    return `${origin}/pay/merchant/${qrConfig.activeQr.token}`
+  }, [qrConfig?.activeQr?.token])
+
+  const qrDisplayLogoSettings = useMemo(() => {
+    if (!qrConfig?.qrLogoUrl) return undefined
+    return {
+      src: toAbsoluteImageUrl(qrConfig.qrLogoUrl),
+      height: 40,
+      width: 40,
+      excavate: true as const,
+      crossOrigin: "anonymous" as const,
+    }
+  }, [qrConfig?.qrLogoUrl])
 
   useEffect(() => {
     fetchData()
@@ -165,26 +200,48 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     }
   }
 
-  const downloadQr = () => {
-    const svg = document.getElementById("merchant-qr")
-    if (!svg) return
+  const downloadQr = useCallback(async () => {
+    if (!merchant) return
 
-    const svgData = new XMLSerializer().serializeToString(svg)
-    const canvas = document.createElement("canvas")
-    const ctx = canvas.getContext("2d")
-    const img = new Image()
-    img.onload = () => {
-      canvas.width = 1000
-      canvas.height = 1000
-      ctx?.drawImage(img, 0, 0, 1000, 1000)
-      const pngFile = canvas.toDataURL("image/png")
-      const downloadLink = document.createElement("a")
-      downloadLink.download = `QR-${merchant.name}.png`
-      downloadLink.href = pngFile
-      downloadLink.click()
+    const fileName = `QR-${merchant.name.replace(/[^\w.-]+/g, "_")}.png`
+    setIsDownloadingQr(true)
+
+    try {
+      const qrElement = document.getElementById("merchant-qr")
+
+      if (qrElement instanceof HTMLCanvasElement) {
+        await downloadQrFromCanvasElement(qrElement, {
+          fileName,
+          outputSize: QR_DOWNLOAD_SIZE,
+          waitMs: qrDisplayLogoSettings ? 600 : 100,
+        })
+        return
+      }
+
+      if (qrElement instanceof SVGSVGElement) {
+        await downloadQrFromSvgElement(qrElement, {
+          fileName,
+          outputSize: QR_DOWNLOAD_SIZE,
+        })
+        return
+      }
+
+      const response = await fetch(`/api/merchants/${id}/qr/download`)
+      if (!response.ok) {
+        throw new Error("Server export failed")
+      }
+      triggerBlobDownload(await response.blob(), fileName)
+    } catch (error) {
+      console.error("QR download failed:", error)
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Could not export a scannable QR image. Please try again.",
+      })
+    } finally {
+      setIsDownloadingQr(false)
     }
-    img.src = "data:image/svg+xml;base64," + btoa(svgData)
-  }
+  }, [merchant, qrDisplayLogoSettings, id, toast])
 
   if (isLoading) {
     return (
@@ -193,8 +250,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       </div>
     )
   }
-
-  const qrUrl = `${window.location.origin}/pay/merchant/${qrConfig?.activeQr?.token}`
 
   return (
     <div className="space-y-6">
@@ -303,17 +358,16 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   {qrConfig?.qrEnabled && qrConfig?.activeQr ? (
                     <>
                       <div className="bg-white p-4 rounded-3xl shadow-xl border border-slate-100">
-                        <QRCodeSVG 
+                        <QRCodeCanvas
                           id="merchant-qr"
                           value={qrUrl}
-                          size={200}
+                          size={QR_DISPLAY_SIZE}
                           level="H"
-                          imageSettings={qrConfig.qrLogoUrl ? {
-                            src: qrConfig.qrLogoUrl,
-                            height: 40,
-                            width: 40,
-                            excavate: true,
-                          } : undefined}
+                          includeMargin
+                          marginSize={4}
+                          bgColor="#FFFFFF"
+                          fgColor="#000000"
+                          imageSettings={qrDisplayLogoSettings}
                         />
                       </div>
                       <p className="mt-6 text-[10px] font-mono text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
@@ -323,8 +377,14 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <Button 
                           className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-9 px-6"
                           onClick={downloadQr}
+                          disabled={isDownloadingQr}
                         >
-                          <Download className="w-4 h-4 mr-2" /> Download QR
+                          {isDownloadingQr ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4 mr-2" />
+                          )}
+                          Download QR
                         </Button>
                       </div>
                     </>
