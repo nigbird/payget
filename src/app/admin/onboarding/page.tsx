@@ -76,7 +76,6 @@ import type { MerchantDocument, Merchant } from "@/app/lib/db"
 import { useSession } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 
 function MerchantOnboardingContent() {

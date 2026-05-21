@@ -32,7 +32,6 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
-import { aiMerchantOnboardingAssistant } from "@/lib/ai/merchant-onboarding-assistant"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 import { validateUrl } from "@/lib/url-validation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
