@@ -12,7 +12,11 @@ import {
   ShieldCheck, 
   Clock,
   ArrowRight,
-  Wallet
+  Wallet,
+  Copy,
+  Check,
+  ChevronDown,
+  Building
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +24,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 
 export default function MerchantQrPaymentPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -33,6 +45,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   
   const [phone, setPhone] = useState("")
   const [amount, setAmount] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("BANK")
+  const [copied, setCopied] = useState(false)
   const [transaction, setTransaction] = useState<any>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
 
@@ -54,6 +68,15 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
     }
     fetchMerchant()
   }, [token])
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    toast({
+      description: "Account number copied to clipboard",
+    })
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -150,24 +173,29 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex flex-col">
       {/* Branded Header */}
-      <header className="bg-white border-b border-amber-100/50 px-6 py-4 shadow-sm sticky top-0 z-10">
+      <header className="bg-white border-b border-amber-100/50 px-6 py-4 shadow-sm sticky top-0 z-50">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-inner">
               <img src="/niblogo.png" alt="Nib International Bank" className="w-7 h-7 object-contain" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-amber-800/60 uppercase tracking-widest leading-none">Powered By</span>
+              <span className="text-[9px] font-bold text-amber-800/60 uppercase tracking-widest leading-none">Powered By</span>
               <span className="text-sm font-bold text-amber-900 leading-tight">Nib International Bank</span>
             </div>
           </div>
-          <div className="h-8 w-px bg-amber-100 mx-4" />
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
-            {merchant?.logoUrl ? (
-              <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
-            ) : (
-              <Store className="w-5 h-5 text-slate-300" />
-            )}
+          <div className="h-8 w-px bg-amber-100/60 mx-2" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm shrink-0">
+              {merchant?.logoUrl ? (
+                <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
+              ) : (
+                <div className="w-full h-full bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-xs uppercase">
+                  {merchant?.name?.charAt(0)}
+                </div>
+              )}
+            </div>
+            <span className="text-xs font-bold text-slate-700 truncate max-w-[80px]">{merchant?.name}</span>
           </div>
         </div>
       </header>
@@ -182,9 +210,63 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
               </div>
 
               <Card className="rounded-[2.5rem] border-none bg-white shadow-2xl shadow-amber-950/10 overflow-hidden">
-                <CardContent className="p-8">
+                <CardContent className="p-8 space-y-6">
+                  {/* Merchant Account Info */}
+                  {merchant?.accountNumber && (
+                    <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100/50 flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800/60">Merchant Account</p>
+                        <p className="text-sm font-mono font-bold text-amber-900 tracking-wider">{merchant.accountNumber}</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 rounded-xl text-amber-600 hover:bg-amber-100/50"
+                        onClick={() => copyToClipboard(merchant.accountNumber)}
+                      >
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+
                   <form onSubmit={handlePayment} className="space-y-6">
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Payment Method</Label>
+                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                          <SelectTrigger className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:ring-amber-500/20 font-medium">
+                            <SelectValue placeholder="Select Method" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl border-slate-100">
+                            <SelectItem value="BANK" className="rounded-xl py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                                  <Building className="w-4 h-4 text-amber-600" />
+                                </div>
+                                <div className="flex flex-col text-left">
+                                  <span className="font-bold text-slate-900 text-sm">Nib Bank</span>
+                                  <span className="text-[10px] text-slate-500">USSD Push Payment</span>
+                                </div>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="TELEBIRR" disabled className="rounded-xl py-3 opacity-60">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                                  <Wallet className="w-4 h-4 text-slate-400" />
+                                </div>
+                                <div className="flex flex-col text-left">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-400 text-sm">Telebirr</span>
+                                    <Badge variant="secondary" className="h-4 px-1.5 text-[8px] uppercase tracking-wider bg-slate-100 text-slate-400">Coming Soon</Badge>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">Digital Wallet</span>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Your Phone Number</Label>
                         <div className="relative">
@@ -235,11 +317,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                   </form>
                 </CardContent>
               </Card>
-
-              <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                PCI-DSS Compliant Secure Payment
-              </div>
             </div>
           )}
 
@@ -312,14 +389,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         </div>
       </main>
 
-      <footer className="p-8 text-center space-y-4">
-        <div className="flex items-center justify-center gap-6">
-          <img src="/telebirr.png" alt="Telebirr" className="h-6 opacity-30 grayscale hover:grayscale-0 transition-all" />
-          <div className="w-px h-4 bg-slate-200" />
-          <img src="/niblogo.png" alt="Nib Bank" className="h-6 opacity-30 grayscale hover:grayscale-0 transition-all" />
-        </div>
-        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Secure Gateway • Powered by Nib International Bank</p>
-      </footer>
+      <footer className="p-8 text-center" />
     </div>
   )
 }

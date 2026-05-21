@@ -22,7 +22,8 @@ export async function GET(
             name: true,
             logoUrl: true,
             qrEnabled: true,
-            status: true
+            status: true,
+            accountNumber: true
           }
         }
       }
