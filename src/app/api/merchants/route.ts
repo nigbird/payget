@@ -9,6 +9,7 @@ import { validateUrl } from '@/lib/url-validation';
 import { generateJweSecret } from '@/lib/jwe';
 import { encryptMerchantSecretAtRest } from '@/lib/merchant-secret';
 import { writeAuditLog } from '@/lib/audit-log';
+import { validateAccountNumberField } from '@/lib/account-number';
 
 export async function GET(request: Request) {
   const user = await requireAuthUser(request);
@@ -81,7 +82,10 @@ export async function POST(request: Request) {
 
     if (!data.category) errors.category = 'Industry category is required';
     if (!data.businessType) errors.businessType = 'Business type is required';
-    if (!data.accountNumber?.trim()) errors.accountNumber = 'Account number is required';
+    const normalizedAccountNumber = validateAccountNumberField(data.accountNumber, errors);
+    if (normalizedAccountNumber) {
+      data.accountNumber = normalizedAccountNumber;
+    }
 
     // Website URL validation
     const websiteUrlValidation = validateUrl(data.websiteUrl, 'website');

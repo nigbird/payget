@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
 import { validateUrl } from '@/lib/url-validation';
+import { validateAccountNumberField } from '@/lib/account-number';
 
 export async function PATCH(request: Request) {
   try {
@@ -26,6 +27,17 @@ export async function PATCH(request: Request) {
     const callbackUrlValidation = validateUrl(updateData.callbackUrl, 'callback');
     if (!callbackUrlValidation.valid) {
       errors.callbackUrl = callbackUrlValidation.error;
+    }
+
+    if (updateData.accountNumber !== undefined) {
+      const normalizedAccountNumber = validateAccountNumberField(
+        updateData.accountNumber,
+        errors,
+        { required: true }
+      );
+      if (normalizedAccountNumber) {
+        updateData.accountNumber = normalizedAccountNumber;
+      }
     }
 
     if (Object.keys(errors).length > 0) {

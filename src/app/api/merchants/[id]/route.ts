@@ -5,6 +5,7 @@ import { requireAuthUser, userHasPermission, userHasAnyPermission, canAccessMerc
 import { requireCsrf } from '@/lib/request-security';
 import { sendNotification, generatePasswordSetupLink, generateMerchantRegisterLink } from '@/lib/notifications';
 import crypto from 'crypto';
+import { validateAccountNumberField } from '@/lib/account-number';
 
 function isSafeLogoUrl(value: unknown) {
   if (typeof value !== "string") return false
@@ -83,6 +84,19 @@ export async function PATCH(
     }
 
     const body = await request.json();
+
+    if (body.accountNumber !== undefined) {
+      const accountErrors: Record<string, string> = {};
+      const normalizedAccountNumber = validateAccountNumberField(
+        body.accountNumber,
+        accountErrors,
+        { required: true }
+      );
+      if (Object.keys(accountErrors).length > 0) {
+        return NextResponse.json({ error: "Validation failed", errors: accountErrors }, { status: 400 });
+      }
+      body.accountNumber = normalizedAccountNumber;
+    }
     
     const currentMerchant = await db.getMerchantById(id);
     if (!currentMerchant) {
