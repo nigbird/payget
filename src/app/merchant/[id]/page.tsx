@@ -4,6 +4,9 @@ import { use, useEffect, useState, useMemo, useRef, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import type { TransactionStatus } from "@/app/lib/db"
+
+const nonTerminalStatuses: TransactionStatus[] = ["pending", "initiated", "awaiting_pin", "processing"]
+
 import { 
   isSameDay, 
   isSameWeek, 
@@ -870,10 +873,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                         className={`mt-1 text-[10px] capitalize ${
                           tx.status === "success"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : nonTerminalStatuses.includes(tx.status)
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
                             : "border-rose-200 bg-rose-50 text-rose-700"
                         }`}
                       >
-                        {tx.status === "success" ? "Success" : "Failed"}
+                        {tx.status === "success" ? "Success" : nonTerminalStatuses.includes(tx.status) ? "Initiated" : "Failed"}
                       </Badge>
                     </div>
                   </div>

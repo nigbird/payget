@@ -271,6 +271,13 @@ export async function POST(request: Request) {
     const providerCbsReference: unknown =
       decryptedData.cbsreference ?? decryptedData.cbsReference ?? decryptedData.cbs_reference ?? "";
 
+    const payerAccount: string | null =
+      (decryptedData.payerAccount ?? 
+       decryptedData.payer_account ?? 
+       decryptedData.fromAccount ?? 
+       decryptedData.customerAccount ?? 
+       null) as string | null;
+
     const providerCompany: unknown = decryptedData.company ?? "";
 
     console.log(
@@ -305,6 +312,7 @@ export async function POST(request: Request) {
         transactionId: tx.id,
         transactionReference: tx.transactionReference,
         amount: tx.amount,
+        payerAccount: payerAccount,
         providerStatusCode: providerStatusCodeRaw,
         providerStatusDesc: providerStatusDesc,
       },
@@ -313,6 +321,7 @@ export async function POST(request: Request) {
     // Persist provider callback details into transaction.userCredentials (Json)
     // PRESERVE ALL EXISTING DATA including providerSharedSecret!
     await db.updateTransaction(tx.id, {
+      payerAccount: payerAccount,
       userCredentials: {
         ...tx.userCredentials,
         providerCallback: {
@@ -322,6 +331,7 @@ export async function POST(request: Request) {
             decryptedData.transactionReference ??
             null,
           cbsreference: providerCbsReference,
+          payerAccount: payerAccount,
           statusDesc: providerStatusDesc ?? null,
           statusCode: providerStatusCodeRaw ?? null,
           company: providerCompany ?? null,

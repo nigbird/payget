@@ -47,7 +47,7 @@ import {
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
 
-type StatusFilter = "all" | "success" | "failed"
+type StatusFilter = "all" | "success" | "failed" | "initiated"
 type Density = "comfortable" | "compact"
 
 export default function MerchantTransactionsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -137,7 +137,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
     return transactions.filter((tx) => {
       if (statusFilter === "success" && tx.status !== "success") return false
-      if (statusFilter === "failed" && tx.status === "success") return false
+      if (statusFilter === "failed" && tx.status !== "failed") return false
+      if (statusFilter === "initiated" && !nonTerminalStatuses.includes(tx.status)) return false
       if (!transactionMatchesSalesUserFilter(tx, salesUserFilter, teamMembers)) return false
 
       const txMs = new Date(tx.timestamp).getTime()
@@ -244,11 +245,13 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
   const badgeFor = (status: Transaction["status"]) => {
     if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700"
+    if (nonTerminalStatuses.includes(status)) return "border-amber-200 bg-amber-50 text-amber-700"
     return "border-rose-200 bg-rose-50 text-rose-700"
   }
 
   const statusLabel = (status: Transaction["status"]) => {
     if (status === "success") return "Success"
+    if (nonTerminalStatuses.includes(status)) return "Initiated"
     return "Failed"
   }
 
@@ -385,6 +388,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                           <SelectItem value="all">All Status</SelectItem>
                           <SelectItem value="success">Success</SelectItem>
                           <SelectItem value="failed">Failed</SelectItem>
+                          <SelectItem value="initiated">Initiated</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -472,7 +476,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                           </span>
                           <Badge className={cn(
                             "text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0",
-                            tx.status === 'success' ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                            tx.status === 'success' ? "bg-emerald-100 text-emerald-700" : 
+                            nonTerminalStatuses.includes(tx.status) ? "bg-amber-100 text-amber-700" :
+                            "bg-rose-100 text-rose-700"
                           )}>
                             {statusLabel(tx.status)}
                           </Badge>

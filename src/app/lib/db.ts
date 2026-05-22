@@ -80,6 +80,7 @@ export interface Transaction {
   description: string;
   timestamp: string;
   payerPhone?: string | null;
+  payerAccount?: string | null;
   transactionReference: string;
   serviceDescription: string;
   transactionTimestamp: string;
@@ -151,6 +152,8 @@ function mapMerchant(
 function mapTransaction(tx: PrismaTransaction): Transaction {
   return {
     ...tx,
+    payerPhone: tx.payerPhone ?? undefined,
+    payerAccount: tx.payerAccount ?? undefined,
     status: mapTransactionStatus(tx.status),
     timestamp: tx.timestamp.toISOString(),
     transactionTimestamp: tx.transactionTimestamp.toISOString(),

@@ -350,6 +350,7 @@ model Transaction {
   description          String
   timestamp            DateTime          @default(now())
   payerPhone           String?
+  payerAccount         String?
   transactionReference String            @unique
   serviceDescription   String
   transactionTimestamp DateTime          @default(now())

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     actorUserId = authUser?.id ?? null;
 
     const body = await request.json();
-    const { merchantId, amount, callbackUrl, description } = body;
+    const { merchantId, amount, callbackUrl, description, payerPhone, payerAccount } = body;
 
     // 1. Basic Validation
     if (!merchantId || !amount || !callbackUrl) {
@@ -159,6 +159,8 @@ export async function POST(request: Request) {
       callbackUrl,
       description: description || "Payment initiation",
       timestamp: new Date().toISOString(),
+      payerPhone: payerPhone,
+      payerAccount: payerAccount,
       transactionReference: `ref${transactionId.replaceAll("_", "")}`,
       serviceDescription: description || "Payment initiation",
       transactionTimestamp: new Date().toISOString(),

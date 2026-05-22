@@ -15,6 +15,8 @@ export const PaymentInitiateSchema = z.object({
   serviceDescription: z.string().min(1),
   timestamp: z.string().min(1),
   method: z.enum(["BANK", "TELEBIRR"]).default("BANK"),
+  payerPhone: z.string().optional(),
+  payerAccount: z.string().optional(),
   // Optional hint from merchant; gateway overwrites the final reference.
   transactionReferenceHint: z.string().optional(),
 })
@@ -83,6 +85,8 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     callbackUrl: merchant.callbackUrl,
     description: input.serviceDescription,
     timestamp: input.timestamp,
+    payerPhone: input.payerPhone,
+    payerAccount: input.payerAccount,
     transactionReference,
     serviceDescription: input.serviceDescription,
     transactionTimestamp: input.timestamp,
