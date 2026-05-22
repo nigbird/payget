@@ -425,7 +425,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     <div className="grid gap-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium text-[#5b371f]">Daily Limit</Label>
+                          <Label className="text-sm font-medium text-[#5b371f]">Daily Transaction Volume</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
                             ${transactionLimits.daily.toLocaleString()}
                           </span>
@@ -438,20 +438,20 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium text-[#5b371f]">Daily Max</Label>
+                          <Label className="text-sm font-medium text-[#5b371f]">Maximum Daily Transaction Count</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.daily.toLocaleString()}
+                            {merchant?.dailyCountLimit || 100}
                           </span>
                         </div>
                         <Progress 
-                          value={(transactionLimits.daily / 10000) * 100} 
+                          value={((merchant?.dailyCountLimit || 100) / 200) * 100} 
                           className="h-2 bg-white/60"
                         />
                       </div>
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium text-[#5b371f]">Max Transaction</Label>
+                          <Label className="text-sm font-medium text-[#5b371f]">Maximum Per-Transaction Amount</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
                             ${transactionLimits.maxTransaction.toLocaleString()}
                           </span>
