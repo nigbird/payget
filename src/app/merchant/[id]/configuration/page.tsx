@@ -18,6 +18,10 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { PasswordStrength } from "@/components/auth/password-strength"
 import { validatePassword } from "@/lib/password-policy"
+import {
+  sanitizeAccountNumberInput,
+  getAccountNumberValidationError,
+} from "@/lib/account-number"
 
 const callbackUrlSchema = z
   .string()
@@ -143,10 +147,9 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
     if (!formData.companyName.trim()) nextErrors.companyName = "Company Name is required."
 
-    if (!formData.accountNumber.trim()) {
-      nextErrors.accountNumber = "Account Number is required."
-    } else if (!/^[0-9A-Za-z-]{6,34}$/.test(formData.accountNumber.trim())) {
-      nextErrors.accountNumber = "Use 6-34 characters (letters, numbers, or hyphen)."
+    const accountNumberError = getAccountNumberValidationError(formData.accountNumber)
+    if (accountNumberError) {
+      nextErrors.accountNumber = accountNumberError
     }
 
     // callbackUrl is optional for this page and not currently editable in the UI.
@@ -485,12 +488,19 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <Label htmlFor="accountNumber">Account Number</Label>
                         <Input
                           id="accountNumber"
+                          inputMode="numeric"
+                          maxLength={13}
                           value={formData.accountNumber}
-                          onChange={(e) => setFormData((p) => ({ ...p, accountNumber: e.target.value }))}
-                          placeholder="1234567890"
+                          onChange={(e) =>
+                            setFormData((p) => ({
+                              ...p,
+                              accountNumber: sanitizeAccountNumberInput(e.target.value),
+                            }))
+                          }
+                          placeholder="7000123456789"
                           className="h-11 rounded-2xl border-white/60 bg-white/85"
                         />
-                        <p className="text-xs text-muted-foreground">Settlement account reference used by gateway operations.</p>
+                        <p className="text-xs text-muted-foreground">Must start with 7000, digits only, up to 13 characters.</p>
                         {errors.accountNumber && <p className="text-xs text-rose-600">{errors.accountNumber}</p>}
                       </div>
                     </div>

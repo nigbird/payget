@@ -34,6 +34,10 @@ import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 import { validateUrl } from "@/lib/url-validation"
+import {
+  sanitizeAccountNumberInput,
+  getAccountNumberValidationError,
+} from "@/lib/account-number"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 
@@ -279,7 +283,8 @@ export default function MerchantSelfRegistration() {
 
     if (!formData.category) newErrors.category = "Industry category is required"
     if (!formData.businessType) newErrors.businessType = "Business type is required"
-    if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
+    const accountNumberError = getAccountNumberValidationError(formData.accountNumber)
+    if (accountNumberError) newErrors.accountNumber = accountNumberError
 
     // Website URL validation
     const websiteUrlValidation = validateUrl(formData.websiteUrl, 'website')
@@ -531,15 +536,20 @@ export default function MerchantSelfRegistration() {
                       <Input
                         id="accountNumber"
                         inputMode="numeric"
-                        placeholder="e.g. 1234567890"
+                        placeholder="7000123456789"
                         required
-                        maxLength={15}
+                        maxLength={13}
                         className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.accountNumber ? 'border-red-500' : ''}`}
                         value={formData.accountNumber}
-                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            accountNumber: sanitizeAccountNumberInput(e.target.value),
+                          })
+                        }
                       />
                       {errors.accountNumber && <p className="text-[11px] text-red-500 font-medium">{errors.accountNumber}</p>}
-                      <p className="text-xs text-gray-400">Payments will be settled to this account number.</p>
+                      <p className="text-xs text-gray-400">Must start with 7000, digits only, up to 13 characters.</p>
                     </div>
                   </div>
                 </div>

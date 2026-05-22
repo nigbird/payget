@@ -77,6 +77,10 @@ import { useSession } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
+import {
+  sanitizeAccountNumberInput,
+  getAccountNumberValidationError,
+} from "@/lib/account-number"
 
 function MerchantOnboardingContent() {
   const { data: session } = useSession()
@@ -273,6 +277,13 @@ function MerchantOnboardingContent() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target
+    if (id === "accountNumber") {
+      setFormData((prev) => ({
+        ...prev,
+        accountNumber: sanitizeAccountNumberInput(value),
+      }))
+      return
+    }
     setFormData(prev => ({ ...prev, [id]: value }))
   }
 
@@ -465,7 +476,8 @@ function MerchantOnboardingContent() {
 
     if (!formData.category) newErrors.category = "Industry category is required"
     if (!formData.businessType) newErrors.businessType = "Business type is required"
-    if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
+    const accountNumberError = getAccountNumberValidationError(formData.accountNumber)
+    if (accountNumberError) newErrors.accountNumber = accountNumberError
 
     if (documents.length === 0) {
       newErrors.documents = "Please upload at least one compliance document"
@@ -887,14 +899,16 @@ function MerchantOnboardingContent() {
                                     <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                     <Input 
                                       id="accountNumber" 
-                                      placeholder="Bank Account Number" 
+                                      inputMode="numeric"
+                                      placeholder="7000123456789" 
                                       value={formData.accountNumber} 
                                       onChange={handleInputChange} 
-                                      maxLength={15}
+                                      maxLength={13}
                                       className={`h-11 rounded-xl border-gray-200 pl-10 focus:ring-primary/20 focus:border-primary transition-all ${errors.accountNumber ? "border-red-500" : ""}`}
                                     />
                                   </div>
                                   {errors.accountNumber && <p className="text-[10px] text-red-500 font-medium">{errors.accountNumber}</p>}
+                                  <p className="text-[10px] text-gray-400">Must start with 7000, digits only, up to 13 characters.</p>
                                 </div>
                                 <div className="space-y-2">
                                   <Label htmlFor="websiteUrl" className="text-sm font-medium text-gray-700">Website URL (Optional)</Label>

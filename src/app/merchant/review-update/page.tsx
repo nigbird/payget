@@ -32,6 +32,10 @@ import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
 import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from "@/lib/utils"
 import { validateUrl } from "@/lib/url-validation"
+import {
+  sanitizeAccountNumberInput,
+  getAccountNumberValidationError,
+} from "@/lib/account-number"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 function ReviewUpdateForm() {
@@ -307,7 +311,8 @@ function ReviewUpdateForm() {
     if (!formData.contactName?.trim()) newErrors.contactName = "Contact name is required"
     if (!formData.category) newErrors.category = "Category is required"
     if (!formData.businessType) newErrors.businessType = "Business type is required"
-    if (!formData.accountNumber?.trim()) newErrors.accountNumber = "Account number is required"
+    const accountNumberError = getAccountNumberValidationError(formData.accountNumber)
+    if (accountNumberError) newErrors.accountNumber = accountNumberError
     if (isNaN(Number(formData.dailyLimit))) newErrors.dailyLimit = "Daily limit must be a number"
     if (isNaN(Number(formData.transactionLimit))) newErrors.transactionLimit = "Transaction limit must be a number"
     if (documents.length === 0) newErrors.documents = "Upload at least one document"
@@ -541,12 +546,21 @@ function ReviewUpdateForm() {
                   </div>
                   <div className="space-y-2 sm:col-span-2">
                     <Label>Settlement Account Number</Label>
-                    <Input 
-                      maxLength={15}
+                    <Input
+                      id="accountNumber"
+                      inputMode="numeric"
+                      placeholder="7000123456789"
+                      maxLength={13}
                       className={`h-11 rounded-xl ${errors.accountNumber ? 'border-red-500' : ''}`}
                       value={formData.accountNumber}
-                      onChange={e => setFormData({...formData, accountNumber: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          accountNumber: sanitizeAccountNumberInput(e.target.value),
+                        })
+                      }
                     />
+                    <p className="text-xs text-gray-400">Must start with 7000, digits only, up to 13 characters.</p>
                   </div>
                 </div>
               </div>
