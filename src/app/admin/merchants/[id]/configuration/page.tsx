@@ -141,6 +141,16 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
     setIsRegenerating(true)
     try {
+      // First save current configuration changes
+      await fetch(`/api/merchants/${id}/qr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qrEnabled: qrConfig.qrEnabled,
+          qrLogoUrl: qrConfig.qrLogoUrl
+        })
+      })
+
       const response = await fetch(`/api/merchants/${id}/qr/regenerate`, {
         method: 'POST'
       })
@@ -148,7 +158,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       if (response.ok) {
         toast({
           title: "QR Code Regenerated",
-          description: "A new secure payment token has been issued."
+          description: "New token issued and settings updated."
         })
         fetchData()
       } else {
@@ -292,7 +302,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     <div className="flex items-center gap-4">
                       <div className="w-20 h-20 rounded-2xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center overflow-hidden">
                         {qrConfig?.qrLogoUrl ? (
-                          <img src={qrConfig.qrLogoUrl} alt="QR Logo" className="w-full h-full object-contain" />
+                          <img src={toAbsoluteImageUrl(qrConfig.qrLogoUrl)} alt="QR Logo" className="w-full h-full object-contain" />
                         ) : (
                           <ImageIcon className="w-8 h-8 text-amber-200" />
                         )}
@@ -328,29 +338,19 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Security & Lifecycle</Label>
-                    <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100/50 space-y-3">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-amber-900">Secure Payment Token</p>
-                          <p className="text-[10px] text-amber-800/70 leading-relaxed">The QR code uses a unique secure token. If you suspect fraud or want to refresh the code, use the regeneration tool.</p>
-                        </div>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full h-8 text-[10px] font-bold uppercase tracking-wider rounded-lg border-amber-200 text-amber-900 hover:bg-amber-100"
-                        onClick={handleRegenerateQr}
-                        disabled={isRegenerating || !qrConfig?.activeQr}
-                      >
-                        {isRegenerating ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <RotateCw className="w-3 h-3 mr-1.5" />}
-                        Regenerate QR Token
-                      </Button>
-                    </div>
+                  <div className="pt-4">
+                    <Button 
+                      onClick={qrConfig?.activeQr ? handleRegenerateQr : handleSaveQrConfig}
+                      disabled={qrConfig?.activeQr ? isRegenerating : isSaving}
+                      className="w-full rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-10 px-8"
+                    >
+                      {qrConfig?.activeQr ? (
+                        isRegenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCw className="w-4 h-4 mr-2" />
+                      ) : (
+                        isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />
+                      )}
+                      {qrConfig?.activeQr ? "Regenerate" : "Generate"}
+                    </Button>
                   </div>
                 </div>
 
@@ -370,21 +370,20 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           imageSettings={qrDisplayLogoSettings}
                         />
                       </div>
-                      <p className="mt-6 text-[10px] font-mono text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                        {qrConfig.activeQr.token.substring(0, 16)}...
-                      </p>
-                      <div className="mt-6 flex gap-3">
+                      <div className="mt-6">
                         <Button 
-                          className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-9 px-6"
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 rounded-full text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors"
                           onClick={downloadQr}
                           disabled={isDownloadingQr}
+                          title="Download QR"
                         >
                           {isDownloadingQr ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2 className="w-5 h-5 animate-spin" />
                           ) : (
-                            <Download className="w-4 h-4 mr-2" />
+                            <Download className="w-5 h-5" />
                           )}
-                          Download QR
                         </Button>
                       </div>
                     </>
@@ -399,16 +398,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-slate-50/50 border-t border-black/5 p-4 flex justify-end">
-              <Button 
-                onClick={handleSaveQrConfig}
-                disabled={isSaving}
-                className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-10 px-8"
-              >
-                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save Configuration
-              </Button>
-            </CardFooter>
           </Card>
         </div>
 
@@ -421,14 +410,14 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
                 <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
                   {merchant?.logoUrl ? (
-                    <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
+                    <img src={toAbsoluteImageUrl(merchant.logoUrl)} alt={merchant.name} className="w-full h-full object-contain" />
                   ) : (
                     <Store className="w-6 h-6 text-slate-300" />
                   )}
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{merchant?.name}</p>
-                  <p className="text-[10px] font-mono text-slate-500 uppercase">{merchant?.id}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">{merchant?.name}</p>
+                  <p className="text-[10px] font-mono text-slate-500 uppercase truncate">{merchant?.id}</p>
                 </div>
               </div>
 
@@ -446,20 +435,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   <span className="font-medium text-slate-900">{merchant?.category}</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border border-black/5 bg-amber-50/30 shadow-sm shadow-amber-950/10">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start text-xs h-9 rounded-xl border-slate-200 bg-white" onClick={() => router.push(`/admin/review?merchantId=${id}`)}>
-                <Building2 className="w-3.5 h-3.5 mr-2" /> View Full Profile
-              </Button>
-              <Button variant="outline" className="w-full justify-start text-xs h-9 rounded-xl border-slate-200 bg-white" onClick={() => window.open(qrUrl, '_blank')}>
-                <CheckCircle2 className="w-3.5 h-3.5 mr-2" /> Test Payment Page
-              </Button>
             </CardContent>
           </Card>
         </div>

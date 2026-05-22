@@ -382,7 +382,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                     <span className="font-bold text-slate-900">{new Date(transaction?.timestamp || new Date()).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Phone:</span>
+                    <span className="text-slate-500">To:</span>
+                    <span className="font-bold text-slate-900">{merchant?.accountNumber || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">From:</span>
                     <span className="font-bold text-slate-900">{phone}</span>
                   </div>
                   <Separator className="bg-emerald-50" />
