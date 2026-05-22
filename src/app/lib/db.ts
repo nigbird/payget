@@ -314,6 +314,29 @@ export const db = {
   },
 
   addMerchantTeamMember: async (data: any) => {
+    const { merchantId, email, phone } = data;
+
+    const whereConditions: any[] = [];
+    if (email) {
+      whereConditions.push({ merchantId, email });
+    }
+    if (phone) {
+      whereConditions.push({ merchantId, phone });
+    }
+
+    if (whereConditions.length > 0) {
+      const existing = await prisma.merchantTeamMember.findFirst({
+        where: {
+          OR: whereConditions
+        }
+      });
+
+      if (existing) {
+        const duplicateField = existing.email === email ? 'email' : 'phone';
+        throw new Error(`A team member with this ${duplicateField} already exists for this merchant.`);
+      }
+    }
+
     return prisma.merchantTeamMember.create({
       data: {
         ...data,
