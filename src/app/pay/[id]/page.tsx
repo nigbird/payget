@@ -233,18 +233,11 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
               {completedForPayer.length === 0 && <p className="text-sm text-slate-500">No completed transactions yet.</p>}
               {completedForPayer.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-slate-800 truncate">{item.description}</p>
-                      <span className="text-[9px] font-mono text-slate-500 bg-slate-200/50 px-1 py-0.5 rounded">
-                        {item.transactionReference}
-                      </span>
-                    </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{item.description}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{new Date(item.timestamp).toLocaleDateString()}</p>
                   </div>
-                  <Badge variant={item.status === "success" ? "default" : "destructive"} className="font-medium capitalize text-[10px] h-5">
-                    {item.status}
-                  </Badge>
+                  <Badge variant={item.status === "success" ? "default" : "destructive"} className="font-medium">{item.status}</Badge>
                 </div>
               ))}
             </div>
