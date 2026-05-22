@@ -856,29 +856,42 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               </Link>
             </div>
             <div className="space-y-2">
-              {recentTransactions.map((tx) => (
-                <div key={tx.id} className="group flex flex-col gap-3 rounded-2xl border border-amber-200/30 bg-gradient-to-r from-amber-50/50 to-white/50 p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/20 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-[#5b371f] break-words">{tx.description}</p>
-                    <p className="text-xs leading-5 text-amber-800/60 break-words">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
-                  </div>
-                  <div className="text-left sm:text-right flex items-center gap-3">
-                    <div>
-                      <p className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</p>
-                      <Badge
-                        variant="outline"
-                        className={`mt-1 text-[10px] capitalize ${
-                          tx.status === "success"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-rose-200 bg-rose-50 text-rose-700"
-                        }`}
-                      >
-                        {tx.status === "success" ? "Success" : "Failed"}
-                      </Badge>
+              {recentTransactions.map((tx) => {
+                const customerAcc = tx.userCredentials.providerCallback?.raw?.debitAccount || 
+                                  tx.userCredentials.providerCallback?.raw?.customerAccount || 
+                                  tx.userCredentials.providerCallback?.raw?.accountNo || 
+                                  "N/A";
+                return (
+                  <div key={tx.id} className="group flex flex-col gap-3 rounded-2xl border border-amber-200/30 bg-gradient-to-r from-amber-50/50 to-white/50 p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/20 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-sm font-bold text-[#5b371f] truncate">{tx.description}</p>
+                        <span className="text-[10px] font-mono text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100/50">
+                          {tx.transactionReference}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-5 text-amber-800/60 break-words font-medium">
+                        {tx.payerPhone || tx.userCredentials.phone} • Acc: {customerAcc} • {new Date(tx.timestamp).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right flex items-center gap-3">
+                      <div>
+                        <p className="font-black text-[#5b371f]">{tx.amount.toFixed(2)} <span className="text-[10px] text-amber-800/40">ETB</span></p>
+                        <Badge
+                          variant="outline"
+                          className={`mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 h-4 border-0 ${
+                            tx.status === "success"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {tx.status === "success" ? "Success" : "Failed"}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {transactions.length === 0 && <p className="text-sm text-muted-foreground">No transactions yet.</p>}
             </div>
           </CardContent>

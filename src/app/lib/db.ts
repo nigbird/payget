@@ -89,6 +89,16 @@ export interface Transaction {
     initiatedById?: string;
     initiatedByName?: string;
     providerSharedSecret?: string;
+    providerDetails?: string | null;
+    providerCallback?: {
+      transactionId?: string | null;
+      cbsreference?: any;
+      statusDesc?: string | null;
+      statusCode?: any;
+      company?: any;
+      amount?: any;
+      raw?: any;
+    };
     link?: {
       expiresAt: string;
       status: 'PENDING' | 'USED' | 'EXPIRED';
@@ -160,6 +170,16 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
       initiatedById?: string;
       initiatedByName?: string;
       providerSharedSecret?: string;
+      providerDetails?: string | null;
+      providerCallback?: {
+        transactionId?: string | null;
+        cbsreference?: any;
+        statusDesc?: string | null;
+        statusCode?: any;
+        company?: any;
+        amount?: any;
+        raw?: any;
+      };
       link?: {
         expiresAt: string;
         status: 'PENDING' | 'USED' | 'EXPIRED';
