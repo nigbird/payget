@@ -356,7 +356,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
                 <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-black/5 shadow-inner min-h-[300px]">
                   {qrConfig?.qrEnabled && qrConfig?.activeQr ? (
-                    <>
+                    <div className="relative group/qr">
                       <div className="bg-white p-4 rounded-3xl shadow-xl border border-slate-100">
                         <QRCodeCanvas
                           id="merchant-qr"
@@ -370,23 +370,21 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           imageSettings={qrDisplayLogoSettings}
                         />
                       </div>
-                      <div className="mt-6">
-                        <Button 
-                          variant="ghost"
-                          size="icon"
-                          className="h-10 w-10 rounded-full text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                          onClick={downloadQr}
-                          disabled={isDownloadingQr}
-                          title="Download QR"
-                        >
-                          {isDownloadingQr ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <Download className="w-5 h-5" />
-                          )}
-                        </Button>
-                      </div>
-                    </>
+                      <Button 
+                        variant="ghost"
+                        size="icon"
+                        className="absolute -top-3 -right-3 h-14 w-14 rounded-full bg-white shadow-lg border-2 border-amber-600 text-amber-600 hover:text-white hover:bg-amber-600 transition-all z-10"
+                        onClick={downloadQr}
+                        disabled={isDownloadingQr}
+                        title="Download QR"
+                      >
+                        {isDownloadingQr ? (
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                        ) : (
+                          <Download className="w-6 h-6" />
+                        )}
+                      </Button>
+                    </div>
                   ) : (
                     <div className="text-center space-y-3">
                       <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto border border-dashed border-slate-200">
