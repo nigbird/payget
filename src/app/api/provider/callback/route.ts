@@ -281,6 +281,13 @@ export async function POST(request: Request) {
 
     const oldStatus = tx.status;
     await db.updateTransactionStatus(tx.id, finalStatus);
+
+    if (finalStatus === "success") {
+      const { processCashbackForSettlement } = await import("@/lib/cashback/processor");
+      void processCashbackForSettlement(tx.id).catch((cashbackErr) => {
+        console.error("[cashback] Settlement processing failed:", cashbackErr);
+      });
+    }
     
     const merchant = await db.getMerchantById(tx.merchantId);
     await writeAuditLog({

@@ -1,0 +1,104 @@
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { requireCsrf } from "@/lib/request-security"
+import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
+import { getOrCreateCashbackConfig } from "@/lib/cashback/service"
+import { parseCsvEligibleRows, parseExcelEligibleRows } from "@/lib/cashback/import-parser"
+import { writeAuditLog } from "@/lib/audit-log"
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) return csrfError
+
+    const { id: merchantId } = await params
+    const { user, error } = await requireMerchantCashbackAccess(request, merchantId)
+    if (error) return error
+
+    const formData = await request.formData()
+    const file = formData.get("file")
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "File is required" }, { status: 400 })
+    }
+
+    const config = await getOrCreateCashbackConfig(merchantId)
+    const categories = await prisma.cashbackCategory.findMany({
+      where: { configId: config.id, merchantId },
+    })
+    const categoryByName = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]))
+
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
+    let parsed: Awaited<ReturnType<typeof parseCsvEligibleRows>>
+
+    if (ext === "csv" || ext === "txt") {
+      parsed = parseCsvEligibleRows(await file.text())
+    } else if (ext === "xlsx" || ext === "xls") {
+      parsed = await parseExcelEligibleRows(await file.arrayBuffer())
+    } else {
+      return NextResponse.json({ error: "Supported formats: CSV, XLSX" }, { status: 400 })
+    }
+
+    if (parsed.rows.length === 0 && parsed.errors.length > 0) {
+      return NextResponse.json({ imported: 0, skipped: 0, errors: parsed.errors }, { status: 400 })
+    }
+
+    let imported = 0
+    let skipped = 0
+    const errors = [...parsed.errors]
+
+    for (const row of parsed.rows) {
+      const categoryId = categoryByName.get(row.categoryName.toLowerCase())
+      if (!categoryId) {
+        errors.push({
+          rowNumber: row.rowNumber,
+          message: `Unknown category "${row.categoryName}". Create the category first.`,
+        })
+        skipped++
+        continue
+      }
+
+      try {
+        await prisma.cashbackEligibleCustomer.upsert({
+          where: {
+            merchantId_phone_categoryId: {
+              merchantId,
+              phone: row.phone,
+              categoryId,
+            },
+          },
+          create: {
+            merchantId,
+            configId: config.id,
+            categoryId,
+            phone: row.phone,
+            accountNumber: row.accountNumber,
+          },
+          update: {
+            accountNumber: row.accountNumber,
+          },
+        })
+        imported++
+      } catch {
+        skipped++
+        errors.push({ rowNumber: row.rowNumber, message: "Failed to import row." })
+      }
+    }
+
+    await writeAuditLog({
+      request,
+      userId: user!.id,
+      action: "CASHBACK_ELIGIBLE_IMPORT",
+      entityType: "MERCHANT",
+      entityId: merchantId,
+      newValue: { imported, skipped, fileName: file.name },
+    })
+
+    return NextResponse.json({ imported, skipped, errors })
+  } catch (e) {
+    console.error("Failed to import eligible customers:", e)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

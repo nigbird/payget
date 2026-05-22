@@ -157,6 +157,118 @@ model Merchant {
   qrEnabled           Boolean          @default(false)
   qrLogoUrl           String?
   qrCodes             MerchantQrCode[]
+  cashbackConfig      MerchantCashbackConfig?
+  cashbackTransactions CashbackTransaction[]
+  cashbackEligibleCustomers CashbackEligibleCustomer[]
+}
+
+enum CashbackMode {
+  ALL_CUSTOMERS
+  CATEGORY_ELIGIBLE
+}
+
+enum CashbackProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model MerchantCashbackConfig {
+  id                        String       @id @default(cuid())
+  merchantId                String       @unique
+  merchant                  Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  enabled                   Boolean      @default(false)
+  mode                      CashbackMode @default(ALL_CUSTOMERS)
+  subsidiaryAccountNumber   String?
+  allCustomersPercent       Float?
+  allCustomersMinAmount     Float?
+  allCustomersMaxCashback   Float?
+  allCustomersThreshold     Float?
+  categories                CashbackCategory[]
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+}
+
+model CashbackCategory {
+  id                   String   @id @default(cuid())
+  configId             String
+  config               MerchantCashbackConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  merchantId           String
+  name                 String
+  description          String?
+  percent              Float
+  minTransactionAmount Float    @default(0)
+  maxCashbackAmount    Float?
+  transactionThreshold Float?
+  sortOrder            Int      @default(0)
+  isActive             Boolean  @default(true)
+  eligibleCustomers    CashbackEligibleCustomer[]
+  cashbackTransactions CashbackTransaction[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([configId, name])
+  @@index([merchantId])
+}
+
+model CashbackEligibleCustomer {
+  id            String           @id @default(cuid())
+  merchantId    String
+  merchant      Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  configId      String
+  categoryId    String
+  category      CashbackCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  phone         String
+  accountNumber String?
+  importedAt    DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([merchantId, phone, categoryId])
+  @@index([merchantId, phone])
+  @@index([categoryId])
+}
+
+model CashbackTransaction {
+  id                   String                   @id @default(cuid())
+  merchantId           String
+  merchant             Merchant                 @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  paymentTransactionId String                   @unique
+  configId             String
+  categoryId           String?
+  category             CashbackCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  customerPhone        String?
+  customerAccount      String?
+  paymentAmount        Float
+  cashbackAmount       Float
+  cashbackPercent      Float
+  status               CashbackProcessingStatus @default(PENDING)
+  skipReason           String?
+  idempotencyKey       String                   @unique
+  subsidiaryAccount    String?
+  providerDebitRef     String?
+  providerCreditRef    String?
+  failureReason        String?
+  processedAt          DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  logs                 CashbackProcessingLog[]
+
+  @@index([merchantId, createdAt])
+  @@index([status])
+}
+
+model CashbackProcessingLog {
+  id                    String              @id @default(cuid())
+  cashbackTransactionId String
+  cashbackTransaction   CashbackTransaction @relation(fields: [cashbackTransactionId], references: [id], onDelete: Cascade)
+  level                 String
+  message               String
+  metadata              Json?
+  createdAt             DateTime            @default(now())
+
+  @@index([cashbackTransactionId, createdAt])
 }
 
 model MerchantQrCode {
@@ -215,6 +327,9 @@ model MerchantTeamMember {
   role       TeamRole         @default(PAYMENT_INITIATOR)
   status     TeamMemberStatus @default(ACTIVE)
   createdAt  DateTime         @default(now())
+
+  @@unique([merchantId, email])
+  @@unique([merchantId, phone])
 }
 
 enum TeamRole {
