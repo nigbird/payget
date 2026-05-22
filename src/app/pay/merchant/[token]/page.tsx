@@ -129,16 +129,37 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   }
 
   const startPolling = (txId: string) => {
+    let pollCount = 0;
+    const maxPolls = 100; // ~5 minutes
+
     const interval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > maxPolls) {
+        clearInterval(interval);
+        toast({
+          variant: "destructive",
+          title: "Payment Timeout",
+          description: "Confirmation is taking longer than expected. Please check your bank statement."
+        });
+        setView("failed");
+        return;
+      }
+
       try {
         const response = await fetch(`/api/transactions/${txId}`)
         if (response.ok) {
           const data = await response.json()
           if (data.status === "SUCCESS" || data.status === "success") {
             clearInterval(interval)
+            setTransaction(data)
             setView("success")
+            toast({
+              title: "Payment Successful",
+              description: "Thank you! Your payment has been received."
+            })
           } else if (data.status === "FAILED" || data.status === "failed") {
             clearInterval(interval)
+            setTransaction(data)
             setView("failed")
           }
         }
@@ -347,17 +368,21 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
               </div>
               <div className="space-y-2">
                 <h2 className="text-3xl font-black text-emerald-950">Payment Success!</h2>
-                <p className="text-sm text-emerald-800/60 font-medium">Your transaction of <b>{amount} ETB</b> to <b>{merchant?.name}</b> was successful.</p>
+                <p className="text-sm text-emerald-800/60 font-medium">Your transaction of <b>{transaction?.amount || amount} ETB</b> to <b>{merchant?.name}</b> was successful.</p>
               </div>
               <Card className="bg-white border-emerald-100 rounded-3xl overflow-hidden shadow-xl shadow-emerald-950/5">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Reference:</span>
-                    <span className="font-mono font-bold text-slate-900">{transaction?.transactionReference || 'N/A'}</span>
+                    <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[13px]">{transaction?.transactionReference || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Date:</span>
-                    <span className="font-bold text-slate-900">{new Date().toLocaleString()}</span>
+                    <span className="font-bold text-slate-900">{new Date(transaction?.timestamp || new Date()).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Phone:</span>
+                    <span className="font-bold text-slate-900">{phone}</span>
                   </div>
                   <Separator className="bg-emerald-50" />
                   <Button variant="outline" className="w-full rounded-xl border-emerald-200 text-emerald-700" onClick={() => window.print()}>
@@ -365,7 +390,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                   </Button>
                 </CardContent>
               </Card>
-              <Button variant="ghost" className="text-slate-500" onClick={() => setView("input")}>Make Another Payment</Button>
+              <Button variant="ghost" className="text-slate-500" onClick={() => {
+                setView("input");
+                setAmount("");
+                setPhone("");
+              }}>Make Another Payment</Button>
             </div>
           )}
 
@@ -377,6 +406,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
               <div className="space-y-2">
                 <h2 className="text-3xl font-black text-rose-950">Payment Failed</h2>
                 <p className="text-sm text-rose-800/60 font-medium">We couldn't process your payment at this time.</p>
+                {transaction?.userCredentials?.providerDetails && (
+                  <p className="text-xs text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100 mt-4">
+                    Reason: {transaction.userCredentials.providerDetails}
+                  </p>
+                )}
               </div>
               <Button 
                 className="w-full h-14 rounded-2xl bg-slate-900 text-white font-bold"
