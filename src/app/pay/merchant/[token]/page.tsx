@@ -16,7 +16,8 @@ import {
   Copy,
   Check,
   ChevronDown,
-  Building
+  Building,
+  Download
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
