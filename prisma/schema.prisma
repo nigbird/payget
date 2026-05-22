@@ -184,8 +184,7 @@ model MerchantCashbackConfig {
   subsidiaryAccountNumber   String?
   allCustomersPercent       Float?
   allCustomersMinAmount     Float?
-  allCustomersMaxCashback   Float?
-  allCustomersThreshold     Float?
+  allCustomersMaxAmount     Float?
   categories                CashbackCategory[]
   createdAt                 DateTime     @default(now())
   updatedAt                 DateTime     @updatedAt
@@ -199,9 +198,8 @@ model CashbackCategory {
   name                 String
   description          String?
   percent              Float
-  minTransactionAmount Float    @default(0)
-  maxCashbackAmount    Float?
-  transactionThreshold Float?
+  minTransactionAmount Float?   @default(0)
+  maxTransactionAmount Float?
   sortOrder            Int      @default(0)
   isActive             Boolean  @default(true)
   eligibleCustomers    CashbackEligibleCustomer[]

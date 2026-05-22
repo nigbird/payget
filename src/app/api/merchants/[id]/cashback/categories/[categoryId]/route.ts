@@ -35,11 +35,9 @@ export async function PATCH(
         description: body.description !== undefined ? (body.description ? String(body.description) : null) : undefined,
         percent,
         minTransactionAmount:
-          body.minTransactionAmount !== undefined ? Number(body.minTransactionAmount) : undefined,
-        maxCashbackAmount:
-          body.maxCashbackAmount !== undefined ? parseNullableNumber(body.maxCashbackAmount) : undefined,
-        transactionThreshold:
-          body.transactionThreshold !== undefined ? parseNullableNumber(body.transactionThreshold) : undefined,
+          body.minTransactionAmount !== undefined ? parseNullableNumber(body.minTransactionAmount) : undefined,
+        maxTransactionAmount:
+          body.maxTransactionAmount !== undefined ? parseNullableNumber(body.maxTransactionAmount) : undefined,
         sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : undefined,
         isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
       },
@@ -52,8 +50,7 @@ export async function PATCH(
       description: updated.description,
       percent: updated.percent,
       minTransactionAmount: updated.minTransactionAmount,
-      maxCashbackAmount: updated.maxCashbackAmount,
-      transactionThreshold: updated.transactionThreshold,
+      maxTransactionAmount: updated.maxTransactionAmount,
       sortOrder: updated.sortOrder,
       isActive: updated.isActive,
       eligibleCount: updated._count.eligibleCustomers,

@@ -31,15 +31,14 @@ export function parseCsvEligibleRows(content: string): {
 
   const phoneIdx = headers.findIndex((h) => h === "phone" || h === "phonenumber" || h === "mobile")
   const accountIdx = headers.findIndex((h) => h === "account" || h === "accountnumber" || h === "account_no")
-  const categoryIdx = headers.findIndex((h) => h === "category" || h === "categoryname" || h === "group")
 
-  if (phoneIdx < 0 || categoryIdx < 0) {
+  if (phoneIdx < 0) {
     return {
       rows: [],
       errors: [
         {
           rowNumber: 1,
-          message: "Header must include phone and category columns (phone, category).",
+          message: "Header must include a 'phone' column.",
         },
       ],
     }
@@ -53,15 +52,11 @@ export function parseCsvEligibleRows(content: string): {
     const cols = lines[i].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, ""))
     const rawPhone = cols[phoneIdx] ?? ""
     const phone = normalizeCashbackPhone(rawPhone)
-    const categoryName = cols[categoryIdx] ?? ""
+    const categoryName = "" // No longer parsed from CSV
     const accountNumber = accountIdx >= 0 ? (cols[accountIdx] || "").replace(/\D/g, "") || null : null
 
     if (!phone) {
       errors.push({ rowNumber, message: `Invalid phone: ${rawPhone || "(empty)"}` })
-      continue
-    }
-    if (!categoryName) {
-      errors.push({ rowNumber, message: "Category name is required." })
       continue
     }
 
@@ -95,12 +90,11 @@ export async function parseExcelEligibleRows(buffer: ArrayBuffer): Promise<{
 
   const phoneIdx = headers.findIndex((h) => h === "phone" || h === "phonenumber" || h === "mobile")
   const accountIdx = headers.findIndex((h) => h === "account" || h === "accountnumber" || h === "account_no")
-  const categoryIdx = headers.findIndex((h) => h === "category" || h === "categoryname" || h === "group")
 
-  if (phoneIdx < 0 || categoryIdx < 0) {
+  if (phoneIdx < 0) {
     return {
       rows: [],
-      errors: [{ rowNumber: 1, message: "Header must include phone and category columns." }],
+      errors: [{ rowNumber: 1, message: "Header must include a 'phone' column." }],
     }
   }
 
@@ -111,16 +105,12 @@ export async function parseExcelEligibleRows(buffer: ArrayBuffer): Promise<{
     if (rowNumber === 1) return
     const rawPhone = String(row.getCell(phoneIdx).value ?? "").trim()
     const phone = normalizeCashbackPhone(rawPhone)
-    const categoryName = String(row.getCell(categoryIdx).value ?? "").trim()
+    const categoryName = "" // No longer parsed from Excel
     const accountRaw = accountIdx >= 0 ? String(row.getCell(accountIdx).value ?? "").trim() : ""
     const accountNumber = accountRaw.replace(/\D/g, "") || null
 
     if (!phone) {
       errors.push({ rowNumber, message: `Invalid phone: ${rawPhone || "(empty)"}` })
-      return
-    }
-    if (!categoryName) {
-      errors.push({ rowNumber, message: "Category name is required." })
       return
     }
 

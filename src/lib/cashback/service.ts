@@ -41,8 +41,7 @@ export function mapConfigToDto(config: Awaited<ReturnType<typeof getOrCreateCash
     subsidiaryAccountNumber: config.subsidiaryAccountNumber,
     allCustomersPercent: config.allCustomersPercent,
     allCustomersMinAmount: config.allCustomersMinAmount,
-    allCustomersMaxCashback: config.allCustomersMaxCashback,
-    allCustomersThreshold: config.allCustomersThreshold,
+    allCustomersMaxAmount: config.allCustomersMaxAmount,
     categories: config.categories.map(
       (c): CashbackCategoryDto => ({
         id: c.id,
@@ -50,8 +49,7 @@ export function mapConfigToDto(config: Awaited<ReturnType<typeof getOrCreateCash
         description: c.description,
         percent: c.percent,
         minTransactionAmount: c.minTransactionAmount,
-        maxCashbackAmount: c.maxCashbackAmount,
-        transactionThreshold: c.transactionThreshold,
+        maxTransactionAmount: c.maxTransactionAmount,
         sortOrder: c.sortOrder,
         isActive: c.isActive,
         eligibleCount: c._count.eligibleCustomers,
@@ -169,6 +167,5 @@ export type UpdateCashbackConfigInput = {
   subsidiaryAccountNumber?: string | null
   allCustomersPercent?: number | null
   allCustomersMinAmount?: number | null
-  allCustomersMaxCashback?: number | null
-  allCustomersThreshold?: number | null
+  allCustomersMaxAmount?: number | null
 }

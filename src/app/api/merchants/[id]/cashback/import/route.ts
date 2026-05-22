@@ -20,15 +20,23 @@ export async function POST(
 
     const formData = await request.formData()
     const file = formData.get("file")
+    const categoryId = formData.get("categoryId") as string
+    
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "File is required" }, { status: 400 })
     }
+    if (!categoryId) {
+      return NextResponse.json({ error: "Target category is required" }, { status: 400 })
+    }
 
     const config = await getOrCreateCashbackConfig(merchantId)
-    const categories = await prisma.cashbackCategory.findMany({
-      where: { configId: config.id, merchantId },
+    const category = await prisma.cashbackCategory.findFirst({
+      where: { id: categoryId, configId: config.id, merchantId },
     })
-    const categoryByName = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]))
+    
+    if (!category) {
+      return NextResponse.json({ error: "Selected category not found" }, { status: 404 })
+    }
 
     const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
     let parsed: Awaited<ReturnType<typeof parseCsvEligibleRows>>
@@ -50,16 +58,6 @@ export async function POST(
     const errors = [...parsed.errors]
 
     for (const row of parsed.rows) {
-      const categoryId = categoryByName.get(row.categoryName.toLowerCase())
-      if (!categoryId) {
-        errors.push({
-          rowNumber: row.rowNumber,
-          message: `Unknown category "${row.categoryName}". Create the category first.`,
-        })
-        skipped++
-        continue
-      }
-
       try {
         await prisma.cashbackEligibleCustomer.upsert({
           where: {

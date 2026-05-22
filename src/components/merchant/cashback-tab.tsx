@@ -14,6 +14,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Settings2,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,6 +23,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import {
   sanitizeAccountNumberInput,
@@ -39,9 +51,8 @@ type Props = { merchantId: string }
 const emptyCategoryForm = {
   name: "",
   percent: "5",
-  minTransactionAmount: "0",
-  maxCashbackAmount: "",
-  transactionThreshold: "",
+  minTransactionAmount: "",
+  maxTransactionAmount: "",
 }
 
 export function CashbackTab({ merchantId }: Props) {
@@ -54,6 +65,11 @@ export function CashbackTab({ merchantId }: Props) {
   const [expandedLogs, setExpandedLogs] = useState<Record<string, CashbackLogDto[]>>({})
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [importing, setImporting] = useState(false)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<string>("settings")
+  const [customerFilterCategoryId, setCustomerFilterCategoryId] = useState<string>("all")
 
   const [form, setForm] = useState({
     enabled: false,
@@ -61,8 +77,7 @@ export function CashbackTab({ merchantId }: Props) {
     subsidiaryAccountNumber: "",
     allCustomersPercent: "",
     allCustomersMinAmount: "",
-    allCustomersMaxCashback: "",
-    allCustomersThreshold: "",
+    allCustomersMaxAmount: "",
   })
 
   const loadAll = useCallback(async () => {
@@ -82,8 +97,7 @@ export function CashbackTab({ merchantId }: Props) {
           subsidiaryAccountNumber: cfg.subsidiaryAccountNumber ?? "",
           allCustomersPercent: cfg.allCustomersPercent?.toString() ?? "",
           allCustomersMinAmount: cfg.allCustomersMinAmount?.toString() ?? "",
-          allCustomersMaxCashback: cfg.allCustomersMaxCashback?.toString() ?? "",
-          allCustomersThreshold: cfg.allCustomersThreshold?.toString() ?? "",
+          allCustomersMaxAmount: cfg.allCustomersMaxAmount?.toString() ?? "",
         })
       }
       if (eligRes.ok) {
@@ -128,8 +142,7 @@ export function CashbackTab({ merchantId }: Props) {
           subsidiaryAccountNumber: form.subsidiaryAccountNumber || null,
           allCustomersPercent: parseNum(form.allCustomersPercent),
           allCustomersMinAmount: parseNum(form.allCustomersMinAmount),
-          allCustomersMaxCashback: parseNum(form.allCustomersMaxCashback),
-          allCustomersThreshold: parseNum(form.allCustomersThreshold),
+          allCustomersMaxAmount: parseNum(form.allCustomersMaxAmount),
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -156,9 +169,8 @@ export function CashbackTab({ merchantId }: Props) {
         body: JSON.stringify({
           name: categoryForm.name.trim(),
           percent: Number(categoryForm.percent),
-          minTransactionAmount: Number(categoryForm.minTransactionAmount) || 0,
-          maxCashbackAmount: parseNum(categoryForm.maxCashbackAmount),
-          transactionThreshold: parseNum(categoryForm.transactionThreshold),
+          minTransactionAmount: parseNum(categoryForm.minTransactionAmount),
+          maxTransactionAmount: parseNum(categoryForm.maxTransactionAmount),
         }),
       })
       if (!res.ok) {
@@ -166,6 +178,7 @@ export function CashbackTab({ merchantId }: Props) {
         throw new Error(data.error || "Failed to add category")
       }
       setCategoryForm(emptyCategoryForm)
+      setIsCategoryModalOpen(false)
       await loadAll()
       toast({ title: "Category added" })
     } catch (e: unknown) {
@@ -189,9 +202,19 @@ export function CashbackTab({ merchantId }: Props) {
   }
 
   const handleImport = async (file: File) => {
+    if (!selectedCategoryId) {
+      toast({
+        variant: "destructive",
+        title: "Category required",
+        description: "Please select a category to import customers into.",
+      })
+      return
+    }
+
     setImporting(true)
     const fd = new FormData()
     fd.append("file", file)
+    fd.append("categoryId", selectedCategoryId)
     try {
       const res = await fetch(`/api/merchants/${merchantId}/cashback/import`, {
         method: "POST",
@@ -203,6 +226,8 @@ export function CashbackTab({ merchantId }: Props) {
         title: "Import complete",
         description: `${data.imported} imported, ${data.skipped} skipped`,
       })
+      setIsImportModalOpen(false)
+      setSelectedCategoryId("")
       await loadAll()
     } catch (e: unknown) {
       toast({
@@ -213,6 +238,19 @@ export function CashbackTab({ merchantId }: Props) {
     } finally {
       setImporting(false)
     }
+  }
+
+  const downloadTemplate = () => {
+    const headers = "phone,account"
+    const blob = new Blob([headers], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.setAttribute("hidden", "")
+    a.setAttribute("href", url)
+    a.setAttribute("download", "customer_import_template.csv")
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   const toggleLogs = async (cashbackId: string) => {
@@ -252,268 +290,455 @@ export function CashbackTab({ merchantId }: Props) {
         </div>
       </div>
 
-      <Card className="rounded-2xl border-white/60 bg-white/85">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base text-[#5b371f]">General settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+        <CardContent className="p-6">
           <div className="flex items-center justify-between">
-            <Label htmlFor="cashback-enabled">Enable cashback</Label>
+            <div className="space-y-0.5">
+              <Label htmlFor="cashback-enabled" className="text-base font-semibold text-[#5b371f]">
+                Enable Cashback Program
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Activate automated rewards for your customers.
+              </p>
+            </div>
             <Switch
               id="cashback-enabled"
               checked={form.enabled}
-              onCheckedChange={(v) => setForm((p) => ({ ...p, enabled: v }))}
+              onCheckedChange={(v) => {
+                setForm((p) => ({ ...p, enabled: v }))
+                // If we're enabling for the first time or toggling, 
+                // we might want to save immediately or let them see the tabs
+              }}
             />
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="space-y-2">
-            <Label>Cashback mode</Label>
-            <select
-              className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm"
-              value={form.mode}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  mode: e.target.value as "ALL_CUSTOMERS" | "CATEGORY_ELIGIBLE",
-                }))
-              }
+      {form.enabled && (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 rounded-xl h-12 bg-amber-50/50 p-1">
+            <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm">
+              <Settings2 className="h-4 w-4 mr-2" /> Settings
+            </TabsTrigger>
+            <TabsTrigger 
+              value="categories" 
+              disabled={form.mode !== "CATEGORY_ELIGIBLE"}
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm"
             >
-              <option value="ALL_CUSTOMERS">All customers (no eligibility list)</option>
-              <option value="CATEGORY_ELIGIBLE">Category-based eligible customers only</option>
-            </select>
-          </div>
+              <Plus className="h-4 w-4 mr-2" /> Categories
+            </TabsTrigger>
+            <TabsTrigger 
+              value="customers" 
+              disabled={form.mode !== "CATEGORY_ELIGIBLE"}
+              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm"
+            >
+              <Users className="h-4 w-4 mr-2" /> Customers
+            </TabsTrigger>
+            <TabsTrigger value="history" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm">
+              <History className="h-4 w-4 mr-2" /> History
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="subsidiary">Subsidiary funding account</Label>
-            <Input
-              id="subsidiary"
-              inputMode="numeric"
-              maxLength={13}
-              placeholder="7000123456789"
-              value={form.subsidiaryAccountNumber}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  subsidiaryAccountNumber: sanitizeAccountNumberInput(e.target.value),
-                }))
-              }
-              className="h-11 rounded-xl font-mono"
-            />
-            <p className="text-xs text-muted-foreground">
-              Debited when cashback is credited to customers. Must start with 7000 (max 13 digits).
-            </p>
-          </div>
+          <div className="mt-6 space-y-6">
+            <TabsContent value="settings" className="space-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base text-[#5b371f]">General configuration</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Operation mode</Label>
+                      <select
+                        className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                        value={form.mode}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            mode: e.target.value as "ALL_CUSTOMERS" | "CATEGORY_ELIGIBLE",
+                          }))
+                        }
+                      >
+                        <option value="ALL_CUSTOMERS">All customers (Universal rules)</option>
+                        <option value="CATEGORY_ELIGIBLE">Specific groups (Category-based)</option>
+                      </select>
+                    </div>
 
-          <Button
-            onClick={saveConfig}
-            disabled={saving}
-            className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white"
-          >
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Save settings
-          </Button>
-        </CardContent>
-      </Card>
+                    <div className="space-y-2">
+                      <Label htmlFor="subsidiary" className="text-sm font-medium">Subsidiary funding account</Label>
+                      <Input
+                        id="subsidiary"
+                        inputMode="numeric"
+                        maxLength={13}
+                        placeholder="7000123456789"
+                        value={form.subsidiaryAccountNumber}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            subsidiaryAccountNumber: sanitizeAccountNumberInput(e.target.value),
+                          }))
+                        }
+                        className="h-11 rounded-xl font-mono focus:ring-amber-500/20"
+                      />
+                    </div>
+                  </div>
 
-      {form.mode === "ALL_CUSTOMERS" && (
-        <Card className="rounded-2xl border-white/60 bg-white/85">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base text-[#5b371f]">All-customers rules</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <RuleField
-              label="Cashback %"
-              value={form.allCustomersPercent}
-              onChange={(v) => setForm((p) => ({ ...p, allCustomersPercent: v }))}
-            />
-            <RuleField
-              label="Min transaction amount"
-              value={form.allCustomersMinAmount}
-              onChange={(v) => setForm((p) => ({ ...p, allCustomersMinAmount: v }))}
-            />
-            <RuleField
-              label="Max cashback amount"
-              value={form.allCustomersMaxCashback}
-              onChange={(v) => setForm((p) => ({ ...p, allCustomersMaxCashback: v }))}
-            />
-            <RuleField
-              label="Threshold (payment must exceed)"
-              value={form.allCustomersThreshold}
-              onChange={(v) => setForm((p) => ({ ...p, allCustomersThreshold: v }))}
-            />
-          </CardContent>
-        </Card>
-      )}
+                  {form.mode === "ALL_CUSTOMERS" && (
+                    <div className="pt-4 border-t">
+                      <h4 className="text-sm font-semibold text-[#5b371f] mb-4">Universal cashback rules</h4>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <RuleField
+                          label="Cashback %"
+                          value={form.allCustomersPercent}
+                          onChange={(v) => setForm((p) => ({ ...p, allCustomersPercent: v }))}
+                        />
+                        <RuleField
+                          label="Min transaction amount"
+                          value={form.allCustomersMinAmount}
+                          onChange={(v) => setForm((p) => ({ ...p, allCustomersMinAmount: v }))}
+                        />
+                        <RuleField
+                          label="Max transaction amount"
+                          value={form.allCustomersMaxAmount}
+                          onChange={(v) => setForm((p) => ({ ...p, allCustomersMaxAmount: v }))}
+                        />
+                      </div>
+                    </div>
+                  )}
 
-      {form.mode === "CATEGORY_ELIGIBLE" && (
-        <>
-          <Card className="rounded-2xl border-white/60 bg-white/85">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base text-[#5b371f]">Cashback categories</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {config?.categories.map((cat) => (
-                <CategoryRow key={cat.id} category={cat} onDelete={() => deleteCategory(cat.id)} />
-              ))}
-              {config?.categories.length === 0 && (
-                <p className="text-sm text-muted-foreground">No categories yet. Add one below.</p>
-              )}
+                  <div className="pt-2">
+                    <Button
+                      onClick={saveConfig}
+                      disabled={saving}
+                      className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm hover:shadow-md transition-all px-8 h-11"
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      Save changes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-              <div className="grid gap-3 sm:grid-cols-2 border-t pt-4">
-                <Input
-                  placeholder="Category name (e.g. VIP)"
-                  value={categoryForm.name}
-                  onChange={(e) => setCategoryForm((p) => ({ ...p, name: e.target.value }))}
-                  className="h-10 rounded-xl"
-                />
-                <Input
-                  placeholder="Percent"
-                  value={categoryForm.percent}
-                  onChange={(e) => setCategoryForm((p) => ({ ...p, percent: e.target.value }))}
-                  className="h-10 rounded-xl"
-                />
-                <RuleField
-                  label="Min amount"
-                  value={categoryForm.minTransactionAmount}
-                  onChange={(v) => setCategoryForm((p) => ({ ...p, minTransactionAmount: v }))}
-                />
-                <RuleField
-                  label="Max cashback"
-                  value={categoryForm.maxCashbackAmount}
-                  onChange={(v) => setCategoryForm((p) => ({ ...p, maxCashbackAmount: v }))}
-                />
-                <RuleField
-                  label="Threshold"
-                  value={categoryForm.transactionThreshold}
-                  onChange={(v) => setCategoryForm((p) => ({ ...p, transactionThreshold: v }))}
-                />
-              </div>
-              <Button variant="outline" onClick={addCategory} className="rounded-xl">
-                <Plus className="h-4 w-4 mr-2" /> Add category
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-white/60 bg-white/85">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
-                <Users className="h-4 w-4" /> Eligible customers
-              </CardTitle>
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls,.txt"
-                  className="hidden"
-                  disabled={importing}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) handleImport(f)
-                    e.target.value = ""
-                  }}
-                />
-                {importing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                Import CSV/Excel
-              </label>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-                Columns: phone, category, account (optional)
-              </p>
-              <div className="max-h-64 overflow-auto rounded-xl border">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-50 sticky top-0">
-                    <tr>
-                      <th className="text-left p-2">Phone</th>
-                      <th className="text-left p-2">Account</th>
-                      <th className="text-left p-2">Category</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {eligible.map((row) => (
-                      <tr key={row.id} className="border-t">
-                        <td className="p-2 font-mono">{row.phone}</td>
-                        <td className="p-2 font-mono">{row.accountNumber ?? "—"}</td>
-                        <td className="p-2">{row.categoryName}</td>
-                      </tr>
+            <TabsContent value="categories" className="space-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base text-[#5b371f]">Management categories</CardTitle>
+                  <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="rounded-xl h-9 border-amber-200 text-amber-800 hover:bg-amber-50">
+                        <Plus className="h-4 w-4 mr-2" /> Add Category
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px] rounded-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-[#5b371f]">Add New Category</DialogTitle>
+                        <DialogDescription>
+                          Define eligibility rules for a specific group of customers.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Category Name</Label>
+                          <Input
+                            placeholder="e.g. VIP Customers"
+                            value={categoryForm.name}
+                            onChange={(e) => setCategoryForm((p) => ({ ...p, name: e.target.value }))}
+                            className="h-11 rounded-xl"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Cashback Percentage</Label>
+                          <Input
+                            placeholder="5"
+                            value={categoryForm.percent}
+                            onChange={(e) => setCategoryForm((p) => ({ ...p, percent: e.target.value }))}
+                            className="h-11 rounded-xl"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <RuleField
+                            label="Min Transaction"
+                            value={categoryForm.minTransactionAmount}
+                            onChange={(v) => setCategoryForm((p) => ({ ...p, minTransactionAmount: v }))}
+                          />
+                          <RuleField
+                            label="Max Transaction"
+                            value={categoryForm.maxTransactionAmount}
+                            onChange={(v) => setCategoryForm((p) => ({ ...p, maxTransactionAmount: v }))}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button 
+                          onClick={addCategory} 
+                          className="w-full rounded-xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white h-11"
+                        >
+                          Create Category
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4">
+                    {config?.categories.map((cat) => (
+                      <CategoryRow key={cat.id} category={cat} onDelete={() => deleteCategory(cat.id)} />
                     ))}
-                    {eligible.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="p-4 text-center text-muted-foreground">
-                          No eligible customers imported yet.
-                        </td>
-                      </tr>
+                    {config?.categories.length === 0 && (
+                      <div className="text-center py-12 rounded-xl border border-dashed border-slate-200 bg-slate-50/30">
+                        <Plus className="h-10 w-10 text-slate-200 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400 font-medium">No categories defined yet.</p>
+                        <p className="text-xs text-slate-400 mt-1">Click "Add Category" to get started.</p>
+                      </div>
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-      <Card className="rounded-2xl border-white/60 bg-white/85">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
-            <History className="h-4 w-4" /> Cashback history & logs
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {transactions.map((tx) => (
-            <div key={tx.id} className="rounded-xl border p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-mono text-xs text-muted-foreground">{tx.paymentTransactionId}</p>
-                  <p className="font-semibold text-[#5b371f]">
-                    {tx.cashbackAmount.toFixed(2)} ETB @ {tx.cashbackPercent}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Payment: {tx.paymentAmount.toFixed(2)} · {tx.customerPhone ?? "—"}
-                    {tx.categoryName ? ` · ${tx.categoryName}` : ""}
-                  </p>
-                </div>
-                <StatusBadge status={tx.status} />
-              </div>
-              {tx.skipReason && (
-                <p className="text-xs text-amber-700 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" /> {tx.skipReason}
-                </p>
-              )}
-              {tx.failureReason && (
-                <p className="text-xs text-rose-600 mt-1">{tx.failureReason}</p>
-              )}
-              <button
-                type="button"
-                className="text-xs text-[#754319] mt-2 flex items-center gap-1"
-                onClick={() => toggleLogs(tx.id)}
-              >
-                {expandedLogs[tx.id] ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-                Processing logs
-              </button>
-              {expandedLogs[tx.id] && (
-                <ul className="mt-2 space-y-1 text-[10px] font-mono bg-slate-50 rounded-lg p-2">
-                  {expandedLogs[tx.id].map((log) => (
-                    <li key={log.id}>
-                      <span className="text-slate-500">{log.level}</span> {log.message}
-                    </li>
+            <TabsContent value="customers" className="space-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+                <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-6">
+                    <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
+                      <Users className="h-4 w-4" /> Eligible customers
+                    </CardTitle>
+                    
+                    <div className="flex items-center gap-2 border-l pl-6">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Show Group:</Label>
+                      <select
+                        className="h-8 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                        value={customerFilterCategoryId}
+                        onChange={(e) => setCustomerFilterCategoryId(e.target.value)}
+                      >
+                        <option value="all">All Groups</option>
+                        {config?.categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm h-9 px-4">
+                        <Upload className="h-4 w-4 mr-2" /> Batch Import
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px] rounded-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-[#5b371f]">Import Customers</DialogTitle>
+                        <DialogDescription>
+                          Upload a list of customers to assign them to a cashback group.
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="grid gap-6 py-6">
+                        <div className="space-y-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">1. Get Template</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={downloadTemplate}
+                              className="h-8 text-[10px] font-bold uppercase rounded-lg border-amber-200 text-amber-800"
+                            >
+                              <Download className="h-3 w-3 mr-1.5" /> Download Template
+                            </Button>
+                          </div>
+                          <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                            <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
+                            File columns must be: <span className="font-mono font-bold">phone, account</span> (optional)
+                          </p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">2. Select Destination Group</p>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-slate-500 ml-1">Target Category</Label>
+                            <select
+                              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                              value={selectedCategoryId}
+                              onChange={(e) => setSelectedCategoryId(e.target.value)}
+                            >
+                              <option value="">Select a category...</option>
+                              {config?.categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">3. Upload File</p>
+                          <label className={`flex flex-col items-center justify-center w-full h-32 rounded-2xl border-2 border-dashed transition-all ${
+                            selectedCategoryId 
+                              ? "cursor-pointer border-amber-200 bg-amber-50/30 hover:bg-amber-50 hover:border-amber-300" 
+                              : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                          }`}>
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              {importing ? (
+                                <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+                              ) : (
+                                <>
+                                  <Upload className={`h-8 w-8 mb-2 ${selectedCategoryId ? "text-amber-600" : "text-slate-300"}`} />
+                                  <p className="text-xs font-medium">Click to select CSV or Excel file</p>
+                                </>
+                              )}
+                            </div>
+                            <input
+                              type="file"
+                              accept=".csv,.xlsx,.xls,.txt"
+                              className="hidden"
+                              disabled={importing || !selectedCategoryId}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0]
+                                if (f) handleImport(f)
+                                e.target.value = ""
+                              }}
+                            />
+                          </label>
+                          {!selectedCategoryId && (
+                            <p className="text-[10px] text-rose-500 text-center font-medium italic">Please select a group first to enable upload.</p>
+                          )}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-h-[400px] overflow-auto rounded-xl border border-slate-100 bg-white">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50/50 sticky top-0 border-b">
+                        <tr>
+                          <th className="text-left p-3 font-semibold text-slate-600">Phone number</th>
+                          <th className="text-left p-3 font-semibold text-slate-600">Account</th>
+                          <th className="text-left p-3 font-semibold text-slate-600">Assigned category</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {eligible
+                          .filter(row => customerFilterCategoryId === "all" || row.categoryId === customerFilterCategoryId)
+                          .map((row) => (
+                          <tr key={row.id} className="hover:bg-slate-50/30 transition-colors">
+                            <td className="p-3 font-mono text-xs">{row.phone}</td>
+                            <td className="p-3 font-mono text-xs">{row.accountNumber ?? "—"}</td>
+                            <td className="p-3">
+                              <Badge variant="secondary" className="bg-amber-100/50 text-amber-800 border-none font-medium">
+                                {row.categoryName}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                        {eligible.filter(row => customerFilterCategoryId === "all" || row.categoryId === customerFilterCategoryId).length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="p-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <Users className="h-10 w-10 text-slate-200" />
+                                <p className="text-sm text-slate-400 font-medium">
+                                  {customerFilterCategoryId === "all" 
+                                    ? "No eligible customers found." 
+                                    : "No customers in this category."}
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
+                    <History className="h-4 w-4" /> Transaction history & activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="rounded-xl border border-slate-100 p-4 text-sm bg-white hover:border-amber-200 transition-colors">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
+                            <StatusBadge status={tx.status} />
+                          </div>
+                          <p className="text-base font-bold text-[#5b371f]">
+                            {tx.cashbackAmount.toFixed(2)} ETB <span className="text-xs font-normal text-slate-400">({tx.cashbackPercent}%)</span>
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-slate-500">
+                            <span>Payment: <span className="font-semibold text-slate-700">{tx.paymentAmount.toFixed(2)}</span></span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300" />
+                            <span>Customer: <span className="font-semibold text-slate-700">{tx.customerPhone ?? "—"}</span></span>
+                            {tx.categoryName && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                <span>Group: <span className="font-semibold text-slate-700">{tx.categoryName}</span></span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="h-9 px-3 rounded-lg text-xs font-medium text-[#754319] bg-amber-50 hover:bg-amber-100 flex items-center gap-1.5 transition-colors"
+                          onClick={() => toggleLogs(tx.id)}
+                        >
+                          {expandedLogs[tx.id] ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          )}
+                          Activity logs
+                        </button>
+                      </div>
+
+                      {tx.skipReason && (
+                        <div className="mt-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 flex items-center gap-2 text-xs text-amber-800">
+                          <AlertCircle className="h-3.5 w-3.5" /> {tx.skipReason}
+                        </div>
+                      )}
+                      {tx.failureReason && (
+                        <div className="mt-3 p-2 rounded-lg bg-rose-50 border border-rose-100 flex items-center gap-2 text-xs text-rose-700">
+                          <AlertCircle className="h-3.5 w-3.5" /> {tx.failureReason}
+                        </div>
+                      )}
+
+                      {expandedLogs[tx.id] && (
+                        <div className="mt-4 overflow-hidden rounded-lg border border-slate-100">
+                          <div className="bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b">Processing timeline</div>
+                          <ul className="divide-y divide-slate-50 bg-slate-50/30 p-2 text-[10px] font-mono">
+                            {expandedLogs[tx.id].map((log) => (
+                              <li key={log.id} className="py-1 px-2 flex gap-3">
+                                <span className={`shrink-0 font-bold ${log.level === 'ERROR' ? 'text-rose-600' : 'text-slate-400'}`}>[{log.level}]</span>
+                                <span className="text-slate-600">{log.message}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   ))}
-                </ul>
-              )}
-            </div>
-          ))}
-          {transactions.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-6">No cashback transactions yet.</p>
-          )}
-        </CardContent>
-      </Card>
+                  {transactions.length === 0 && (
+                    <div className="text-center py-12">
+                      <History className="h-10 w-10 text-slate-200 mx-auto mb-2" />
+                      <p className="text-sm text-slate-400 font-medium">No activity history recorded.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </div>
+        </Tabs>
+      )}
     </div>
   )
 }
@@ -553,9 +778,8 @@ function CategoryRow({
       <div>
         <p className="font-semibold text-sm">{category.name}</p>
         <p className="text-xs text-muted-foreground">
-          {category.percent}% · min {category.minTransactionAmount}
-          {category.maxCashbackAmount != null ? ` · max ${category.maxCashbackAmount}` : ""}
-          {category.transactionThreshold != null ? ` · > ${category.transactionThreshold}` : ""}
+          {category.percent}% · min {category.minTransactionAmount ?? 0}
+          {category.maxTransactionAmount != null ? ` · max ${category.maxTransactionAmount}` : ""}
         </p>
         <p className="text-[10px] text-muted-foreground mt-1">
           {category.eligibleCount} eligible customers

@@ -39,8 +39,7 @@ async function evaluateEligibility(
     return evaluateAllCustomersRule(ctx, {
       percent: config.allCustomersPercent ?? 0,
       minTransactionAmount: config.allCustomersMinAmount,
-      maxCashbackAmount: config.allCustomersMaxCashback,
-      transactionThreshold: config.allCustomersThreshold,
+      maxTransactionAmount: config.allCustomersMaxAmount,
     })
   }
 
@@ -67,8 +66,7 @@ async function evaluateEligibility(
     const amount = calculateCashbackAmount(ctx.paymentAmount, {
       percent: result.percent,
       minTransactionAmount: row.category.minTransactionAmount,
-      maxCashbackAmount: row.category.maxCashbackAmount,
-      transactionThreshold: row.category.transactionThreshold,
+      maxTransactionAmount: row.category.maxTransactionAmount,
     })
 
     if (amount > bestAmount) {
@@ -174,13 +172,9 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
       evaluation.ruleSource === "ALL_CUSTOMERS"
         ? config.allCustomersMinAmount
         : undefined,
-    maxCashbackAmount:
+    maxTransactionAmount:
       evaluation.ruleSource === "ALL_CUSTOMERS"
-        ? config.allCustomersMaxCashback
-        : undefined,
-    transactionThreshold:
-      evaluation.ruleSource === "ALL_CUSTOMERS"
-        ? config.allCustomersThreshold
+        ? config.allCustomersMaxAmount
         : undefined,
   }
 
@@ -188,16 +182,14 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     const cat = config.categories.find((c: { id: string }) => c.id === evaluation.categoryId)
     if (cat) {
       rule.minTransactionAmount = cat.minTransactionAmount
-      rule.maxCashbackAmount = cat.maxCashbackAmount
-      rule.transactionThreshold = cat.transactionThreshold
+      rule.maxTransactionAmount = cat.maxTransactionAmount
     }
   }
 
   const cashbackAmount = calculateCashbackAmount(tx.amount, {
     percent: evaluation.percent,
     minTransactionAmount: rule.minTransactionAmount ?? 0,
-    maxCashbackAmount: rule.maxCashbackAmount ?? null,
-    transactionThreshold: rule.transactionThreshold ?? null,
+    maxTransactionAmount: rule.maxTransactionAmount ?? null,
   })
 
   const cashbackTx = await prisma.cashbackTransaction.create({

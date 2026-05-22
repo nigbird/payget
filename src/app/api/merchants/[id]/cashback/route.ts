@@ -69,8 +69,7 @@ export async function PUT(
         subsidiaryAccountNumber,
         allCustomersPercent: parseOptionalNumber(body.allCustomersPercent),
         allCustomersMinAmount: parseOptionalNumber(body.allCustomersMinAmount),
-        allCustomersMaxCashback: parseOptionalNumber(body.allCustomersMaxCashback),
-        allCustomersThreshold: parseOptionalNumber(body.allCustomersThreshold),
+        allCustomersMaxAmount: parseOptionalNumber(body.allCustomersMaxAmount),
       },
       include: {
         categories: {

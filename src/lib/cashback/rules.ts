@@ -12,9 +12,6 @@ export function calculateCashbackAmount(
   if (percent <= 0 || paymentAmount <= 0) return 0
 
   let raw = (paymentAmount * percent) / 100
-  if (rule.maxCashbackAmount != null && raw > rule.maxCashbackAmount) {
-    raw = rule.maxCashbackAmount
-  }
   return roundCashbackAmount(Math.max(0, raw))
 }
 
@@ -27,9 +24,9 @@ export function transactionMeetsRule(
     return { ok: false, reason: `Payment amount below minimum (${min}).` }
   }
 
-  const threshold = rule.transactionThreshold
-  if (threshold != null && paymentAmount <= threshold) {
-    return { ok: false, reason: `Payment must be greater than threshold (${threshold}).` }
+  const max = rule.maxTransactionAmount
+  if (max != null && paymentAmount > max) {
+    return { ok: false, reason: `Payment amount exceeds maximum allowed for cashback (${max}).` }
   }
 
   if (rule.percent <= 0) {
@@ -72,9 +69,8 @@ export function evaluateCategoryRule(
     id: string
     name: string
     percent: number
-    minTransactionAmount: number
-    maxCashbackAmount: number | null
-    transactionThreshold: number | null
+    minTransactionAmount: number | null
+    maxTransactionAmount: number | null
     isActive: boolean
   }
 ): CashbackEvaluationResult {
@@ -85,8 +81,7 @@ export function evaluateCategoryRule(
   const rule: CashbackRuleInput = {
     percent: category.percent,
     minTransactionAmount: category.minTransactionAmount,
-    maxCashbackAmount: category.maxCashbackAmount,
-    transactionThreshold: category.transactionThreshold,
+    maxTransactionAmount: category.maxTransactionAmount,
   }
 
   const check = transactionMeetsRule(ctx.paymentAmount, rule)

@@ -3,8 +3,7 @@ import type { CashbackMode, CashbackProcessingStatus } from "@prisma/client"
 export type CashbackRuleInput = {
   percent: number
   minTransactionAmount?: number | null
-  maxCashbackAmount?: number | null
-  transactionThreshold?: number | null
+  maxTransactionAmount?: number | null
 }
 
 export type CashbackEvaluationContext = {
@@ -34,8 +33,7 @@ export type CashbackConfigDto = {
   subsidiaryAccountNumber: string | null
   allCustomersPercent: number | null
   allCustomersMinAmount: number | null
-  allCustomersMaxCashback: number | null
-  allCustomersThreshold: number | null
+  allCustomersMaxAmount: number | null
   categories: CashbackCategoryDto[]
   createdAt: string
   updatedAt: string
@@ -46,9 +44,8 @@ export type CashbackCategoryDto = {
   name: string
   description: string | null
   percent: number
-  minTransactionAmount: number
-  maxCashbackAmount: number | null
-  transactionThreshold: number | null
+  minTransactionAmount: number | null
+  maxTransactionAmount: number | null
   sortOrder: number
   isActive: boolean
   eligibleCount: number
