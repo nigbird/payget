@@ -33,6 +33,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import {
   sanitizeAccountNumberInput,
@@ -47,6 +63,19 @@ import type {
 } from "@/lib/cashback/types"
 
 type Props = { merchantId: string }
+
+const THEME_BTN =
+  "rounded-xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 hover:shadow-md transition-all"
+const THEME_BTN_SM = `${THEME_BTN} h-9 px-4 text-sm font-semibold`
+const THEME_BTN_MD = `${THEME_BTN} h-11 px-6 font-semibold`
+
+type ConfirmState = {
+  title: string
+  description: string
+  confirmLabel: string
+  destructive?: boolean
+  onConfirm: () => Promise<void>
+}
 
 const emptyCategoryForm = {
   name: "",
@@ -70,6 +99,8 @@ export function CashbackTab({ merchantId }: Props) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
   const [activeTab, setActiveTab] = useState<string>("settings")
   const [customerFilterCategoryId, setCustomerFilterCategoryId] = useState<string>("all")
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
 
   const [form, setForm] = useState({
     enabled: false,
@@ -190,14 +221,94 @@ export function CashbackTab({ merchantId }: Props) {
     }
   }
 
-  const deleteCategory = async (categoryId: string) => {
-    if (!confirm("Delete this category and its eligible customers?")) return
-    const res = await fetch(`/api/merchants/${merchantId}/cashback/categories/${categoryId}`, {
-      method: "DELETE",
+  const requestDeleteCategory = (category: CashbackCategoryDto) => {
+    setConfirmState({
+      title: "Delete this category?",
+      description: `"${category.name}" and all ${category.eligibleCount} eligible customer(s) in this group will be permanently removed. This cannot be undone.`,
+      confirmLabel: "Delete category",
+      destructive: true,
+      onConfirm: async () => {
+        const res = await fetch(
+          `/api/merchants/${merchantId}/cashback/categories/${category.id}`,
+          { method: "DELETE" }
+        )
+        if (!res.ok) throw new Error("Failed to delete category")
+        await loadAll()
+        if (customerFilterCategoryId === category.id) {
+          setCustomerFilterCategoryId("all")
+        }
+        toast({ title: "Category removed" })
+      },
     })
-    if (res.ok) {
-      await loadAll()
-      toast({ title: "Category removed" })
+  }
+
+  const requestDeleteCustomer = (customer: CashbackEligibleCustomerDto) => {
+    setConfirmState({
+      title: "Remove eligible customer?",
+      description: `Remove ${customer.phone} from the "${customer.categoryName}" group? They will no longer receive category cashback until re-imported.`,
+      confirmLabel: "Remove customer",
+      destructive: true,
+      onConfirm: async () => {
+        const res = await fetch(`/api/merchants/${merchantId}/cashback/eligible`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: [customer.id] }),
+        })
+        if (!res.ok) throw new Error("Failed to remove customer")
+        await loadAll()
+        toast({ title: "Customer removed" })
+      },
+    })
+  }
+
+  const requestClearGroupImports = () => {
+    const categoryId =
+      customerFilterCategoryId === "all" ? null : customerFilterCategoryId
+    const rows = eligible.filter(
+      (row) => !categoryId || row.categoryId === categoryId
+    )
+    if (rows.length === 0) {
+      toast({ title: "Nothing to clear", description: "No customers in this view." })
+      return
+    }
+
+    const groupLabel =
+      categoryId === null
+        ? "all groups"
+        : config?.categories.find((c) => c.id === categoryId)?.name ?? "this group"
+
+    setConfirmState({
+      title: "Clear imported customers?",
+      description: `Remove ${rows.length} customer(s) from ${groupLabel}? This only deletes eligibility records, not payment history.`,
+      confirmLabel: "Clear imports",
+      destructive: true,
+      onConfirm: async () => {
+        const res = await fetch(`/api/merchants/${merchantId}/cashback/eligible`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: rows.map((r) => r.id) }),
+        })
+        if (!res.ok) throw new Error("Failed to clear imports")
+        await loadAll()
+        toast({ title: "Imports cleared", description: `${rows.length} customer(s) removed.` })
+      },
+    })
+  }
+
+  const runConfirm = async () => {
+    if (!confirmState) return
+    setConfirmLoading(true)
+    try {
+      await confirmState.onConfirm()
+      setConfirmState(null)
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Action failed",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setConfirmLoading(false)
     }
   }
 
@@ -277,8 +388,52 @@ export function CashbackTab({ merchantId }: Props) {
     )
   }
 
+  const filteredEligible = eligible.filter(
+    (row) => customerFilterCategoryId === "all" || row.categoryId === customerFilterCategoryId
+  )
+
   return (
     <div className="space-y-6 p-4 md:p-8">
+      <AlertDialog
+        open={!!confirmState}
+        onOpenChange={(open) => {
+          if (!open && !confirmLoading) setConfirmState(null)
+        }}
+      >
+        <AlertDialogContent className="max-w-md rounded-2xl border-amber-100/80 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[#5b371f] text-center sm:text-left">
+              {confirmState?.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center sm:text-left leading-relaxed">
+              {confirmState?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-2">
+            <AlertDialogCancel
+              disabled={confirmLoading}
+              className="rounded-xl h-11 px-6 border-slate-200"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              disabled={confirmLoading}
+              onClick={runConfirm}
+              className={
+                confirmState?.destructive
+                  ? "rounded-xl h-11 px-6 bg-rose-600 hover:bg-rose-700 text-white"
+                  : THEME_BTN_MD
+              }
+            >
+              {confirmLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                confirmState?.confirmLabel
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
         <Gift className="h-5 w-5 text-amber-700 mt-0.5" />
         <div>
@@ -316,25 +471,31 @@ export function CashbackTab({ merchantId }: Props) {
 
       {form.enabled && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 rounded-xl h-12 bg-amber-50/50 p-1">
-            <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 rounded-xl h-12 bg-amber-50/50 p-1 border border-amber-100/60">
+            <TabsTrigger
+              value="settings"
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70"
+            >
               <Settings2 className="h-4 w-4 mr-2" /> Settings
             </TabsTrigger>
-            <TabsTrigger 
-              value="categories" 
+            <TabsTrigger
+              value="categories"
               disabled={form.mode !== "CATEGORY_ELIGIBLE"}
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm"
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70 disabled:opacity-40"
             >
               <Plus className="h-4 w-4 mr-2" /> Categories
             </TabsTrigger>
-            <TabsTrigger 
-              value="customers" 
+            <TabsTrigger
+              value="customers"
               disabled={form.mode !== "CATEGORY_ELIGIBLE"}
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm"
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70 disabled:opacity-40"
             >
               <Users className="h-4 w-4 mr-2" /> Customers
             </TabsTrigger>
-            <TabsTrigger value="history" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm">
+            <TabsTrigger
+              value="history"
+              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70"
+            >
               <History className="h-4 w-4 mr-2" /> History
             </TabsTrigger>
           </TabsList>
@@ -349,19 +510,27 @@ export function CashbackTab({ merchantId }: Props) {
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Operation mode</Label>
-                      <select
-                        className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                      <Select
                         value={form.mode}
-                        onChange={(e) =>
+                        onValueChange={(v) =>
                           setForm((p) => ({
                             ...p,
-                            mode: e.target.value as "ALL_CUSTOMERS" | "CATEGORY_ELIGIBLE",
+                            mode: v as "ALL_CUSTOMERS" | "CATEGORY_ELIGIBLE",
                           }))
                         }
                       >
-                        <option value="ALL_CUSTOMERS">All customers (Universal rules)</option>
-                        <option value="CATEGORY_ELIGIBLE">Specific groups (Category-based)</option>
-                      </select>
+                        <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm text-[#5b371f] shadow-sm focus:ring-2 focus:ring-amber-500/25">
+                          <SelectValue placeholder="Select mode" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
+                          <SelectItem value="ALL_CUSTOMERS" className="rounded-lg">
+                            All customers (Universal rules)
+                          </SelectItem>
+                          <SelectItem value="CATEGORY_ELIGIBLE" className="rounded-lg">
+                            Specific groups (Category-based)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
@@ -407,11 +576,7 @@ export function CashbackTab({ merchantId }: Props) {
                   )}
 
                   <div className="pt-2">
-                    <Button
-                      onClick={saveConfig}
-                      disabled={saving}
-                      className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm hover:shadow-md transition-all px-8 h-11"
-                    >
+                    <Button onClick={saveConfig} disabled={saving} className={THEME_BTN_MD}>
                       {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                       Save changes
                     </Button>
@@ -426,7 +591,7 @@ export function CashbackTab({ merchantId }: Props) {
                   <CardTitle className="text-base text-[#5b371f]">Management categories</CardTitle>
                   <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="rounded-xl h-9 border-amber-200 text-amber-800 hover:bg-amber-50">
+                      <Button size="sm" className={THEME_BTN_SM}>
                         <Plus className="h-4 w-4 mr-2" /> Add Category
                       </Button>
                     </DialogTrigger>
@@ -470,10 +635,7 @@ export function CashbackTab({ merchantId }: Props) {
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button 
-                          onClick={addCategory} 
-                          className="w-full rounded-xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white h-11"
-                        >
+                        <Button onClick={addCategory} className={`w-full ${THEME_BTN_MD}`}>
                           Create Category
                         </Button>
                       </DialogFooter>
@@ -483,7 +645,11 @@ export function CashbackTab({ merchantId }: Props) {
                 <CardContent className="space-y-6">
                   <div className="grid gap-4">
                     {config?.categories.map((cat) => (
-                      <CategoryRow key={cat.id} category={cat} onDelete={() => deleteCategory(cat.id)} />
+                      <CategoryRow
+                        key={cat.id}
+                        category={cat}
+                        onDelete={() => requestDeleteCategory(cat)}
+                      />
                     ))}
                     {config?.categories.length === 0 && (
                       <div className="text-center py-12 rounded-xl border border-dashed border-slate-200 bg-slate-50/30">
@@ -505,26 +671,47 @@ export function CashbackTab({ merchantId }: Props) {
                       <Users className="h-4 w-4" /> Eligible customers
                     </CardTitle>
                     
-                    <div className="flex items-center gap-2 border-l pl-6">
-                      <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Show Group:</Label>
-                      <select
-                        className="h-8 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    <div className="flex items-center gap-2 border-l pl-4 md:pl-6">
+                      <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider shrink-0">
+                        Show group
+                      </Label>
+                      <Select
                         value={customerFilterCategoryId}
-                        onChange={(e) => setCustomerFilterCategoryId(e.target.value)}
+                        onValueChange={setCustomerFilterCategoryId}
                       >
-                        <option value="all">All Groups</option>
-                        {config?.categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-9 min-w-[140px] rounded-xl border-amber-200/80 bg-white text-xs font-semibold text-[#754319] shadow-sm">
+                          <SelectValue placeholder="All groups" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
+                          <SelectItem value="all" className="rounded-lg text-sm">
+                            All groups
+                          </SelectItem>
+                          {config?.categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id} className="rounded-lg text-sm">
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
+                  <div className="flex flex-wrap items-center gap-2">
+                    {filteredEligible.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl h-9 border-rose-200 text-rose-700 hover:bg-rose-50"
+                        onClick={requestClearGroupImports}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        Clear {customerFilterCategoryId === "all" ? "all" : "group"}
+                      </Button>
+                    )}
                   <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
                     <DialogTrigger asChild>
-                      <Button className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-sm h-9 px-4">
+                      <Button className={THEME_BTN_SM}>
                         <Upload className="h-4 w-4 mr-2" /> Batch Import
                       </Button>
                     </DialogTrigger>
@@ -558,19 +745,22 @@ export function CashbackTab({ merchantId }: Props) {
                         <div className="space-y-4">
                           <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">2. Select Destination Group</p>
                           <div className="space-y-2">
-                            <Label className="text-xs text-slate-500 ml-1">Target Category</Label>
-                            <select
-                              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                              value={selectedCategoryId}
-                              onChange={(e) => setSelectedCategoryId(e.target.value)}
+                            <Label className="text-xs text-slate-500 ml-1">Target category</Label>
+                            <Select
+                              value={selectedCategoryId || undefined}
+                              onValueChange={setSelectedCategoryId}
                             >
-                              <option value="">Select a category...</option>
-                              {config?.categories.map((cat) => (
-                                <option key={cat.id} value={cat.id}>
-                                  {cat.name}
-                                </option>
-                              ))}
-                            </select>
+                              <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-sm">
+                                <SelectValue placeholder="Select a category…" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
+                                {config?.categories.map((cat) => (
+                                  <SelectItem key={cat.id} value={cat.id} className="rounded-lg">
+                                    {cat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
 
@@ -610,6 +800,7 @@ export function CashbackTab({ merchantId }: Props) {
                       </div>
                     </DialogContent>
                   </Dialog>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="max-h-[400px] overflow-auto rounded-xl border border-slate-100 bg-white">
@@ -619,13 +810,12 @@ export function CashbackTab({ merchantId }: Props) {
                           <th className="text-left p-3 font-semibold text-slate-600">Phone number</th>
                           <th className="text-left p-3 font-semibold text-slate-600">Account</th>
                           <th className="text-left p-3 font-semibold text-slate-600">Assigned category</th>
+                          <th className="text-right p-3 font-semibold text-slate-600 w-16">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {eligible
-                          .filter(row => customerFilterCategoryId === "all" || row.categoryId === customerFilterCategoryId)
-                          .map((row) => (
-                          <tr key={row.id} className="hover:bg-slate-50/30 transition-colors">
+                        {filteredEligible.map((row) => (
+                          <tr key={row.id} className="hover:bg-amber-50/20 transition-colors">
                             <td className="p-3 font-mono text-xs">{row.phone}</td>
                             <td className="p-3 font-mono text-xs">{row.accountNumber ?? "—"}</td>
                             <td className="p-3">
@@ -633,11 +823,23 @@ export function CashbackTab({ merchantId }: Props) {
                                 {row.categoryName}
                               </Badge>
                             </td>
+                            <td className="p-3 text-right">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                onClick={() => requestDeleteCustomer(row)}
+                                title="Remove customer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
                           </tr>
                         ))}
-                        {eligible.filter(row => customerFilterCategoryId === "all" || row.categoryId === customerFilterCategoryId).length === 0 && (
+                        {filteredEligible.length === 0 && (
                           <tr>
-                            <td colSpan={3} className="p-12 text-center">
+                            <td colSpan={4} className="p-12 text-center">
                               <div className="flex flex-col items-center gap-2">
                                 <Users className="h-10 w-10 text-slate-200" />
                                 <p className="text-sm text-slate-400 font-medium">
@@ -785,7 +987,13 @@ function CategoryRow({
           {category.eligibleCount} eligible customers
         </p>
       </div>
-      <Button variant="ghost" size="icon" onClick={onDelete} className="text-rose-600 shrink-0">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onDelete}
+        className="h-9 w-9 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700 shrink-0"
+        title="Delete category"
+      >
         <Trash2 className="h-4 w-4" />
       </Button>
     </div>

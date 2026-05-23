@@ -384,7 +384,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 onClick={() => setActiveTab("system")}
                 className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   activeTab === "system"
-                    ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] border border-white/30 text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
                     : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
                 }`}
                 title="System Configuration"
@@ -398,7 +398,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 onClick={() => setActiveTab("profile")}
                 className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   activeTab === "profile"
-                    ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] border border-white/30 text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
                     : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
                 }`}
                 title="Profile & Security"
@@ -412,7 +412,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 onClick={() => setActiveTab("cashback")}
                 className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   activeTab === "cashback"
-                    ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] border border-white/30 text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
                     : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
                 }`}
                 title="Cashback"
@@ -686,7 +686,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 type="button"
                 onClick={activeTab === "system" ? handleSaveSystem : handleSaveProfile}
                 disabled={(activeTab === "system" ? !hasSystemChanges : !hasProfileChanges) || isSaving}
-                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 disabled:opacity-60"
+                className="rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 disabled:opacity-60"
               >
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isSaving ? "Saving..." : "Save Changes"}
