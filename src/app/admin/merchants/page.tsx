@@ -24,7 +24,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Settings2,
-  QrCode
+  QrCode,
+  AlertCircle
 } from "lucide-react"
 import { 
   Select, 
@@ -34,10 +35,12 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import type { Merchant } from "@/app/lib/db"
 
 export default function MerchantManagementPage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [merchants, setMerchants] = useState<Merchant[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -45,6 +48,9 @@ export default function MerchantManagementPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+
+  const userPermissions = (session?.user as any)?.permissions || []
+  const canManage = userPermissions.includes('qr.generation.manage') || (userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE'))
 
   useEffect(() => {
     fetchMerchants()
@@ -86,6 +92,18 @@ export default function MerchantManagementPage() {
       default: 
         return <Badge variant="secondary">{status}</Badge>
     }
+  }
+
+  if (!canManage) {
+    return (
+      <div className='flex h-[50vh] items-center justify-center'>
+        <div className='text-center'>
+          <AlertCircle className='mx-auto h-12 w-12 text-amber-500' />
+          <h3 className='mt-4 text-lg font-semibold text-slate-900'>Permission Required</h3>
+          <p className='mt-2 text-sm text-slate-600'>You don&apos;t have access to QR generation and merchant configuration.</p>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {

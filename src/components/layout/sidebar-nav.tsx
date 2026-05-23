@@ -14,6 +14,7 @@ import {
   Settings,
   User as UserIcon,
   FileText,
+  RefreshCw,
   type LucideIcon,
 } from "lucide-react"
 import { 
@@ -35,7 +36,8 @@ const mainMenuItems = [
   { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_VIEW" },
   { name: "Merchant Onboarding", href: "/admin/onboarding", icon: UserPlus, permission: "MERCHANT_REGISTER" },
   { name: "Review & Approvals", href: "/admin/review", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
-  { name: "QR Generation", href: "/admin/merchants", icon: Settings, permission: "CONFIGURATION_MANAGE" },
+  { name: "Cashback Reconciliation", href: "/admin/cashback-reconciliation", icon: RefreshCw, permission: "cashback.reconciliation.view" },
+  { name: "QR Generation", href: "/admin/merchants", icon: Settings, permission: "qr.generation.manage" },
 ]
 
 const adminMenuItems = [

@@ -39,6 +39,12 @@ async function main() {
     { name: 'TRANSACTION_LIMIT_OVERRIDE', category: 'TRANSACTION', description: 'Override transaction limits' },
     { name: 'CONFIGURATION_MANAGE', category: 'SYSTEM', description: 'Manage system-wide configurations (branches, districts, etc.)' },
     { name: 'AUDIT_LOG_VIEW', category: 'SYSTEM', description: 'View and search audit logs' },
+    { name: 'cashback.reconciliation.view', category: 'CASHBACK', description: 'View cashback reconciliation dashboard' },
+    { name: 'cashback.reconciliation.retry', category: 'CASHBACK', description: 'Retry failed cashback transactions' },
+    { name: 'cashback.reconciliation.export', category: 'CASHBACK', description: 'Export cashback reconciliation reports' },
+    { name: 'cashback.reconciliation.manual_review', category: 'CASHBACK', description: 'Move transactions to manual review' },
+    { name: 'cashback.reconciliation.manage', category: 'CASHBACK', description: 'Manage cashback reconciliation operations' },
+    { name: 'qr.generation.manage', category: 'MERCHANT', description: 'Manage QR code generation and merchant configuration' },
   ]
 
   const permissions = []
@@ -56,7 +62,7 @@ async function main() {
     {
       name: 'Super Admin',
       description: 'Full system access',
-      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW']
+      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW', 'cashback.reconciliation.view', 'cashback.reconciliation.retry', 'cashback.reconciliation.export', 'cashback.reconciliation.manual_review', 'cashback.reconciliation.manage', 'qr.generation.manage']
     },
     
     {
