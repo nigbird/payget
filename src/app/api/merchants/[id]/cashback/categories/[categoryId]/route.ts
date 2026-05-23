@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
+import { validateCategoryBody, validateCategoryName } from "@/lib/cashback/validation"
 
 export async function PATCH(
   request: Request,
@@ -23,10 +24,34 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const percent = body.percent !== undefined ? Number(body.percent) : undefined
-    if (percent !== undefined && (!Number.isFinite(percent) || percent <= 0 || percent > 100)) {
-      return NextResponse.json({ error: "Percent must be between 0 and 100" }, { status: 400 })
+    const errors: Record<string, string> = {}
+
+    if (body.name !== undefined) {
+      const nameCheck = validateCategoryName(String(body.name))
+      if (!nameCheck.valid && nameCheck.error) errors.name = nameCheck.error
     }
+
+    if (
+      body.percent !== undefined ||
+      body.minTransactionAmount !== undefined ||
+      body.maxTransactionAmount !== undefined
+    ) {
+      Object.assign(
+        errors,
+        validateCategoryBody({
+          name: body.name ?? existing.name,
+          percent: body.percent ?? existing.percent,
+          minTransactionAmount: body.minTransactionAmount ?? existing.minTransactionAmount,
+          maxTransactionAmount: body.maxTransactionAmount ?? existing.maxTransactionAmount,
+        })
+      )
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return NextResponse.json({ error: "Validation failed", errors }, { status: 400 })
+    }
+
+    const percent = body.percent !== undefined ? Number(body.percent) : undefined
 
     const updated = await prisma.cashbackCategory.update({
       where: { id: categoryId },

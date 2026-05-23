@@ -5,6 +5,7 @@ import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { getOrCreateCashbackConfig } from "@/lib/cashback/service"
 import { parseCsvEligibleRows, parseExcelEligibleRows } from "@/lib/cashback/import-parser"
 import { writeAuditLog } from "@/lib/audit-log"
+import { CASHBACK_LIMITS, validateImportFile } from "@/lib/cashback/validation"
 
 export async function POST(
   request: Request,
@@ -29,6 +30,11 @@ export async function POST(
       return NextResponse.json({ error: "Target category is required" }, { status: 400 })
     }
 
+    const fileCheck = validateImportFile(file)
+    if (!fileCheck.valid) {
+      return NextResponse.json({ error: fileCheck.error }, { status: 400 })
+    }
+
     const config = await getOrCreateCashbackConfig(merchantId)
     const category = await prisma.cashbackCategory.findFirst({
       where: { id: categoryId, configId: config.id, merchantId },
@@ -51,6 +57,15 @@ export async function POST(
 
     if (parsed.rows.length === 0 && parsed.errors.length > 0) {
       return NextResponse.json({ imported: 0, skipped: 0, errors: parsed.errors }, { status: 400 })
+    }
+
+    if (parsed.rows.length > CASHBACK_LIMITS.importMaxRows) {
+      return NextResponse.json(
+        {
+          error: `Import exceeds maximum of ${CASHBACK_LIMITS.importMaxRows.toLocaleString()} rows.`,
+        },
+        { status: 400 }
+      )
     }
 
     let imported = 0

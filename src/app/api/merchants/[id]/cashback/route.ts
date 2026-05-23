@@ -4,6 +4,7 @@ import { requireCsrf } from "@/lib/request-security"
 import { validateAccountNumberField } from "@/lib/account-number"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { getOrCreateCashbackConfig, mapConfigToDto } from "@/lib/cashback/service"
+import { validateCashbackConfigBody } from "@/lib/cashback/validation"
 import { writeAuditLog } from "@/lib/audit-log"
 type CashbackMode = "ALL_CUSTOMERS" | "CATEGORY_ELIGIBLE"
 
@@ -51,6 +52,11 @@ export async function PUT(
         )
       }
     }
+
+    const enabled = typeof body.enabled === "boolean" ? body.enabled : undefined
+    const mode = body.mode === "ALL_CUSTOMERS" || body.mode === "CATEGORY_ELIGIBLE" ? body.mode : undefined
+    const configErrors = validateCashbackConfigBody(body, Boolean(enabled && mode === "ALL_CUSTOMERS"))
+    Object.assign(validationErrors, configErrors)
 
     if (Object.keys(validationErrors).length > 0) {
       return NextResponse.json({ error: "Validation failed", errors: validationErrors }, { status: 400 })

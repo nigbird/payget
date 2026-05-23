@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { getOrCreateCashbackConfig } from "@/lib/cashback/service"
+import { validateCategoryBody } from "@/lib/cashback/validation"
 
 export async function POST(
   request: Request,
@@ -17,15 +18,13 @@ export async function POST(
     if (error) return error
 
     const body = await request.json()
-    const name = String(body.name ?? "").trim()
-    if (!name) {
-      return NextResponse.json({ error: "Category name is required" }, { status: 400 })
+    const errors = validateCategoryBody(body)
+    if (Object.keys(errors).length > 0) {
+      return NextResponse.json({ error: "Validation failed", errors }, { status: 400 })
     }
 
+    const name = String(body.name).trim()
     const percent = Number(body.percent)
-    if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
-      return NextResponse.json({ error: "Percent must be between 0 and 100" }, { status: 400 })
-    }
 
     const config = await getOrCreateCashbackConfig(merchantId)
 
@@ -36,7 +35,7 @@ export async function POST(
         name,
         description: body.description ? String(body.description).trim() : null,
         percent,
-        minTransactionAmount: parseNullableNumber(body.minTransactionAmount),
+        minTransactionAmount: parseNullableNumber(body.minTransactionAmount) ?? 0,
         maxTransactionAmount: parseNullableNumber(body.maxTransactionAmount),
         sortOrder: Number(body.sortOrder) || 0,
         isActive: body.isActive !== false,

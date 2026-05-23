@@ -54,6 +54,18 @@ import {
   sanitizeAccountNumberInput,
   getAccountNumberValidationError,
 } from "@/lib/account-number"
+import {
+  CASHBACK_LIMITS,
+  sanitizePercentInput,
+  sanitizeAmountInput,
+  sanitizeCategoryNameInput,
+  validatePercent,
+  validateAmount,
+  validateCategoryName,
+  validateMinMaxAmounts,
+  validateImportFile,
+  formatFileSize,
+} from "@/lib/cashback/validation"
 import type {
   CashbackCategoryDto,
   CashbackConfigDto,
@@ -101,6 +113,8 @@ export function CashbackTab({ merchantId }: Props) {
   const [customerFilterCategoryId, setCustomerFilterCategoryId] = useState<string>("all")
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [categoryFieldErrors, setCategoryFieldErrors] = useState<Record<string, string>>({})
 
   const [form, setForm] = useState({
     enabled: false,
@@ -151,14 +165,34 @@ export function CashbackTab({ merchantId }: Props) {
   }, [loadAll])
 
   const saveConfig = async () => {
+    const errors: Record<string, string> = {}
+
     const subsidiaryError = form.subsidiaryAccountNumber
       ? getAccountNumberValidationError(form.subsidiaryAccountNumber)
       : form.enabled
         ? "Subsidiary account is required when cashback is enabled."
         : undefined
+    if (subsidiaryError) errors.subsidiaryAccountNumber = subsidiaryError
 
-    if (subsidiaryError) {
-      toast({ variant: "destructive", title: "Validation", description: subsidiaryError })
+    if (form.enabled && form.mode === "ALL_CUSTOMERS") {
+      const pct = validatePercent(form.allCustomersPercent, true)
+      if (!pct.valid && pct.error) errors.allCustomersPercent = pct.error
+
+      const min = validateAmount(form.allCustomersMinAmount, "Min transaction amount")
+      const max = validateAmount(form.allCustomersMaxAmount, "Max transaction amount")
+      if (!min.valid && min.error) errors.allCustomersMinAmount = min.error
+      if (!max.valid && max.error) errors.allCustomersMaxAmount = max.error
+      const mm = validateMinMaxAmounts(form.allCustomersMinAmount, form.allCustomersMaxAmount)
+      Object.assign(errors, mm.errors)
+    }
+
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Validation",
+        description: "Please fix the highlighted fields.",
+      })
       return
     }
 
@@ -177,8 +211,17 @@ export function CashbackTab({ merchantId }: Props) {
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || data.errors?.subsidiaryAccountNumber || "Save failed")
+      if (!res.ok) {
+        if (data.errors) setFieldErrors(data.errors)
+        throw new Error(
+          data.error ||
+            data.errors?.subsidiaryAccountNumber ||
+            data.errors?.allCustomersPercent ||
+            "Save failed"
+        )
+      }
       setConfig(data)
+      setFieldErrors({})
       toast({ title: "Cashback settings saved" })
     } catch (e: unknown) {
       toast({
@@ -192,7 +235,29 @@ export function CashbackTab({ merchantId }: Props) {
   }
 
   const addCategory = async () => {
-    if (!categoryForm.name.trim()) return
+    const errors: Record<string, string> = {}
+    const nameCheck = validateCategoryName(categoryForm.name)
+    if (!nameCheck.valid && nameCheck.error) errors.name = nameCheck.error
+
+    const pct = validatePercent(categoryForm.percent, true)
+    if (!pct.valid && pct.error) errors.percent = pct.error
+
+    const mm = validateMinMaxAmounts(
+      categoryForm.minTransactionAmount,
+      categoryForm.maxTransactionAmount
+    )
+    Object.assign(errors, mm.errors)
+
+    setCategoryFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Validation",
+        description: "Please fix the category form fields.",
+      })
+      return
+    }
+
     try {
       const res = await fetch(`/api/merchants/${merchantId}/cashback/categories`, {
         method: "POST",
@@ -206,9 +271,11 @@ export function CashbackTab({ merchantId }: Props) {
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || "Failed to add category")
+        if (data.errors) setCategoryFieldErrors(data.errors)
+        throw new Error(data.error || data.errors?.name || "Failed to add category")
       }
       setCategoryForm(emptyCategoryForm)
+      setCategoryFieldErrors({})
       setIsCategoryModalOpen(false)
       await loadAll()
       toast({ title: "Category added" })
@@ -318,6 +385,16 @@ export function CashbackTab({ merchantId }: Props) {
         variant: "destructive",
         title: "Category required",
         description: "Please select a category to import customers into.",
+      })
+      return
+    }
+
+    const fileCheck = validateImportFile(file)
+    if (!fileCheck.valid) {
+      toast({
+        variant: "destructive",
+        title: "Invalid file",
+        description: fileCheck.error,
       })
       return
     }
@@ -547,8 +624,14 @@ export function CashbackTab({ merchantId }: Props) {
                             subsidiaryAccountNumber: sanitizeAccountNumberInput(e.target.value),
                           }))
                         }
-                        className="h-11 rounded-xl font-mono focus:ring-amber-500/20"
+                        className={`h-11 rounded-xl font-mono focus:ring-amber-500/20 ${fieldErrors.subsidiaryAccountNumber ? "border-rose-500" : ""}`}
                       />
+                      {fieldErrors.subsidiaryAccountNumber && (
+                        <p className="text-xs text-rose-600">{fieldErrors.subsidiaryAccountNumber}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Must start with 7000, up to 13 digits.
+                      </p>
                     </div>
                   </div>
 
@@ -556,20 +639,33 @@ export function CashbackTab({ merchantId }: Props) {
                     <div className="pt-4 border-t">
                       <h4 className="text-sm font-semibold text-[#5b371f] mb-4">Universal cashback rules</h4>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <RuleField
+                        <CashbackFormField
                           label="Cashback %"
+                          hint="0.01 – 100"
+                          fieldType="percent"
                           value={form.allCustomersPercent}
-                          onChange={(v) => setForm((p) => ({ ...p, allCustomersPercent: v }))}
+                          error={fieldErrors.allCustomersPercent}
+                          onChange={(v) =>
+                            setForm((p) => ({ ...p, allCustomersPercent: v }))
+                          }
                         />
-                        <RuleField
+                        <CashbackFormField
                           label="Min transaction amount"
+                          fieldType="amount"
                           value={form.allCustomersMinAmount}
-                          onChange={(v) => setForm((p) => ({ ...p, allCustomersMinAmount: v }))}
+                          error={fieldErrors.allCustomersMinAmount}
+                          onChange={(v) =>
+                            setForm((p) => ({ ...p, allCustomersMinAmount: v }))
+                          }
                         />
-                        <RuleField
+                        <CashbackFormField
                           label="Max transaction amount"
+                          fieldType="amount"
                           value={form.allCustomersMaxAmount}
-                          onChange={(v) => setForm((p) => ({ ...p, allCustomersMaxAmount: v }))}
+                          error={fieldErrors.allCustomersMaxAmount}
+                          onChange={(v) =>
+                            setForm((p) => ({ ...p, allCustomersMaxAmount: v }))
+                          }
                         />
                       </div>
                     </div>
@@ -589,7 +685,13 @@ export function CashbackTab({ merchantId }: Props) {
               <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base text-[#5b371f]">Management categories</CardTitle>
-                  <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+                  <Dialog
+                    open={isCategoryModalOpen}
+                    onOpenChange={(open) => {
+                      setIsCategoryModalOpen(open)
+                      if (!open) setCategoryFieldErrors({})
+                    }}
+                  >
                     <DialogTrigger asChild>
                       <Button size="sm" className={THEME_BTN_SM}>
                         <Plus className="h-4 w-4 mr-2" /> Add Category
@@ -603,34 +705,40 @@ export function CashbackTab({ merchantId }: Props) {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Category Name</Label>
-                          <Input
-                            placeholder="e.g. VIP Customers"
-                            value={categoryForm.name}
-                            onChange={(e) => setCategoryForm((p) => ({ ...p, name: e.target.value }))}
-                            className="h-11 rounded-xl"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Cashback Percentage</Label>
-                          <Input
-                            placeholder="5"
-                            value={categoryForm.percent}
-                            onChange={(e) => setCategoryForm((p) => ({ ...p, percent: e.target.value }))}
-                            className="h-11 rounded-xl"
-                          />
-                        </div>
+                        <CashbackFormField
+                          label="Category name"
+                          hint={`Max ${CASHBACK_LIMITS.categoryNameMax} characters`}
+                          fieldType="categoryName"
+                          value={categoryForm.name}
+                          error={categoryFieldErrors.name}
+                          onChange={(v) => setCategoryForm((p) => ({ ...p, name: v }))}
+                        />
+                        <CashbackFormField
+                          label="Cashback percentage"
+                          hint="0.01 – 100"
+                          fieldType="percent"
+                          value={categoryForm.percent}
+                          error={categoryFieldErrors.percent}
+                          onChange={(v) => setCategoryForm((p) => ({ ...p, percent: v }))}
+                        />
                         <div className="grid grid-cols-2 gap-4">
-                          <RuleField
-                            label="Min Transaction"
+                          <CashbackFormField
+                            label="Min transaction"
+                            fieldType="amount"
                             value={categoryForm.minTransactionAmount}
-                            onChange={(v) => setCategoryForm((p) => ({ ...p, minTransactionAmount: v }))}
+                            error={categoryFieldErrors.minTransactionAmount}
+                            onChange={(v) =>
+                              setCategoryForm((p) => ({ ...p, minTransactionAmount: v }))
+                            }
                           />
-                          <RuleField
-                            label="Max Transaction"
+                          <CashbackFormField
+                            label="Max transaction"
+                            fieldType="amount"
                             value={categoryForm.maxTransactionAmount}
-                            onChange={(v) => setCategoryForm((p) => ({ ...p, maxTransactionAmount: v }))}
+                            error={categoryFieldErrors.maxTransactionAmount}
+                            onChange={(v) =>
+                              setCategoryForm((p) => ({ ...p, maxTransactionAmount: v }))
+                            }
                           />
                         </div>
                       </div>
@@ -738,7 +846,11 @@ export function CashbackTab({ merchantId }: Props) {
                           </div>
                           <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
                             <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
-                            File columns must be: <span className="font-mono font-bold">phone, account</span> (optional)
+                            Columns: <span className="font-mono font-bold">phone, account</span> (optional)
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            CSV, TXT, XLS, or XLSX · max {formatFileSize(CASHBACK_LIMITS.importMaxBytes)} · up to{" "}
+                            {CASHBACK_LIMITS.importMaxRows.toLocaleString()} rows
                           </p>
                         </div>
 
@@ -945,25 +1057,52 @@ export function CashbackTab({ merchantId }: Props) {
   )
 }
 
-function RuleField({
+type CashbackFieldType = "percent" | "amount" | "categoryName"
+
+function CashbackFormField({
   label,
   value,
   onChange,
+  fieldType,
+  error,
+  hint,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
+  fieldType: CashbackFieldType
+  error?: string
+  hint?: string
 }) {
+  const sanitize = (raw: string) => {
+    if (fieldType === "percent") return sanitizePercentInput(raw)
+    if (fieldType === "amount") return sanitizeAmountInput(raw)
+    return sanitizeCategoryNameInput(raw)
+  }
+
+  const maxLength =
+    fieldType === "percent"
+      ? CASHBACK_LIMITS.percentMaxInputLength
+      : fieldType === "categoryName"
+        ? CASHBACK_LIMITS.categoryNameMax
+        : CASHBACK_LIMITS.amountMaxInputLength
+
   return (
     <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
+      <Label className="text-xs font-medium text-slate-700">{label}</Label>
       <Input
-        type="number"
-        min={0}
+        type="text"
+        inputMode={fieldType === "categoryName" ? "text" : "decimal"}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-10 rounded-xl"
+        maxLength={maxLength}
+        onChange={(e) => onChange(sanitize(e.target.value))}
+        className={`h-10 rounded-xl ${error ? "border-rose-500 focus-visible:ring-rose-500/30" : ""}`}
       />
+      {error ? (
+        <p className="text-[11px] text-rose-600 font-medium">{error}</p>
+      ) : hint ? (
+        <p className="text-[10px] text-muted-foreground">{hint}</p>
+      ) : null}
     </div>
   )
 }
