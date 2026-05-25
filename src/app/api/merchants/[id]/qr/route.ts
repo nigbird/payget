@@ -53,7 +53,36 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { qrEnabled, qrLogoUrl } = body
+    const { qrEnabled, qrLogoUrl, regenerate } = body
+
+    if (regenerate) {
+      // Deactivate all old QR codes
+      await prisma.merchantQrCode.updateMany({
+        where: { merchantId: id, isActive: true },
+        data: { isActive: false }
+      })
+
+      // Generate new one
+      const token = crypto.randomBytes(32).toString('hex')
+      const newQr = await prisma.merchantQrCode.create({
+        data: {
+          merchantId: id,
+          token,
+          isActive: true
+        }
+      })
+
+      await writeAuditLog({
+        request,
+        userId: user.id,
+        action: "MERCHANT_QR_REGENERATE",
+        entityType: "MERCHANT",
+        entityId: id,
+        newValue: { token }
+      })
+
+      return NextResponse.json({ success: true, activeQr: newQr })
+    }
 
     const updatedMerchant = await prisma.merchant.update({
       where: { id },

@@ -116,10 +116,6 @@ export default function MerchantManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Merchant Configuration Management</h2>
-        <p className="text-sm text-amber-800/60 font-medium">Configure merchant settings, QR codes, and branding.</p>
-      </div>
 
       <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
         <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
@@ -127,7 +123,7 @@ export default function MerchantManagementPage() {
             <div className="space-y-1">
               <CardTitle className="text-base tracking-tight">Merchant List</CardTitle>
               <CardDescription className="text-slate-600">
-                Manage all registered merchants and their configurations.
+                Manage all registered merchants' QR codes.
               </CardDescription>
             </div>
 
