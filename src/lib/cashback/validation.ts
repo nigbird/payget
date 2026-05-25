@@ -1,4 +1,5 @@
 /** Shared limits and sanitizers for cashback configuration UI + APIs. */
+import { hasAnyDangerousExtension } from "@/lib/file-validation";
 
 export const CASHBACK_LIMITS = {
   categoryNameMax: 50,
@@ -225,6 +226,11 @@ export function validateImportFile(file: File): { valid: boolean; error?: string
   const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
   if (!CASHBACK_LIMITS.allowedImportExtensions.includes(ext as (typeof CASHBACK_LIMITS.allowedImportExtensions)[number])) {
     return { valid: false, error: "Only CSV, TXT, XLS, or XLSX files are allowed." }
+  }
+
+  // Check for ANY dangerous extension anywhere in filename (double/triple extension check)
+  if (hasAnyDangerousExtension(file.name)) {
+    return { valid: false, error: "File contains dangerous extensions." }
   }
 
   if (file.size > CASHBACK_LIMITS.importMaxBytes) {

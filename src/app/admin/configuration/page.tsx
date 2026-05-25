@@ -442,6 +442,29 @@ export default function MasterDataConfigPage() {
       return
     }
 
+    // Check for ANY dangerous extension anywhere in filename (double/triple extension check)
+    const ext = file.name.toLowerCase()
+    const dangerousExtensions = [
+      '.exe', '.bat', '.sh', '.com', '.msi', '.app', '.dmg', '.scr', '.pif', '.cmd',
+      '.js', '.vbs', '.asp', '.jsp', '.php', '.pl', '.py', '.rb', '.go', '.ts',
+      '.jsx', '.tsx', '.coffee', '.groovy', '.lua',
+      '.lnk', '.url', '.desktop', '.ini', '.config',
+      '.docm', '.xlsm', '.pptm', '.xlam', '.potm',
+      '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.iso', '.dmg',
+      '.dll', '.so', '.dylib', '.lib',
+      '.obj', '.o', '.class', '.pyc'
+    ]
+    
+    const hasDangerous = dangerousExtensions.some(dangerous => ext.includes(dangerous))
+    if (hasDangerous) {
+      toast({
+        variant: "destructive",
+        title: "Invalid File",
+        description: "File contains dangerous extensions.",
+      })
+      return
+    }
+
     setImportFile(file)
 
     const reader = new FileReader()

@@ -45,9 +45,21 @@ export function decryptMerchantSecretInMemory(storedValue: string): { plaintext:
   if (version !== "v1") throw new Error("Unsupported merchant secret version")
 
   const key = getMasterKey()
+  const iv = Buffer.from(ivB64, "base64url")
+  const tag = Buffer.from(tagB64, "base64url")
 
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivB64, "base64url"))
-  decipher.setAuthTag(Buffer.from(tagB64, "base64url"))
+  // Validate IV length (GCM recommends 12 bytes - standard)
+  if (iv.length !== 12) {
+    throw new Error("Invalid IV length: must be 12 bytes")
+  }
+
+  // Validate authentication tag length (GCM requires 16 bytes)
+  if (tag.length !== 16) {
+    throw new Error("Invalid authentication tag length: must be 16 bytes")
+  }
+
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv)
+  decipher.setAuthTag(tag)
   const plaintext = Buffer.concat([
     decipher.update(Buffer.from(cipherB64, "base64url")),
     decipher.final(),

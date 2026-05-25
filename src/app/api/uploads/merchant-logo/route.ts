@@ -5,7 +5,7 @@ import crypto from "crypto"
 import { mkdir, writeFile } from "fs/promises"
 import path from "path"
 import { writeAuditLog } from "@/lib/audit-log"
-import { isDangerousExtension, extensionsMatch } from "@/lib/file-validation"
+import { isDangerousExtension, extensionsMatch, hasAnyDangerousExtension } from "@/lib/file-validation"
 
 const MAX_BYTES = 5 * 1024 * 1024 // 5MB
 
@@ -156,6 +156,23 @@ export async function POST(request: Request) {
         },
       })
       return NextResponse.json({ error: "File type not permitted" }, { status: 400 })
+    }
+
+    // Check for ANY dangerous extension anywhere in filename (double/triple extension check)
+    if (hasAnyDangerousExtension(file.name)) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { 
+          result: "failed", 
+          reason: "MULTIPLE_EXTENSION_DETECTED", 
+          fileName: file.name
+        },
+      })
+      return NextResponse.json({ error: "File contains dangerous extensions" }, { status: 400 })
     }
 
     // Validate filename extension matches detected type
