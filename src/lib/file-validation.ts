@@ -71,6 +71,31 @@ export function getFileExtension(filename: string): string {
 }
 
 /**
+ * Extracts ALL extensions from filename (for double/triple extension check)
+ * @param filename Original filename
+ * @returns Array of all extensions with leading dots (lowercase)
+ */
+export function getAllExtensions(filename: string): string[] {
+  const parts = filename.split('.')
+  if (parts.length < 2) return []
+  const extensions: string[] = []
+  for (let i = 1; i < parts.length; i++) {
+    extensions.push(`.${parts[i].toLowerCase()}`)
+  }
+  return extensions
+}
+
+/**
+ * Checks if filename contains ANY dangerous extension anywhere in the name
+ * @param filename Original filename
+ * @returns true if any dangerous extension is found
+ */
+export function hasAnyDangerousExtension(filename: string): boolean {
+  const allExtensions = getAllExtensions(filename)
+  return allExtensions.some(ext => isDangerousExtension(ext))
+}
+
+/**
  * Validates that filename extension matches the detected file type extension
  * Prevents mismatched extensions (e.g., .exe disguised as .jpg)
  * @param filename Original filename
@@ -114,6 +139,14 @@ export function validateFileUpload(
     return {
       valid: false,
       error: `File type not permitted: .${extension}`,
+    }
+  }
+
+  // Check for ANY dangerous extension anywhere in filename (double/triple extension check)
+  if (hasAnyDangerousExtension(filename)) {
+    return {
+      valid: false,
+      error: 'File contains dangerous extensions',
     }
   }
 
