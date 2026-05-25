@@ -29,8 +29,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
       return NextResponse.json({ error: "Unsupported file extension" }, { status: 400 })
     }
 
-    const filePath = path.join(process.cwd(), "uploads", "merchant-logos", filename)
-    const bytes = await readFile(filePath)
+    // Double protection: resolve path and verify it's within uploads directory
+    const uploadDir = path.join(process.cwd(), "uploads", "merchant-logos")
+    const filePath = path.join(uploadDir, filename)
+    const resolvedPath = path.resolve(filePath)
+    
+    // Verify the resolved path is still within the upload directory
+    if (!resolvedPath.startsWith(path.resolve(uploadDir))) {
+      return NextResponse.json({ error: "Invalid filename" }, { status: 400 })
+    }
+    
+    const bytes = await readFile(resolvedPath)
 
     return new NextResponse(bytes, {
       status: 200,
