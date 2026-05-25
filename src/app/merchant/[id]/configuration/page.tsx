@@ -1,12 +1,19 @@
 "use client"
 
-import { use, useEffect, useMemo, useState } from "react"
+import { use, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { z } from "zod"
-import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift } from "lucide-react"
+import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download } from "lucide-react"
 import { CashbackTab } from "@/components/merchant/cashback-tab"
 import { useSession } from "next-auth/react"
+import { QRCodeCanvas } from "qrcode.react"
+import { Switch } from "@/components/ui/switch"
+import {
+  downloadQrFromCanvasElement,
+  downloadQrFromSvgElement,
+  triggerBlobDownload,
+} from "@/lib/qr-download"
 
 import type { Merchant } from "@/app/lib/db"
 import { useMerchantPortalRole } from "@/components/merchant/merchant-portal-shell"
@@ -43,6 +50,15 @@ type ProfileData = {
 }
 
 type TabValue = "system" | "profile" | "cashback"
+
+const QR_DISPLAY_SIZE = 200
+const QR_DOWNLOAD_SIZE = 1024
+
+function toAbsoluteImageUrl(url: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) return url
+  if (url.startsWith("/")) return `${window.location.origin}${url}`
+  return `${window.location.origin}/${url}`
+}
 
 export default function MerchantConfigurationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -89,6 +105,101 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     daily: 5000,
     maxTransaction: 1000,
   })
+  const [qrConfig, setQrConfig] = useState<{
+    qrEnabled: boolean
+    qrLogoUrl: string | null
+    activeQr: { token: string } | null
+  }>({
+    qrEnabled: false,
+    qrLogoUrl: null,
+    activeQr: null
+  })
+  const [isQrLoading, setIsQrLoading] = useState(false)
+  const [isDownloadingQr, setIsDownloadingQr] = useState(false)
+
+  const qrUrl = useMemo(() => {
+    if (!qrConfig?.activeQr?.token) return ""
+    const origin = (
+      process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
+      (typeof window !== "undefined" ? window.location.origin : "")
+    )
+    return `${origin}/pay/merchant/${qrConfig.activeQr.token}`
+  }, [qrConfig?.activeQr?.token])
+
+  const qrLogoSrc = useMemo(() => {
+    if (!qrConfig?.qrLogoUrl) return null
+    if (qrConfig.qrLogoUrl === "use-merchant-logo") return merchant?.logoUrl ?? null
+    return qrConfig.qrLogoUrl
+  }, [qrConfig?.qrLogoUrl, merchant?.logoUrl])
+
+  const qrDisplayLogoSettings = useMemo(() => {
+    if (!qrLogoSrc) return undefined
+    return {
+      src: toAbsoluteImageUrl(qrLogoSrc),
+      height: 40,
+      width: 40,
+      excavate: true as const,
+      crossOrigin: "anonymous" as const,
+    }
+  }, [qrLogoSrc])
+
+  const downloadQr = useCallback(async () => {
+    if (!merchant) return
+
+    const fileName = `QR-${merchant.name.replace(/[^\w.-]+/g, "_")}.png`
+    setIsDownloadingQr(true)
+
+    try {
+      const qrElement = document.getElementById("merchant-qr")
+
+      if (qrElement instanceof HTMLCanvasElement) {
+        await downloadQrFromCanvasElement(qrElement, {
+          fileName,
+          outputSize: QR_DOWNLOAD_SIZE,
+          waitMs: qrDisplayLogoSettings ? 600 : 100,
+        })
+        return
+      }
+
+      if (qrElement instanceof SVGSVGElement) {
+        await downloadQrFromSvgElement(qrElement, {
+          fileName,
+          outputSize: QR_DOWNLOAD_SIZE,
+        })
+        return
+      }
+
+      const response = await fetch(`/api/merchants/${id}/qr/download`)
+      if (!response.ok) {
+        throw new Error("Server export failed")
+      }
+      triggerBlobDownload(await response.blob(), fileName)
+    } catch (error) {
+      console.error("QR download failed:", error)
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Could not export a scannable QR image. Please try again.",
+      })
+    } finally {
+      setIsDownloadingQr(false)
+    }
+  }, [merchant, qrDisplayLogoSettings, id, toast])
+
+  useEffect(() => {
+    const fetchQrConfig = async () => {
+      try {
+        const response = await fetch(`/api/merchants/${id}/qr`)
+        if (response.ok) {
+          const data = await response.json()
+          setQrConfig(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch QR config:', error)
+      }
+    }
+    fetchQrConfig()
+  }, [id])
 
   useEffect(() => {
     const fetchMerchant = async () => {
@@ -252,6 +363,51 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     }
   }
 
+  const handleQrAction = async (action: "generate" | "regenerate" | "toggle-logo") => {
+    if (!canEdit || isQrLoading) return
+    setIsQrLoading(true)
+
+    try {
+      const payload: any = {}
+      if (action === "generate") {
+        payload.qrEnabled = true
+      } else if (action === "regenerate") {
+        payload.regenerate = true
+      } else if (action === "toggle-logo") {
+        payload.qrLogoUrl = qrConfig.qrLogoUrl ? null : (merchant?.logoUrl || "use-merchant-logo")
+      }
+
+      const response = await fetch(`/api/merchants/${id}/qr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (action === "regenerate") {
+          setQrConfig(prev => ({ ...prev, activeQr: data.activeQr }))
+        } else {
+          // Refetch to get latest state
+          const refreshed = await fetch(`/api/merchants/${id}/qr`).then(r => r.json())
+          setQrConfig(refreshed)
+        }
+        toast({
+          title: action === "regenerate" ? "QR Code Regenerated" : "QR Configuration Updated",
+          description: "Your payment QR code settings have been updated.",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "QR Action Failed",
+        description: "Could not process QR request."
+      })
+    } finally {
+      setIsQrLoading(false)
+    }
+  }
+
   const handleSaveProfile = async () => {
     if (!canEdit || !merchant || !hasProfileChanges || isSaving) return
 
@@ -366,7 +522,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 pb-6">
+    <div className="mx-auto max-w-5xl space-y-5 pb-6">
       <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
         <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Configuration</p>
         <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">Account Settings</h1>
@@ -476,51 +632,136 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   </CardContent>
                 </Card>
 
-                {/* Business Information Card */}
-                <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
-                      <Building2 className="h-5 w-5 text-[#754319]" />
-                      Business Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="companyName">Company Name</Label>
-                        <Input
-                          id="companyName"
-                          value={formData.companyName}
-                          onChange={(e) => setFormData((p) => ({ ...p, companyName: e.target.value }))}
-                          placeholder="Acme Payments Ltd."
-                          className="h-11 rounded-2xl border-white/60 bg-white/85"
-                        />
-                        <p className="text-xs text-muted-foreground">Public business identity shown on payment records and receipts.</p>
-                        {errors.companyName && <p className="text-xs text-rose-600">{errors.companyName}</p>}
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-6">
+                  {/* QR Code Section */}
+                  <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm flex flex-col items-center justify-center p-6 text-center">
+                    <CardHeader className="pb-4 w-full text-left p-0 mb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
+                        <QrCode className="h-5 w-5 text-[#754319]" />
+                        Payment QR
+                      </CardTitle>
+                    </CardHeader>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center space-y-4 w-full">
+                      {qrConfig.activeQr ? (
+                         <>
+                           <div className="relative p-4 bg-white rounded-3xl shadow-md border border-[#f8b513]/20 group">
+                             <QRCodeCanvas
+                               id="merchant-qr"
+                               value={qrUrl}
+                               size={QR_DISPLAY_SIZE}
+                               level="H"
+                               includeMargin
+                               marginSize={4}
+                               bgColor="#FFFFFF"
+                               fgColor="#000000"
+                               imageSettings={qrDisplayLogoSettings}
+                             />
+                             <button
+                               type="button"
+                               onClick={downloadQr}
+                               disabled={isDownloadingQr}
+                               title="Download QR"
+                               className="absolute -top-3 -right-3 h-10 w-10 rounded-full bg-white border border-[#f8b513] text-[#f8b513] shadow-lg flex items-center justify-center hover:bg-amber-50 transition-colors disabled:opacity-60"
+                             >
+                               {isDownloadingQr ? (
+                                 <Loader2 className="h-5 w-5 animate-spin" />
+                               ) : (
+                                 <Download className="h-5 w-5" />
+                               )}
+                             </button>
+                           </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="accountNumber">Account Number</Label>
-                        <Input
-                          id="accountNumber"
-                          inputMode="numeric"
-                          maxLength={13}
-                          value={formData.accountNumber}
-                          onChange={(e) =>
-                            setFormData((p) => ({
-                              ...p,
-                              accountNumber: sanitizeAccountNumberInput(e.target.value),
-                            }))
-                          }
-                          placeholder="7000123456789"
-                          className="h-11 rounded-2xl border-white/60 bg-white/85"
-                        />
-                        <p className="text-xs text-muted-foreground">Must start with 7000, digits only, up to 13 characters.</p>
-                        {errors.accountNumber && <p className="text-xs text-rose-600">{errors.accountNumber}</p>}
-                      </div>
+                          <div className="flex items-center justify-between w-full px-2 pt-4 border-t border-white/40">
+                            <div className="flex items-center gap-2">
+                              <Switch 
+                                checked={!!qrConfig.qrLogoUrl} 
+                                onCheckedChange={() => handleQrAction("toggle-logo")}
+                                disabled={isQrLoading}
+                              />
+                              <span className="text-xs font-medium text-[#754319]">Enable Logo</span>
+                            </div>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleQrAction("regenerate")}
+                              disabled={isQrLoading}
+                              className="h-8 text-[11px] font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1.5"
+                            >
+                              <RefreshCw className={`h-3 w-3 ${isQrLoading ? 'animate-spin' : ''}`} />
+                              Regenerate
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                          <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center">
+                            <QrCode className="h-10 w-10 text-amber-200" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-slate-400">No QR Code generated</p>
+                            <p className="text-[11px] text-slate-300">Generate a unique QR for instant payments</p>
+                          </div>
+                          <Button
+                            onClick={() => handleQrAction("generate")}
+                            disabled={isQrLoading}
+                            className="rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                          >
+                            {isQrLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
+                            Generate QR Code
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </Card>
+
+                  {/* Business Information Card */}
+                  <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
+                        <Building2 className="h-5 w-5 text-[#754319]" />
+                        Business Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="companyName">Company Name</Label>
+                          <Input
+                            id="companyName"
+                            value={formData.companyName}
+                            onChange={(e) => setFormData((p) => ({ ...p, companyName: e.target.value }))}
+                            placeholder="Acme Payments Ltd."
+                            className="h-11 rounded-2xl border-white/60 bg-white/85"
+                          />
+                          <p className="text-xs text-muted-foreground">Public business identity shown on payment records and receipts.</p>
+                          {errors.companyName && <p className="text-xs text-rose-600">{errors.companyName}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="accountNumber">Account Number</Label>
+                          <Input
+                            id="accountNumber"
+                            inputMode="numeric"
+                            maxLength={13}
+                            value={formData.accountNumber}
+                            onChange={(e) =>
+                              setFormData((p) => ({
+                                ...p,
+                                accountNumber: sanitizeAccountNumberInput(e.target.value),
+                              }))
+                            }
+                            placeholder="7000123456789"
+                            className="h-11 rounded-2xl border-white/60 bg-white/85"
+                          />
+                          <p className="text-xs text-muted-foreground">Must start with 7000, digits only, up to 13 characters.</p>
+                          {errors.accountNumber && <p className="text-xs text-rose-600">{errors.accountNumber}</p>}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
               </div>
             )}
