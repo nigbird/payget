@@ -1,14 +1,22 @@
 import crypto from 'crypto';
 import { safeJsonParse } from './json-utils';
 
+/**
+ * Cryptographic utility for Provider Push Payment API integration.
+ * Standards: ECDH (secp256k1), AES-256-GCM, SHA-256 Checksum.
+ */
+
 export interface EncryptedPayload {
-  payload: string;
-  pubkey: string;
-  cksum: string;
-  salt: string;
-  tag: string;
+  payload: string; // Hex-encoded ciphertext
+  pubkey: string;  // Client's Base64-encoded public key
+  cksum: string;   // SHA-256 checksum of the ciphertext
+  salt: string;    // Initialization Vector (IV) Hex-encoded
+  tag: string;     // AES-GCM Authentication Tag Hex-encoded
 }
 
+/**
+ * Generates an ECDH key pair using the secp256k1 curve.
+ */
 export function generateECDHKeyPair() {
   const ecdh = crypto.createECDH('secp256k1');
   const publicKey = ecdh.generateKeys('base64');
@@ -16,79 +24,78 @@ export function generateECDHKeyPair() {
   return { publicKey, privateKey };
 }
 
+/**
+ * Derives a shared secret from the server's public key and the client's private key.
+ */
 export function deriveSharedSecret(serverPublicKeyBase64: string, clientPrivateKey: Buffer): Buffer {
   const ecdh = crypto.createECDH('secp256k1');
   ecdh.setPrivateKey(clientPrivateKey);
   return ecdh.computeSecret(serverPublicKeyBase64.trim(), 'base64');
 }
 
+/**
+ * Encrypts a JSON payload using AES-256-GCM with a shared secret.
+ * Updates from Postman: uses Hex encoding for payload, salt, and tag.
+ */
 export function encryptProviderPayload(
   payload: any,
   sharedSecret: Buffer,
   clientPublicKey: string
 ): EncryptedPayload {
+  // 1. Convert payload to string
   const plaintext = JSON.stringify(payload);
 
-  // ✅ Always derive key via SHA-256 (consistent, properly distributed)
-  const encryptionKey = crypto.createHash('sha256').update(sharedSecret).digest();
+  // 2. Use the raw ECDH secret as AES-256 key (provider-compatible); fallback-safe to first 32 bytes.
+  const encryptionKey = sharedSecret.length >= 32 ? sharedSecret.subarray(0, 32) : crypto.createHash('sha256').update(sharedSecret).digest();
 
-  // ✅ 12-byte IV (NIST SP 800-38D standard for AES-GCM)
-  const iv = crypto.randomBytes(12);
+  // 3. Generate a unique 16-byte IV (salt) - based on 32-char hex in Postman
+  const iv = crypto.randomBytes(16);
 
-  // ✅ authTagLength explicitly set
-  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey, iv, { authTagLength: 16 });
+  // 4. Create cipher
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey, iv);
 
+  // 5. Encrypt
   let ciphertext = cipher.update(plaintext, 'utf8', 'hex');
   ciphertext += cipher.final('hex');
 
+  // 6. Get Auth Tag
   const tag = cipher.getAuthTag().toString('hex');
 
-  const cksum = crypto
-    .createHash('sha256')
-    .update(Buffer.from(ciphertext, 'hex'))
-    .digest('hex');
+  // 7. Compute SHA-256 checksum over ciphertext bytes (matches provider/Postman)
+  const cksum = crypto.createHash('sha256').update(Buffer.from(ciphertext, 'hex')).digest('hex');
 
   return {
     payload: ciphertext,
     pubkey: clientPublicKey,
-    cksum,
+    cksum: cksum,
     salt: iv.toString('hex'),
-    tag,
+    tag: tag
   };
 }
 
+/**
+ * Decrypts a payload from the provider (used for callbacks).
+ * Updates from Postman: handles Hex encoding for payload, salt, and tag.
+ */
 export function decryptProviderPayload(
-  encryptedData: { payload: string, salt: string, tag: string, cksum: string },
+  encryptedData: { payload: string, salt: string, tag: string },
   sharedSecret: Buffer
 ): any {
-  // ✅ Always derive key via SHA-256
-  const encryptionKey = crypto.createHash('sha256').update(sharedSecret).digest();
-
+  const encryptionKey = sharedSecret.length >= 32 ? sharedSecret.subarray(0, 32) : crypto.createHash('sha256').update(sharedSecret).digest();
   const iv = Buffer.from(encryptedData.salt, 'hex');
   const tag = Buffer.from(encryptedData.tag, 'hex');
 
-  // ✅ Strict 12-byte IV
-  if (iv.length !== 12) {
-    throw new Error("Invalid IV length: must be 12 bytes");
+  // Validate IV length (GCM recommends 12 bytes, but 16 bytes is also acceptable)
+  if (iv.length !== 12 && iv.length !== 16) {
+    throw new Error("Invalid IV length: must be 12 or 16 bytes");
   }
 
-  // ✅ Strict 16-byte tag
+  // Validate authentication tag length (GCM requires 16 bytes)
   if (tag.length !== 16) {
     throw new Error("Invalid authentication tag length: must be 16 bytes");
   }
 
-  // ✅ Verify checksum before decryption
-  const expectedCksum = crypto
-    .createHash('sha256')
-    .update(Buffer.from(encryptedData.payload, 'hex'))
-    .digest('hex');
-
-  if (expectedCksum !== encryptedData.cksum) {
-    throw new Error("Checksum mismatch: payload has been tampered with");
-  }
-
-  // ✅ authTagLength explicitly set
-  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey, iv, { authTagLength: 16 });
+  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey, iv);
   decipher.setAuthTag(tag);
 
   let decrypted = decipher.update(encryptedData.payload, 'hex', 'utf8');
