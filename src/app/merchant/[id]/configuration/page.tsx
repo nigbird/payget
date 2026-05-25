@@ -1,19 +1,14 @@
 "use client"
 
-import { use, useCallback, useEffect, useMemo, useState } from "react"
+import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { z } from "zod"
 import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download } from "lucide-react"
 import { CashbackTab } from "@/components/merchant/cashback-tab"
 import { useSession } from "next-auth/react"
-import { QRCodeCanvas } from "qrcode.react"
+import { QRCodeSVG } from "qrcode.react"
 import { Switch } from "@/components/ui/switch"
-import {
-  downloadQrFromCanvasElement,
-  downloadQrFromSvgElement,
-  triggerBlobDownload,
-} from "@/lib/qr-download"
 
 import type { Merchant } from "@/app/lib/db"
 import { useMerchantPortalRole } from "@/components/merchant/merchant-portal-shell"
@@ -50,15 +45,6 @@ type ProfileData = {
 }
 
 type TabValue = "system" | "profile" | "cashback"
-
-const QR_DISPLAY_SIZE = 200
-const QR_DOWNLOAD_SIZE = 1024
-
-function toAbsoluteImageUrl(url: string): string {
-  if (url.startsWith("http://") || url.startsWith("https://")) return url
-  if (url.startsWith("/")) return `${window.location.origin}${url}`
-  return `${window.location.origin}/${url}`
-}
 
 export default function MerchantConfigurationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -115,76 +101,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     activeQr: null
   })
   const [isQrLoading, setIsQrLoading] = useState(false)
-  const [isDownloadingQr, setIsDownloadingQr] = useState(false)
-
-  const qrUrl = useMemo(() => {
-    if (!qrConfig?.activeQr?.token) return ""
-    const origin = (
-      process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
-      (typeof window !== "undefined" ? window.location.origin : "")
-    )
-    return `${origin}/pay/merchant/${qrConfig.activeQr.token}`
-  }, [qrConfig?.activeQr?.token])
-
-  const qrLogoSrc = useMemo(() => {
-    if (!qrConfig?.qrLogoUrl) return null
-    if (qrConfig.qrLogoUrl === "use-merchant-logo") return merchant?.logoUrl ?? null
-    return qrConfig.qrLogoUrl
-  }, [qrConfig?.qrLogoUrl, merchant?.logoUrl])
-
-  const qrDisplayLogoSettings = useMemo(() => {
-    if (!qrLogoSrc) return undefined
-    return {
-      src: toAbsoluteImageUrl(qrLogoSrc),
-      height: 40,
-      width: 40,
-      excavate: true as const,
-      crossOrigin: "anonymous" as const,
-    }
-  }, [qrLogoSrc])
-
-  const downloadQr = useCallback(async () => {
-    if (!merchant) return
-
-    const fileName = `QR-${merchant.name.replace(/[^\w.-]+/g, "_")}.png`
-    setIsDownloadingQr(true)
-
-    try {
-      const qrElement = document.getElementById("merchant-qr")
-
-      if (qrElement instanceof HTMLCanvasElement) {
-        await downloadQrFromCanvasElement(qrElement, {
-          fileName,
-          outputSize: QR_DOWNLOAD_SIZE,
-          waitMs: qrDisplayLogoSettings ? 600 : 100,
-        })
-        return
-      }
-
-      if (qrElement instanceof SVGSVGElement) {
-        await downloadQrFromSvgElement(qrElement, {
-          fileName,
-          outputSize: QR_DOWNLOAD_SIZE,
-        })
-        return
-      }
-
-      const response = await fetch(`/api/merchants/${id}/qr/download`)
-      if (!response.ok) {
-        throw new Error("Server export failed")
-      }
-      triggerBlobDownload(await response.blob(), fileName)
-    } catch (error) {
-      console.error("QR download failed:", error)
-      toast({
-        variant: "destructive",
-        title: "Download Failed",
-        description: "Could not export a scannable QR image. Please try again.",
-      })
-    } finally {
-      setIsDownloadingQr(false)
-    }
-  }, [merchant, qrDisplayLogoSettings, id, toast])
 
   useEffect(() => {
     const fetchQrConfig = async () => {
@@ -644,33 +560,45 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     
                     <div className="flex-1 flex flex-col items-center justify-center space-y-4 w-full">
                       {qrConfig.activeQr ? (
-                         <>
-                           <div className="relative p-4 bg-white rounded-3xl shadow-md border border-[#f8b513]/20 group">
-                             <QRCodeCanvas
-                               id="merchant-qr"
-                               value={qrUrl}
-                               size={QR_DISPLAY_SIZE}
-                               level="H"
-                               includeMargin
-                               marginSize={4}
-                               bgColor="#FFFFFF"
-                               fgColor="#000000"
-                               imageSettings={qrDisplayLogoSettings}
-                             />
-                             <button
-                               type="button"
-                               onClick={downloadQr}
-                               disabled={isDownloadingQr}
-                               title="Download QR"
-                               className="absolute -top-3 -right-3 h-10 w-10 rounded-full bg-white border border-[#f8b513] text-[#f8b513] shadow-lg flex items-center justify-center hover:bg-amber-50 transition-colors disabled:opacity-60"
-                             >
-                               {isDownloadingQr ? (
-                                 <Loader2 className="h-5 w-5 animate-spin" />
-                               ) : (
-                                 <Download className="h-5 w-5" />
-                               )}
-                             </button>
-                           </div>
+                        <>
+                          <div className="relative p-4 bg-white rounded-3xl shadow-md border border-[#f8b513]/20 group">
+                            <QRCodeSVG
+                              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pay/qr/${qrConfig.activeQr.token}`}
+                              size={200}
+                              level="H"
+                              imageSettings={qrConfig.qrLogoUrl && merchant?.logoUrl ? {
+                                 src: merchant.logoUrl,
+                                 height: 40,
+                                 width: 40,
+                                 excavate: true,
+                               } : undefined}
+                            />
+                            <button 
+                              onClick={() => {
+                                const svg = document.querySelector('svg');
+                                if (svg) {
+                                  const svgData = new XMLSerializer().serializeToString(svg);
+                                  const canvas = document.createElement("canvas");
+                                  const ctx = canvas.getContext("2d");
+                                  const img = new window.Image();
+                                  img.onload = () => {
+                                    canvas.width = img.width;
+                                    canvas.height = img.height;
+                                    ctx?.drawImage(img, 0, 0);
+                                    const pngFile = canvas.toDataURL("image/png");
+                                    const downloadLink = document.createElement("a");
+                                    downloadLink.download = `QR_${merchant?.name}.png`;
+                                    downloadLink.href = pngFile;
+                                    downloadLink.click();
+                                  };
+                                  img.src = "data:image/svg+xml;base64," + btoa(svgData);
+                                }
+                              }}
+                              className="absolute -top-3 -right-3 h-10 w-10 rounded-full bg-white border border-[#f8b513] text-[#f8b513] shadow-lg flex items-center justify-center hover:bg-amber-50 transition-colors"
+                            >
+                              <Download className="h-5 w-5" />
+                            </button>
+                          </div>
 
                           <div className="flex items-center justify-between w-full px-2 pt-4 border-t border-white/40">
                             <div className="flex items-center gap-2">
