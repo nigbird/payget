@@ -9,6 +9,8 @@ export const ProviderPushPayloadSchema = z.object({
   creditAccount: z.string().min(1), // Merchant's account number
   amount: z.number().finite().positive(),
   company: z.string().min(1),
+  merchantName: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
   callbackUrl: z.string().url().optional(),
 })
 

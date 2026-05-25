@@ -203,6 +203,8 @@ export async function POST(request: Request) {
       creditAccount: merchant.accountNumber,
       amount: tx.amount,
       company: "NTMerchant",
+      merchantName: merchant.name,
+      description: tx.description,
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`,
     }
 
@@ -223,6 +225,8 @@ export async function POST(request: Request) {
         creditAccount: merchant.accountNumber,
         amount: tx.amount,
         company: "NTMerchant",
+        merchantName: merchant.name,
+        description: tx.description,
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`,
       })
 

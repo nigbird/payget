@@ -16,6 +16,8 @@ export interface PushPaymentRequest {
   creditAccount: string;
   amount: number;
   company: string;
+  merchantName?: string;
+  description?: string;
   callbackUrl?: string;
 }
 

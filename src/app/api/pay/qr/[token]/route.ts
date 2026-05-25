@@ -96,6 +96,8 @@ export async function POST(
       creditAccount: qrCode.merchant.accountNumber,
       amount: paymentInput.amount,
       company: "NTMerchant",
+      merchantName: qrCode.merchant.name,
+      description: paymentInput.serviceDescription,
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
 
@@ -108,6 +110,8 @@ export async function POST(
         creditAccount: qrCode.merchant.accountNumber,
         amount: paymentInput.amount,
         company: "NTMerchant",
+        merchantName: qrCode.merchant.name,
+        description: paymentInput.serviceDescription,
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
       })
 
