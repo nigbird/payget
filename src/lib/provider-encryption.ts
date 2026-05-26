@@ -4,14 +4,14 @@ import { safeJsonParse } from "./json-utils"
 
 // Provider's payload schema for push (before encryption)
 export const ProviderPushPayloadSchema = z.object({
-  transactionRef: z.string().min(1),
-  customerPhone: z.string().min(1),
-  creditAccount: z.string().min(1), // Merchant's account number
   amount: z.number().finite().positive(),
-  company: z.string().min(1),
-  merchantName: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
   callbackUrl: z.string().url().optional(),
+  company: z.string().min(1),
+  creditAccount: z.string().min(1), // Merchant's account number
+  customerPhone: z.string().min(1),
+  description: z.string().min(1).optional(),
+  merchantName: z.string().min(1).optional(),
+  transactionRef: z.string().min(1),
 })
 
 export type ProviderPushPayload = z.infer<typeof ProviderPushPayloadSchema>
