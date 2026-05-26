@@ -10,6 +10,12 @@ import { resetUserLockout, resetLoginIdentifierLockout } from '@/lib/rate-limit'
 import { normalizeLoginIdentifierForLockout } from '@/lib/login-identifier-normalize';
 import { validatePassword } from '@/lib/password-policy';
 import { getPwnedCount } from '@/lib/pwned-password.server';
+import crypto from 'crypto';
+
+function generateSecureToken(length: number = 12): string {
+  const randomBytes = crypto.randomBytes(Math.ceil(length * 3 / 4));
+  return randomBytes.toString('base64url').slice(0, length);
+}
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null; // reset-password flows are unauthenticated
@@ -63,7 +69,7 @@ export async function POST(request: Request) {
 
       const config = await db.getSystemConfig();
       const resetTimeoutSeconds = config?.resetTimeoutSeconds ?? PASSWORD_RESET_TIMEOUT_SECONDS;
-      const resetToken = Math.random().toString(36).substr(2, 12);
+      const resetToken = generateSecureToken(12);
       const expiryDate = new Date(Date.now() + resetTimeoutSeconds * 1000);
       const expiry = expiryDate.toISOString();
 

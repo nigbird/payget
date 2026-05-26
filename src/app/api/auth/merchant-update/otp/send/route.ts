@@ -3,6 +3,14 @@ import { db } from '@/app/lib/db';
 import { sendNotification } from '@/lib/notifications';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
+import crypto from 'crypto';
+
+function generateSecureOtp(): string {
+  const randomBytes = crypto.randomBytes(3);
+  const randomNumber = randomBytes.readUIntBE(0, 3);
+  const otp = (randomNumber % 900000) + 100000;
+  return otp.toString();
+}
 
 export async function POST(request: Request) {
   try {
@@ -39,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     const merchant = updateToken.merchant;
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateSecureOtp();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     await db.updateMerchantUpdateToken(updateToken.id, {

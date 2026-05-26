@@ -1,8 +1,17 @@
+import crypto from 'crypto'
+
 const otpStore = new Map<string, { code: string; expiresAt: number }>()
 const OTP_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
+function generateSecureOtp(): string {
+  const randomBytes = crypto.randomBytes(3)
+  const randomNumber = randomBytes.readUIntBE(0, 3)
+  const otp = (randomNumber % 900000) + 100000
+  return otp.toString()
+}
+
 export function generateSalesOtp(phone: string) {
-  const code = Math.floor(100000 + Math.random() * 900000).toString()
+  const code = generateSecureOtp()
   otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS })
   return code
 }
