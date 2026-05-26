@@ -75,9 +75,6 @@ async function sendEmailNotification(
         user: process.env.SMTP_EMAIL_USER,
         pass: process.env.SMTP_EMAIL_PASS,
       },
-      tls: {
-        rejectUnauthorized: false, //  bypass SSL certificate issue
-      },
     });
 
     const info = await transporter.sendMail({
