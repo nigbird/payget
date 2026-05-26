@@ -161,9 +161,11 @@ export async function POST(request: Request) {
         amount: result.tx.amount,
         company: "NTMerchant",
         merchantName: result.merchant.name,
-        description: result.tx.serviceDescription || result.tx.description,
+        description: result.tx.description,
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
       })
+      
+      console.log('Encrypted provider push payload:', providerPayload)
 
       const baseUrl = process.env.PROVIDER_BASE_URL!
       const username = process.env.PROVIDER_USERNAME!
