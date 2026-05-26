@@ -81,24 +81,59 @@ export function deriveSharedSecret(serverPublicKeyBase64: string, clientPrivateK
 
 // Encrypt payload using AES-256-GCM and encode required values as hex
 export function encryptPayloadForProvider(payload: ProviderPushPayload, sharedSecret: Buffer): EncryptedPushRequest {
-  const iv = crypto.randomBytes(16) // Updated to 16 bytes to match Postman collection and legacy flow
+
+  const iv = crypto.randomBytes(16)
+
   const encryptionKey = sharedSecret.length >= 32 ? sharedSecret.subarray(0, 32) : crypto.createHash('sha256').update(sharedSecret).digest()
+
   const cipher = crypto.createCipheriv("aes-256-gcm", encryptionKey, iv)
+
+ 
+
+  const rawJsonString = JSON.stringify(payload)
+
   
+
+
+
+  console.log("==========================================")
+
+  console.log("RAW JSON STRING BEFORE ENCRYPTION IN TS:")
+
+  console.log(rawJsonString)
+
+  console.log("==========================================")
+
+
+
   const ciphertext = Buffer.concat([
-    cipher.update(JSON.stringify(payload), "utf8"),
+
+    cipher.update(rawJsonString, "utf8"),
+
     cipher.final(),
+
   ])
+
   const hexCiphertext = toHex(ciphertext)
+
   const tag = cipher.getAuthTag()
 
+
+
   return {
+
     payload: hexCiphertext,
+
     pubkey: "",
+
     cksum: crypto.createHash("sha256").update(Buffer.from(hexCiphertext, "hex")).digest("hex"),
+
     salt: toHex(iv),
+
     tag: toHex(tag),
+
   }
+
 }
 
 // Full workflow: prepare encrypted request
@@ -112,6 +147,7 @@ export async function prepareEncryptedPushRequest(
   const { publicKey: clientPublicKey, privateKey } = generateECDHKeyPair()
   const sharedSecret = deriveSharedSecret(serverPublicKey, privateKey)
   const encryptedRequest = encryptPayloadForProvider(payload, sharedSecret)
+
   encryptedRequest.pubkey = clientPublicKey
   return { request: encryptedRequest, clientPublicKey }
 }
