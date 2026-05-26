@@ -84,7 +84,7 @@ export async function POST(
       amount: tx.amount,
       company: "NTMerchant",
       merchantName: merchant.name,
-      description: tx.serviceDescription || tx.description
+      description: tx.description
     }
 
     // 2. Call the external provider API (legacy flow)
@@ -101,7 +101,7 @@ export async function POST(
         amount: tx.amount,
         company: "NTMerchant",
         merchantName: merchant.name,
-        description: tx.serviceDescription || tx.description
+        description: tx.description
       })
 
       const baseUrl = process.env.PROVIDER_BASE_URL!

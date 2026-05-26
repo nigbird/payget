@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       amount: paymentInput.amount,
       company: "NTMerchant",
       merchantName: result.merchant.name,
-      description: paymentInput.description || paymentInput.serviceDescription,
+      description: paymentInput.description,
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
 
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
         amount: result.tx.amount,
         company: "NTMerchant",
         merchantName: result.merchant.name,
-        description: result.tx.description || result.tx.serviceDescription,
+        description: result.tx.description,
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
       })
 
