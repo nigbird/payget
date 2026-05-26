@@ -139,10 +139,11 @@ export async function POST(request: Request) {
       amount: paymentInput.amount,
       company: "NTMerchant",
       merchantName: result.merchant.name,
-      description: paymentInput.description,
+      description: paymentInput.serviceDescription,
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
 
+    console.log('Provider push request payload:', providerRequest)
     console.log('Starting legacy provider push request...')
     let providerResponse = await sendProviderPushRequest(providerRequest)
     console.log('Legacy provider response status:', providerResponse.statusCode)
@@ -160,7 +161,7 @@ export async function POST(request: Request) {
         amount: result.tx.amount,
         company: "NTMerchant",
         merchantName: result.merchant.name,
-        description: result.tx.description,
+        description: result.tx.serviceDescription || result.tx.description,
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
       })
 
