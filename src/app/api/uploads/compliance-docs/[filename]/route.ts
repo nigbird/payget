@@ -45,7 +45,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "private, no-store, no-cache, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
         "X-Content-Type-Options": "nosniff",
       },
     })
