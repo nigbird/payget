@@ -35,21 +35,6 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://placehold.co https://images.unsplash.com https://picsum.photos",
-              "font-src 'self' data:",
-              "connect-src 'self'",
-              "object-src 'none'",
-              "frame-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'"
-            ].join('; '),
-          },
-          {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },

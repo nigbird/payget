@@ -5,6 +5,13 @@ import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { SessionWatcher } from "@/components/session-watcher";
 import { headers } from "next/headers";
 import { NonceProvider } from "@/components/nonce-provider";
+import { Inter } from 'next/font/google';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'NibTeraMerchant APP',
@@ -22,11 +29,8 @@ export default async function RootLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background">
         <NonceProvider nonce={nonce}>
