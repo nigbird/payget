@@ -88,7 +88,10 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json({ user: updatedUser });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, passwordResetToken: __, passwordResetExpires: ___, ...safeUser } = updatedUser;
+
+    return NextResponse.json({ user: safeUser });
   } catch (error: any) {
     console.error('Error updating user:', error);
     await writeAuditLog({

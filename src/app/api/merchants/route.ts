@@ -182,7 +182,9 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(merchant, { status: 201 });
+    const safeMerchant = await db.getMerchantById(merchant.id);
+
+    return NextResponse.json(safeMerchant, { status: 201 });
   } catch (error) {
     console.error('Error adding merchant:', error);
     await writeAuditLog({

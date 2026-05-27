@@ -131,8 +131,11 @@ function mapMerchant(
   m: PrismaMerchant & { documents?: PrismaMerchantDocument[], _count?: { transactions: number } },
   options?: { includeSecret?: boolean }
 ): Merchant {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password, passwordResetToken, passwordResetExpires, jweSecret, ...safeMerchant } = m;
+
   return {
-    ...m,
+    ...safeMerchant,
     jweSecret: options?.includeSecret ? m.jweSecret : "",
     status: mapMerchantStatus(m.status),
     createdAt: m.createdAt.toISOString(),
@@ -146,7 +149,7 @@ function mapMerchant(
       uploadedAt: doc.uploadedAt.toISOString()
     })),
     _count: m._count
-  };
+  } as any;
 }
 
 function mapTransaction(tx: PrismaTransaction): Transaction {
@@ -423,10 +426,17 @@ export const db = {
       data.passwordResetExpires = new Date(data.passwordResetExpires)
     }
     const { documents, ...rest } = data;
-    return prisma.merchant.update({
+    const m = await prisma.merchant.update({
       where: { id },
-      data: rest
+      data: rest,
+      include: {
+        documents: true,
+        _count: {
+          select: { transactions: true }
+        }
+      }
     });
+    return mapMerchant(m);
   },
 
   getTransactions: async () => {

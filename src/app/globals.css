@@ -198,6 +198,7 @@
     --input: 40 56% 88%;
     --ring: 43 94% 52%; /* amber focus */
     --radius: 1.125rem;
+    --font-body: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     --chart-1: 43 94% 52%;
     --chart-2: 29 65% 28%;
     --chart-3: 215 28% 17%;

@@ -189,7 +189,10 @@ export async function POST(request: Request) {
       newValue: { result: "success", email: createdUser.email, name: createdUser.name, role: createdUser.role },
     });
 
-    return NextResponse.json(createdUser, { status: 201 });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, passwordResetToken: __, passwordResetExpires: ___, ...safeUser } = createdUser;
+
+    return NextResponse.json(safeUser, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
 

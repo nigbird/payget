@@ -84,12 +84,9 @@ export async function POST(
       return NextResponse.json({ success: true, activeQr: newQr })
     }
 
-    const updatedMerchant = await prisma.merchant.update({
-      where: { id },
-      data: {
-        qrEnabled: qrEnabled !== undefined ? qrEnabled : undefined,
-        qrLogoUrl: qrLogoUrl !== undefined ? qrLogoUrl : undefined,
-      }
+    const updatedMerchant = await db.updateMerchant(id, {
+      qrEnabled: qrEnabled !== undefined ? qrEnabled : undefined,
+      qrLogoUrl: qrLogoUrl !== undefined ? qrLogoUrl : undefined,
     })
 
     await writeAuditLog({
