@@ -67,6 +67,10 @@ const nextConfig: NextConfig = {
             key: 'Expires',
             value: '0',
           },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'none'; frame-ancestors 'none';",
+          },
         ],
       },
       {

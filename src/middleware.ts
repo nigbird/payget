@@ -51,24 +51,36 @@ export default auth((req) => {
 
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login") return
-    return Response.redirect(new URL("/login", req.url))
+    const res = NextResponse.redirect(new URL("/login", req.url))
+    res.headers.set('Content-Security-Policy', cspHeader)
+    res.headers.set('X-Frame-Options', 'DENY')
+    return res
   }
 
   if (isMerchantRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login/merchant") return
     const loginUrl = new URL("/login/merchant", req.url)
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
-    return Response.redirect(loginUrl)
+    const res = NextResponse.redirect(loginUrl)
+    res.headers.set('Content-Security-Policy', cspHeader)
+    res.headers.set('X-Frame-Options', 'DENY')
+    return res
   }
 
   if (!isLoggedIn && !isAuthRoute) {
-    return Response.redirect(new URL("/login", req.url))
+    const res = NextResponse.redirect(new URL("/login", req.url))
+    res.headers.set('Content-Security-Policy', cspHeader)
+    res.headers.set('X-Frame-Options', 'DENY')
+    return res
   }
 
   const sessionExpiry = req.cookies.get("next-auth.session-token")?.expires
   if (sessionExpiry && new Date(sessionExpiry) < new Date()) {
     console.warn("Session expired. Redirecting to login.")
-    return Response.redirect(new URL("/login", req.url))
+    const res = NextResponse.redirect(new URL("/login", req.url))
+    res.headers.set('Content-Security-Policy', cspHeader)
+    res.headers.set('X-Frame-Options', 'DENY')
+    return res
   }
 
   if (isLoggedIn) {
@@ -90,14 +102,23 @@ export default auth((req) => {
     if (pathname === "/login" || pathname === "/login/merchant" || pathname === "/") {
       if (userRole === "MERCHANT" || userRole === "SALES") {
         if (pathname === "/merchant") return
-        return Response.redirect(new URL("/merchant", req.url))
+        const res = NextResponse.redirect(new URL("/merchant", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       } else {
         const landing = getAdminLandingPath()
         if (landing && landing !== pathname) {
-          return Response.redirect(new URL(landing, req.url))
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
         }
         if (userPermissions.includes("DASHBOARD_VIEW") && pathname !== "/admin") {
-          return Response.redirect(new URL("/admin", req.url))
+          const res = NextResponse.redirect(new URL("/admin", req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
         }
         return
       }
@@ -115,58 +136,123 @@ export default auth((req) => {
         userRole === 'ADMIN' || userRole === 'MAKER' || userRole === 'CHECKER' || userRole === 'HEAD_OFFICE'
       
       if (!hasAdminAccess) {
-        return Response.redirect(new URL(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login", req.url))
+        const res = NextResponse.redirect(new URL(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
 
       if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_VIEW")) {
         const landing = getAdminLandingPath()
         if (landing && landing !== "/admin") {
-          return Response.redirect(new URL(landing, req.url))
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
         }
-        return Response.redirect(new URL("/login", req.url))
+        const res = NextResponse.redirect(new URL("/login", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
 
       if (pathname.startsWith("/admin/onboarding") && !userPermissions.includes("MERCHANT_REGISTER")) {
         const landing = getAdminLandingPath()
-        if (landing) return Response.redirect(new URL(landing, req.url))
-        return Response.redirect(new URL("/admin", req.url))
+        if (landing) {
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
+        }
+        const res = NextResponse.redirect(new URL("/admin", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
 
       if (pathname.startsWith("/admin/review") && !userPermissions.includes("MERCHANT_APPROVE")) {
         const landing = getAdminLandingPath()
-        if (landing) return Response.redirect(new URL(landing, req.url))
-        return Response.redirect(new URL("/admin", req.url))
+        if (landing) {
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
+        }
+        const res = NextResponse.redirect(new URL("/admin", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
 
       if (pathname.startsWith("/admin/users") && !userPermissions.includes("USER_CREATE")) {
         const landing = getAdminLandingPath()
-        if (landing) return Response.redirect(new URL(landing, req.url))
-        return Response.redirect(new URL("/admin", req.url))
+        if (landing) {
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
+        }
+        const res = NextResponse.redirect(new URL("/admin", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
 
       if (pathname.startsWith("/admin/roles") && !userPermissions.includes("ROLE_CREATE")) {
         const landing = getAdminLandingPath()
-        if (landing) return Response.redirect(new URL(landing, req.url))
-        return Response.redirect(new URL("/admin", req.url))
+        if (landing) {
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
+        }
+        const res = NextResponse.redirect(new URL("/admin", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
 
       if (pathname.startsWith("/admin/configuration") && !userPermissions.includes("CONFIGURATION_MANAGE")) {
         const landing = getAdminLandingPath()
-        if (landing) return Response.redirect(new URL(landing, req.url))
-        return Response.redirect(new URL("/admin", req.url))
+        if (landing) {
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
+        }
+        const res = NextResponse.redirect(new URL("/admin", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
 
       if (pathname.startsWith("/admin/audit-logs") && !userPermissions.includes("AUDIT_LOG_VIEW")) {
         const landing = getAdminLandingPath()
-        if (landing) return Response.redirect(new URL(landing, req.url))
-        return Response.redirect(new URL("/admin", req.url))
+        if (landing) {
+          const res = NextResponse.redirect(new URL(landing, req.url))
+          res.headers.set('Content-Security-Policy', cspHeader)
+          res.headers.set('X-Frame-Options', 'DENY')
+          return res
+        }
+        const res = NextResponse.redirect(new URL("/admin", req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
       }
     }
 
     if (isMerchantRoute && userRole !== 'MERCHANT' && userRole !== 'SALES') {
       const landing = getAdminLandingPath()
-      if (landing) return Response.redirect(new URL(landing, req.url))
-      return Response.redirect(new URL("/login", req.url))
+      if (landing) {
+        const res = NextResponse.redirect(new URL(landing, req.url))
+        res.headers.set('Content-Security-Policy', cspHeader)
+        res.headers.set('X-Frame-Options', 'DENY')
+        return res
+      }
+      const res = NextResponse.redirect(new URL("/login", req.url))
+      res.headers.set('Content-Security-Policy', cspHeader)
+      res.headers.set('X-Frame-Options', 'DENY')
+      return res
     }
   }
 
@@ -185,6 +271,7 @@ export default auth((req) => {
   }
 
   response.headers.set('Content-Security-Policy', cspHeader)
+  response.headers.set('X-Frame-Options', 'DENY')
   return response
 })
 
