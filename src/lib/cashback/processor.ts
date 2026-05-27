@@ -85,13 +85,13 @@ async function evaluateEligibility(
 export async function processCashbackForSettlement(paymentTransactionId: string) {
   const tx = await db.getTransactionById(paymentTransactionId)
   if (!tx) {
-    console.warn(`[cashback] Payment transaction not found: ${paymentTransactionId}`)
-    return null
+    console.warn('[cashback] Payment transaction not found: %s', paymentTransactionId)
+    return
   }
 
   if (tx.status !== "success") {
-    console.warn(`[cashback] Skip — payment not successful: ${paymentTransactionId} (${tx.status})`)
-    return null
+    console.warn('[cashback] Skip — payment not successful: %s (%s)', paymentTransactionId, tx.status)
+    return
   }
 
   const existing = await prisma.cashbackTransaction.findUnique({

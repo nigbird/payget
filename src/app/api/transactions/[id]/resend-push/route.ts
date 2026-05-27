@@ -88,7 +88,7 @@ export async function POST(
     }
 
     // 2. Call the external provider API (legacy flow)
-    console.log(`Re-initiating USSD push for transaction ${tx.id} (legacy flow)...`)
+    console.log('Re-initiating USSD push for transaction %s (legacy flow)...', tx.id)
     let providerResponse = await sendProviderPushRequest(providerRequest)
     
     // If legacy provider fails, try the new encrypted provider flow

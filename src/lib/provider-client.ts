@@ -52,7 +52,7 @@ async function fetchServerPublicKey(): Promise<string> {
   try {
     data = safeJsonParse(text);
   } catch (e: any) {
-    console.error(`Failed to parse JSON from provider public key endpoint. Raw response: ${text}`);
+    console.error('Failed to parse JSON from provider public key endpoint. Raw response: %s', text);
     throw new Error(`Failed to parse JSON from provider: ${e.message}`);
   }
   const serverPublicKey = data.nibServerPublicKey || data.serverPublicKey || data.publicKey || data.pubkey;
@@ -108,7 +108,7 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
     try {
       data = safeJsonParse(text);
     } catch (e: any) {
-      console.error(`Failed to parse JSON from provider transfer endpoint. Raw response: ${text}`);
+      console.error('Failed to parse JSON from provider transfer endpoint. Raw response: %s', text);
       return {
         message: 'Failed to parse provider response',
         statusCode: response.status,

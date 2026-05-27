@@ -12,7 +12,7 @@ async function main() {
     }
   })
   
-  console.log(`Deleted ${deleted.count} obsolete permissions.`)
+  console.log('Deleted %d obsolete permissions.', deleted.count)
 }
 
 main()

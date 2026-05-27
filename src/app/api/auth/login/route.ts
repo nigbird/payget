@@ -67,11 +67,11 @@ export async function POST(request: Request) {
     const xForwardedFor = request.headers.get("x-forwarded-for")
     const ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : "127.0.0.1"
     
-    console.log(`[Login] Login attempt from IP: ${ip}`)
+    console.log('[Login] Login attempt from IP: %s', ip)
 
     const ipLockout = await checkIpLockout(ip)
     if (ipLockout.locked) {
-      console.log(`[Login] IP ${ip} is currently locked`)
+      console.log('[Login] IP %s is currently locked', ip)
       return lockoutResponseIp(ipLockout.retryAfterSeconds)
     }
 
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
 
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) {
-      console.log(`[Login] Password mismatch for user: ${user.id}`)
+      console.log('[Login] Password mismatch for user: %s', user.id)
       await writeAuditLog({
         request,
         userId: user.id,

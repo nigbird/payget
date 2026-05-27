@@ -220,7 +220,7 @@ export async function POST(request: Request) {
         (ext === "pdf" && looksLikePdf(bytes))
 
       if (!signatureOk) {
-        console.warn(`File content mismatch for ${file.name} (type: ${file.type})`)
+        console.warn('File content mismatch for %s (type: %s)', file.name, file.type)
         await writeAuditLog({
           request,
           userId: actorUserId,

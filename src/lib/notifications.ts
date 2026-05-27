@@ -41,7 +41,7 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
       return await sendSMSNotification(to, message);
     }
 
-    console.error(`[NOTIFICATION-ERROR] Unsupported contact format: ${to}`);
+    console.error('[NOTIFICATION-ERROR] Unsupported contact format: %s', to);
     return false;
   } catch (error) {
     console.error('Failed to send notification:', error);
@@ -60,9 +60,9 @@ async function sendEmailNotification(
   const emailEnabled = process.env.EMAIL_ENABLED === 'true';
 
   if (!emailEnabled) {
-    console.log(`[EMAIL-DISABLED] Log only: Sending to ${email}`);
-    console.log(`[EMAIL-DISABLED] Subject: ${subject}`);
-    console.log(`[EMAIL-DISABLED] Message: ${message}`);
+    console.log('[EMAIL-DISABLED] Log only: Sending to %s', email);
+    console.log('[EMAIL-DISABLED] Subject: %s', subject);
+    console.log('[EMAIL-DISABLED] Message: %s', message);
     return true;
   }
 
@@ -96,10 +96,10 @@ async function sendEmailNotification(
       `,
     });
 
-    console.log(`[EMAIL-SENT] Message ID: ${info.messageId} to ${email}`);
+    console.log('[EMAIL-SENT] Message ID: %s to %s', info.messageId, email);
     return true;
   } catch (error) {
-    console.error(`[EMAIL-ERROR] Failed to send to ${email}:`, error);
+    console.error('[EMAIL-ERROR] Failed to send to %s:', email, error);
     return false;
   }
 }
@@ -111,7 +111,7 @@ async function sendSMSNotification(phone: string, message: string): Promise<bool
   const result = await sendSms(phone, message);
 
   if (!result.ok) {
-    console.error(`[SMS-ERROR] Failed to send to ${phone}:`, result);
+    console.error('[SMS-ERROR] Failed to send to %s:', phone, result);
     return false;
   }
 

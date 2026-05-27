@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 
 function logRateLimitDbError(context: string, e: unknown) {
-  console.error(`[rate-limit] ${context}`, e)
+  console.error('[rate-limit] %s', context, e)
 }
 
 /** Failed logins from one IP across all identifiers before full IP block */

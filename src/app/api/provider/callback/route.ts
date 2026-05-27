@@ -156,7 +156,7 @@ export async function POST(request: Request) {
     // 3. Decrypt the payload
     let decryptedData: any;
     try {
-      console.log(`[CALLBACK] Decrypting using sharedSecretSource=${sharedSecretSource}`);
+      console.log('[CALLBACK] Decrypting using sharedSecretSource=%s', sharedSecretSource);
       decryptedData = decryptProviderPayload({ payload, salt, tag }, sharedSecret);
       console.log('[CALLBACK] Decrypted data:', decryptedData);
     } catch (err) {

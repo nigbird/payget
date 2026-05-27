@@ -54,7 +54,7 @@ export async function fetchServerPublicKey(baseUrl: string, username?: string, p
   try {
     data = safeJsonParse(text)
   } catch (e: any) {
-    console.error(`Failed to parse JSON from provider public key endpoint (encryption flow). Raw response: ${text}`)
+    console.error('Failed to parse JSON from provider public key endpoint (encryption flow). Raw response: %s', text)
     throw new Error(`Failed to parse JSON from provider: ${e.message}`)
   }
   const serverPublicKey = data.nibServerPublicKey || data.serverPublicKey || data.publicKey || data.pubkey
@@ -181,7 +181,7 @@ export async function sendPushToProvider(
     const data = safeJsonParse(text)
     return { ...data, statusCode: response.status }
   } catch (e: any) {
-    console.error(`Failed to parse JSON from provider transfer endpoint (encryption flow). Raw response: ${text}`)
+    console.error('Failed to parse JSON from provider transfer endpoint (encryption flow). Raw response: %s', text)
     return {
       message: "Failed to parse provider response",
       statusCode: response.status,
