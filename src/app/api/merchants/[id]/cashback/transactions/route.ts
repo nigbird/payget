@@ -13,10 +13,14 @@ export async function GET(
 
     const url = new URL(request.url)
     const status = url.searchParams.get("status") ?? undefined
-    const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 200)
+    const limit = Math.min(Number(url.searchParams.get("limit")) || 30, 200)
+    const offset = Number(url.searchParams.get("offset")) || 0
 
-    const transactions = await listCashbackTransactions(id, { status, limit })
-    return NextResponse.json({ transactions })
+    const result = await listCashbackTransactions(id, { status, limit, offset })
+    return NextResponse.json({ 
+      transactions: result.transactions, 
+      total: result.total 
+    })
   } catch (e) {
     console.error("Failed to list cashback transactions:", e)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

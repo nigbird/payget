@@ -108,6 +108,7 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
       data: {
         merchantId: tx.merchantId,
         paymentTransactionId: tx.id,
+        transactionReference: tx.transactionReference || `default_${tx.id}`,
         configId: config.id,
         customerPhone: extractCustomerFromTransaction(tx).phone,
         customerAccount: extractCustomerFromTransaction(tx).account,
@@ -126,6 +127,7 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
       data: {
         merchantId: tx.merchantId,
         paymentTransactionId: tx.id,
+        transactionReference: tx.transactionReference || `default_${tx.id}`,
         configId: config.id,
         customerPhone: extractCustomerFromTransaction(tx).phone,
         customerAccount: extractCustomerFromTransaction(tx).account,
@@ -151,6 +153,7 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
       data: {
         merchantId: tx.merchantId,
         paymentTransactionId: tx.id,
+        transactionReference: tx.transactionReference || `default_${tx.id}`,
         configId: config.id,
         customerPhone: customer.phone,
         customerAccount: customer.account,
@@ -196,6 +199,7 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     data: {
       merchantId: tx.merchantId,
       paymentTransactionId: tx.id,
+      transactionReference: tx.transactionReference,
       configId: config.id,
       categoryId: evaluation.categoryId,
       customerPhone: customer.phone,

@@ -103,6 +103,9 @@ export function CashbackTab({ merchantId }: Props) {
   const [config, setConfig] = useState<CashbackConfigDto | null>(null)
   const [eligible, setEligible] = useState<CashbackEligibleCustomerDto[]>([])
   const [transactions, setTransactions] = useState<CashbackTransactionDto[]>([])
+  const [transactionsTotal, setTransactionsTotal] = useState(0)
+  const [currentOffset, setCurrentOffset] = useState(0)
+  const PAGE_SIZE = 30
   const [expandedLogs, setExpandedLogs] = useState<Record<string, CashbackLogDto[]>>({})
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [importing, setImporting] = useState(false)
@@ -125,13 +128,13 @@ export function CashbackTab({ merchantId }: Props) {
     allCustomersMaxAmount: "",
   })
 
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (offset = 0) => {
     setLoading(true)
     try {
       const [cfgRes, eligRes, txRes] = await Promise.all([
         fetch(`/api/merchants/${merchantId}/cashback`),
         fetch(`/api/merchants/${merchantId}/cashback/eligible`),
-        fetch(`/api/merchants/${merchantId}/cashback/transactions?limit=30`),
+        fetch(`/api/merchants/${merchantId}/cashback/transactions?limit=${PAGE_SIZE}&offset=${offset}`),
       ])
       if (cfgRes.ok) {
         const cfg: CashbackConfigDto = await cfgRes.json()
@@ -152,6 +155,7 @@ export function CashbackTab({ merchantId }: Props) {
       if (txRes.ok) {
         const data = await txRes.json()
         setTransactions(data.transactions ?? [])
+        setTransactionsTotal(data.total ?? 0)
       }
     } catch {
       toast({ variant: "destructive", title: "Failed to load cashback settings" })
@@ -1045,6 +1049,42 @@ export function CashbackTab({ merchantId }: Props) {
                     <div className="text-center py-12">
                       <History className="h-10 w-10 text-slate-200 mx-auto mb-2" />
                       <p className="text-sm text-slate-400 font-medium">No activity history recorded.</p>
+                    </div>
+                  )}
+                  
+                  {transactionsTotal > PAGE_SIZE && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                      <p className="text-xs text-slate-500">
+                        Showing {currentOffset + 1}-{Math.min(currentOffset + PAGE_SIZE, transactionsTotal)} of {transactionsTotal}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={currentOffset === 0}
+                          onClick={() => {
+                            const newOffset = Math.max(0, currentOffset - PAGE_SIZE)
+                            setCurrentOffset(newOffset)
+                            loadAll(newOffset)
+                          }}
+                          className="h-9 px-4 rounded-xl"
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={currentOffset + PAGE_SIZE >= transactionsTotal}
+                          onClick={() => {
+                            const newOffset = currentOffset + PAGE_SIZE
+                            setCurrentOffset(newOffset)
+                            loadAll(newOffset)
+                          }}
+                          className="h-9 px-4 rounded-xl"
+                        >
+                          Next
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
