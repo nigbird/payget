@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import type { CashbackMode } from "@prisma/client"
+import { CashbackProcessingStatus } from "@prisma/client"
 import type {
   CashbackCategoryDto,
   CashbackConfigDto,
@@ -64,7 +65,7 @@ export async function appendCashbackLog(
   cashbackTransactionId: string,
   level: "INFO" | "WARN" | "ERROR",
   message: string,
-  metadata?: Record<string, unknown>
+  metadata?: unknown
 ) {
   return prisma.cashbackProcessingLog.create({
     data: {
@@ -78,19 +79,28 @@ export async function appendCashbackLog(
 
 export async function listCashbackTransactions(
   merchantId: string,
-  options?: { limit?: number; status?: string }
-): Promise<CashbackTransactionDto[]> {
-  const rows = await prisma.cashbackTransaction.findMany({
-    where: {
-      merchantId,
-      ...(options?.status ? { status: options.status as any } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: options?.limit ?? 50,
-    include: { category: { select: { name: true } } },
-  })
+  options?: { limit?: number; status?: string; offset?: number }
+): Promise<{ transactions: CashbackTransactionDto[]; total: number }> {
+  const where = {
+    merchantId,
+    ...(options?.status 
+      ? { status: options.status as CashbackProcessingStatus } 
+      : { NOT: { status: CashbackProcessingStatus.SKIPPED } }
+    ),
+  }
+  
+  const [rows, total] = await Promise.all([
+    prisma.cashbackTransaction.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: options?.limit ?? 50,
+      skip: options?.offset ?? 0,
+      include: { category: { select: { name: true } } },
+    }),
+    prisma.cashbackTransaction.count({ where }),
+  ])
 
-  return rows.map((r) => ({
+  const transactions = rows.map((r) => ({
     id: r.id,
     paymentTransactionId: r.paymentTransactionId,
     customerPhone: r.customerPhone,
@@ -107,6 +117,8 @@ export async function listCashbackTransactions(
     processedAt: r.processedAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
   }))
+  
+  return { transactions, total }
 }
 
 export async function listCashbackLogs(cashbackTransactionId: string, merchantId: string): Promise<CashbackLogDto[]> {
