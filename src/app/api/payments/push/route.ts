@@ -140,6 +140,8 @@ export async function POST(request: Request) {
       company: "NTMerchant",
       merchantName: result.merchant.name,
       description: paymentInput.serviceDescription,
+      // Provider-side integrations sometimes look for this misspelled key.
+      descryption: paymentInput.serviceDescription,
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     }
 
@@ -160,7 +162,8 @@ export async function POST(request: Request) {
         creditAccount: result.merchant.accountNumber,
         amount: result.tx.amount,
         company: "NTMerchant",
-        description: "test description",
+        description: paymentInput.serviceDescription,
+        descryption: paymentInput.serviceDescription,
         merchantName: result.merchant.name,
         
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`

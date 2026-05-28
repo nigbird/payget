@@ -6,6 +6,19 @@ export function safeJsonParse(text: string): any {
   try {
     return JSON.parse(text);
   } catch (e: any) {
+    const tryTrailingCommaFix = () => {
+      const withoutTrailingCommas = text.replace(/,\s*([}\]])/g, "$1");
+      return JSON.parse(withoutTrailingCommas);
+    };
+
+    if (e instanceof SyntaxError && e.message.includes("Expected double-quoted property name")) {
+      try {
+        return tryTrailingCommaFix();
+      } catch {
+        // Continue to existing recovery strategies below.
+      }
+    }
+
     if (e instanceof SyntaxError && (e.message.includes('control character') || e.message.includes('Bad control character'))) {
       // If JSON.parse fails because of control characters, it usually means 
       // there are literal newlines or tabs inside a string literal.
@@ -29,6 +42,11 @@ export function safeJsonParse(text: string): any {
       try {
         return JSON.parse(fixedText);
       } catch (secondError: any) {
+        // One more attempt for providers that return trailing commas.
+        try {
+          const fixedWithoutTrailingCommas = fixedText.replace(/,\s*([}\]])/g, "$1");
+          return JSON.parse(fixedWithoutTrailingCommas);
+        } catch {}
         // If it still fails, we'll log both the original error and the fixed text
         console.error('Failed to parse JSON even after escaping control characters.', {
           originalError: e.message,

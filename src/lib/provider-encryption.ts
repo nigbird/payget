@@ -10,6 +10,7 @@ export const ProviderPushPayloadSchema = z.object({
   creditAccount: z.string().min(1), // Merchant's account number
   customerPhone: z.string().min(1),
   description: z.string().min(1).optional(),
+  descryption: z.string().min(1).optional(),
   merchantName: z.string().min(1).optional(),
   transactionRef: z.string().min(1),
 })
