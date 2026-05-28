@@ -386,28 +386,6 @@ export default function CashbackReconciliationPage() {
                   {filteredItems.length} items found
                 </CardDescription>
               </div>
-              {canRetry && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className='rounded-[18px]'>
-                      <RotateCcw className='mr-2 h-4 w-4' />
-                      Bulk Retry Failed
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Bulk Retry Cashbacks</DialogTitle>
-                      <DialogDescription>
-                        This will retry all failed cashback transactions. Are you sure?
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button variant='outline'>Cancel</Button>
-                      <Button>Retry All</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
             </div>
           </CardHeader>
           <CardContent>
