@@ -18,6 +18,7 @@ export interface PushPaymentRequest {
   company: string;
   merchantName?: string;
   description?: string;
+  descryption?: string;
   callbackUrl?: string;
 }
 
