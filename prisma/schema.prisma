@@ -8,32 +8,34 @@ datasource db {
 }
 
 model User {
-  id                    String    @id @default(cuid())
-  name                  String?
-  email                 String?   @unique
-  password              String?
-  role                  UserRole  @default(MERCHANT)
-  customRoleId          String?
-  customRole            Role?     @relation(fields: [customRoleId], references: [id])
-  merchantId            String?
-  merchant              Merchant? @relation(fields: [merchantId], references: [id])
-  isHeadOffice          Boolean   @default(false)
-  district              String?
-  branch                String?
-  status                UserStatus @default(ACTIVE)
-  firstLogin            Boolean    @default(true)
-  failedLoginAttempts   Int        @default(0)
-  lockoutUntil          DateTime?
-  passwordResetToken    String?    @unique
-  passwordResetExpires  DateTime?
-  auditLogs             AuditLog[]
-  createdRoles          Role[]    @relation("RoleCreator")
-  createdMerchants      Merchant[] @relation("MerchantCreator")
-  limitsSetMerchants    Merchant[] @relation("MerchantLimitsSetter")
-  approvedMerchants     Merchant[] @relation("MerchantApprover")
-  refreshTokens         RefreshToken[]
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  id                   String                 @id @default(cuid())
+  name                 String?
+  email                String?                @unique
+  password             String?
+  role                 UserRole               @default(MERCHANT)
+  customRoleId         String?
+  customRole           Role?                  @relation(fields: [customRoleId], references: [id])
+  merchantId           String?
+  merchant             Merchant?              @relation(fields: [merchantId], references: [id])
+  isHeadOffice         Boolean                @default(false)
+  district             String?
+  branch               String?
+  status               UserStatus             @default(ACTIVE)
+  firstLogin           Boolean                @default(true)
+  failedLoginAttempts  Int                    @default(0)
+  lockoutUntil         DateTime?
+  passwordResetToken   String?                @unique
+  passwordResetExpires DateTime?
+  auditLogs            AuditLog[]
+  createdRoles         Role[]                 @relation("RoleCreator")
+  createdMerchants     Merchant[]             @relation("MerchantCreator")
+  limitsSetMerchants   Merchant[]             @relation("MerchantLimitsSetter")
+  approvedMerchants    Merchant[]             @relation("MerchantApprover")
+  refreshTokens        RefreshToken[]
+  madeCashbackRequests CashbackRequest[]      @relation("CashbackRequestMaker")
+  checkedCashbackRequests CashbackRequest[]   @relation("CashbackRequestChecker")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 }
 
 model RefreshToken {
@@ -175,6 +177,41 @@ enum CashbackProcessingStatus {
   SKIPPED
 }
 
+enum CashbackRequestType {
+  REFERENCE_UPDATE
+  RETRY
+}
+
+enum CashbackRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+model CashbackRequest {
+  id                   String                 @id @default(cuid())
+  type                 CashbackRequestType
+  cashbackTransactionId String
+  cashbackTransaction  CashbackTransaction    @relation(fields: [cashbackTransactionId], references: [id], onDelete: Cascade)
+  oldTransactionReference String?
+  newTransactionReference String?
+  reason               String
+  comments             String?
+  status               CashbackRequestStatus  @default(PENDING)
+  makerId              String
+  maker                User                   @relation("CashbackRequestMaker", fields: [makerId], references: [id])
+  checkerId            String?
+  checker              User?                  @relation("CashbackRequestChecker", fields: [checkerId], references: [id])
+  checkedAt            DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@index([cashbackTransactionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model MerchantCashbackConfig {
   id                        String       @id @default(cuid())
   merchantId                String       @unique
@@ -233,6 +270,7 @@ model CashbackTransaction {
   merchantId           String
   merchant             Merchant                 @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   paymentTransactionId String                   @unique
+  transactionReference String
   configId             String
   categoryId           String?
   category             CashbackCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -252,6 +290,7 @@ model CashbackTransaction {
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
   logs                 CashbackProcessingLog[]
+  requests             CashbackRequest[]
 
   @@index([merchantId, createdAt])
   @@index([status])

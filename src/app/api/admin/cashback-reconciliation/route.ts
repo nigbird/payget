@@ -45,11 +45,32 @@ export async function GET(request: Request) {
       where,
       include: {
         merchant: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } }
+        category: { select: { id: true, name: true } },
+        requests: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            maker: { select: { id: true, name: true, email: true } },
+            checker: { select: { id: true, name: true, email: true } }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
       take: limit ? parseInt(limit) : 50,
       skip: offset ? parseInt(offset) : 0
+    });
+
+    // Get pending requests for review
+    const requests = await prisma.cashbackRequest.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        cashbackTransaction: {
+          include: {
+            merchant: { select: { id: true, name: true } }
+          }
+        },
+        maker: { select: { id: true, name: true, email: true } }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
     // Calculate stats
@@ -92,6 +113,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       transactions,
+      requests,
       stats: {
         pending,
         failed,
@@ -128,22 +150,191 @@ export async function POST(request: Request) {
     }
     userId = user.id;
 
-    if (!userHasPermission(user, 'cashback.reconciliation.retry') && 
-        !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+    const body = await request.json();
+    const action = body.action;
+
+    // Create request (Maker)
+    if (action === 'create_request') {
+      if (!userHasPermission(user, 'cashback.reconciliation.retry') && 
+          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+        return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+      }
+
+      const { type, cashbackTransactionId, newTransactionReference, reason } = body;
+
+      if (!type || !cashbackTransactionId || !reason) {
+        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      }
+
+      if (type === 'REFERENCE_UPDATE' && !newTransactionReference) {
+        return NextResponse.json({ error: 'New transaction reference is required' }, { status: 400 });
+      }
+
+      // Get the transaction to get the old reference
+      const transaction = await prisma.cashbackTransaction.findUnique({
+        where: { id: cashbackTransactionId }
+      });
+
+      if (!transaction) {
+        return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+      }
+
+      const request = await prisma.cashbackRequest.create({
+        data: {
+          type,
+          cashbackTransactionId,
+          oldTransactionReference: transaction.transactionReference,
+          newTransactionReference: newTransactionReference || null,
+          reason,
+          makerId: userId
+        }
+      });
+
       await writeAuditLog({
         request,
         userId,
-        action: 'CASHBACK_RECONCILIATION_RETRY',
-        entityType: 'CASHBACK_TRANSACTION',
-        entityId: null,
-        newValue: { result: 'failed', reason: 'PERMISSION_DENIED' }
+        action: 'CASHBACK_REQUEST_CREATE',
+        entityType: 'CASHBACK_REQUEST',
+        entityId: request.id,
+        oldValue: { oldTransactionReference: transaction.transactionReference },
+        newValue: { type, newTransactionReference, reason }
       });
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+
+      return NextResponse.json({ request });
     }
 
-    const { action, cashbackIds } = await request.json();
+    // Approve request (Checker)
+    if (action === 'approve_request') {
+      if (!userHasPermission(user, 'cashback.reconciliation.manage') && 
+          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+        return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+      }
 
+      const { requestId, comments } = body;
+
+      if (!requestId) {
+        return NextResponse.json({ error: 'Request ID is required' }, { status: 400 });
+      }
+
+      const cashbackRequest = await prisma.cashbackRequest.findUnique({
+        where: { id: requestId },
+        include: { cashbackTransaction: true }
+      });
+
+      if (!cashbackRequest) {
+        return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+      }
+
+      if (cashbackRequest.status !== 'PENDING') {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 400 });
+      }
+
+      if (cashbackRequest.makerId === userId) {
+        return NextResponse.json({ error: 'Cannot approve your own request' }, { status: 400 });
+      }
+
+      // Execute the request
+      if (cashbackRequest.type === 'REFERENCE_UPDATE' && cashbackRequest.newTransactionReference) {
+        await prisma.cashbackTransaction.update({
+          where: { id: cashbackRequest.cashbackTransactionId },
+          data: { transactionReference: cashbackRequest.newTransactionReference }
+        });
+      } else if (cashbackRequest.type === 'RETRY') {
+        await prisma.cashbackTransaction.update({
+          where: { id: cashbackRequest.cashbackTransactionId },
+          data: { status: 'PENDING' }
+        });
+      }
+
+      const updatedRequest = await prisma.cashbackRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'EXECUTED',
+          checkerId: userId,
+          checkedAt: new Date(),
+          comments
+        }
+      });
+
+      await writeAuditLog({
+        request,
+        userId,
+        action: 'CASHBACK_REQUEST_APPROVE',
+        entityType: 'CASHBACK_REQUEST',
+        entityId: requestId,
+        newValue: { status: 'EXECUTED', comments }
+      });
+
+      return NextResponse.json({ request: updatedRequest });
+    }
+
+    // Reject request (Checker)
+    if (action === 'reject_request') {
+      if (!userHasPermission(user, 'cashback.reconciliation.manage') && 
+          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+        return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+      }
+
+      const { requestId, comments } = body;
+
+      if (!requestId) {
+        return NextResponse.json({ error: 'Request ID is required' }, { status: 400 });
+      }
+
+      const cashbackRequest = await prisma.cashbackRequest.findUnique({
+        where: { id: requestId }
+      });
+
+      if (!cashbackRequest) {
+        return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+      }
+
+      if (cashbackRequest.status !== 'PENDING') {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 400 });
+      }
+
+      if (cashbackRequest.makerId === userId) {
+        return NextResponse.json({ error: 'Cannot reject your own request' }, { status: 400 });
+      }
+
+      const updatedRequest = await prisma.cashbackRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'REJECTED',
+          checkerId: userId,
+          checkedAt: new Date(),
+          comments
+        }
+      });
+
+      await writeAuditLog({
+        request,
+        userId,
+        action: 'CASHBACK_REQUEST_REJECT',
+        entityType: 'CASHBACK_REQUEST',
+        entityId: requestId,
+        newValue: { status: 'REJECTED', comments }
+      });
+
+      return NextResponse.json({ request: updatedRequest });
+    }
+
+    // Original actions for backwards compatibility
     if (action === 'retry') {
+      if (!userHasPermission(user, 'cashback.reconciliation.retry') && 
+          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+        await writeAuditLog({
+          request,
+          userId,
+          action: 'CASHBACK_RECONCILIATION_RETRY',
+          entityType: 'CASHBACK_TRANSACTION',
+          entityId: null,
+          newValue: { result: 'failed', reason: 'PERMISSION_DENIED' }
+        });
+        return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+      }
+
+      const { cashbackIds } = body;
       if (!cashbackIds || !Array.isArray(cashbackIds) || cashbackIds.length === 0) {
         return NextResponse.json({ error: 'No cashback transactions specified' }, { status: 400 });
       }
@@ -167,6 +358,7 @@ export async function POST(request: Request) {
     }
 
     if (action === 'mark_reconciled') {
+      const { cashbackIds } = body;
       if (!cashbackIds || !Array.isArray(cashbackIds) || cashbackIds.length === 0) {
         return NextResponse.json({ error: 'No cashback transactions specified' }, { status: 400 });
       }
