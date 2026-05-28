@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     console.log('[CALLBACK] Received raw body:', JSON.stringify(body, null, 2));
     
     const { payload, salt, tag, cksum, pubkey: providerPubKey } = body;
-    // The provider might send transactionRef under different names
+    // Provider canonical field is transactionRef; keep legacy aliases for compatibility.
     let transactionRef =
       body.transactionRef ||
       body.transactionReference ||
@@ -325,6 +325,12 @@ export async function POST(request: Request) {
       userCredentials: {
         ...tx.userCredentials,
         providerCallback: {
+          transactionRef:
+            decryptedData.transactionRef ??
+            decryptedData.transactionReference ??
+            decryptedData.transactionId ??
+            null,
+          // Keep legacy alias for downstream compatibility.
           transactionId:
             decryptedData.transactionId ??
             decryptedData.transactionRef ??
@@ -367,7 +373,17 @@ export async function POST(request: Request) {
             status: finalStatus,
             
             // Provider-specific fields
-            transactionId: decryptedData.transactionId ?? null,
+            transactionRef:
+              decryptedData.transactionRef ??
+              decryptedData.transactionReference ??
+              decryptedData.transactionId ??
+              null,
+            // Backward-compatible alias.
+            transactionId:
+              decryptedData.transactionId ??
+              decryptedData.transactionRef ??
+              decryptedData.transactionReference ??
+              null,
             cbsreference: providerCbsReference,
             statusDesc: providerStatusDesc ?? null,
             company: providerCompany ?? null,
