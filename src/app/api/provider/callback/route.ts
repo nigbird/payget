@@ -35,21 +35,37 @@ export async function POST(request: Request) {
       return await db.getTransactionById(value.trim());
     };
 
-    // 0. Authenticate the provider request (Auth)
+    // 0. Authenticate the provider request (Bearer token + encrypted payload below)
     const authHeader = request.headers.get('Authorization');
-    const expectedToken = process.env.PROVIDER_CALLBACK_TOKEN;
+    const expectedToken = process.env.PROVIDER_CALLBACK_TOKEN?.trim();
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
-      console.error('[CALLBACK] Unauthorized: Invalid or missing PROVIDER_CALLBACK_TOKEN');
-      await writeAuditLog({
-        request,
-        userId: null,
-        action: "PAYMENT_CALLBACK",
-        entityType: "TRANSACTION",
-        entityId: null,
-        newValue: { result: "failed", reason: "UNAUTHORIZED" },
-      });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (isProduction && !expectedToken) {
+      console.error('[CALLBACK] PROVIDER_CALLBACK_TOKEN is not configured');
+      return NextResponse.json({ error: 'Service misconfigured' }, { status: 503 });
+    }
+
+    if (expectedToken) {
+      const bearerToken = authHeader?.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : null;
+      const tokenValid =
+        bearerToken !== null &&
+        bearerToken.length === expectedToken.length &&
+        crypto.timingSafeEqual(Buffer.from(bearerToken), Buffer.from(expectedToken));
+
+      if (!tokenValid) {
+        console.error('[CALLBACK] Unauthorized: Invalid or missing PROVIDER_CALLBACK_TOKEN');
+        await writeAuditLog({
+          request,
+          userId: null,
+          action: "PAYMENT_CALLBACK",
+          entityType: "TRANSACTION",
+          entityId: null,
+          newValue: { result: "failed", reason: "UNAUTHORIZED" },
+        });
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const body = await request.json();
