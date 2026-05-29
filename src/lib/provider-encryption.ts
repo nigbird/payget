@@ -146,13 +146,7 @@ export async function sendPushToProvider(
   password: string
 ): Promise<any> {
   const auth = Buffer.from(`${username}:${password}`).toString('base64')
-  console.log('Sending encrypted request to provider:', {
-    baseUrl,
-    url: `${baseUrl}/push-payment/transfer`,
-    payload: encryptedRequest.payload,
-    cksum: encryptedRequest.cksum,
-    pubkey: encryptedRequest.pubkey
-  })
+  console.log(JSON.stringify(encryptedRequest, null, 2))
   const response = await fetch(`${baseUrl}/push-payment/transfer`, {
     method: "POST",
     headers: {
