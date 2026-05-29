@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { db, type Merchant, type Transaction } from "@/app/lib/db"
 import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPayload } from "@/lib/jwe"
-import { decryptMerchantSecretInMemory, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
+import { withMerchantSecret, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
 import { auditSecurityEvent } from "@/lib/request-security"
 
 export const PaymentInitiateSchema = z.object({
@@ -118,8 +118,9 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     linkStatus: "PENDING",
   })
 
-  const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
-  const token = await encryptPayload(payload, merchantSecret, merchant.id)
+  const token = await withMerchantSecret(merchant.jweSecret, (merchantSecret) => 
+    encryptPayload(payload, merchantSecret, merchant.id)
+  )
 
   return {
     ok: true as const,
@@ -139,22 +140,28 @@ export async function resolveEncryptedToken(token: string) {
   const merchant = await db.getMerchantById(kid, { includeSecret: true })
   if (!merchant) return { ok: false as const, error: "Merchant not found for token" }
 
-  const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
-  const payload = await decryptPayload(token, merchantSecret)
+  const { payload, rewrappedSecret } = await withMerchantSecret(merchant.jweSecret, async (merchantSecret) => {
+    const p = await decryptPayload(token, merchantSecret)
+    let r = null
+    if (requiresRewrap(merchant.jweSecret)) {
+      try {
+        r = encryptMerchantSecretAtRest(merchantSecret).ciphertext
+      } catch {}
+    }
+    return { payload: p, rewrappedSecret: r }
+  })
 
-  if (requiresRewrap(merchant.jweSecret)) {
+  if (rewrappedSecret) {
     try {
-      const rewrapped = encryptMerchantSecretAtRest(merchantSecret)
       await db.updateMerchant(merchant.id, {
-        jweSecret: rewrapped.ciphertext,
+        jweSecret: rewrappedSecret,
       })
       await auditSecurityEvent({
         action: "MERCHANT_SECRET_REWRAPPED",
         merchantId: merchant.id,
         detail: { reason: "encryption_format_upgrade" },
       })
-    } catch {
-    }
+    } catch {}
   }
   const tx = await db.getTransactionById(payload.transactionId)
 

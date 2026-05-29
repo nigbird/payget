@@ -6,9 +6,12 @@ import { mkdir, writeFile } from "fs/promises"
 import path from "path"
 import { writeAuditLog } from "@/lib/audit-log"
 import { isDangerousExtension, extensionsMatch, validateFileUpload, hasAnyDangerousExtension } from "@/lib/file-validation"
+import { prisma } from "@/lib/prisma"
 
 const MAX_TOTAL_BYTES = 15 * 1024 * 1024 // 15MB total per application
 const MAX_SINGLE_FILE_BYTES = 5 * 1024 * 1024 // 5MB per file
+const UPLOAD_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const MAX_UPLOADS_PER_WINDOW = 10
 
 const allowedMimeToExt: Record<string, string> = {
   "image/png": "png",
@@ -51,13 +54,33 @@ function looksLikeWebp(buf: Buffer) {
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1"
+
   try {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
+    // 1. Rate Limiting Check
+    const now = new Date()
+    const windowStart = new Date(now.getTime() - UPLOAD_RATE_LIMIT_WINDOW_MS)
+
     const user = await requireAuthUser(request)
     if (user) {
       actorUserId = user.id
+
+      const userUploadCount = await prisma.auditLog.count({
+        where: {
+          userId: user.id,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          createdAt: { gte: windowStart },
+          newValue: { path: ["result"], equals: "success" }
+        }
+      })
+
+      if (userUploadCount >= MAX_UPLOADS_PER_WINDOW) {
+        return NextResponse.json({ error: "Upload limit exceeded. Please try again later." }, { status: 429 })
+      }
+    }
       const isMerchantUser = user?.role === "MERCHANT"
       const hasStaffPermission = userHasAnyPermission(user, [
         "MERCHANT_REGISTER",

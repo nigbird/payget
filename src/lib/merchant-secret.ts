@@ -14,6 +14,42 @@ function getMasterKey(): Buffer {
   return key
 }
 
+function zeroBuffer(buf: Buffer): void {
+  buf.fill(0)
+}
+
+function decryptMerchantSecretBuffer(storedValue: string): Buffer {
+  if (!isEncryptedMerchantSecret(storedValue)) {
+    return Buffer.from(storedValue, "utf8")
+  }
+
+  const parts = storedValue.split(":")
+  if (parts.length !== 5) {
+    throw new Error("Invalid encrypted merchant secret format")
+  }
+  const [, version, ivB64, cipherB64, tagB64] = parts
+  if (version !== "v1") throw new Error("Unsupported merchant secret version")
+
+  const key = getMasterKey()
+  const iv = Buffer.from(ivB64, "base64url")
+  const tag = Buffer.from(tagB64, "base64url")
+
+  if (iv.length !== 12) {
+    throw new Error("Invalid IV length: must be 12 bytes")
+  }
+
+  if (tag.length !== 16) {
+    throw new Error("Invalid authentication tag length: must be 16 bytes")
+  }
+
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv)
+  decipher.setAuthTag(tag)
+  return Buffer.concat([
+    decipher.update(Buffer.from(cipherB64, "base64url")),
+    decipher.final(),
+  ])
+}
+
 export function isEncryptedMerchantSecret(value: string): boolean {
   return typeof value === "string" && value.startsWith(`${ENCRYPTED_SECRET_PREFIX}:`)
 }
@@ -32,40 +68,22 @@ export function encryptMerchantSecretAtRest(plaintextSecret: string): { cipherte
   }
 }
 
-export function decryptMerchantSecretInMemory(storedValue: string): { plaintext: string } {
-  if (!isEncryptedMerchantSecret(storedValue)) {
-    return { plaintext: storedValue }
+/**
+ * Decrypts a merchant secret and passes it to a callback.
+ * Plaintext exists only for the duration of the callback; intermediate buffers are zeroed.
+ */
+export function withMerchantSecret<T>(
+  storedValue: string,
+  callback: (plaintext: string) => T
+): T {
+  const secretBuffer = decryptMerchantSecretBuffer(storedValue)
+  const plaintext = secretBuffer.toString("utf8")
+  zeroBuffer(secretBuffer)
+  try {
+    return callback(plaintext)
+  } finally {
+    // Plaintext string is eligible for GC after callback completes
   }
-
-  const parts = storedValue.split(":")
-  if (parts.length !== 5) {
-    throw new Error("Invalid encrypted merchant secret format")
-  }
-  const [, version, ivB64, cipherB64, tagB64] = parts
-  if (version !== "v1") throw new Error("Unsupported merchant secret version")
-
-  const key = getMasterKey()
-  const iv = Buffer.from(ivB64, "base64url")
-  const tag = Buffer.from(tagB64, "base64url")
-
-  // Validate IV length (GCM recommends 12 bytes - standard)
-  if (iv.length !== 12) {
-    throw new Error("Invalid IV length: must be 12 bytes")
-  }
-
-  // Validate authentication tag length (GCM requires 16 bytes)
-  if (tag.length !== 16) {
-    throw new Error("Invalid authentication tag length: must be 16 bytes")
-  }
-
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv)
-  decipher.setAuthTag(tag)
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(cipherB64, "base64url")),
-    decipher.final(),
-  ]).toString("utf8")
-
-  return { plaintext }
 }
 
 export function requiresRewrap(storedValue: string): boolean {

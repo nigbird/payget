@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { sendSms } from '@/lib/sms';
-import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
+import { isValidEmail, isValidPhoneNumber, maskIdentifier } from '@/lib/utils';
 import { createOpaqueToken } from '@/lib/opaque-tokens';
 
 /** Default password reset link lifetime (5 minutes). */
@@ -41,7 +41,7 @@ export async function sendNotification(payload: NotificationPayload): Promise<bo
       return await sendSMSNotification(to, message);
     }
 
-    console.error('[NOTIFICATION-ERROR] Unsupported contact format: %s', to);
+    console.error('[NOTIFICATION-ERROR] Unsupported contact format: %s', maskIdentifier(to));
     return false;
   } catch (error) {
     console.error('Failed to send notification:', error);
@@ -60,9 +60,7 @@ async function sendEmailNotification(
   const emailEnabled = process.env.EMAIL_ENABLED === 'true';
 
   if (!emailEnabled) {
-    console.log('[EMAIL-DISABLED] Log only: Sending to %s', email);
-    console.log('[EMAIL-DISABLED] Subject: %s', subject);
-    console.log('[EMAIL-DISABLED] Message: %s', message);
+    console.log('[EMAIL-DISABLED] Would send to %s (subject: %s)', maskIdentifier(email), subject);
     return true;
   }
 
@@ -96,10 +94,10 @@ async function sendEmailNotification(
       `,
     });
 
-    console.log('[EMAIL-SENT] Message ID: %s to %s', info.messageId, email);
+    console.log('[EMAIL-SENT] Message ID: %s to %s', info.messageId, maskIdentifier(email));
     return true;
   } catch (error) {
-    console.error('[EMAIL-ERROR] Failed to send to %s:', email, error);
+    console.error('[EMAIL-ERROR] Failed to send to %s:', maskIdentifier(email), error);
     return false;
   }
 }
@@ -111,7 +109,7 @@ async function sendSMSNotification(phone: string, message: string): Promise<bool
   const result = await sendSms(phone, message);
 
   if (!result.ok) {
-    console.error('[SMS-ERROR] Failed to send to %s:', phone, result);
+    console.error('[SMS-ERROR] Failed to send to %s:', maskIdentifier(phone), result);
     return false;
   }
 

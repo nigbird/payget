@@ -38,6 +38,33 @@ export function isValidName(name: string): boolean {
 /**
  * Validates an email (max 50 characters)
  */
+/**
+ * Masks an email address for logging (e.g. u***r@example.com)
+ */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  if (local.length <= 2) return `${local[0]}***@${domain}`;
+  return `${local[0]}***${local[local.length - 1]}@${domain}`;
+}
+
+/**
+ * Masks a phone number for logging (e.g. +251*******89)
+ */
+export function maskPhone(phone: string): string {
+  if (phone.length <= 4) return '****';
+  return `${phone.slice(0, 4)}*******${phone.slice(-2)}`;
+}
+
+/**
+ * Masks a general identifier (email or phone)
+ */
+export function maskIdentifier(identifier: string): string {
+  if (isValidEmail(identifier)) return maskEmail(identifier);
+  if (isValidPhoneNumber(identifier)) return maskPhone(identifier);
+  return '***';
+}
+
 export function isValidEmail(email: string): boolean {
   const trimmed = email.trim();
   if (trimmed.length > 50) return false;

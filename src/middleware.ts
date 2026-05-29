@@ -51,6 +51,9 @@ export default auth((req) => {
 
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login") return
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const res = NextResponse.redirect(new URL("/login", req.url))
     res.headers.set('Content-Security-Policy', cspHeader)
     res.headers.set('X-Frame-Options', 'DENY')
@@ -59,6 +62,9 @@ export default auth((req) => {
 
   if (isMerchantRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login/merchant") return
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const loginUrl = new URL("/login/merchant", req.url)
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
     const res = NextResponse.redirect(loginUrl)
@@ -68,6 +74,9 @@ export default auth((req) => {
   }
 
   if (!isLoggedIn && !isAuthRoute) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const res = NextResponse.redirect(new URL("/login", req.url))
     res.headers.set('Content-Security-Policy', cspHeader)
     res.headers.set('X-Frame-Options', 'DENY')

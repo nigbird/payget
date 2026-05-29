@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
 import { generateResetPasswordLink, sendNotification, formatPasswordResetExpiryMessage, PASSWORD_RESET_TIMEOUT_SECONDS } from '@/lib/notifications';
-import { isValidEmail, isValidPhoneNumber } from '@/lib/utils';
+import { isValidEmail, isValidPhoneNumber, maskIdentifier } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
 import { resetUserLockout, resetLoginIdentifierLockout } from '@/lib/rate-limit';
 import { normalizeLoginIdentifierForLockout } from '@/lib/login-identifier-normalize';
@@ -61,10 +61,11 @@ export async function POST(request: Request) {
           action: 'AUTH_RESET_PASSWORD_REQUEST',
           entityType: 'GENERIC',
           entityId: null,
-          newValue: { result: 'failed', reason: 'NOT_FOUND', identifier },
+          newValue: { result: 'failed', reason: 'NOT_FOUND', identifier: maskIdentifier(identifier) },
         });
 
-        return NextResponse.json({ error: 'No account found with that email or phone' }, { status: 404 });
+        // Use a generic success message even if account not found to prevent user enumeration
+        return NextResponse.json({ success: true, notificationSent: true, entityType: 'MERCHANT' });
       }
 
       const config = await db.getSystemConfig();
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
         entityType,
         entityId,
         oldValue: null,
-        newValue: { result: 'success', expiry, identifier },
+        newValue: { result: 'success', expiry, identifier: maskIdentifier(identifier) },
       });
 
       const resetLink = await generateResetPasswordLink(resetToken, expiryDate);
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
         recipient = contactEmail;
       }
 
-      console.log('[RESET-PASSWORD] Attempting to send notification to:', recipient);
+      console.log('[RESET-PASSWORD] Attempting to send notification to:', maskIdentifier(recipient));
 
       const expiryLabel = formatPasswordResetExpiryMessage(resetTimeoutSeconds);
 
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
             newValue: { result: 'failed', reason: 'INVALID_RESET_TOKEN' },
           });
 
-          return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+          return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
         }
       }
 
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
           newValue: { result: 'failed', reason: 'TOKEN_EXPIRED' },
         });
 
-        return NextResponse.json({ error: 'Token expired' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
       }
 
       await writeAuditLog({
@@ -233,7 +234,7 @@ export async function POST(request: Request) {
           newValue: { result: 'failed', reason: 'TOKEN_EXPIRED' },
         });
 
-        return NextResponse.json({ error: 'Token expired' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
       }
 
       if (!password) {

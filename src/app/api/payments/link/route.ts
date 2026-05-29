@@ -3,7 +3,7 @@ import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/a
 import { requireAuthUser } from "@/lib/request-auth"
 import { db } from "@/app/lib/db"
 import { decryptPayload } from "@/lib/jwe"
-import { decryptMerchantSecretInMemory } from "@/lib/merchant-secret"
+import { withMerchantSecret } from "@/lib/merchant-secret"
 import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
@@ -75,37 +75,45 @@ export async function POST(request: Request) {
         if (!merchant) {
           return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
         }
-        const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
+        const { authenticatedMerchantId: authId, paymentInput: input, initiatedBy: initBy, actorUserId: actorId, errorResponse } = await withMerchantSecret(merchant.jweSecret, async (merchantSecret) => {
+          const path = new URL(request.url).pathname
+          if (
+            !verifyHmacSignature({
+              method: request.method,
+              path,
+              timestamp: timestampHeader,
+              nonce: nonceHeader,
+              encryptedPayload,
+              merchantSecret,
+              signature: signatureHeader,
+            })
+          ) {
+            await auditSecurityEvent({ action: "PAYMENT_API_SIGNATURE_INVALID", merchantId: merchant.id, detail: { path } })
+            return { errorResponse: NextResponse.json({ error: "Invalid signature" }, { status: 401 }) }
+          }
 
-        const path = new URL(request.url).pathname
-        if (
-          !verifyHmacSignature({
-            method: request.method,
-            path,
-            timestamp: timestampHeader,
-            nonce: nonceHeader,
-            encryptedPayload,
-            merchantSecret,
-            signature: signatureHeader,
-          })
-        ) {
-          await auditSecurityEvent({ action: "PAYMENT_API_SIGNATURE_INVALID", merchantId: merchant.id, detail: { path } })
-          return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
-        }
+          const decrypted = await decryptPayload(encryptedPayload, merchantSecret)
+          const decryptedParsed = PaymentInitiateSchema.safeParse(decrypted)
+          if (!decryptedParsed.success) {
+            return { errorResponse: NextResponse.json({ error: "Invalid encrypted payload", details: decryptedParsed.error.flatten() }, { status: 400 }) }
+          }
+          if (merchantIdHeader !== decryptedParsed.data.merchantId) {
+            return { errorResponse: NextResponse.json({ error: "Merchant ID mismatch" }, { status: 400 }) }
+          }
 
-        const decrypted = await decryptPayload(encryptedPayload, merchantSecret)
-        const decryptedParsed = PaymentInitiateSchema.safeParse(decrypted)
-        if (!decryptedParsed.success) {
-          return NextResponse.json({ error: "Invalid encrypted payload", details: decryptedParsed.error.flatten() }, { status: 400 })
-        }
-        if (merchantIdHeader !== decryptedParsed.data.merchantId) {
-          return NextResponse.json({ error: "Merchant ID mismatch" }, { status: 400 })
-        }
+          return {
+            authenticatedMerchantId: merchant.id,
+            paymentInput: decryptedParsed.data,
+            initiatedBy: { id: `api_${merchant.id}`, name: `API (${merchant.name})` },
+            actorUserId: `api_${merchant.id}`
+          }
+        })
 
-        authenticatedMerchantId = merchant.id
-        paymentInput = decryptedParsed.data
-        initiatedBy = { id: `api_${merchant.id}`, name: `API (${merchant.name})` }
-        actorUserId = initiatedBy.id
+        if (errorResponse) return errorResponse
+        authenticatedMerchantId = authId!
+        paymentInput = input!
+        initiatedBy = initBy!
+        actorUserId = actorId!
       } else {
         return NextResponse.json({
           error: "Missing required security headers. Required: x-merchant-id, x-signature, x-timestamp, x-nonce, x-encrypted-payload",

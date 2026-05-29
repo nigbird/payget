@@ -269,6 +269,12 @@ function ReviewUpdateForm() {
       const fd = new FormData()
       validFiles.forEach(file => fd.append("files", file))
       const res = await fetch("/api/uploads/compliance-docs", { method: "POST", body: fd })
+      
+      const contentType = res.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid server response. Please try again later.")
+      }
+
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Upload failed")
       setDocuments(prev => [...prev, ...data.documents])
@@ -291,6 +297,12 @@ function ReviewUpdateForm() {
       const fd = new FormData()
       fd.append("file", file)
       const res = await fetch("/api/uploads/merchant-logo", { method: "POST", body: fd })
+      
+      const contentType = res.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid server response. Please try again later.")
+      }
+
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || "Logo upload failed")
       setFormData(prev => ({ ...prev, logoUrl: data.url }))
