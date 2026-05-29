@@ -17,8 +17,12 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const transactions = await db.getTransactionsByMerchant(id);
-  const transaction = transactions.find(tx => tx.transactionReference === ref);
+  const transactions = await db.getTransactions({
+    merchantId: id,
+    transactionReference: ref,
+    limit: 1
+  });
+  const transaction = transactions[0];
 
   if (!transaction) {
     return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
