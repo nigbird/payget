@@ -1,4 +1,5 @@
 import { auth } from "@/auth"
+import { getAccessTokenFromCookie } from "@/lib/access-token-cookie"
 import { getBearerTokenFromHeaders, verifyAccessToken } from "@/lib/token-auth"
 import { prisma } from "@/lib/prisma"
 
@@ -17,11 +18,11 @@ export type ResolvedAuthUser = {
 }
 
 async function resolveFromAccessToken(request: Request): Promise<ResolvedAuthUser | null> {
-  const bearer = getBearerTokenFromHeaders(request.headers)
-  if (!bearer) return null
+  const token = getBearerTokenFromHeaders(request.headers) ?? getAccessTokenFromCookie(request)
+  if (!token) return null
 
   try {
-    const payload = await verifyAccessToken(bearer)
+    const payload = await verifyAccessToken(token)
     const userId = typeof payload.sub === "string" ? payload.sub : null
     if (!userId) return null
 
