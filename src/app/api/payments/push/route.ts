@@ -169,9 +169,8 @@ export async function POST(request: Request) {
         creditAccount: result.merchant.accountNumber,
         amount: result.tx.amount,
         company: "NTMerchant",
-        description: "test description",
+        description: paymentInput.serviceDescription || "Payment for services",
         merchantName: result.merchant.name,
-        
         callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
       })
       
