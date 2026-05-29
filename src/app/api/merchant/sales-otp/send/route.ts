@@ -4,6 +4,7 @@ import { generateSalesOtp } from '@/lib/otp'
 import { sendNotification } from '@/lib/notifications'
 import { writeAuditLog } from '@/lib/audit-log'
 import { requireCsrf } from '@/lib/request-security';
+import { maskPhone } from '@/lib/utils';
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
       action: "SALES_OTP_SEND",
       entityType: "SALES_OTP_REQUEST",
       entityId: null,
-      newValue: { result: "failed", reason: "NO_ACTIVE_SALES_USER", phone },
+      newValue: { result: "failed", reason: "NO_ACTIVE_SALES_USER", phone: maskPhone(phone) },
     })
 
     return NextResponse.json({ error: 'No active sales user found for this phone number.' }, { status: 404 })
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
   const otp = generateSalesOtp(phone)
 
-  console.info("[sales-otp] OTP generated and sent", { phone, otp })
+  console.info("[sales-otp] OTP generated and sent", { phone: maskPhone(phone) })
 
   await sendNotification({
     to: phone,
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
     action: "SALES_OTP_SEND",
     entityType: "SALES_OTP_REQUEST",
     entityId: null,
-    newValue: { result: "success", phone },
+    newValue: { result: "success", phone: maskPhone(phone) },
   })
 
   const merchants = activeMembers.map(member => ({

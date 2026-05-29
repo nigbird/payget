@@ -158,7 +158,7 @@ export async function POST(request: Request) {
     try {
       console.log('[CALLBACK] Decrypting using sharedSecretSource=%s', sharedSecretSource);
       decryptedData = decryptProviderPayload({ payload, salt, tag }, sharedSecret);
-      console.log('[CALLBACK] Decrypted data:', decryptedData);
+      // console.log('[CALLBACK] Decrypted data:', decryptedData);
     } catch (err) {
       console.error('[CALLBACK] Decryption failed:', err);
       // Even if decryption fails, if we got a callback, something happened.

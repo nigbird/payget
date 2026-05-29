@@ -8,7 +8,7 @@ import {
   ProviderPushPayloadSchema,
 } from "@/lib/provider-encryption"
 import { decryptSessionToken } from "@/lib/jwe"
-import { decryptMerchantSecretInMemory } from "@/lib/merchant-secret"
+import { withMerchantSecret } from "@/lib/merchant-secret"
 import bcrypt from "bcryptjs"
 import { writeAuditLog } from "@/lib/audit-log"
 
@@ -66,8 +66,9 @@ export async function POST(request: Request) {
 
     // 2. Verify the merchant session token
     try {
-      const { plaintext: merchantSecret } = decryptMerchantSecretInMemory(merchant.jweSecret)
-      const sessionPayload = await decryptSessionToken(merchantSessionToken, merchantSecret)
+      const sessionPayload = await withMerchantSecret(merchant.jweSecret, (merchantSecret) => 
+        decryptSessionToken(merchantSessionToken, merchantSecret)
+      )
 
       if (sessionPayload.merchantId !== merchant.id) {
         await writeAuditLog({
