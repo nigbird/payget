@@ -11,8 +11,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!userHasPermission(user, 'cashback.reconciliation.view') && 
-        !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+    if (!userHasPermission(user, 'cashback.reconciliation.view')) {
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
     }
 
@@ -155,8 +154,7 @@ export async function POST(request: Request) {
 
     // Create request (Maker)
     if (action === 'create_request') {
-      if (!userHasPermission(user, 'cashback.reconciliation.retry') && 
-          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+      if (!userHasPermission(user, 'cashback.reconciliation.retry')) {
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
       }
 
@@ -205,8 +203,7 @@ export async function POST(request: Request) {
 
     // Approve request (Checker)
     if (action === 'approve_request') {
-      if (!userHasPermission(user, 'cashback.reconciliation.manage') && 
-          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+      if (!userHasPermission(user, 'cashback.reconciliation.manage')) {
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
       }
 
@@ -270,8 +267,7 @@ export async function POST(request: Request) {
 
     // Reject request (Checker)
     if (action === 'reject_request') {
-      if (!userHasPermission(user, 'cashback.reconciliation.manage') && 
-          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+      if (!userHasPermission(user, 'cashback.reconciliation.manage')) {
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
       }
 
@@ -321,8 +317,7 @@ export async function POST(request: Request) {
 
     // Original actions for backwards compatibility
     if (action === 'retry') {
-      if (!userHasPermission(user, 'cashback.reconciliation.retry') && 
-          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+      if (!userHasPermission(user, 'cashback.reconciliation.retry')) {
         await writeAuditLog({
           request,
           userId,
@@ -363,8 +358,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'No cashback transactions specified' }, { status: 400 });
       }
 
-      if (!userHasPermission(user, 'cashback.reconciliation.manage') && 
-          !(userHasPermission(user, 'DASHBOARD_VIEW') && userHasPermission(user, 'CONFIGURATION_MANAGE'))) {
+      if (!userHasPermission(user, 'cashback.reconciliation.manage')) {
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
       }
 

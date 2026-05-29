@@ -217,8 +217,9 @@ export default function RoleManagementPage() {
     }
   }
 
+  const userRole = (session?.user as any)?.role
   const userPermissions = (session?.user as any)?.permissions || []
-  const isSuperAdmin = userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE')
+  const isSuperAdmin = userRole === 'ADMIN'
   const canCreateRole = isSuperAdmin || userPermissions.includes('ROLE_CREATE')
   const canEditRole = isSuperAdmin || userPermissions.includes('ROLE_EDIT')
   const canDeleteRole = isSuperAdmin || userPermissions.includes('ROLE_DELETE')
