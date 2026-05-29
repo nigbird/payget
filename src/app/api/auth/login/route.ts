@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/app/lib/db"
 import { prisma } from "@/lib/prisma"
+import { setAccessTokenCookie } from "@/lib/access-token-cookie"
 import {
   generateRefreshTokenValue,
   hashRefreshToken,
@@ -258,8 +259,6 @@ export async function POST(request: Request) {
     })
 
     const res = NextResponse.json({
-      accessToken,
-      tokenType: "Bearer",
       expiresIn: accessTokenTtlSeconds(),
       user: {
         id: user.id,
@@ -270,6 +269,8 @@ export async function POST(request: Request) {
         permissions
       }
     })
+
+    setAccessTokenCookie(res, accessToken)
 
     res.cookies.set({
       name: refreshCookieName(),

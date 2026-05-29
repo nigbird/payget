@@ -3,7 +3,7 @@ import crypto from "crypto"
 
 // Session lifetimes (hardcoded; not controlled by env).
 // Adjust these values in code if you want different behavior.
-export const ACCESS_TOKEN_TTL_SECONDS = 60
+export const ACCESS_TOKEN_TTL_SECONDS = 5 * 60 // 5 minutes
 export const REFRESH_TOKEN_TTL_SECONDS = 60
 
 export type AccessTokenClaims = {
