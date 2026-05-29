@@ -76,14 +76,21 @@ export async function POST(request: Request) {
     // Hash new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedNewPassword,
-        firstLogin: false
-      }
-    });
+    // Update user, increment session version, and revoke all refresh tokens
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedNewPassword,
+          firstLogin: false,
+          sessionVersion: { increment: 1 }
+        }
+      }),
+      prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() }
+      })
+    ]);
 
     await writeAuditLog({
       request,

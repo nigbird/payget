@@ -272,29 +272,43 @@ export async function POST(request: Request) {
           await resetUserLockout(merchantUser.id);
           await resetLoginIdentifierLockout(normalizeLoginIdentifierForLockout(merchant.contactUsername));
           await resetLoginIdentifierLockout(normalizeLoginIdentifierForLockout(merchant.email));
-          await prisma.user.update({
-            where: { id: merchantUser.id },
-            data: {
-              password: hashedPassword,
-              passwordResetToken: null,
-              passwordResetExpires: null,
-            }
-          });
+          await prisma.$transaction([
+            prisma.user.update({
+              where: { id: merchantUser.id },
+              data: {
+                password: hashedPassword,
+                passwordResetToken: null,
+                passwordResetExpires: null,
+                sessionVersion: { increment: 1 }
+              }
+            }),
+            prisma.refreshToken.updateMany({
+              where: { userId: merchantUser.id, revokedAt: null },
+              data: { revokedAt: new Date() }
+            })
+          ]);
         }
       } else if (entityType === 'USER' && user) {
         await resetUserLockout(user.id);
         if (user.email) {
           await resetLoginIdentifierLockout(normalizeLoginIdentifierForLockout(user.email));
         }
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            password: hashedPassword,
-            passwordResetToken: null,
-            passwordResetExpires: null,
-            firstLogin: false
-          }
-        });
+        await prisma.$transaction([
+          prisma.user.update({
+            where: { id: user.id },
+            data: {
+              password: hashedPassword,
+              passwordResetToken: null,
+              passwordResetExpires: null,
+              firstLogin: false,
+              sessionVersion: { increment: 1 }
+            }
+          }),
+          prisma.refreshToken.updateMany({
+            where: { userId: user.id, revokedAt: null },
+            data: { revokedAt: new Date() }
+          })
+        ]);
       }
 
       await writeAuditLog({

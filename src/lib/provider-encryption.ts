@@ -149,9 +149,9 @@ export async function sendPushToProvider(
   console.log('Sending encrypted request to provider:', {
     baseUrl,
     url: `${baseUrl}/push-payment/transfer`,
-    payload: encryptedRequest.payload.substring(0, 20) + '...',
+    payload: encryptedRequest.payload,
     cksum: encryptedRequest.cksum,
-    pubkey: encryptedRequest.pubkey.substring(0, 20) + '...'
+    pubkey: encryptedRequest.pubkey
   })
   const response = await fetch(`${baseUrl}/push-payment/transfer`, {
     method: "POST",

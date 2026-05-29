@@ -115,6 +115,8 @@ export async function PATCH(
       const hashedNewPassword = await bcrypt.hash(body.newPassword, 10)
       updateData.password = hashedNewPassword
       userUpdateData.password = hashedNewPassword
+      // Invalidate all active sessions by updating sessionVersion
+      userUpdateData.sessionVersion = Math.floor(Date.now() / 1000)
     }
 
     // Update the merchant and related users in a transaction
@@ -127,6 +129,10 @@ export async function PATCH(
         prisma.user.updateMany({
           where: { merchantId: id },
           data: userUpdateData
+        }),
+        prisma.refreshToken.updateMany({
+          where: { user: { merchantId: id }, revokedAt: null },
+          data: { revokedAt: new Date() }
         })
       ] : [])
     ])

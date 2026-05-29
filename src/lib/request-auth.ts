@@ -29,9 +29,15 @@ async function resolveFromAccessToken(request: Request): Promise<ResolvedAuthUse
     // Keep this lightweight; only fetch email/name if needed for downstream logs/UI.
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true }
+      select: { id: true, email: true, name: true, sessionVersion: true }
     })
+    
     if (!user) return null
+
+    // Validate session version if present in payload (mitigates concurrent sessions)
+    if (payload.sessionVersion !== undefined && user.sessionVersion !== payload.sessionVersion) {
+      return null
+    }
 
     return {
       id: user.id,

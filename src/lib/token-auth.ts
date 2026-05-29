@@ -15,6 +15,7 @@ export type AccessTokenClaims = {
   district?: string | null
   branch?: string | null
   assignedMerchantIds?: string[]
+  sessionVersion?: number
 }
 
 function getEnvOrThrow(name: string) {
@@ -43,8 +44,9 @@ export async function signAccessToken(claims: AccessTokenClaims) {
     permissions: claims.permissions ?? [],
     isHeadOffice: claims.isHeadOffice ?? false,
     district: claims.district ?? null,
-    branch: claims.branch ?? null
-    ,assignedMerchantIds: claims.assignedMerchantIds ?? []
+    branch: claims.branch ?? null,
+    assignedMerchantIds: claims.assignedMerchantIds ?? [],
+    sessionVersion: claims.sessionVersion
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(claims.sub)

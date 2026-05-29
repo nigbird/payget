@@ -22,6 +22,7 @@ model User {
   branch               String?
   status               UserStatus             @default(ACTIVE)
   firstLogin           Boolean                @default(true)
+  sessionVersion       Int                    @default(1)
   failedLoginAttempts  Int                    @default(0)
   lockoutUntil         DateTime?
   passwordResetToken   String?                @unique

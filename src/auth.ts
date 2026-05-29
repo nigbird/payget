@@ -232,8 +232,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await resetIpLockout(ip)
           await resetLoginIdentifierLockout(normalizedKey)
           await resetUserLockout(user.id)
+          
+          // Increment session version on new login to invalidate previous sessions.
+          // This addresses the "Unrestricted Concurrent Session" security finding.
+          const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: { sessionVersion: { increment: 1 } }
+          })
+          user.sessionVersion = updatedUser.sessionVersion
         } catch (e) {
-          console.error("[auth] reset lockouts after successful login", e)
+          console.error("[auth] reset lockouts or update session version", e)
         }
 
         return {
@@ -246,6 +254,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           district: user.district,
           branch: user.branch,
           firstLogin: (user as any).firstLogin,
+          sessionVersion: (user as any).sessionVersion,
           permissions: (user as any).customRole?.permissions.map((p: any) => p.permission.name) || []
         }
       }
@@ -378,6 +387,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.assignedMerchants = (user as any).assignedMerchants;
         token.firstLogin = (user as any).firstLogin;
         token.teamMemberId = (user as any).teamMemberId;
+        token.sessionVersion = (user as any).sessionVersion;
       }
       if (trigger === "update" && session) {
         // Update token with new session data
@@ -391,11 +401,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if ((session.user as any).assignedMerchantIds) token.assignedMerchantIds = (session.user as any).assignedMerchantIds;
         if ((session.user as any).assignedMerchants) token.assignedMerchants = (session.user as any).assignedMerchants;
         if ((session.user as any).firstLogin !== undefined) token.firstLogin = (session.user as any).firstLogin;
+        if ((session.user as any).sessionVersion !== undefined) token.sessionVersion = (session.user as any).sessionVersion;
       }
       return token
     },
-    session({ session, token }) {
+    async session({ session, token }) {
       if (token && session.user) {
+        // Strict session validation: check session version against database.
+        // Skip this in the Edge runtime (Middleware) because Prisma is not available there.
+        // The check will still run in Node.js environments (API routes, Server Actions).
+        const userId = token.id as string;
+        if (userId && !userId.startsWith('sales-') && process.env.NEXT_RUNTIME !== 'edge') {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: userId },
+              select: { sessionVersion: true }
+            });
+            
+            if (!dbUser || dbUser.sessionVersion !== token.sessionVersion) {
+              return null as any; 
+            }
+          } catch (e) {
+            console.error("[auth] session version check error", e);
+            // In case of DB error, we allow the session to continue but log the error
+          }
+        }
+
         (session.user as any).role = token.role;
         (session.user as any).id = token.id;
         (session.user as any).merchantId = token.merchantId;
@@ -407,6 +438,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).assignedMerchants = token.assignedMerchants;
         (session.user as any).firstLogin = token.firstLogin;
         (session.user as any).teamMemberId = token.teamMemberId;
+        (session.user as any).sessionVersion = token.sessionVersion;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
       }

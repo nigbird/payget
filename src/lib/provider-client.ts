@@ -89,9 +89,9 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
     // 6. Send POST /push-payment/transfer
     console.log('Sending legacy push request to provider:', {
       url: `${PROVIDER_BASE_URL}/push-payment/transfer`,
-      payload: encryptedData.payload.substring(0, 20) + '...',
+      payload: encryptedData.payload,
       cksum: encryptedData.cksum,
-      pubkey: encryptedData.pubkey.substring(0, 20) + '...'
+      pubkey: encryptedData.pubkey
     });
     const response = await fetch(`${PROVIDER_BASE_URL}/push-payment/transfer`, {
       method: 'POST',

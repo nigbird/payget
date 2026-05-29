@@ -48,6 +48,35 @@ export function SessionWatcher() {
     isAuthPageRef.current = isAuthPage
   }, [status, isAuthPage])
 
+  // Clear session-related data from storage
+  const clearAuthData = useCallback(() => {
+    localStorage.removeItem(ACTIVITY_STORAGE_KEY)
+    // Clear any other app-specific storage here
+    // e.g., localStorage.removeItem("user_settings"), etc.
+  }, [])
+
+  const logout = useCallback(async (reason: "inactivity" | "unauthorized") => {
+    setExpiredReason(reason)
+    setIsExpiring(false)
+    setShowTimeoutModal(true)
+    
+    // Clear data before signing out
+    clearAuthData()
+    
+    // Sign out without immediate redirect to show the dialog
+    await signOut({ redirect: false })
+  }, [clearAuthData])
+
+  // Monitor status transitions (e.g., session invalidated by version mismatch)
+  const prevStatusRef = useRef(status)
+  useEffect(() => {
+    if (prevStatusRef.current === "authenticated" && status === "unauthenticated" && !isAuthPage && !showTimeoutModal) {
+      console.warn("Session lost detected via status change. Triggering session expiry flow.")
+      logout("unauthorized")
+    }
+    prevStatusRef.current = status
+  }, [status, isAuthPage, logout, showTimeoutModal])
+
   const handleActivity = useCallback(() => {
     const now = Date.now()
     lastActivityRef.current = now
@@ -69,25 +98,6 @@ export function SessionWatcher() {
       }
     }
   }, [isExpiring, showTimeoutModal, status, update, expiredReason])
-
-  // Clear session-related data from storage
-  const clearAuthData = useCallback(() => {
-    localStorage.removeItem(ACTIVITY_STORAGE_KEY)
-    // Clear any other app-specific storage here
-    // e.g., localStorage.removeItem("user_settings"), etc.
-  }, [])
-
-  const logout = useCallback(async (reason: "inactivity" | "unauthorized") => {
-    setExpiredReason(reason)
-    setIsExpiring(false)
-    setShowTimeoutModal(true)
-    
-    // Clear data before signing out
-    clearAuthData()
-    
-    // Sign out without immediate redirect to show the dialog
-    await signOut({ redirect: false })
-  }, [clearAuthData])
 
   // Listen for activity and storage changes in other tabs
   useEffect(() => {

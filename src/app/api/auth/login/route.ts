@@ -222,7 +222,8 @@ export async function POST(request: Request) {
       permissions,
       isHeadOffice: (user as any).isHeadOffice,
       district: (user as any).district,
-      branch: (user as any).branch
+      branch: (user as any).branch,
+      sessionVersion: updatedUser.sessionVersion
     })
 
     const familyId = crypto.randomUUID()
@@ -233,6 +234,29 @@ export async function POST(request: Request) {
     await resetIpLockout(ip)
     await resetLoginIdentifierLockout(normalizedKey)
     await resetUserLockout(user.id)
+
+    // Enforce session concurrency limit for API sessions (Refresh Tokens)
+    // Revoke oldest sessions if we exceed the limit (e.g., 5)
+    const MAX_API_SESSIONS = 5;
+    const activeSessions = await prisma.refreshToken.findMany({
+      where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (activeSessions.length >= MAX_API_SESSIONS) {
+      const toRevoke = activeSessions.slice(MAX_API_SESSIONS - 1);
+      await prisma.refreshToken.updateMany({
+        where: { id: { in: toRevoke.map(s => s.id) } },
+        data: { revokedAt: new Date() }
+      });
+    }
+
+    // Increment session version to invalidate old NextAuth JWTs
+    // This ensures only the most recent web session remains valid.
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { sessionVersion: { increment: 1 } }
+    });
 
     await prisma.refreshToken.create({
       data: {
@@ -255,6 +279,7 @@ export async function POST(request: Request) {
         role: (user as any).role,
         merchantId: (user as any).merchantId,
         merchantName: (user as any).merchant?.name,
+        sessionVersion: updatedUser.sessionVersion,
       },
     })
 
@@ -266,7 +291,8 @@ export async function POST(request: Request) {
         name: user.name,
         role: (user as any).role,
         merchantId: (user as any).merchantId,
-        permissions
+        permissions,
+        sessionVersion: updatedUser.sessionVersion,
       }
     })
 

@@ -78,7 +78,8 @@ export async function POST(request: Request) {
       permissions,
       isHeadOffice: (user as any).isHeadOffice,
       district: (user as any).district,
-      branch: (user as any).branch
+      branch: (user as any).branch,
+      sessionVersion: user.sessionVersion
     })
 
     const created = await prisma.$transaction(async (tx) => {
