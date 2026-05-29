@@ -1,3 +1,5 @@
+import { maskPhone } from "@/lib/utils";
+
 /**
  * Server-side SMS helper.
  * Sends form-encoded POST with `to` and `text` fields to SMS_URL.
@@ -27,20 +29,20 @@ export async function sendSms(to: string, text: string) {
 
     if (!res.ok) {
       console.error("[sms] send failed", {
-        to,
-        formattedPhone,
+        to: maskPhone(to),
+        formattedPhone: maskPhone(formattedPhone),
         status: res.status,
-        body,
+        bodyLength: body?.length ?? 0,
       });
       return { ok: false, status: res.status, body };
     }
 
-    console.info("[sms] sent", { to, formattedPhone, status: res.status });
+    console.info("[sms] sent", { to: maskPhone(to), formattedPhone: maskPhone(formattedPhone), status: res.status });
     return { ok: true, status: res.status, body };
   } catch (err: any) {
     console.error("[sms] exception sending", {
-      to,
-      formattedPhone,
+      to: maskPhone(to),
+      formattedPhone: maskPhone(formattedPhone),
       error: String(err?.message ?? err),
     });
     return { ok: false, error: String(err?.message ?? err) };

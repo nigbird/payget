@@ -1,4 +1,46 @@
 import { prisma } from "@/lib/prisma";
+import { isValidEmail, isValidPhoneNumber, maskEmail, maskIdentifier, maskPhone } from "@/lib/utils";
+
+/** JSON keys whose string values are treated as PII and masked before persistence. */
+const PII_FIELD_PATTERN = /(email|phone|identifier|recipient|^to$|contact|username)/i;
+
+function fieldLooksLikePii(key: string): boolean {
+  return PII_FIELD_PATTERN.test(key);
+}
+
+function maskPiiString(value: string, key?: string): string {
+  if (key && fieldLooksLikePii(key)) return maskIdentifier(value);
+  if (isValidEmail(value)) return maskEmail(value);
+  if (isValidPhoneNumber(value)) return maskPhone(value);
+  return value;
+}
+
+/** Recursively masks emails, phones, and known PII fields in audit payloads. */
+export function sanitizeAuditPayload(value: unknown, parentKey?: string): unknown {
+  if (value === null || value === undefined) return value;
+
+  if (typeof value === "string") {
+    return maskPiiString(value, parentKey);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeAuditPayload(item, parentKey));
+  }
+
+  if (typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof nested === "string") {
+        result[key] = maskPiiString(nested, key);
+      } else {
+        result[key] = sanitizeAuditPayload(nested, key);
+      }
+    }
+    return result;
+  }
+
+  return value;
+}
 
 export type AuditLogAction = string;
 export type AuditLogEntityType = string;
@@ -44,8 +86,14 @@ export async function writeAuditLog(payload: AuditLogPayload) {
         action: payload.action,
         entityType: payload.entityType,
         entityId: payload.entityId ?? null,
-        oldValue: payload.oldValue === undefined ? undefined : (payload.oldValue as any),
-        newValue: payload.newValue === undefined ? undefined : (payload.newValue as any),
+        oldValue:
+          payload.oldValue === undefined
+            ? undefined
+            : (sanitizeAuditPayload(payload.oldValue) as any),
+        newValue:
+          payload.newValue === undefined
+            ? undefined
+            : (sanitizeAuditPayload(payload.newValue) as any),
         ipAddress: ipAddress ?? null,
         userAgent: userAgent ?? null,
       },

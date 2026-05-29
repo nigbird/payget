@@ -189,6 +189,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         body: formData
       })
 
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid server response. Please try again later.")
+      }
+
       if (response.ok) {
         const data = await response.json()
         setQrConfig({ ...qrConfig, qrLogoUrl: data.url })

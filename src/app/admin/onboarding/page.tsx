@@ -342,7 +342,13 @@ function MerchantOnboardingContent() {
       const fd = new FormData()
       fd.append("file", file)
       const res = await fetch("/api/uploads/merchant-logo", { method: "POST", body: fd })
-      const data = await res.json().catch(() => ({}))
+      
+      const contentType = res.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid server response. Please try again later.")
+      }
+
+      const data = await res.json()
       if (!res.ok) {
         throw new Error(data?.error || "Logo upload failed")
       }

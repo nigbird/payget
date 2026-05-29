@@ -92,20 +92,6 @@ export function encryptPayloadForProvider(payload: ProviderPushPayload, sharedSe
 
   const rawJsonString = JSON.stringify(payload)
 
-  
-
-
-
-  console.log("==========================================")
-
-  console.log("RAW JSON STRING BEFORE ENCRYPTION IN TS:")
-
-  console.log(rawJsonString)
-
-  console.log("==========================================")
-
-
-
   const ciphertext = Buffer.concat([
 
     cipher.update(rawJsonString, "utf8"),
@@ -176,7 +162,7 @@ export async function sendPushToProvider(
     body: JSON.stringify(encryptedRequest),
   })
   const text = await response.text()
-  console.log('Provider raw response (encryption flow):', text)
+  console.log('Provider response (encryption flow): status=%s bodyLength=%s', response.status, text.length)
   try {
     const data = safeJsonParse(text)
     return { ...data, statusCode: response.status }

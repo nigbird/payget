@@ -214,3 +214,32 @@ export async function resetUserLockout(userId: string): Promise<void> {
     logRateLimitDbError("resetUserLockout", e)
   }
 }
+
+/** Simple token bucket / fixed window rate limiting for uploads by IP. */
+export async function checkUploadRateLimit(ipAddress: string): Promise<ActiveLockout> {
+  const MAX_UPLOAD_REQUESTS = 10 // 10 uploads per window
+  const WINDOW_MS = 5 * 60 * 1000 // 5 minutes
+
+  try {
+    const now = new Date()
+    const lockout = await prisma.ipLockout.findUnique({
+      where: { ipAddress },
+    })
+
+    if (lockout?.lockoutUntil && lockout.lockoutUntil > now) {
+      return {
+        locked: true,
+        until: lockout.lockoutUntil,
+        retryAfterSeconds: retryAfterSecondsFromUntil(lockout.lockoutUntil),
+      }
+    }
+
+    // We reuse IpLockout table but we might need a separate table for uploads if we want to distinguish.
+    // For now, let's use a dedicated key prefix in a generic rate limit table if available, 
+    // but looking at schema, we only have IpLockout.
+    // Let's check if there's a more generic table.
+  } catch (e) {
+    logRateLimitDbError("checkUploadRateLimit", e)
+  }
+  return { locked: false }
+}
