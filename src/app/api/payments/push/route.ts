@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
 import { requireAuthUser } from "@/lib/request-auth"
-import { sendProviderPushRequest } from "@/lib/provider-client"
 import { db } from "@/app/lib/db"
 import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
 import { decryptPayload } from "@/lib/jwe"
@@ -141,49 +140,26 @@ export async function POST(request: Request) {
       }, { status: 202 })
     }
 
-    const providerRequest = {
+    const providerPayload = ProviderPushPayloadSchema.parse({
       transactionRef: result.transactionReference,
-      customerPhone: paymentInput.userCredentials.phone,
+      customerPhone: result.tx.userCredentials.phone,
       creditAccount: result.merchant.accountNumber,
-      amount: paymentInput.amount,
+      amount: result.tx.amount,
       company: "NTMerchant",
+      description: paymentInput.serviceDescription || "Payment for services",
       merchantName: result.merchant.name,
-      description: paymentInput.serviceDescription,
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
-    }
+    })
+    
+    console.log('Starting encrypted provider push request...', providerPayload)
 
-    // console.log('Provider push request payload:', providerRequest)
-    console.log('Starting legacy provider push request...')
-    let providerResponse = await sendProviderPushRequest(providerRequest)
-    console.log('Legacy provider response status:', providerResponse.statusCode)
+    const baseUrl = process.env.PROVIDER_BASE_URL!
+    const username = process.env.PROVIDER_USERNAME!
+    const password = process.env.PROVIDER_PASSWORD!
+    const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl, username, password)
 
-    if (providerResponse.statusCode !== 200) {
-      console.log('Legacy flow failed. Trying new encrypted provider flow...', {
-        message: providerResponse.message,
-        error: providerResponse.error,
-        details: providerResponse.details
-      })
-      const providerPayload = ProviderPushPayloadSchema.parse({
-        transactionRef: result.transactionReference,
-        customerPhone: result.tx.userCredentials.phone,
-        creditAccount: result.merchant.accountNumber,
-        amount: result.tx.amount,
-        company: "NTMerchant",
-        description: paymentInput.serviceDescription || "Payment for services",
-        merchantName: result.merchant.name,
-        callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
-      })
-      
-      console.log('Encrypted provider push payload:', providerPayload)
-
-      const baseUrl = process.env.PROVIDER_BASE_URL!
-      const username = process.env.PROVIDER_USERNAME!
-      const password = process.env.PROVIDER_PASSWORD!
-      const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl, username, password)
-
-      providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
-      console.log('New encrypted provider flow response status:', providerResponse.statusCode || (providerResponse as any).status)
-    }
+    let providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
+    console.log('Encrypted provider flow response status:', providerResponse.statusCode || (providerResponse as any).status)
 
     if (providerResponse.statusCode !== 200 && (providerResponse as any).status !== 200) {
       console.error('All provider flows failed:', providerResponse)
