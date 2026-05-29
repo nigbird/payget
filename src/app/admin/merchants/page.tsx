@@ -49,8 +49,9 @@ export default function MerchantManagementPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
 
+  const userRole = (session?.user as any)?.role
   const userPermissions = (session?.user as any)?.permissions || []
-  const canManage = userPermissions.includes('qr.generation.manage') || (userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE'))
+  const canManage = userRole === 'ADMIN' || userPermissions.includes('qr.generation.manage')
 
   useEffect(() => {
     fetchMerchants()

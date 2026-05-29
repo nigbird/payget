@@ -209,11 +209,12 @@ export default function CashbackReconciliationPage() {
   const [requestComments, setRequestComments] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const userRole = (session?.user as any)?.role
   const userPermissions = (session?.user as any)?.permissions || []
-  const canView = userPermissions.includes('cashback.reconciliation.view') || (userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE'))
-  const canRetry = userPermissions.includes('cashback.reconciliation.retry') || (userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE'))
-  const canExport = userPermissions.includes('cashback.reconciliation.export') || (userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE'))
-  const canManage = userPermissions.includes('cashback.reconciliation.manage') || (userPermissions.includes('DASHBOARD_VIEW') && userPermissions.includes('CONFIGURATION_MANAGE'))
+  const canView = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.view')
+  const canRetry = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.retry')
+  const canExport = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.export')
+  const canManage = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.manage')
 
   // Get merchants for the dropdown from API
   const uniqueMerchants = useMemo(() => {
