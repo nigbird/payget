@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { clearAccessTokenCookie } from "@/lib/access-token-cookie"
 import { hashRefreshToken } from "@/lib/token-auth"
 import { writeAuditLog } from "@/lib/audit-log"
 import { requireAuthUser } from "@/lib/request-auth"
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
     })
 
     const res = NextResponse.json({ success: true })
+    clearAccessTokenCookie(res)
     res.cookies.set({
       name,
       value: "",
