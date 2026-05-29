@@ -685,16 +685,16 @@ export default function CashbackReconciliationPage() {
         </Tabs>
       </div>
 
-      {/* Detail Sheet */}
+      {/* Detail Dialog */}
       {selectedItem && (
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetContent className='w-full sm:max-w-2xl'>
-            <SheetHeader>
-              <SheetTitle>Cashback Transaction Details</SheetTitle>
-              <SheetDescription>
+        <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <DialogContent className='max-w-2xl rounded-[20px]'>
+            <DialogHeader>
+              <DialogTitle>Cashback Transaction Details</DialogTitle>
+              <DialogDescription>
                 Complete lifecycle view and processing history
-              </SheetDescription>
-            </SheetHeader>
+              </DialogDescription>
+            </DialogHeader>
             <div className='mt-6 space-y-6'>
               {/* Core Info */}
               <div className='grid grid-cols-2 gap-4'>
@@ -910,8 +910,8 @@ export default function CashbackReconciliationPage() {
                 )}
               </div>
             </div>
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   )

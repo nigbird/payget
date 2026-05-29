@@ -179,7 +179,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
       }
 
-      const request = await prisma.cashbackRequest.create({
+      const cashbackRequest = await prisma.cashbackRequest.create({
         data: {
           type,
           cashbackTransactionId,
@@ -195,12 +195,12 @@ export async function POST(request: Request) {
         userId,
         action: 'CASHBACK_REQUEST_CREATE',
         entityType: 'CASHBACK_REQUEST',
-        entityId: request.id,
+        entityId: cashbackRequest.id,
         oldValue: { oldTransactionReference: transaction.transactionReference },
         newValue: { type, newTransactionReference, reason }
       });
 
-      return NextResponse.json({ request });
+      return NextResponse.json({ request: cashbackRequest });
     }
 
     // Approve request (Checker)

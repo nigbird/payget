@@ -439,9 +439,58 @@ export const db = {
     return mapMerchant(m);
   },
 
-  getTransactions: async () => {
+  getTransactions: async (filters?: { 
+    merchantId?: string; 
+    merchantIds?: string[];
+    status?: TransactionStatus;
+    phone?: string;
+    initiatedById?: string;
+    minTimestamp?: Date;
+    maxTimestamp?: Date;
+    limit?: number;
+    transactionReference?: string;
+  }) => {
+    const where: any = {};
+    
+    if (filters?.merchantId) {
+      where.merchantId = filters.merchantId;
+    } else if (filters?.merchantIds && filters.merchantIds.length > 0) {
+      where.merchantId = { in: filters.merchantIds };
+    }
+    
+    if (filters?.status) {
+      where.status = mapToPrismaTransactionStatus(filters.status);
+    }
+
+    if (filters?.transactionReference) {
+      where.transactionReference = filters.transactionReference;
+    }
+    
+    if (filters?.phone) {
+      where.OR = [
+        { payerPhone: filters.phone },
+        { userCredentials: { path: ['phone'], equals: filters.phone } }
+      ];
+    }
+    
+    if (filters?.initiatedById) {
+      where.userCredentials = { 
+        ...(where.userCredentials || {}),
+        path: ['initiatedById'], 
+        equals: filters.initiatedById 
+      };
+    }
+
+    if (filters?.minTimestamp || filters?.maxTimestamp) {
+      where.timestamp = {};
+      if (filters.minTimestamp) where.timestamp.gte = filters.minTimestamp;
+      if (filters.maxTimestamp) where.timestamp.lte = filters.maxTimestamp;
+    }
+
     const txs = await prisma.transaction.findMany({
-      orderBy: { timestamp: 'desc' }
+      where,
+      orderBy: { timestamp: 'desc' },
+      take: filters?.limit
     });
     return txs.map(mapTransaction);
   },
