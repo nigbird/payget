@@ -149,7 +149,7 @@ export async function POST(request: Request) {
         const after = await recordFailedLoginAttempt(ip, normalizedKey)
         const lr = firstLockoutResponse(after.ip, after.identifier)
         if (lr) return lr
-        return NextResponse.json({ error: "Account not active" }, { status: 401 })
+        return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
       }
 
       const currentUsername = (user as any).merchant?.contactUsername

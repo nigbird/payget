@@ -64,7 +64,8 @@ export async function POST(request: Request) {
           newValue: { result: 'failed', reason: 'NOT_FOUND', identifier: maskIdentifier(identifier) },
         });
 
-        return NextResponse.json({ error: 'No account found with that email or phone' }, { status: 404 });
+        // Use a generic success message even if account not found to prevent user enumeration
+        return NextResponse.json({ success: true, notificationSent: true, entityType: 'MERCHANT' });
       }
 
       const config = await db.getSystemConfig();
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
             newValue: { result: 'failed', reason: 'INVALID_RESET_TOKEN' },
           });
 
-          return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+          return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
         }
       }
 
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
           newValue: { result: 'failed', reason: 'TOKEN_EXPIRED' },
         });
 
-        return NextResponse.json({ error: 'Token expired' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
       }
 
       await writeAuditLog({
@@ -233,7 +234,7 @@ export async function POST(request: Request) {
           newValue: { result: 'failed', reason: 'TOKEN_EXPIRED' },
         });
 
-        return NextResponse.json({ error: 'Token expired' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
       }
 
       if (!password) {
