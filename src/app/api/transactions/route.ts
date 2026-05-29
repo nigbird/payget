@@ -12,24 +12,20 @@ export async function GET(request: Request) {
   const phone = searchParams.get('phone');
   const status = searchParams.get('status');
   
-  let transactions = await db.getTransactions();
+  const filters: any = {};
+  if (phone) filters.phone = phone;
+  if (status) filters.status = status;
 
   // If merchant or sales, they shouldn't query all global transactions
   if (user.role === 'MERCHANT' && user.merchantId) {
-    transactions = transactions.filter(tx => tx.merchantId === user.merchantId);
+    filters.merchantId = user.merchantId;
   } else if (user.role === 'SALES') {
-    transactions = transactions.filter(tx => user.assignedMerchantIds?.includes(tx.merchantId));
+    filters.merchantIds = user.assignedMerchantIds || [];
     // Sales users typically only see transactions they initiated
-    transactions = transactions.filter(tx => tx.userCredentials.initiatedById === user.id);
+    filters.initiatedById = user.id;
   }
   
-  if (phone) {
-    transactions = transactions.filter(tx => tx.payerPhone === phone || tx.userCredentials.phone === phone);
-  }
-  
-  if (status) {
-    transactions = transactions.filter(tx => tx.status === status);
-  }
+  const transactions = await db.getTransactions(filters);
   
   return NextResponse.json(transactions);
 }
