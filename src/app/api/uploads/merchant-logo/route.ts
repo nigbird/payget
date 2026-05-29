@@ -86,26 +86,26 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Upload limit exceeded. Please try again later." }, { status: 429 })
       }
     }
-      const isMerchantUser = user?.role === "MERCHANT"
-      const hasStaffPermission = userHasAnyPermission(user, [
-        "MERCHANT_REGISTER",
-        "TRANSACTION_LIMIT_SET",
-        "TRANSACTION_LIMIT_OVERRIDE",
-        "MERCHANT_APPROVE",
-      ])
 
-      // Merchant account admins should be able to upload their own logo in configuration.
-      if (!isMerchantUser && !hasStaffPermission) {
-        await writeAuditLog({
-          request,
-          userId: actorUserId,
-          action: "MERCHANT_LOGO_UPLOAD",
-          entityType: "DOCUMENT",
-          entityId: null,
-          newValue: { result: "failed", reason: "FORBIDDEN" },
-        })
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-      }
+    const isMerchantUser = user?.role === "MERCHANT"
+    const hasStaffPermission = userHasAnyPermission(user, [
+      "MERCHANT_REGISTER",
+      "TRANSACTION_LIMIT_SET",
+      "TRANSACTION_LIMIT_OVERRIDE",
+      "MERCHANT_APPROVE",
+    ])
+
+    // Merchant account admins should be able to upload their own logo in configuration.
+    if (!isMerchantUser && !hasStaffPermission) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MERCHANT_LOGO_UPLOAD",
+        entityType: "DOCUMENT",
+        entityId: null,
+        newValue: { result: "failed", reason: "FORBIDDEN" },
+      })
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const form = await request.formData()
