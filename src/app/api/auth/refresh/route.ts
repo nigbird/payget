@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { setAccessTokenCookie } from "@/lib/access-token-cookie"
 import {
   accessTokenTtlSeconds,
   computeRefreshTokenExpiresAt,
@@ -101,10 +102,10 @@ export async function POST(request: Request) {
     })
 
     const res = NextResponse.json({
-      accessToken,
-      tokenType: "Bearer",
       expiresIn: accessTokenTtlSeconds()
     })
+
+    setAccessTokenCookie(res, accessToken)
 
     res.cookies.set({
       name,
