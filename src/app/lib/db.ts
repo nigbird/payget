@@ -90,6 +90,7 @@ export interface Transaction {
     initiatedById?: string;
     initiatedByName?: string;
     providerSharedSecret?: string;
+    previousTransactionReferences?: string[];
     link?: {
       expiresAt: string;
       status: 'PENDING' | 'USED' | 'EXPIRED';
@@ -166,6 +167,7 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
       initiatedById?: string;
       initiatedByName?: string;
       providerSharedSecret?: string;
+      previousTransactionReferences?: string[];
       link?: {
         expiresAt: string;
         status: 'PENDING' | 'USED' | 'EXPIRED';
@@ -517,6 +519,21 @@ export const db = {
     });
     if (!tx) return null;
     return mapTransaction(tx);
+  },
+
+  /** Resolve by current reference or a previous reference after resend-push. */
+  getTransactionByProviderReference: async (reference: string) => {
+    const direct = await prisma.transaction.findFirst({
+      where: { transactionReference: reference },
+    });
+    if (direct) return mapTransaction(direct);
+
+    const rows = await prisma.$queryRaw<PrismaTransaction[]>`
+      SELECT * FROM "Transaction"
+      WHERE ("userCredentials"->'previousTransactionReferences') @> to_jsonb(ARRAY[${reference}]::text[])
+      LIMIT 1
+    `;
+    return rows[0] ? mapTransaction(rows[0]) : null;
   },
 
   updateTransaction: async (id: string, data: any) => {

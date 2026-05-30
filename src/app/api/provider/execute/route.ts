@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server"
 import { db } from "@/app/lib/db"
 import { resolveEncryptedToken } from "@/app/api/payments/_shared"
-import { sendProviderPushRequest } from "@/lib/provider-client"
 import {
-  prepareEncryptedPushRequest,
-  sendPushToProvider,
+  sendProviderPushPayment,
   ProviderPushPayloadSchema,
+  isProviderPushSuccess,
 } from "@/lib/provider-encryption"
 import { decryptSessionToken } from "@/lib/jwe"
 import { withMerchantSecret } from "@/lib/merchant-secret"
@@ -197,8 +196,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Prepare request for the external provider (legacy flow)
-    const providerRequest = {
+    const providerPayload = ProviderPushPayloadSchema.parse({
       transactionRef: tx.transactionReference,
       customerPhone: tx.userCredentials.phone,
       creditAccount: merchant.accountNumber,
@@ -207,44 +205,12 @@ export async function POST(request: Request) {
       merchantName: merchant.name,
       description: tx.description,
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`,
-    }
+    })
 
-    console.log("Initiating USSD push from link page (legacy flow)...")
-    let providerResponse = await sendProviderPushRequest(providerRequest)
+    console.log("Initiating USSD push from link page...")
+    const providerResponse = await sendProviderPushPayment(providerPayload)
 
-    // If legacy provider fails, try the new encrypted provider flow
-    if (providerResponse.statusCode !== 200) {
-      console.log("Legacy flow failed. Trying new encrypted provider flow...", {
-        message: providerResponse.message,
-        error: providerResponse.error,
-        details: providerResponse.details,
-      })
-
-      const providerPayload = ProviderPushPayloadSchema.parse({
-        transactionRef: tx.transactionReference,
-        customerPhone: tx.userCredentials.phone,
-        creditAccount: merchant.accountNumber,
-        amount: tx.amount,
-        company: "NTMerchant",
-        merchantName: merchant.name,
-        description: tx.description,
-        callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`,
-      })
-
-      const baseUrl = process.env.PROVIDER_BASE_URL!
-      const username = process.env.PROVIDER_USERNAME!
-      const password = process.env.PROVIDER_PASSWORD!
-      const { request: encryptedRequest } = await prepareEncryptedPushRequest(
-        providerPayload,
-        baseUrl,
-        username,
-        password
-      )
-
-      providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
-    }
-
-    if (providerResponse.statusCode !== 200 && (providerResponse as any).status !== 200) {
+    if (!isProviderPushSuccess(providerResponse)) {
       console.error("All provider flows failed for link-initiated push:", providerResponse)
 
       await db.updateTransactionStatus(tx.id, "failed")
@@ -260,7 +226,7 @@ export async function POST(request: Request) {
           status: "FAILED",
           reason: "PROVIDER_REJECTED",
           merchantId,
-          providerStatusCode: providerResponse.statusCode || (providerResponse as any).status,
+          providerStatusCode: providerResponse.statusCode,
         },
       })
 

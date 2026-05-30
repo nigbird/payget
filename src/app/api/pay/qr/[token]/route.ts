@@ -1,9 +1,13 @@
+import crypto from "crypto"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createGatewayTransactionAndToken } from "@/app/api/payments/_shared"
-import { sendProviderPushRequest } from "@/lib/provider-client"
 import { db } from "@/app/lib/db"
-import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
+import {
+  sendProviderPushPayment,
+  ProviderPushPayloadSchema,
+  isProviderPushSuccess,
+} from "@/lib/provider-encryption"
 import { writeAuditLog } from "@/lib/audit-log"
 
 export async function GET(
@@ -89,8 +93,7 @@ export async function POST(
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
-    // Trigger USSD Push (Copied logic from /api/payments/push for simplicity, or we could refactor)
-    const providerRequest = {
+    const providerPayload = ProviderPushPayloadSchema.parse({
       transactionRef: result.transactionReference,
       customerPhone: phone,
       creditAccount: qrCode.merchant.accountNumber,
@@ -98,34 +101,23 @@ export async function POST(
       company: "NTMerchant",
       merchantName: qrCode.merchant.name,
       description: paymentInput.serviceDescription,
-      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
-    }
+      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`,
+    })
 
-    let providerResponse = await sendProviderPushRequest(providerRequest)
+    const providerResponse = await sendProviderPushPayment(providerPayload)
 
-    if (providerResponse.statusCode !== 200) {
-      const providerPayload = ProviderPushPayloadSchema.parse({
-        transactionRef: result.transactionReference,
-        customerPhone: phone,
-        creditAccount: qrCode.merchant.accountNumber,
-        amount: paymentInput.amount,
-        company: "NTMerchant",
-        merchantName: qrCode.merchant.name,
-        description: paymentInput.serviceDescription,
-        callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
-      })
-
-      const baseUrl = process.env.PROVIDER_BASE_URL!
-      const username = process.env.PROVIDER_USERNAME!
-      const password = process.env.PROVIDER_PASSWORD!
-      const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl, username, password)
-
-      providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
-    }
-
-    if (providerResponse.statusCode !== 200 && (providerResponse as any).status !== 200) {
+    if (!isProviderPushSuccess(providerResponse)) {
       await db.updateTransactionStatus(result.tx.id, "failed")
       return NextResponse.json({ error: "Provider rejected the request" }, { status: 400 })
+    }
+
+    if (providerResponse.sharedSecret) {
+      await db.updateTransaction(result.tx.id, {
+        userCredentials: {
+          ...result.tx.userCredentials,
+          providerSharedSecret: providerResponse.sharedSecret,
+        },
+      })
     }
 
     await db.updateTransactionStatus(result.tx.id, "awaiting_pin")

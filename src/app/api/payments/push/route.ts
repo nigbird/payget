@@ -2,7 +2,11 @@ import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
 import { requireAuthUser } from "@/lib/request-auth"
 import { db } from "@/app/lib/db"
-import { prepareEncryptedPushRequest, sendPushToProvider, ProviderPushPayloadSchema } from "@/lib/provider-encryption"
+import {
+  sendProviderPushPayment,
+  ProviderPushPayloadSchema,
+  isProviderPushSuccess,
+} from "@/lib/provider-encryption"
 import { decryptPayload } from "@/lib/jwe"
 import { withMerchantSecret } from "@/lib/merchant-secret"
 import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
@@ -151,17 +155,12 @@ export async function POST(request: Request) {
       callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     })
     
-    console.log('Starting encrypted provider push request...', providerPayload)
+    console.log("Starting provider push request...", providerPayload)
 
-    const baseUrl = process.env.PROVIDER_BASE_URL!
-    const username = process.env.PROVIDER_USERNAME!
-    const password = process.env.PROVIDER_PASSWORD!
-    const { request: encryptedRequest } = await prepareEncryptedPushRequest(providerPayload, baseUrl, username, password)
+    const providerResponse = await sendProviderPushPayment(providerPayload)
+    console.log("Provider push response status:", providerResponse.statusCode)
 
-    let providerResponse = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
-    console.log('Encrypted provider flow response status:', providerResponse.statusCode || (providerResponse as any).status)
-
-    if (providerResponse.statusCode !== 200 && (providerResponse as any).status !== 200) {
+    if (!isProviderPushSuccess(providerResponse)) {
       console.error('All provider flows failed:', providerResponse)
       await db.updateTransactionStatus(result.tx.id, "failed")
 
@@ -174,7 +173,7 @@ export async function POST(request: Request) {
         newValue: {
           result: "failed",
           reason: "PROVIDER_REJECTED",
-          statusCode: providerResponse.statusCode || (providerResponse as any).status,
+          statusCode: providerResponse.statusCode,
           merchantId: result.merchant.id,
           merchantName: result.merchant.name,
           transactionId: result.tx.id,

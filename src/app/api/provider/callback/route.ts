@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const resolveTransactionByAnyReference = async (value: unknown) => {
       if (typeof value !== 'string' || !value.trim()) return null;
       for (const candidate of getReferenceCandidates(value)) {
-        const tx = await db.getTransactionByReference(candidate);
+        const tx = await db.getTransactionByProviderReference(candidate);
         if (tx) return tx;
       }
 
