@@ -275,8 +275,8 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     evaluation,
     paymentAmount: tx.amount,
     cashbackAmount,
-    debitAccount: config.subsidiaryAccountNumber,
-    creditAccount: customer.account,
+    debitAcctNumber: config.subsidiaryAccountNumber,
+    creditAcctNumber: customer.account,
   })
 
   try {

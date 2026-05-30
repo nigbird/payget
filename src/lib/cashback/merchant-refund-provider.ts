@@ -8,6 +8,8 @@ export type MerchantRefundResponse = {
   debitAmount?: string
   debitAccount?: string
   creditAccount?: string
+  debitAcctNumber?: string
+  creditAcctNumber?: string
   status_code?: number
   statusCode?: number
 }
@@ -67,8 +69,8 @@ export class MerchantRefundTransferProvider implements CashbackTransferProvider 
     const auth = Buffer.from(`${this.config.username}:${this.config.password}`).toString("base64")
     const url = `${this.config.baseUrl}/api/v1/merchant/refund`
     const body = {
-      debitAccount,
-      accountNumber: creditAccount,
+      debitAcctNumber: debitAccount,
+      creditAcctNumber: creditAccount,
       amount: request.cashbackAmount,
     }
 
@@ -100,8 +102,8 @@ export class MerchantRefundTransferProvider implements CashbackTransferProvider 
         const transferRef = data.transactionId?.trim()
         return {
           success: true,
-          debitRef: transferRef ?? data.debitAccount ?? undefined,
-          creditRef: transferRef ?? data.creditAccount ?? undefined,
+          debitRef: transferRef ?? data.debitAcctNumber ?? data.debitAccount ?? undefined,
+          creditRef: transferRef ?? data.creditAcctNumber ?? data.creditAccount ?? undefined,
         }
       }
 
