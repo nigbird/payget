@@ -11,23 +11,55 @@ import { appendCashbackLog, getOrCreateCashbackConfig } from "./service"
 import { getCashbackTransferProvider } from "./transfer-provider"
 import type { CashbackEvaluationResult } from "./types"
 
+function normalizeAccount(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null
+  const digits = value.replace(/\D/g, "")
+  return digits || null
+}
+
 function extractCustomerFromTransaction(tx: {
   payerPhone?: string | null
+  payerAccount?: string | null
   userCredentials: unknown
 }): { phone: string | null; account: string | null } {
   const creds = (tx.userCredentials ?? {}) as Record<string, unknown>
+  const providerCallback = creds.providerCallback as Record<string, unknown> | undefined
+
   const phone =
     normalizeCashbackPhone(tx.payerPhone) ??
     normalizeCashbackPhone(typeof creds.phone === "string" ? creds.phone : null)
 
   const account =
-    typeof creds.customerAccount === "string"
-      ? creds.customerAccount.replace(/\D/g, "") || null
-      : typeof creds.accountNumber === "string"
-        ? creds.accountNumber.replace(/\D/g, "") || null
-        : null
+    normalizeAccount(tx.payerAccount) ??
+    normalizeAccount(typeof providerCallback?.payerAccount === "string" ? providerCallback.payerAccount : null) ??
+    normalizeAccount(typeof creds.customerAccount === "string" ? creds.customerAccount : null) ??
+    normalizeAccount(typeof creds.accountNumber === "string" ? creds.accountNumber : null)
 
   return { phone, account }
+}
+
+async function resolveCustomerAccount(
+  merchantId: string,
+  tx: {
+    payerPhone?: string | null
+    payerAccount?: string | null
+    userCredentials: unknown
+  }
+): Promise<{ phone: string | null; account: string | null }> {
+  const customer = extractCustomerFromTransaction(tx)
+  if (customer.account) return customer
+
+  if (!customer.phone) return customer
+
+  const eligible = await prisma.cashbackEligibleCustomer.findFirst({
+    where: { merchantId, phone: customer.phone, accountNumber: { not: null } },
+    select: { accountNumber: true },
+  })
+
+  return {
+    phone: customer.phone,
+    account: normalizeAccount(eligible?.accountNumber),
+  }
 }
 
 async function evaluateEligibility(
@@ -141,7 +173,7 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     })
   }
 
-  const customer = extractCustomerFromTransaction(tx)
+  const customer = await resolveCustomerAccount(tx.merchantId, tx)
   const evaluation = await evaluateEligibility(tx.merchantId, config, {
     paymentAmount: tx.amount,
     customerPhone: customer.phone,
@@ -195,6 +227,32 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     maxTransactionAmount: rule.maxTransactionAmount ?? null,
   })
 
+  if (!customer.account) {
+    const failed = await prisma.cashbackTransaction.create({
+      data: {
+        merchantId: tx.merchantId,
+        paymentTransactionId: tx.id,
+        transactionReference: tx.transactionReference,
+        configId: config.id,
+        categoryId: evaluation.categoryId,
+        customerPhone: customer.phone,
+        customerAccount: null,
+        paymentAmount: tx.amount,
+        cashbackAmount,
+        cashbackPercent: evaluation.percent,
+        status: "FAILED",
+        failureReason: "Customer account not available from payment callback.",
+        subsidiaryAccount: config.subsidiaryAccountNumber,
+        idempotencyKey: `cb-${tx.id}`,
+        processedAt: new Date(),
+      },
+    })
+    await appendCashbackLog(failed.id, "ERROR", "Cashback failed — no customer account", {
+      customerPhone: customer.phone,
+    })
+    return failed
+  }
+
   const cashbackTx = await prisma.cashbackTransaction.create({
     data: {
       merchantId: tx.merchantId,
@@ -217,6 +275,8 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     evaluation,
     paymentAmount: tx.amount,
     cashbackAmount,
+    debitAccount: config.subsidiaryAccountNumber,
+    creditAccount: customer.account,
   })
 
   try {
@@ -265,7 +325,6 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     await appendCashbackLog(cashbackTx.id, "INFO", "Cashback completed", {
       debitRef: transfer.debitRef,
       creditRef: transfer.creditRef,
-      simulated: transfer.simulated ?? false,
     })
 
     await writeAuditLog({

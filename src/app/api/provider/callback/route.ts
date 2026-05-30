@@ -305,6 +305,45 @@ export async function POST(request: Request) {
     const oldStatus = tx.status;
     await db.updateTransactionStatus(tx.id, finalStatus);
 
+    const updatedUserCredentials = {
+      ...tx.userCredentials,
+      providerCallback: {
+        transactionRef:
+          decryptedData.transactionRef ??
+          decryptedData.transactionReference ??
+          decryptedData.transactionId ??
+          null,
+        transactionId:
+          decryptedData.transactionId ??
+          decryptedData.transactionRef ??
+          decryptedData.transactionReference ??
+          null,
+        cbsreference: providerCbsReference,
+        payerAccount: payerAccount,
+        statusDesc: providerStatusDesc ?? null,
+        statusCode: providerStatusCodeRaw ?? null,
+        company: providerCompany ?? null,
+        amount: decryptedData.amount ?? null,
+        raw: decryptedData,
+      },
+      providerDetails: providerStatusDesc ?? decryptedData.details ?? decryptedData.message ?? decryptedData.error ?? null,
+      ...(finalStatus === "success" || finalStatus === "failed"
+        ? {
+            link: {
+              ...(((tx.userCredentials as any).link as any) || {}),
+              status: "USED",
+              usedAt: new Date().toISOString(),
+            },
+          }
+        : {}),
+    };
+
+    // Persist payer account before cashback so customer credit account is available.
+    await db.updateTransaction(tx.id, {
+      payerAccount: payerAccount,
+      userCredentials: updatedUserCredentials,
+    });
+
     if (finalStatus === "success") {
       const { processCashbackForSettlement } = await import("@/lib/cashback/processor");
       void processCashbackForSettlement(tx.id).catch((cashbackErr) => {
@@ -333,49 +372,6 @@ export async function POST(request: Request) {
         providerStatusDesc: providerStatusDesc,
       },
     });
-
-    // Persist provider callback details into transaction.userCredentials (Json)
-    // PRESERVE ALL EXISTING DATA including providerSharedSecret!
-    await db.updateTransaction(tx.id, {
-      payerAccount: payerAccount,
-      userCredentials: {
-        ...tx.userCredentials,
-        providerCallback: {
-          transactionRef:
-            decryptedData.transactionRef ??
-            decryptedData.transactionReference ??
-            decryptedData.transactionId ??
-            null,
-          // Keep legacy alias for downstream compatibility.
-          transactionId:
-            decryptedData.transactionId ??
-            decryptedData.transactionRef ??
-            decryptedData.transactionReference ??
-            null,
-          cbsreference: providerCbsReference,
-          payerAccount: payerAccount,
-          statusDesc: providerStatusDesc ?? null,
-          statusCode: providerStatusCodeRaw ?? null,
-          company: providerCompany ?? null,
-          amount: decryptedData.amount ?? null,
-          raw: decryptedData,
-        },
-        providerDetails: providerStatusDesc ?? decryptedData.details ?? decryptedData.message ?? decryptedData.error ?? null,
-      },
-    });
-
-    if (finalStatus === "success" || finalStatus === "failed") {
-      await db.updateTransaction(tx.id, {
-        userCredentials: {
-          ...tx.userCredentials,
-          link: {
-            ...(((tx.userCredentials as any).link as any) || {}),
-            status: "USED",
-            usedAt: new Date().toISOString(),
-          },
-        },
-      })
-    }
 
     // 6. Notify the merchant (via their registered callback) with canonical status fields
     if (merchant && merchant.callbackUrl) {

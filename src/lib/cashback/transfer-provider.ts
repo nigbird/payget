@@ -1,7 +1,8 @@
 /**
- * Pluggable transfer provider for subsidiary debit + customer credit.
- * Replace StubCashbackTransferProvider when core banking APIs are available.
+ * Transfer provider for subsidiary debit + customer credit via the merchant refund API.
  */
+
+import { createMerchantRefundTransferProvider } from "./merchant-refund-provider"
 
 export type CashbackTransferRequest = {
   merchantId: string
@@ -18,28 +19,24 @@ export type CashbackTransferResult = {
   debitRef?: string
   creditRef?: string
   error?: string
-  simulated?: boolean
 }
 
 export interface CashbackTransferProvider {
   executeTransfer(request: CashbackTransferRequest): Promise<CashbackTransferResult>
 }
 
-export class StubCashbackTransferProvider implements CashbackTransferProvider {
-  async executeTransfer(request: CashbackTransferRequest): Promise<CashbackTransferResult> {
-    const debitRef = `STUB-DEBIT-${request.paymentTransactionId}`
-    const creditRef = `STUB-CREDIT-${request.paymentTransactionId}`
-
+class UnconfiguredRefundTransferProvider implements CashbackTransferProvider {
+  async executeTransfer(): Promise<CashbackTransferResult> {
     return {
-      success: true,
-      debitRef,
-      creditRef,
-      simulated: true,
+      success: false,
+      error:
+        "Merchant refund API is not configured. Set MERCHANT_REFUND_BASE_URL, MERCHANT_REFUND_USERNAME, and MERCHANT_REFUND_PASSWORD.",
     }
   }
 }
 
-let provider: CashbackTransferProvider = new StubCashbackTransferProvider()
+let provider: CashbackTransferProvider =
+  createMerchantRefundTransferProvider() ?? new UnconfiguredRefundTransferProvider()
 
 export function getCashbackTransferProvider(): CashbackTransferProvider {
   return provider
