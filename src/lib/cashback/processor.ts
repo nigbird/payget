@@ -279,14 +279,47 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
     creditAcctNumber: customer.account,
   })
 
+  return executeTransferForTransaction(cashbackTx.id)
+}
+
+/**
+ * Execute the actual transfer for an existing cashback transaction record.
+ * Used for both initial processing and retries.
+ */
+export async function executeTransferForTransaction(cashbackTransactionId: string) {
+  const cashbackTx = await prisma.cashbackTransaction.findUnique({
+    where: { id: cashbackTransactionId },
+  })
+
+  if (!cashbackTx) {
+    throw new Error(`Cashback transaction not found: ${cashbackTransactionId}`)
+  }
+
+  if (cashbackTx.status === "COMPLETED") {
+    return cashbackTx
+  }
+
+  if (!cashbackTx.customerAccount) {
+    const failed = await prisma.cashbackTransaction.update({
+      where: { id: cashbackTx.id },
+      data: {
+        status: "FAILED",
+        failureReason: "Customer account is missing.",
+        processedAt: new Date(),
+      },
+    })
+    await appendCashbackLog(cashbackTx.id, "ERROR", "Cashback transfer failed — no customer account")
+    return failed
+  }
+
   try {
     const transfer = await getCashbackTransferProvider().executeTransfer({
-      merchantId: tx.merchantId,
-      paymentTransactionId: tx.id,
-      subsidiaryAccountNumber: config.subsidiaryAccountNumber,
-      customerAccount: customer.account,
-      customerPhone: customer.phone,
-      cashbackAmount,
+      merchantId: cashbackTx.merchantId,
+      paymentTransactionId: cashbackTx.paymentTransactionId,
+      subsidiaryAccountNumber: cashbackTx.subsidiaryAccount || "",
+      customerAccount: cashbackTx.customerAccount,
+      customerPhone: cashbackTx.customerPhone,
+      cashbackAmount: cashbackTx.cashbackAmount,
     })
 
     if (!transfer.success) {
@@ -307,7 +340,7 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
         action: "CASHBACK_FAILED",
         entityType: "CASHBACK_TRANSACTION",
         entityId: failed.id,
-        newValue: { paymentTransactionId: tx.id, failureReason: transfer.error },
+        newValue: { paymentTransactionId: cashbackTx.paymentTransactionId, failureReason: transfer.error },
       })
       return failed
     }
@@ -334,10 +367,10 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
       entityType: "CASHBACK_TRANSACTION",
       entityId: completed.id,
       newValue: {
-        paymentTransactionId: tx.id,
-        cashbackAmount,
-        customerPhone: customer.phone,
-        categoryId: evaluation.categoryId,
+        paymentTransactionId: cashbackTx.paymentTransactionId,
+        cashbackAmount: cashbackTx.cashbackAmount,
+        customerPhone: cashbackTx.customerPhone,
+        categoryId: cashbackTx.categoryId,
         providerDebitRef: transfer.debitRef,
         providerCreditRef: transfer.creditRef,
       },
