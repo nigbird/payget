@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
+import { executeTransferForTransaction } from '@/lib/cashback/processor';
 
 export async function GET(request: Request) {
   try {
@@ -237,10 +238,8 @@ export async function POST(request: Request) {
           data: { transactionReference: cashbackRequest.newTransactionReference }
         });
       } else if (cashbackRequest.type === 'RETRY') {
-        await prisma.cashbackTransaction.update({
-          where: { id: cashbackRequest.cashbackTransactionId },
-          data: { status: 'PENDING' }
-        });
+        // Trigger actual execution using the refund API
+        await executeTransferForTransaction(cashbackRequest.cashbackTransactionId);
       }
 
       const updatedRequest = await prisma.cashbackRequest.update({
