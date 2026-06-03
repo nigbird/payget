@@ -79,22 +79,36 @@ export async function appendCashbackLog(
 
 export async function listCashbackTransactions(
   merchantId: string,
-  options?: { limit?: number; status?: string; offset?: number }
+  options?: { limit?: number; status?: string; offset?: number; page?: number; search?: string }
 ): Promise<{ transactions: CashbackTransactionDto[]; total: number }> {
-  const where = {
+  const where: any = {
     merchantId,
-    ...(options?.status 
-      ? { status: options.status as CashbackProcessingStatus } 
-      : { NOT: { status: CashbackProcessingStatus.SKIPPED } }
-    ),
+    NOT: { status: "SKIPPED" }, // Never show skipped transactions
   }
+  
+  if (options?.status && options.status !== "ALL") {
+    where.status = options.status as CashbackProcessingStatus
+    // Remove the NOT clause if status is explicitly set
+    delete where.NOT
+  }
+  
+  if (options?.search) {
+    where.OR = [
+      { paymentTransactionId: { contains: options.search, mode: "insensitive" } },
+      { customerPhone: { contains: options.search } },
+      { customerAccount: { contains: options.search } },
+    ]
+  }
+  
+  const take = options?.limit ?? 30
+  const offset = options?.page ? (options.page - 1) * take : (options?.offset ?? 0)
   
   const [rows, total] = await Promise.all([
     prisma.cashbackTransaction.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: options?.limit ?? 50,
-      skip: options?.offset ?? 0,
+      take,
+      skip: offset,
       include: { category: { select: { name: true } } },
     }),
     prisma.cashbackTransaction.count({ where }),
