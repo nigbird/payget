@@ -25,7 +25,9 @@ export async function GET(request: Request) {
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
     const offset = (page - 1) * limit;
 
-    const where: any = {};
+    const where: any = {
+      NOT: { status: 'SKIPPED' }, // Never show skipped transactions
+    };
     
     if (merchantId) {
       where.merchantId = merchantId;
@@ -37,6 +39,7 @@ export async function GET(request: Request) {
     
     if (status && status !== 'ALL') {
       where.status = status;
+      delete where.NOT; // Remove the NOT clause if status is explicitly set
     }
     
     if (search) {

@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   Search,
@@ -205,8 +205,11 @@ export default function CashbackReconciliationPage() {
   const [allMerchants, setAllMerchants] = useState<{ id: string; name: string }[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [merchantFilter, setMerchantFilter] = useState<string>('ALL')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const hadSearchFocusRef = useRef(false)
   const [selectedItem, setSelectedItem] = useState<CashbackReconciliationItem | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false)
@@ -238,12 +241,15 @@ export default function CashbackReconciliationPage() {
   const uniqueMerchants = allMerchants.map(m => m.name).sort()
 
   const fetchData = async () => {
+    // Track if search input had focus before we start loading
+    hadSearchFocusRef.current = 
+      document.activeElement === searchInputRef.current
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
       params.set('page', currentPage.toString())
       params.set('limit', itemsPerPage.toString())
-      if (searchQuery) params.set('search', searchQuery)
+      if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
       if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
       if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
       
@@ -288,13 +294,32 @@ export default function CashbackReconciliationPage() {
     }
   }
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, statusFilter, merchantFilter, itemsPerPage])
+  }, [debouncedSearchQuery, statusFilter, merchantFilter, itemsPerPage])
 
   useEffect(() => {
     fetchData()
-  }, [currentPage, searchQuery, statusFilter, merchantFilter, itemsPerPage])
+  }, [currentPage, debouncedSearchQuery, statusFilter, merchantFilter, itemsPerPage])
+
+  // Restore focus to search input after load if it had it before
+  useEffect(() => {
+    if (!isLoading && hadSearchFocusRef.current && searchInputRef.current) {
+      searchInputRef.current.focus()
+      // Also restore cursor position
+      const end = searchQuery.length
+      searchInputRef.current.setSelectionRange(end, end)
+    }
+  }, [isLoading, searchQuery])
 
   const handleViewDetails = (item: CashbackReconciliationItem) => {
     setSelectedItem(item)
@@ -519,6 +544,7 @@ export default function CashbackReconciliationPage() {
                     <div className='relative flex-1 max-w-md'>
                       <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]' />
                       <Input
+                        ref={searchInputRef}
                         placeholder='Search by reference, merchant, phone, or account...'
                         className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7] pl-10'
                         value={searchQuery}

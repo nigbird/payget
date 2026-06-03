@@ -13,10 +13,12 @@ export async function GET(
 
     const url = new URL(request.url)
     const status = url.searchParams.get("status") ?? undefined
+    const search = url.searchParams.get("search") ?? undefined
+    const page = url.searchParams.get("page") ? Number(url.searchParams.get("page")) : undefined
     const limit = Math.min(Number(url.searchParams.get("limit")) || 30, 200)
-    const offset = Number(url.searchParams.get("offset")) || 0
+    const offset = url.searchParams.get("offset") ? Number(url.searchParams.get("offset")) : undefined
 
-    const result = await listCashbackTransactions(id, { status, limit, offset })
+    const result = await listCashbackTransactions(id, { status, limit, offset, page, search })
     return NextResponse.json({ 
       transactions: result.transactions, 
       total: result.total 
