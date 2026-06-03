@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   Search,
@@ -23,7 +23,10 @@ import {
   FileText,
   Activity,
   MoreHorizontal,
+  ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Edit3,
   Send
 } from 'lucide-react'
@@ -215,6 +218,12 @@ export default function CashbackReconciliationPage() {
   const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null)
   const [isRequestDetailOpen, setIsRequestDetailOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<CashbackRequest | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [itemsPerPage, setItemsPerPage] = useState(20)
 
   const { toast } = useToast()
 
@@ -226,14 +235,19 @@ export default function CashbackReconciliationPage() {
   const canManage = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.manage')
 
   // Get merchants for the dropdown from API
-  const uniqueMerchants = useMemo(() => {
-    return allMerchants.map(m => m.name).sort()
-  }, [allMerchants])
+  const uniqueMerchants = allMerchants.map(m => m.name).sort()
 
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/admin/cashback-reconciliation')
+      const params = new URLSearchParams()
+      params.set('page', currentPage.toString())
+      params.set('limit', itemsPerPage.toString())
+      if (searchQuery) params.set('search', searchQuery)
+      if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
+      
+      const res = await fetch(`/api/admin/cashback-reconciliation?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
         
@@ -264,6 +278,8 @@ export default function CashbackReconciliationPage() {
         setRequests(data.requests || [])
         setStats(data.stats)
         setAllMerchants(data.merchants || [])
+        setTotal(data.total)
+        setTotalPages(data.totalPages)
       }
     } catch (error) {
       console.error('Failed to fetch cashback reconciliation data:', error)
@@ -273,32 +289,12 @@ export default function CashbackReconciliationPage() {
   }
 
   useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter, merchantFilter, itemsPerPage])
+
+  useEffect(() => {
     fetchData()
-  }, [])
-
-  const filteredItems = useMemo(() => {
-    let filtered = [...items]
-    
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      filtered = filtered.filter(item => 
-        item.transactionReference.toLowerCase().includes(q) ||
-        item.merchantName.toLowerCase().includes(q) ||
-        (item.customerPhone && item.customerPhone.includes(q)) ||
-        (item.customerAccount && item.customerAccount.includes(q))
-      )
-    }
-
-    if (statusFilter !== 'ALL') {
-      filtered = filtered.filter(item => item.status === statusFilter)
-    }
-
-    if (merchantFilter !== 'ALL') {
-      filtered = filtered.filter(item => item.merchantName === merchantFilter)
-    }
-
-    return filtered
-  }, [items, searchQuery, statusFilter, merchantFilter])
+  }, [currentPage, searchQuery, statusFilter, merchantFilter, itemsPerPage])
 
   const handleViewDetails = (item: CashbackReconciliationItem) => {
     setSelectedItem(item)
@@ -560,6 +556,22 @@ export default function CashbackReconciliationPage() {
                         <SelectItem value='RECONCILED'>Reconciled</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Select 
+                      value={String(itemsPerPage)} 
+                      onValueChange={(val) => {
+                        setItemsPerPage(Number(val))
+                      }}
+                    >
+                      <SelectTrigger className='h-10 w-24 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       variant='outline'
                       size='sm'
@@ -580,86 +592,162 @@ export default function CashbackReconciliationPage() {
                   <div>
                     <CardTitle className='text-base tracking-tight'>Reconciliation Queue</CardTitle>
                     <CardDescription className='text-[#6B7280]'>
-                      {filteredItems.length} items found
+                      {total} items found
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {isLoading ? (
                   <div className='flex h-64 items-center justify-center'>
                     <RefreshCw className='h-8 w-8 animate-spin text-[#f8b513]' />
                   </div>
                 ) : (
-                  <div className='rounded-[18px] border border-[#F1E7D0] overflow-hidden'>
-                    <Table>
-                      <TableHeader className='bg-[#FFFDF7]'>
-                        <TableRow>
-                          <TableHead className='text-xs font-semibold'>Transaction Ref</TableHead>
-                          <TableHead className='text-xs font-semibold'>Merchant</TableHead>
-                          <TableHead className='text-xs font-semibold'>Customer</TableHead>
-                          <TableHead className='text-xs font-semibold text-right'>Payment</TableHead>
-                          <TableHead className='text-xs font-semibold text-right'>Cashback</TableHead>
-                          <TableHead className='text-xs font-semibold'>Status</TableHead>
-                          <TableHead className='text-xs font-semibold'>Requests</TableHead>
-                          <TableHead className='text-xs font-semibold text-right'>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredItems.map((item) => (
-                          <TableRow key={item.id} className='hover:bg-amber-50/30 transition-colors'>
-                            <TableCell className='font-mono text-xs'>{item.transactionReference}</TableCell>
-                            <TableCell className='text-sm font-medium'>{item.merchantName}</TableCell>
-                            <TableCell className='text-xs text-slate-600'>
-                              {item.customerPhone || item.customerAccount || '-'}
-                            </TableCell>
-                            <TableCell className='text-sm font-medium text-right'>
-                              {item.paymentAmount.toLocaleString()} ETB
-                            </TableCell>
-                            <TableCell className='text-sm font-medium text-right text-[#f8b513]'>
-                              {item.cashbackAmount.toLocaleString()} ETB
-                            </TableCell>
-                            <TableCell>
-                              <StatusBadge status={item.status} />
-                            </TableCell>
-                            <TableCell>
-                              {item.requests && item.requests.length > 0 ? (
-                                <div className='flex items-center gap-1'>
-                                  {item.requests.slice(0, 2).map((req, i) => (
-                                    <RequestStatusBadge key={i} status={req.status} />
-                                  ))}
-                                  {item.requests.length > 2 && (
-                                    <span className='text-xs text-slate-500'>+{item.requests.length - 2}</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className='text-xs text-slate-400'>-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className='text-right'>
-                              <div className='flex items-center justify-end gap-2'>
-                                <Button
-                                  variant='ghost'
-                                  size='sm'
-                                  className='h-8 rounded-[16px]'
-                                  onClick={() => handleViewDetails(item)}
-                                >
-                                  <Eye className='h-4 w-4' />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {filteredItems.length === 0 && (
+                  <>
+                    <div className='rounded-[18px] border border-[#F1E7D0] overflow-hidden'>
+                      <Table>
+                        <TableHeader className='bg-[#FFFDF7]'>
                           <TableRow>
-                            <TableCell colSpan={8} className='h-32 text-center text-sm text-slate-500'>
-                              No cashback transactions found
-                            </TableCell>
+                            <TableHead className='text-xs font-semibold'>Transaction Ref</TableHead>
+                            <TableHead className='text-xs font-semibold'>Merchant</TableHead>
+                            <TableHead className='text-xs font-semibold'>Customer</TableHead>
+                            <TableHead className='text-xs font-semibold text-right'>Payment</TableHead>
+                            <TableHead className='text-xs font-semibold text-right'>Cashback</TableHead>
+                            <TableHead className='text-xs font-semibold'>Status</TableHead>
+                            <TableHead className='text-xs font-semibold'>Requests</TableHead>
+                            <TableHead className='text-xs font-semibold text-right'>Actions</TableHead>
                           </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {items.map((item) => (
+                            <TableRow key={item.id} className='hover:bg-amber-50/30 transition-colors'>
+                              <TableCell className='font-mono text-xs'>{item.transactionReference}</TableCell>
+                              <TableCell className='text-sm font-medium'>{item.merchantName}</TableCell>
+                              <TableCell className='text-xs text-slate-600'>
+                                {item.customerPhone || item.customerAccount || '-'}
+                              </TableCell>
+                              <TableCell className='text-sm font-medium text-right'>
+                                {item.paymentAmount.toLocaleString()} ETB
+                              </TableCell>
+                              <TableCell className='text-sm font-medium text-right text-[#f8b513]'>
+                                {item.cashbackAmount.toLocaleString()} ETB
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge status={item.status} />
+                              </TableCell>
+                              <TableCell>
+                                {item.requests && item.requests.length > 0 ? (
+                                  <div className='flex items-center gap-1'>
+                                    {item.requests.slice(0, 2).map((req, i) => (
+                                      <RequestStatusBadge key={i} status={req.status} />
+                                    ))}
+                                    {item.requests.length > 2 && (
+                                      <span className='text-xs text-slate-500'>+{item.requests.length - 2}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className='text-xs text-slate-400'>-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className='text-right'>
+                                <div className='flex items-center justify-end gap-2'>
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    className='h-8 rounded-[16px]'
+                                    onClick={() => handleViewDetails(item)}
+                                  >
+                                    <Eye className='h-4 w-4' />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {items.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={8} className='h-32 text-center text-sm text-slate-500'>
+                                No cashback transactions found
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between px-6 py-4 border-t border-[#F1E7D0] bg-amber-50/20">
+                        <div className="text-xs font-medium text-[#6B7280]">
+                          Showing <span className="text-[#1F2937] font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-[#1F2937] font-bold">{Math.min(currentPage * itemsPerPage, total)}</span> of <span className="text-[#1F2937] font-bold">{total}</span> results
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                          >
+                            <ChevronsLeft className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                          >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                          </Button>
+                          
+                          <div className="flex items-center gap-1 mx-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                              let pageNum = currentPage;
+                              if (totalPages <= 5) pageNum = i + 1;
+                              else if (currentPage <= 3) pageNum = i + 1;
+                              else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                              else pageNum = currentPage - 2 + i;
+
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  variant={currentPage === pageNum ? "default" : "outline"}
+                                  size="sm"
+                                  className={`h-8 min-w-[32px] rounded-2xl border-[#F1E7D0] text-xs font-bold transition-all ${
+                                    currentPage === pageNum 
+                                      ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-sm shadow-amber-950/15" 
+                                      : "bg-white text-slate-600 hover:bg-amber-50/50"
+                                  }`}
+                                  onClick={() => setCurrentPage(pageNum)}
+                                >
+                                  {pageNum}
+                                </Button>
+                              );
+                            })}
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                          >
+                            <ChevronsRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
