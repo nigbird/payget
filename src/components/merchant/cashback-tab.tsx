@@ -12,10 +12,10 @@ import {
   History,
   FileSpreadsheet,
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
   Settings2,
   Download,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -106,7 +106,6 @@ export function CashbackTab({ merchantId }: Props) {
   const [transactionsTotal, setTransactionsTotal] = useState(0)
   const [currentOffset, setCurrentOffset] = useState(0)
   const PAGE_SIZE = 30
-  const [expandedLogs, setExpandedLogs] = useState<Record<string, CashbackLogDto[]>>({})
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [importing, setImporting] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
@@ -443,22 +442,6 @@ export function CashbackTab({ merchantId }: Props) {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-  }
-
-  const toggleLogs = async (cashbackId: string) => {
-    if (expandedLogs[cashbackId]) {
-      const next = { ...expandedLogs }
-      delete next[cashbackId]
-      setExpandedLogs(next)
-      return
-    }
-    const res = await fetch(
-      `/api/merchants/${merchantId}/cashback/transactions/${cashbackId}/logs`
-    )
-    if (res.ok) {
-      const data = await res.json()
-      setExpandedLogs((p) => ({ ...p, [cashbackId]: data.logs ?? [] }))
-    }
   }
 
   if (loading) {
@@ -978,111 +961,100 @@ export function CashbackTab({ merchantId }: Props) {
               <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
-                    <History className="h-4 w-4" /> Transaction history & activity
+                    <History className="h-4 w-4" /> Transaction history
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {transactions.map((tx) => (
-                    <div key={tx.id} className="rounded-xl border border-slate-100 p-4 text-sm bg-white hover:border-amber-200 transition-colors">
-                      <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
-                            <StatusBadge status={tx.status} />
-                          </div>
-                          <p className="text-base font-bold text-[#5b371f]">
-                            {tx.cashbackAmount.toFixed(2)} ETB <span className="text-xs font-normal text-slate-400">({tx.cashbackPercent}%)</span>
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-slate-500">
-                            <span>Payment: <span className="font-semibold text-slate-700">{tx.paymentAmount.toFixed(2)}</span></span>
-                            <span className="w-1 h-1 rounded-full bg-slate-300" />
-                            <span>Customer: <span className="font-semibold text-slate-700">{tx.customerPhone ?? "—"}</span></span>
-                            {tx.categoryName && (
-                              <>
-                                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                <span>Group: <span className="font-semibold text-slate-700">{tx.categoryName}</span></span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="h-9 px-3 rounded-lg text-xs font-medium text-[#754319] bg-amber-50 hover:bg-amber-100 flex items-center gap-1.5 transition-colors"
-                          onClick={() => toggleLogs(tx.id)}
-                        >
-                          {expandedLogs[tx.id] ? (
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          ) : (
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          )}
-                          Activity logs
-                        </button>
-                      </div>
-
-                      {tx.skipReason && (
-                        <div className="mt-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 flex items-center gap-2 text-xs text-amber-800">
-                          <AlertCircle className="h-3.5 w-3.5" /> {tx.skipReason}
-                        </div>
-                      )}
-                      {tx.failureReason && (
-                        <div className="mt-3 p-2 rounded-lg bg-rose-50 border border-rose-100 flex items-center gap-2 text-xs text-rose-700">
-                          <AlertCircle className="h-3.5 w-3.5" /> {tx.failureReason}
-                        </div>
-                      )}
-
-                      {expandedLogs[tx.id] && (
-                        <div className="mt-4 overflow-hidden rounded-lg border border-slate-100">
-                          <div className="bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b">Processing timeline</div>
-                          <ul className="divide-y divide-slate-50 bg-slate-50/30 p-2 text-[10px] font-mono">
-                            {expandedLogs[tx.id].map((log) => (
-                              <li key={log.id} className="py-1 px-2 flex gap-3">
-                                <span className={`shrink-0 font-bold ${log.level === 'ERROR' ? 'text-rose-600' : 'text-slate-400'}`}>[{log.level}]</span>
-                                <span className="text-slate-600">{log.message}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {transactions.length === 0 && (
-                    <div className="text-center py-12">
-                      <History className="h-10 w-10 text-slate-200 mx-auto mb-2" />
-                      <p className="text-sm text-slate-400 font-medium">No activity history recorded.</p>
-                    </div>
-                  )}
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50/50 border-b">
+                        <tr>
+                          <th className="text-left p-4 font-semibold text-slate-600 text-xs">Transaction</th>
+                          <th className="text-left p-4 font-semibold text-slate-600 text-xs">Customer</th>
+                          <th className="text-left p-4 font-semibold text-slate-600 text-xs">Payment</th>
+                          <th className="text-left p-4 font-semibold text-slate-600 text-xs">Cashback</th>
+                          <th className="text-left p-4 font-semibold text-slate-600 text-xs">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {transactions.map((tx) => (
+                          <tr key={tx.id} className="hover:bg-amber-50/20 transition-colors">
+                            <td className="p-4">
+                              <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
+                              {tx.categoryName && <p className="text-xs text-slate-500 mt-1">{tx.categoryName}</p>}
+                            </td>
+                            <td className="p-4">
+                              <p className="text-xs font-medium text-slate-700">{tx.customerPhone ?? "—"}</p>
+                            </td>
+                            <td className="p-4">
+                              <p className="text-xs font-semibold text-slate-700">{tx.paymentAmount.toFixed(2)} ETB</p>
+                            </td>
+                            <td className="p-4">
+                              <p className="text-sm font-bold text-[#5b371f]">{tx.cashbackAmount.toFixed(2)} ETB</p>
+                              <p className="text-[10px] text-slate-400">({tx.cashbackPercent}%)</p>
+                            </td>
+                            <td className="p-4">
+                              <div className="space-y-1">
+                                <StatusBadge status={tx.status} />
+                                {tx.skipReason && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-amber-800">
+                                    <AlertCircle className="h-3 w-3" /> {tx.skipReason}
+                                  </div>
+                                )}
+                                {tx.failureReason && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-rose-700">
+                                    <AlertCircle className="h-3 w-3" /> {tx.failureReason}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {transactions.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="p-12 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <History className="h-10 w-10 text-slate-200" />
+                                <p className="text-sm text-slate-400 font-medium">No transaction history recorded.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                   
                   {transactionsTotal > PAGE_SIZE && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-                      <p className="text-xs text-slate-500">
-                        Showing {currentOffset + 1}-{Math.min(currentOffset + PAGE_SIZE, transactionsTotal)} of {transactionsTotal}
-                      </p>
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-amber-50/20">
+                      <div className="text-xs font-medium text-slate-500">
+                        Showing <span className="text-slate-900 font-bold">{currentOffset + 1}</span> to <span className="text-slate-900 font-bold">{Math.min(currentOffset + PAGE_SIZE, transactionsTotal)}</span> of <span className="text-slate-900 font-bold">{transactionsTotal}</span> results
+                      </div>
+                      <div className="flex items-center gap-1.5">
                         <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={currentOffset === 0}
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-xl border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
                           onClick={() => {
                             const newOffset = Math.max(0, currentOffset - PAGE_SIZE)
                             setCurrentOffset(newOffset)
                             loadAll(newOffset)
                           }}
-                          className="h-9 px-4 rounded-xl"
+                          disabled={currentOffset === 0}
                         >
-                          Previous
+                          <ChevronLeft className="h-3.5 w-3.5" />
                         </Button>
                         <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={currentOffset + PAGE_SIZE >= transactionsTotal}
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-xl border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
                           onClick={() => {
                             const newOffset = currentOffset + PAGE_SIZE
                             setCurrentOffset(newOffset)
                             loadAll(newOffset)
                           }}
-                          className="h-9 px-4 rounded-xl"
+                          disabled={currentOffset + PAGE_SIZE >= transactionsTotal}
                         >
-                          Next
+                          <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
