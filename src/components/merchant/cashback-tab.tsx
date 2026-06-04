@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import {
   Gift,
   Loader2,
@@ -12,10 +12,14 @@ import {
   History,
   FileSpreadsheet,
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
   Settings2,
   Download,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -104,9 +108,13 @@ export function CashbackTab({ merchantId }: Props) {
   const [eligible, setEligible] = useState<CashbackEligibleCustomerDto[]>([])
   const [transactions, setTransactions] = useState<CashbackTransactionDto[]>([])
   const [transactionsTotal, setTransactionsTotal] = useState(0)
-  const [currentOffset, setCurrentOffset] = useState(0)
-  const PAGE_SIZE = 30
-  const [expandedLogs, setExpandedLogs] = useState<Record<string, CashbackLogDto[]>>({})
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(30)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("ALL")
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const hadSearchFocusRef = useRef(false)
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [importing, setImporting] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
@@ -128,13 +136,12 @@ export function CashbackTab({ merchantId }: Props) {
     allCustomersMaxAmount: "",
   })
 
-  const loadAll = useCallback(async (offset = 0) => {
+  const loadInitialData = useCallback(async () => {
     setLoading(true)
     try {
-      const [cfgRes, eligRes, txRes] = await Promise.all([
+      const [cfgRes, eligRes] = await Promise.all([
         fetch(`/api/merchants/${merchantId}/cashback`),
         fetch(`/api/merchants/${merchantId}/cashback/eligible`),
-        fetch(`/api/merchants/${merchantId}/cashback/transactions?limit=${PAGE_SIZE}&offset=${offset}`),
       ])
       if (cfgRes.ok) {
         const cfg: CashbackConfigDto = await cfgRes.json()
@@ -152,11 +159,6 @@ export function CashbackTab({ merchantId }: Props) {
         const data = await eligRes.json()
         setEligible(data.customers ?? [])
       }
-      if (txRes.ok) {
-        const data = await txRes.json()
-        setTransactions(data.transactions ?? [])
-        setTransactionsTotal(data.total ?? 0)
-      }
     } catch {
       toast({ variant: "destructive", title: "Failed to load cashback settings" })
     } finally {
@@ -164,9 +166,63 @@ export function CashbackTab({ merchantId }: Props) {
     }
   }, [merchantId, toast])
 
+  const loadTransactions = useCallback(async () => {
+    // Track if search input had focus before we start loading
+    hadSearchFocusRef.current = 
+      document.activeElement === searchInputRef.current
+    try {
+      const params = new URLSearchParams()
+      params.set('page', currentPage.toString())
+      params.set('limit', itemsPerPage.toString())
+      if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
+      if (statusFilter && statusFilter !== "ALL") params.set('status', statusFilter)
+      
+      const txRes = await fetch(
+        `/api/merchants/${merchantId}/cashback/transactions?${params.toString()}`
+      )
+      if (txRes.ok) {
+        const data = await txRes.json()
+        setTransactions(data.transactions ?? [])
+        setTransactionsTotal(data.total ?? 0)
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to load transactions" })
+    }
+  }, [merchantId, toast, currentPage, itemsPerPage, debouncedSearchQuery, statusFilter])
+
+  // Debounce search input
   useEffect(() => {
-    loadAll()
-  }, [loadAll])
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Load initial data (config and eligible customers) on mount
+  useEffect(() => {
+    loadInitialData()
+  }, [loadInitialData])
+
+  // Load transactions initially and when search/filters change
+  useEffect(() => {
+    loadTransactions()
+  }, [loadTransactions])
+
+  // Reset page when search/filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedSearchQuery, statusFilter, itemsPerPage])
+
+  // Restore focus to search input after load if it had it before
+  useEffect(() => {
+    if (!loading && hadSearchFocusRef.current && searchInputRef.current) {
+      searchInputRef.current.focus()
+      // Also restore cursor position
+      const end = searchQuery.length
+      searchInputRef.current.setSelectionRange(end, end)
+    }
+  }, [loading, searchQuery])
 
   const saveConfig = async () => {
     const errors: Record<string, string> = {}
@@ -281,7 +337,9 @@ export function CashbackTab({ merchantId }: Props) {
       setCategoryForm(emptyCategoryForm)
       setCategoryFieldErrors({})
       setIsCategoryModalOpen(false)
-      await loadAll()
+      // Reload both config and transactions
+      await loadInitialData()
+      await loadTransactions()
       toast({ title: "Category added" })
     } catch (e: unknown) {
       toast({
@@ -304,7 +362,8 @@ export function CashbackTab({ merchantId }: Props) {
           { method: "DELETE" }
         )
         if (!res.ok) throw new Error("Failed to delete category")
-        await loadAll()
+        await loadInitialData()
+        await loadTransactions()
         if (customerFilterCategoryId === category.id) {
           setCustomerFilterCategoryId("all")
         }
@@ -326,7 +385,8 @@ export function CashbackTab({ merchantId }: Props) {
           body: JSON.stringify({ ids: [customer.id] }),
         })
         if (!res.ok) throw new Error("Failed to remove customer")
-        await loadAll()
+        await loadInitialData()
+        await loadTransactions()
         toast({ title: "Customer removed" })
       },
     })
@@ -360,7 +420,8 @@ export function CashbackTab({ merchantId }: Props) {
           body: JSON.stringify({ ids: rows.map((r) => r.id) }),
         })
         if (!res.ok) throw new Error("Failed to clear imports")
-        await loadAll()
+        await loadInitialData()
+        await loadTransactions()
         toast({ title: "Imports cleared", description: `${rows.length} customer(s) removed.` })
       },
     })
@@ -420,7 +481,8 @@ export function CashbackTab({ merchantId }: Props) {
       })
       setIsImportModalOpen(false)
       setSelectedCategoryId("")
-      await loadAll()
+      await loadInitialData()
+      await loadTransactions()
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -445,21 +507,7 @@ export function CashbackTab({ merchantId }: Props) {
     document.body.removeChild(a)
   }
 
-  const toggleLogs = async (cashbackId: string) => {
-    if (expandedLogs[cashbackId]) {
-      const next = { ...expandedLogs }
-      delete next[cashbackId]
-      setExpandedLogs(next)
-      return
-    }
-    const res = await fetch(
-      `/api/merchants/${merchantId}/cashback/transactions/${cashbackId}/logs`
-    )
-    if (res.ok) {
-      const data = await res.json()
-      setExpandedLogs((p) => ({ ...p, [cashbackId]: data.logs ?? [] }))
-    }
-  }
+
 
   if (loading) {
     return (
@@ -978,111 +1026,170 @@ export function CashbackTab({ merchantId }: Props) {
               <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
-                    <History className="h-4 w-4" /> Transaction history & activity
+                    <History className="h-4 w-4" /> Transaction history
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {transactions.map((tx) => (
-                    <div key={tx.id} className="rounded-xl border border-slate-100 p-4 text-sm bg-white hover:border-amber-200 transition-colors">
-                      <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
+                <CardContent className="space-y-4">
+                  {/* Filters */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        ref={searchInputRef}
+                        placeholder="Search by transaction ID, phone, or account..."
+                        className="h-10 rounded-xl border-slate-200 bg-white pl-10"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-10 w-40 rounded-xl border-slate-200 bg-white">
+                        <div className="flex items-center gap-2">
+                          <Filter className="h-4 w-4" />
+                          <SelectValue placeholder="Status" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Statuses</SelectItem>
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                        <SelectItem value="FAILED">Failed</SelectItem>
+                        <SelectItem value="PROCESSING">Processing</SelectItem>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(itemsPerPage)} onValueChange={(val) => setItemsPerPage(Number(val))}>
+                      <SelectTrigger className="h-10 w-24 rounded-xl border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Transactions List */}
+                  <div className="space-y-3">
+                    {transactions.map((tx) => (
+                      <div key={tx.id} className="rounded-xl border border-slate-100 p-4 text-sm bg-white hover:border-amber-200 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <p className="text-base font-bold text-[#5b371f]">
+                              {tx.cashbackAmount.toFixed(2)} ETB <span className="text-xs font-normal text-slate-400">({tx.cashbackPercent}%)</span>
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                              <span>Payment: <span className="font-semibold text-slate-700">{tx.paymentAmount.toFixed(2)}</span></span>
+                              <span className="w-1 h-1 rounded-full bg-slate-300" />
+                              <span>Customer: <span className="font-semibold text-slate-700">{tx.customerPhone ?? "—"}</span></span>
+                              {tx.categoryName && (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                  <span>Group: <span className="font-semibold text-slate-700">{tx.categoryName}</span></span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
                             <StatusBadge status={tx.status} />
-                          </div>
-                          <p className="text-base font-bold text-[#5b371f]">
-                            {tx.cashbackAmount.toFixed(2)} ETB <span className="text-xs font-normal text-slate-400">({tx.cashbackPercent}%)</span>
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-slate-500">
-                            <span>Payment: <span className="font-semibold text-slate-700">{tx.paymentAmount.toFixed(2)}</span></span>
-                            <span className="w-1 h-1 rounded-full bg-slate-300" />
-                            <span>Customer: <span className="font-semibold text-slate-700">{tx.customerPhone ?? "—"}</span></span>
-                            {tx.categoryName && (
-                              <>
-                                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                <span>Group: <span className="font-semibold text-slate-700">{tx.categoryName}</span></span>
-                              </>
-                            )}
+                            <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="h-9 px-3 rounded-lg text-xs font-medium text-[#754319] bg-amber-50 hover:bg-amber-100 flex items-center gap-1.5 transition-colors"
-                          onClick={() => toggleLogs(tx.id)}
-                        >
-                          {expandedLogs[tx.id] ? (
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          ) : (
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          )}
-                          Activity logs
-                        </button>
+
+                        {tx.skipReason && (
+                          <div className="mt-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 flex items-center gap-2 text-xs text-amber-800">
+                            <AlertCircle className="h-3.5 w-3.5" /> {tx.skipReason}
+                          </div>
+                        )}
+                        {tx.failureReason && (
+                          <div className="mt-3 p-2 rounded-lg bg-rose-50 border border-rose-100 flex items-center gap-2 text-xs text-rose-700">
+                            <AlertCircle className="h-3.5 w-3.5" /> {tx.failureReason}
+                          </div>
+                        )}
                       </div>
-
-                      {tx.skipReason && (
-                        <div className="mt-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 flex items-center gap-2 text-xs text-amber-800">
-                          <AlertCircle className="h-3.5 w-3.5" /> {tx.skipReason}
-                        </div>
-                      )}
-                      {tx.failureReason && (
-                        <div className="mt-3 p-2 rounded-lg bg-rose-50 border border-rose-100 flex items-center gap-2 text-xs text-rose-700">
-                          <AlertCircle className="h-3.5 w-3.5" /> {tx.failureReason}
-                        </div>
-                      )}
-
-                      {expandedLogs[tx.id] && (
-                        <div className="mt-4 overflow-hidden rounded-lg border border-slate-100">
-                          <div className="bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b">Processing timeline</div>
-                          <ul className="divide-y divide-slate-50 bg-slate-50/30 p-2 text-[10px] font-mono">
-                            {expandedLogs[tx.id].map((log) => (
-                              <li key={log.id} className="py-1 px-2 flex gap-3">
-                                <span className={`shrink-0 font-bold ${log.level === 'ERROR' ? 'text-rose-600' : 'text-slate-400'}`}>[{log.level}]</span>
-                                <span className="text-slate-600">{log.message}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {transactions.length === 0 && (
-                    <div className="text-center py-12">
-                      <History className="h-10 w-10 text-slate-200 mx-auto mb-2" />
-                      <p className="text-sm text-slate-400 font-medium">No activity history recorded.</p>
-                    </div>
-                  )}
+                    ))}
+                    {transactions.length === 0 && (
+                      <div className="text-center py-12">
+                        <History className="h-10 w-10 text-slate-200 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400 font-medium">No transactions found.</p>
+                      </div>
+                    )}
+                  </div>
                   
-                  {transactionsTotal > PAGE_SIZE && (
+                  {/* Pagination */}
+                  {transactionsTotal > 0 && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
                       <p className="text-xs text-slate-500">
-                        Showing {currentOffset + 1}-{Math.min(currentOffset + PAGE_SIZE, transactionsTotal)} of {transactionsTotal}
+                        Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, transactionsTotal)} of {transactionsTotal}
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          disabled={currentOffset === 0}
-                          onClick={() => {
-                            const newOffset = Math.max(0, currentOffset - PAGE_SIZE)
-                            setCurrentOffset(newOffset)
-                            loadAll(newOffset)
-                          }}
-                          className="h-9 px-4 rounded-xl"
+                          size="icon"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(1)}
+                          className="h-8 w-8 rounded-lg"
                         >
-                          Previous
+                          <ChevronsLeft className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          disabled={currentOffset + PAGE_SIZE >= transactionsTotal}
-                          onClick={() => {
-                            const newOffset = currentOffset + PAGE_SIZE
-                            setCurrentOffset(newOffset)
-                            loadAll(newOffset)
-                          }}
-                          className="h-9 px-4 rounded-xl"
+                          size="icon"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                          className="h-8 w-8 rounded-lg"
                         >
-                          Next
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        
+                        <div className="flex items-center gap-1">
+                          {(() => {
+                            const totalPages = Math.ceil(transactionsTotal / itemsPerPage)
+                            const pages = []
+                            let startPage = Math.max(1, currentPage - 2)
+                            let endPage = Math.min(totalPages, startPage + 4)
+                            if (endPage - startPage < 4) {
+                              startPage = Math.max(1, endPage - 4)
+                            }
+                            for (let i = startPage; i <= endPage; i++) {
+                              pages.push(
+                                <Button
+                                  key={i}
+                                  variant={currentPage === i ? "default" : "ghost"}
+                                  size="sm"
+                                  className={`h-8 w-8 rounded-lg ${
+                                    currentPage === i 
+                                      ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white" 
+                                      : "text-slate-700"
+                                  }`}
+                                  onClick={() => setCurrentPage(i)}
+                                >
+                                  {i}
+                                </Button>
+                              )
+                            }
+                            return pages
+                          })()}
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={currentPage >= Math.ceil(transactionsTotal / itemsPerPage)}
+                          onClick={() => setCurrentPage((prev) => Math.min(Math.ceil(transactionsTotal / itemsPerPage), prev + 1))}
+                          className="h-8 w-8 rounded-lg"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={currentPage >= Math.ceil(transactionsTotal / itemsPerPage)}
+                          onClick={() => setCurrentPage(Math.ceil(transactionsTotal / itemsPerPage))}
+                          className="h-8 w-8 rounded-lg"
+                        >
+                          <ChevronsRight className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
