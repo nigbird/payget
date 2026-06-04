@@ -18,28 +18,19 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const merchantId = searchParams.get('merchantId');
-    const merchantName = searchParams.get('merchantName');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
-    const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
-    const offset = (page - 1) * limit;
+    const limit = searchParams.get('limit');
+    const offset = searchParams.get('offset');
 
-    const where: any = {
-      NOT: { status: 'SKIPPED' }, // Never show skipped transactions
-    };
+    const where: any = {};
     
     if (merchantId) {
       where.merchantId = merchantId;
     }
     
-    if (merchantName) {
-      where.merchant = { name: merchantName };
-    }
-    
-    if (status && status !== 'ALL') {
+    if (status) {
       where.status = status;
-      delete where.NOT; // Remove the NOT clause if status is explicitly set
     }
     
     if (search) {
@@ -50,26 +41,23 @@ export async function GET(request: Request) {
       ];
     }
 
-    const [transactions, total] = await Promise.all([
-      prisma.cashbackTransaction.findMany({
-        where,
-        include: {
-          merchant: { select: { id: true, name: true } },
-          category: { select: { id: true, name: true } },
-          requests: {
-            orderBy: { createdAt: 'desc' },
-            include: {
-              maker: { select: { id: true, name: true, email: true } },
-              checker: { select: { id: true, name: true, email: true } }
-            }
+    const transactions = await prisma.cashbackTransaction.findMany({
+      where,
+      include: {
+        merchant: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
+        requests: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            maker: { select: { id: true, name: true, email: true } },
+            checker: { select: { id: true, name: true, email: true } }
           }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset
-      }),
-      prisma.cashbackTransaction.count({ where })
-    ]);
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit ? parseInt(limit) : 50,
+      skip: offset ? parseInt(offset) : 0
+    });
 
     // Get pending requests for review
     const requests = await prisma.cashbackRequest.findMany({
@@ -123,7 +111,6 @@ export async function GET(request: Request) {
       orderBy: { name: 'asc' }
     });
 
-    const totalPages = Math.ceil(total / limit);
     return NextResponse.json({
       transactions,
       requests,
@@ -135,11 +122,7 @@ export async function GET(request: Request) {
         retrySuccessRate: 78, // Mock for now, calculate properly later
         topMerchants
       },
-      merchants: allMerchants,
-      total,
-      totalPages,
-      currentPage: page,
-      itemsPerPage: limit
+      merchants: allMerchants
     });
   } catch (error) {
     console.error('Error fetching cashback reconciliation:', error);

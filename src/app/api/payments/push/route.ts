@@ -152,7 +152,6 @@ export async function POST(request: Request) {
       company: "NTMerchant",
       description: paymentInput.serviceDescription || "Payment for services",
       merchantName: result.merchant.name,
-      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`
     })
     
     console.log("Starting provider push request...", providerPayload)

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { db } from "@/app/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
@@ -33,6 +34,7 @@ export async function GET(
     return NextResponse.json({
       qrEnabled: merchant.qrEnabled,
       qrLogoUrl: merchant.qrLogoUrl,
+      merchantLogoUrl: merchant.logoUrl,
       activeQr: merchant.qrCodes[0] || null
     })
   } catch (error) {
