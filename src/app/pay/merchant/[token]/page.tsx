@@ -90,7 +90,48 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!phone || !amount) return
+    
+    // Amount Validation
+    const amountNum = parseFloat(amount)
+    if (isNaN(amountNum) || amountNum < 1) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Amount",
+        description: "Please enter a valid amount (minimum 1 ETB).",
+      })
+      return
+    }
+
+    // Phone Validation
+    if (!phone.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Phone Required",
+        description: "Please provide your phone number.",
+      })
+      return
+    }
+
+    const trimmedPhone = phone.trim()
+    const isValidEthiopianPhone = /^(?:\+251|251|09)\d{7,10}$/.test(trimmedPhone)
+    if (!isValidEthiopianPhone) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Phone",
+        description: "Please enter a valid Ethiopian phone number (e.g., 0912345678).",
+      })
+      return
+    }
+
+    // Description Validation
+    if (description && description.length > 50) {
+      toast({
+        variant: "destructive",
+        title: "Description Too Long",
+        description: "Payment description cannot exceed 50 characters.",
+      })
+      return
+    }
 
     setIsProcessing(true)
     setView("processing")
@@ -100,8 +141,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: phone,
-          amount: parseFloat(amount),
+          phone: trimmedPhone,
+          amount: amountNum,
           description: description
         })
       })
@@ -338,7 +379,10 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                             type="tel"
                             placeholder="0912345678"
                             value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^\d+]/g, "")
+                              if (val.length <= 13) setPhone(val)
+                            }}
                             required
                             className="h-12 sm:h-14 pl-10 sm:pl-11 rounded-xl sm:rounded-2xl border-slate-100 bg-slate-50/50 focus-visible:ring-amber-500/20 focus-visible:border-amber-500 font-medium text-sm sm:text-base"
                           />
@@ -351,11 +395,16 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                           <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
                           <Input 
                             id="amount"
-                            type="number"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="0.00"
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) {
+                                setAmount(val)
+                              }
+                            }}
                             required
                             className="h-12 sm:h-14 pl-10 sm:pl-11 rounded-xl sm:rounded-2xl border-slate-100 bg-slate-50/50 focus-visible:ring-amber-500/20 focus-visible:border-amber-500 font-bold text-base sm:text-lg"
                           />
@@ -363,7 +412,10 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                       </div>
 
                       <div className="space-y-1.5 sm:space-y-2">
-                        <Label htmlFor="description" className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Payment Description (Optional)</Label>
+                        <div className="flex items-center justify-between ml-1">
+                          <Label htmlFor="description" className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400">Payment Description (Optional)</Label>
+                          <span className="text-[9px] sm:text-[10px] font-medium text-slate-400">{description.length}/50</span>
+                        </div>
                         <div className="relative">
                           <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
                           <Input 
@@ -371,7 +423,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                             type="text"
                             placeholder="e.g. Order #1234, Invoice, etc."
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
+                            onChange={(e) => {
+                              if (e.target.value.length <= 50) {
+                                setDescription(e.target.value)
+                              }
+                            }}
                             className="h-12 sm:h-14 pl-10 sm:pl-11 rounded-xl sm:rounded-2xl border-slate-100 bg-slate-50/50 focus-visible:ring-amber-500/20 focus-visible:border-amber-500 font-medium text-sm sm:text-base"
                           />
                         </div>
