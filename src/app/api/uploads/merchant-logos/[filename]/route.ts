@@ -47,6 +47,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
         "X-Content-Type-Options": "nosniff",
+        "Access-Control-Allow-Origin": "*",
       },
     })
   } catch {
