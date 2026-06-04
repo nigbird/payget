@@ -20,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
@@ -30,6 +29,7 @@ import {
   downloadQrFromSvgElement,
   triggerBlobDownload,
 } from "@/lib/qr-download"
+import { resolveAbsoluteImageUrl, useQrLogoImageSettings } from "@/lib/qr-logo"
 import {
   Table,
   TableBody,
@@ -41,12 +41,6 @@ import {
 
 const QR_DISPLAY_SIZE = 200
 const QR_DOWNLOAD_SIZE = 1024
-
-function toAbsoluteImageUrl(url: string): string {
-  if (url.startsWith("http://") || url.startsWith("https://")) return url
-  if (url.startsWith("/")) return `${window.location.origin}${url}`
-  return `${window.location.origin}/${url}`
-}
 
 export default function MerchantConfigurationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -70,16 +64,9 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     return `${origin}/pay/merchant/${qrConfig.activeQr.token}`
   }, [qrConfig?.activeQr?.token])
 
-  const qrDisplayLogoSettings = useMemo(() => {
-    if (!qrConfig?.qrLogoUrl) return undefined
-    return {
-      src: toAbsoluteImageUrl(qrConfig.qrLogoUrl),
-      height: 40,
-      width: 40,
-      excavate: true as const,
-      crossOrigin: "anonymous" as const,
-    }
-  }, [qrConfig?.qrLogoUrl])
+  const qrDisplayLogoSettings = useQrLogoImageSettings(
+    qrConfig?.qrLogoUrl ? resolveAbsoluteImageUrl(qrConfig.qrLogoUrl) : null
+  )
 
   useEffect(() => {
     fetchData()
@@ -109,7 +96,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          qrEnabled: qrConfig.qrEnabled,
+          qrEnabled: true,
           qrLogoUrl: qrConfig.qrLogoUrl
         })
       })
@@ -146,7 +133,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          qrEnabled: qrConfig.qrEnabled,
+          qrEnabled: true,
           qrLogoUrl: qrConfig.qrLogoUrl
         })
       })
@@ -283,20 +270,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           {/* QR Code Configuration Section */}
           <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10 overflow-hidden">
             <CardHeader className="bg-amber-50/30 border-b border-black/5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                    <QrCode className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <CardTitle className="text-base">QR Code Configuration</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <QrCode className="w-5 h-5 text-amber-600" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-slate-500">Enable Payment QR</span>
-                  <Switch 
-                    checked={qrConfig?.qrEnabled} 
-                    onCheckedChange={(val) => setQrConfig({ ...qrConfig, qrEnabled: val })}
-                  />
-                </div>
+                <CardTitle className="text-base">QR Code Configuration</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="p-6 space-y-8">
@@ -307,7 +285,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     <div className="flex items-center gap-4">
                       <div className="w-20 h-20 rounded-2xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center overflow-hidden">
                         {qrConfig?.qrLogoUrl ? (
-                          <img src={toAbsoluteImageUrl(qrConfig.qrLogoUrl)} alt="QR Logo" className="w-full h-full object-contain" />
+                          <img src={resolveAbsoluteImageUrl(qrConfig.qrLogoUrl)} alt="QR Logo" className="w-full h-full object-contain" />
                         ) : (
                           <ImageIcon className="w-8 h-8 text-amber-200" />
                         )}
@@ -360,10 +338,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 </div>
 
                 <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-black/5 shadow-inner min-h-[300px]">
-                  {qrConfig?.qrEnabled && qrConfig?.activeQr ? (
+                  {qrConfig?.activeQr ? (
                     <div className="relative group/qr">
                       <div className="bg-white p-4 rounded-3xl shadow-xl border border-slate-100">
                         <QRCodeCanvas
+                          key={`${qrConfig.activeQr?.token ?? "qr"}-${qrDisplayLogoSettings?.src ?? "plain"}`}
                           id="merchant-qr"
                           value={qrUrl}
                           size={QR_DISPLAY_SIZE}
@@ -395,7 +374,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                       <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto border border-dashed border-slate-200">
                         <QrCode className="w-8 h-8 text-slate-200" />
                       </div>
-                      <p className="text-sm text-slate-400">Enable QR payments to generate a code.</p>
+                      <p className="text-sm text-slate-400">Click Generate to create a payment QR code.</p>
                     </div>
                   )}
                 </div>
@@ -413,7 +392,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
                 <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
                   {merchant?.logoUrl ? (
-                    <img src={toAbsoluteImageUrl(merchant.logoUrl)} alt={merchant.name} className="w-full h-full object-contain" />
+                    <img src={resolveAbsoluteImageUrl(merchant.logoUrl)} alt={merchant.name} className="w-full h-full object-contain" />
                   ) : (
                     <Store className="w-6 h-6 text-slate-300" />
                   )}

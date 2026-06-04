@@ -14,6 +14,7 @@ import {
   downloadQrFromSvgElement,
   triggerBlobDownload,
 } from "@/lib/qr-download"
+import { resolveAbsoluteImageUrl, useQrLogoImageSettings } from "@/lib/qr-logo"
 
 import type { Merchant } from "@/app/lib/db"
 import { useMerchantPortalRole } from "@/components/merchant/merchant-portal-shell"
@@ -53,12 +54,6 @@ type TabValue = "system" | "profile" | "cashback"
 
 const QR_DISPLAY_SIZE = 200
 const QR_DOWNLOAD_SIZE = 1024
-
-function toAbsoluteImageUrl(url: string): string {
-  if (url.startsWith("http://") || url.startsWith("https://")) return url
-  if (url.startsWith("/")) return `${window.location.origin}${url}`
-  return `${window.location.origin}/${url}`
-}
 
 export default function MerchantConfigurationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -108,6 +103,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [qrConfig, setQrConfig] = useState<{
     qrEnabled: boolean
     qrLogoUrl: string | null
+    merchantLogoUrl?: string | null
     activeQr: { token: string } | null
   }>({
     qrEnabled: false,
@@ -126,22 +122,17 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     return `${origin}/pay/merchant/${qrConfig.activeQr.token}`
   }, [qrConfig?.activeQr?.token])
 
-  const qrLogoSrc = useMemo(() => {
-    if (!qrConfig?.qrLogoUrl) return null
-    if (qrConfig.qrLogoUrl === "use-merchant-logo") return merchant?.logoUrl ?? null
-    return qrConfig.qrLogoUrl
-  }, [qrConfig?.qrLogoUrl, merchant?.logoUrl])
+  const isQrLogoEnabled = !!qrConfig.qrLogoUrl
 
-  const qrDisplayLogoSettings = useMemo(() => {
-    if (!qrLogoSrc) return undefined
-    return {
-      src: toAbsoluteImageUrl(qrLogoSrc),
-      height: 40,
-      width: 40,
-      excavate: true as const,
-      crossOrigin: "anonymous" as const,
+  const qrLogoSrc = useMemo(() => {
+    if (!isQrLogoEnabled) return null
+    if (qrConfig.qrLogoUrl === "use-merchant-logo") {
+      return merchant?.logoUrl ?? qrConfig.merchantLogoUrl ?? null
     }
-  }, [qrLogoSrc])
+    return qrConfig.qrLogoUrl || (merchant?.logoUrl ?? qrConfig.merchantLogoUrl ?? null)
+  }, [isQrLogoEnabled, qrConfig.qrLogoUrl, qrConfig.merchantLogoUrl, merchant?.logoUrl])
+
+  const qrDisplayLogoSettings = useQrLogoImageSettings(qrLogoSrc)
 
   useEffect(() => {
     const fetchQrConfig = async () => {
@@ -320,18 +311,44 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     }
   }
 
+  const fetchMerchantProfile = async (): Promise<Merchant | null> => {
+    try {
+      const response = await fetch(`/api/merchants/${id}`)
+      if (!response.ok) return null
+      const m = (await response.json()) as Merchant
+      setMerchant(m)
+      return m
+    } catch {
+      return null
+    }
+  }
+
   const handleQrAction = async (action: "generate" | "regenerate" | "toggle-logo") => {
     if (!canEdit || isQrLoading) return
     setIsQrLoading(true)
 
     try {
-      const payload: any = {}
+      const payload: Record<string, unknown> = {}
       if (action === "generate") {
         payload.qrEnabled = true
       } else if (action === "regenerate") {
         payload.regenerate = true
       } else if (action === "toggle-logo") {
-        payload.qrLogoUrl = qrConfig.qrLogoUrl ? null : (merchant?.logoUrl || "use-merchant-logo")
+        if (qrConfig.qrLogoUrl) {
+          payload.qrLogoUrl = null
+        } else {
+          const profile = merchant?.logoUrl ? merchant : await fetchMerchantProfile()
+          const logoUrl = profile?.logoUrl
+          if (!logoUrl) {
+            toast({
+              variant: "destructive",
+              title: "No merchant logo",
+              description: "Upload a business logo in your profile before enabling it on the QR code.",
+            })
+            return
+          }
+          payload.qrLogoUrl = "use-merchant-logo"
+        }
       }
 
       const response = await fetch(`/api/merchants/${id}/qr`, {
@@ -455,6 +472,10 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       if (!res.ok) throw new Error(data?.error || "Could not save logo")
 
       setMerchant(data)
+      if (qrConfig.qrLogoUrl) {
+        const refreshed = await fetch(`/api/merchants/${id}/qr`).then((r) => r.json())
+        setQrConfig(refreshed)
+      }
       toast({ title: "Logo updated", description: "Your merchant logo will appear on hosted payment pages." })
     } catch (e: any) {
       toast({ variant: "destructive", title: "Logo upload failed", description: e?.message || "Try again." })
@@ -647,6 +668,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <>
                           <div className="relative p-4 bg-white rounded-3xl shadow-md border border-[#f8b513]/20 group">
                             <QRCodeCanvas
+                              key={`${qrConfig.activeQr?.token ?? "qr"}-${qrDisplayLogoSettings?.src ?? "plain"}`}
                               id="merchant-qr"
                               value={qrUrl}
                               size={QR_DISPLAY_SIZE}
@@ -675,7 +697,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           <div className="flex items-center justify-between w-full px-2 pt-4 border-t border-white/40">
                             <div className="flex items-center gap-2">
                               <Switch 
-                                checked={!!qrConfig.qrLogoUrl} 
+                                checked={isQrLogoEnabled} 
                                 onCheckedChange={() => handleQrAction("toggle-logo")}
                                 disabled={isQrLoading}
                               />
