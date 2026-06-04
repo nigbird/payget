@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
+import { requireCsrf } from "@/lib/request-security"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
 
@@ -9,6 +10,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) return csrfError
+
     const { id } = await params
     const user = await requireAuthUser(request)
     if (!user || (!userHasPermission(user, "CONFIGURATION_MANAGE") && user.merchantId !== id)) {
