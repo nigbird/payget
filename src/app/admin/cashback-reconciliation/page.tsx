@@ -38,6 +38,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 type CashbackReconciliationItem = {
@@ -78,6 +79,9 @@ type CashbackRequest = {
   cashbackTransaction: {
     merchant: { name: string }
     transactionReference: string
+    cashbackAmount: number
+    customerPhone: string | null
+    customerAccount: string | null
   }
   oldTransactionReference: string | null
   newTransactionReference: string | null
@@ -208,6 +212,11 @@ export default function CashbackReconciliationPage() {
   const [requestReason, setRequestReason] = useState('')
   const [requestComments, setRequestComments] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null)
+  const [isRequestDetailOpen, setIsRequestDetailOpen] = useState(false)
+  const [selectedRequest, setSelectedRequest] = useState<CashbackRequest | null>(null)
+
+  const { toast } = useToast()
 
   const userRole = (session?.user as any)?.role
   const userPermissions = (session?.user as any)?.permissions || []
@@ -296,6 +305,11 @@ export default function CashbackReconciliationPage() {
     setIsSheetOpen(true)
   }
 
+  const handleViewRequestDetails = (request: CashbackRequest) => {
+    setSelectedRequest(request)
+    setIsRequestDetailOpen(true)
+  }
+
   const handleCreateRequest = async () => {
     if (!selectedItem || !requestReason) return
     
@@ -317,19 +331,39 @@ export default function CashbackReconciliationPage() {
 
       if (res.ok) {
         setIsRequestDialogOpen(false)
+        setIsSheetOpen(false) // Close the detail sheet as well
         setRequestType('RETRY')
         setNewTransactionReference('')
         setRequestReason('')
+        
+        toast({
+          title: "Request Submitted",
+          description: "Your request has been sent for approval.",
+        })
+        
         fetchData()
+      } else {
+        const error = await res.json()
+        toast({
+          variant: "destructive",
+          title: "Request Failed",
+          description: error.error || "Failed to submit request",
+        })
       }
     } catch (error) {
       console.error('Failed to create request:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "A technical error occurred.",
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleApproveRequest = async (request: CashbackRequest) => {
+    setApprovingRequestId(request.id)
     try {
       const res = await fetch('/api/admin/cashback-reconciliation', {
         method: 'POST',
@@ -345,14 +379,34 @@ export default function CashbackReconciliationPage() {
 
       if (res.ok) {
         setRequestComments('')
+        setIsRequestDetailOpen(false)
+        toast({
+          title: "Request Approved",
+          description: "The transaction has been processed successfully.",
+        })
         fetchData()
+      } else {
+        const error = await res.json()
+        toast({
+          variant: "destructive",
+          title: "Approval Failed",
+          description: error.error || "Failed to approve request",
+        })
       }
     } catch (error) {
       console.error('Failed to approve request:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "A technical error occurred during approval.",
+      })
+    } finally {
+      setApprovingRequestId(null)
     }
   }
 
   const handleRejectRequest = async (request: CashbackRequest) => {
+    setApprovingRequestId(request.id)
     try {
       const res = await fetch('/api/admin/cashback-reconciliation', {
         method: 'POST',
@@ -368,10 +422,29 @@ export default function CashbackReconciliationPage() {
 
       if (res.ok) {
         setRequestComments('')
+        setIsRequestDetailOpen(false)
+        toast({
+          title: "Request Rejected",
+          description: "The request has been rejected.",
+        })
         fetchData()
+      } else {
+        const error = await res.json()
+        toast({
+          variant: "destructive",
+          title: "Rejection Failed",
+          description: error.error || "Failed to reject request",
+        })
       }
     } catch (error) {
       console.error('Failed to reject request:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "A technical error occurred during rejection.",
+      })
+    } finally {
+      setApprovingRequestId(null)
     }
   }
 
@@ -618,6 +691,8 @@ export default function CashbackReconciliationPage() {
                           <TableHead className='text-xs font-semibold'>Type</TableHead>
                           <TableHead className='text-xs font-semibold'>Transaction Ref</TableHead>
                           <TableHead className='text-xs font-semibold'>Merchant</TableHead>
+                          <TableHead className='text-xs font-semibold'>Customer</TableHead>
+                          <TableHead className='text-xs font-semibold text-right'>Amount</TableHead>
                           <TableHead className='text-xs font-semibold'>Created By</TableHead>
                           <TableHead className='text-xs font-semibold'>Reason</TableHead>
                           <TableHead className='text-xs font-semibold'>Status</TableHead>
@@ -637,6 +712,12 @@ export default function CashbackReconciliationPage() {
                               {request.cashbackTransaction.merchant.name}
                             </TableCell>
                             <TableCell className='text-xs text-slate-600'>
+                              {request.cashbackTransaction.customerPhone || request.cashbackTransaction.customerAccount || '-'}
+                            </TableCell>
+                            <TableCell className='text-sm font-medium text-right text-[#f8b513]'>
+                              {request.cashbackTransaction.cashbackAmount.toLocaleString()} ETB
+                            </TableCell>
+                            <TableCell className='text-xs text-slate-600'>
                               {request.maker.name || request.maker.email}
                             </TableCell>
                             <TableCell className='text-xs text-slate-600 max-w-[200px] truncate'>
@@ -646,32 +727,52 @@ export default function CashbackReconciliationPage() {
                               <RequestStatusBadge status={request.status} />
                             </TableCell>
                             <TableCell className='text-right'>
-                              {canManage && (session?.user as any)?.id !== request.maker.id && (
-                                <div className='flex items-center justify-end gap-2'>
-                                  <Button
-                                    variant='ghost'
-                                    size='sm'
-                                    className='h-8 rounded-[16px] text-emerald-600'
-                                    onClick={() => handleApproveRequest(request)}
-                                  >
-                                    <CheckCircle2 className='h-4 w-4' />
-                                  </Button>
-                                  <Button
-                                    variant='ghost'
-                                    size='sm'
-                                    className='h-8 rounded-[16px] text-rose-600'
-                                    onClick={() => handleRejectRequest(request)}
-                                  >
-                                    <XCircle className='h-4 w-4' />
-                                  </Button>
-                                </div>
-                              )}
+                              <div className='flex items-center justify-end gap-2'>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  className='h-8 rounded-[16px]'
+                                  onClick={() => handleViewRequestDetails(request)}
+                                >
+                                  <Eye className='h-4 w-4' />
+                                </Button>
+                                {canManage && (session?.user as any)?.id !== request.maker.id && (
+                                  <>
+                                    <Button
+                                      variant='ghost'
+                                      size='sm'
+                                      className='h-8 rounded-[16px] text-emerald-600'
+                                      onClick={() => handleApproveRequest(request)}
+                                      disabled={approvingRequestId === request.id}
+                                    >
+                                      {approvingRequestId === request.id ? (
+                                        <RefreshCw className='h-4 w-4 animate-spin' />
+                                      ) : (
+                                        <CheckCircle2 className='h-4 w-4' />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant='ghost'
+                                      size='sm'
+                                      className='h-8 rounded-[16px] text-rose-600'
+                                      onClick={() => handleRejectRequest(request)}
+                                      disabled={approvingRequestId === request.id}
+                                    >
+                                      {approvingRequestId === request.id ? (
+                                        <RefreshCw className='h-4 w-4 animate-spin' />
+                                      ) : (
+                                        <XCircle className='h-4 w-4' />
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
                         {requests.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={7} className='h-32 text-center text-sm text-slate-500'>
+                            <TableCell colSpan={9} className='h-32 text-center text-sm text-slate-500'>
                               No pending requests
                             </TableCell>
                           </TableRow>
@@ -689,7 +790,7 @@ export default function CashbackReconciliationPage() {
       {/* Detail Dialog */}
       {selectedItem && (
         <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <DialogContent className='max-w-2xl rounded-[20px]'>
+          <DialogContent className='max-w-2xl rounded-[20px] max-h-[90vh] overflow-y-auto'>
             <DialogHeader>
               <DialogTitle>Cashback Transaction Details</DialogTitle>
               <DialogDescription>
@@ -910,6 +1011,130 @@ export default function CashbackReconciliationPage() {
                   </Button>
                 )}
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Request Detail Dialog */}
+      {selectedRequest && (
+        <Dialog open={isRequestDetailOpen} onOpenChange={setIsRequestDetailOpen}>
+          <DialogContent className='max-w-2xl rounded-[20px] max-h-[90vh] overflow-y-auto'>
+            <DialogHeader>
+              <DialogTitle>Reconciliation Request Details</DialogTitle>
+              <DialogDescription>
+                Review the request and associated cashback transaction
+              </DialogDescription>
+            </DialogHeader>
+            <div className='mt-6 space-y-6'>
+              {/* Request Info */}
+              <div className='rounded-[18px] border border-amber-200 bg-amber-50/30 p-4'>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div>
+                    <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Request Type</div>
+                    <div className='mt-1 font-medium'>{selectedRequest.type === 'REFERENCE_UPDATE' ? 'Update Reference' : 'Retry Transaction'}</div>
+                  </div>
+                  <div>
+                    <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Status</div>
+                    <div className='mt-1'><RequestStatusBadge status={selectedRequest.status} /></div>
+                  </div>
+                  <div>
+                    <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Created By</div>
+                    <div className='mt-1 text-sm'>{selectedRequest.maker.name || selectedRequest.maker.email}</div>
+                  </div>
+                  <div>
+                    <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Created At</div>
+                    <div className='mt-1 text-sm'>{new Date(selectedRequest.createdAt).toLocaleString()}</div>
+                  </div>
+                </div>
+                <div className='mt-4'>
+                  <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Reason</div>
+                  <div className='mt-1 text-sm text-slate-700 bg-white p-3 rounded-xl border border-amber-100'>{selectedRequest.reason}</div>
+                </div>
+                {selectedRequest.type === 'REFERENCE_UPDATE' && (
+                  <div className='mt-4'>
+                    <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Reference Change</div>
+                    <div className='mt-1 font-mono text-sm flex items-center gap-2'>
+                      <span className='text-rose-600'>{selectedRequest.oldTransactionReference}</span>
+                      <ChevronRight className='h-4 w-4 text-slate-400' />
+                      <span className='text-emerald-600'>{selectedRequest.newTransactionReference}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Transaction Details */}
+              <div className='space-y-3'>
+                <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Associated Transaction</div>
+                <div className='rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4'>
+                  <div className='grid grid-cols-2 gap-4'>
+                    <div>
+                      <div className='text-xs text-slate-500'>Merchant</div>
+                      <div className='text-sm font-medium'>{selectedRequest.cashbackTransaction.merchant.name}</div>
+                    </div>
+                    <div>
+                      <div className='text-xs text-slate-500'>Transaction Ref</div>
+                      <div className='text-sm font-mono'>{selectedRequest.cashbackTransaction.transactionReference}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Review Section */}
+              {selectedRequest.status === 'PENDING' && canManage && (session?.user as any)?.id !== selectedRequest.maker.id && (
+                <div className='space-y-4 pt-4 border-t border-[#F1E7D0]'>
+                  <div className='space-y-2'>
+                    <Label htmlFor='comments'>Review Comments (Optional)</Label>
+                    <Textarea
+                      id='comments'
+                      placeholder='Add any comments for this decision...'
+                      value={requestComments}
+                      onChange={(e) => setRequestComments(e.target.value)}
+                      rows={3}
+                      className='rounded-xl border-[#F1E7D0]'
+                    />
+                  </div>
+                  <div className='flex gap-3'>
+                    <Button
+                      className='flex-1 rounded-[18px] bg-emerald-600 hover:bg-emerald-700'
+                      onClick={() => handleApproveRequest(selectedRequest)}
+                      disabled={approvingRequestId === selectedRequest.id}
+                    >
+                      {approvingRequestId === selectedRequest.id ? (
+                        <RefreshCw className='h-4 w-4 animate-spin mr-2' />
+                      ) : (
+                        <CheckCircle2 className='h-4 w-4 mr-2' />
+                      )}
+                      Approve & Execute
+                    </Button>
+                    <Button
+                      variant='outline'
+                      className='flex-1 rounded-[18px] border-rose-200 text-rose-600 hover:bg-rose-50'
+                      onClick={() => handleRejectRequest(selectedRequest)}
+                      disabled={approvingRequestId === selectedRequest.id}
+                    >
+                      {approvingRequestId === selectedRequest.id ? (
+                        <RefreshCw className='h-4 w-4 animate-spin mr-2' />
+                      ) : (
+                        <XCircle className='h-4 w-4 mr-2' />
+                      )}
+                      Reject Request
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.status !== 'PENDING' && selectedRequest.comments && (
+                <div className='space-y-2 pt-4 border-t border-[#F1E7D0]'>
+                  <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Reviewer Comments</div>
+                  <div className='text-sm text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 italic'>
+                    &quot;{selectedRequest.comments}&quot;
+                  </div>
+                  <div className='text-xs text-slate-500 text-right'>
+                    — {selectedRequest.checker?.name || selectedRequest.checker?.email}
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
