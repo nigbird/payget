@@ -55,7 +55,7 @@ export async function POST(
   try {
     const { token } = await params
     const body = await request.json()
-    const { phone, amount } = body
+    const { phone, amount, description } = body
 
     if (!phone || !amount) {
       return NextResponse.json({ error: "Phone and amount are required" }, { status: 400 })
@@ -80,7 +80,7 @@ export async function POST(
         authToken: "QR_PAYMENT_BYPASS" // Since it's a public QR payment
       },
       amount: parseFloat(amount),
-      serviceDescription: `QR Payment to ${qrCode.merchant.name}`,
+      serviceDescription: description || `QR Payment to ${qrCode.merchant.name}`,
       timestamp: new Date().toISOString(),
       method: "BANK" as const
     }
@@ -101,7 +101,6 @@ export async function POST(
       company: "NTMerchant",
       merchantName: qrCode.merchant.name,
       description: paymentInput.serviceDescription,
-      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`,
     })
 
     const providerResponse = await sendProviderPushPayment(providerPayload)
@@ -131,7 +130,8 @@ export async function POST(
       newValue: {
         merchantId: qrCode.merchantId,
         amount: paymentInput.amount,
-        phone
+        phone,
+        description: paymentInput.serviceDescription
       }
     })
 

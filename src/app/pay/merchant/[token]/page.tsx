@@ -17,7 +17,8 @@ import {
   Check,
   ChevronDown,
   Building,
-  Download
+  Download,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -46,6 +47,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   
   const [phone, setPhone] = useState("")
   const [amount, setAmount] = useState("")
+  const [description, setDescription] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("BANK")
   const [copied, setCopied] = useState(false)
   const [transaction, setTransaction] = useState<any>(null)
@@ -99,7 +101,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone: phone,
-          amount: parseFloat(amount)
+          amount: parseFloat(amount),
+          description: description
         })
       })
 
@@ -194,8 +197,45 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex flex-col">
+      <style jsx global>{`
+        @media print {
+          body {
+            background-color: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          header, footer, button, .no-print, [role="status"] {
+            display: none !important;
+          }
+          .print-only {
+            display: block !important;
+          }
+          .receipt-container {
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: none !important;
+            margin: 2rem auto !important;
+            width: 100% !important;
+            max-width: 500px !important;
+            border-radius: 0 !important;
+          }
+          .receipt-header {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            margin-bottom: 2rem !important;
+          }
+          .receipt-logo {
+            width: 60px !important;
+            height: 60px !important;
+            margin-bottom: 1rem !important;
+          }
+        }
+        .print-only {
+          display: none;
+        }
+      `}</style>
       {/* Branded Header */}
-      <header className="bg-white border-b border-amber-100/50 px-6 py-4 shadow-sm sticky top-0 z-50">
+      <header className="bg-white border-b border-amber-100/50 px-6 py-4 shadow-sm sticky top-0 z-50 no-print">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-inner">
@@ -321,6 +361,21 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                           />
                         </div>
                       </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="description" className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Payment Description (Optional)</Label>
+                        <div className="relative">
+                          <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-600" />
+                          <Input 
+                            id="description"
+                            type="text"
+                            placeholder="e.g. Order #1234, Invoice, etc."
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="h-14 pl-11 rounded-2xl border-slate-100 bg-slate-50/50 focus-visible:ring-amber-500/20 focus-visible:border-amber-500 font-medium"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <Button 
@@ -348,9 +403,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 <div className="w-24 h-24 rounded-full bg-amber-100/50 flex items-center justify-center mx-auto">
                   <Loader2 className="w-12 h-12 animate-spin text-amber-600" />
                 </div>
-                <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center">
-                  <Phone className="w-4 h-4 text-amber-600" />
-                </div>
               </div>
               <div className="space-y-3">
                 <h2 className="text-2xl font-black text-[#5b371f]">Pushing USSD Request</h2>
@@ -364,41 +416,79 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
           {view === "success" && (
             <div className="text-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
-              <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/10">
+              <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/10 no-print">
                 <CheckCircle2 className="w-12 h-12 text-emerald-600" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 no-print">
                 <h2 className="text-3xl font-black text-emerald-950">Payment Success!</h2>
                 <p className="text-sm text-emerald-800/60 font-medium">Your transaction of <b>{transaction?.amount || amount} ETB</b> to <b>{merchant?.name}</b> was successful.</p>
               </div>
-              <Card className="bg-white border-emerald-100 rounded-3xl overflow-hidden shadow-xl shadow-emerald-950/5">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex justify-between text-sm">
+              
+              <Card className="bg-white border-emerald-100 rounded-3xl overflow-hidden shadow-xl shadow-emerald-950/5 receipt-container">
+                <CardContent className="p-8 space-y-6">
+                  {/* Print Only Header */}
+                  <div className="print-only text-center space-y-4 mb-8">
+                    <div className="flex justify-center">
+                      <img src="/niblogo.png" alt="Nib International Bank" className="w-16 h-16 object-contain" />
+                    </div>
+                    <div className="space-y-1">
+                      <h1 className="text-xl font-bold text-amber-900">Payment Receipt</h1>
+                      <p className="text-xs text-amber-800/60 uppercase tracking-widest">Nib International Bank</p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Transaction Successful</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between text-sm border-b border-slate-50 pb-3">
+                    <span className="text-slate-500">Merchant Name:</span>
+                    <span className="font-bold text-slate-900">{merchant?.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-b border-slate-50 pb-3">
                     <span className="text-slate-500">Reference:</span>
                     <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[13px]">{transaction?.transactionReference || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm border-b border-slate-50 pb-3">
+                    <span className="text-slate-500">Amount:</span>
+                    <span className="font-bold text-slate-900 text-lg">{transaction?.amount || amount} ETB</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-b border-slate-50 pb-3">
                     <span className="text-slate-500">Date:</span>
                     <span className="font-bold text-slate-900">{new Date(transaction?.timestamp || new Date()).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">To:</span>
+                  <div className="flex justify-between text-sm border-b border-slate-50 pb-3">
+                    <span className="text-slate-500">Merchant Account:</span>
                     <span className="font-bold text-slate-900">{merchant?.accountNumber || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">From:</span>
+                  <div className="flex justify-between text-sm border-b border-slate-50 pb-3">
+                    <span className="text-slate-500">Customer Phone:</span>
                     <span className="font-bold text-slate-900">{phone}</span>
                   </div>
-                  <Separator className="bg-emerald-50" />
-                  <Button variant="outline" className="w-full rounded-xl border-emerald-200 text-emerald-700" onClick={() => window.print()}>
-                    <Download className="w-4 h-4 mr-2" /> Download Receipt
-                  </Button>
+                  {(transaction?.description || description) && (
+                    <div className="flex justify-between text-sm border-b border-slate-50 pb-3">
+                      <span className="text-slate-500">Description:</span>
+                      <span className="font-bold text-slate-900 text-right max-w-[180px]">{transaction?.description || description}</span>
+                    </div>
+                  )}
+                  
+                  <div className="no-print pt-4">
+                    <Separator className="bg-emerald-50 mb-4" />
+                    <Button variant="outline" className="w-full h-12 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-bold" onClick={() => window.print()}>
+                      <Download className="w-4 h-4 mr-2" /> Download Receipt
+                    </Button>
+                  </div>
+
+                  <div className="print-only pt-12 text-center">
+                    <p className="text-[10px] text-slate-400 mt-1">© {new Date().getFullYear()} NibteraMerchant Application</p>
+                  </div>
                 </CardContent>
               </Card>
-              <Button variant="ghost" className="text-slate-500" onClick={() => {
+              <Button variant="ghost" className="text-slate-500 no-print" onClick={() => {
                 setView("input");
                 setAmount("");
                 setPhone("");
+                setDescription("");
               }}>Make Another Payment</Button>
             </div>
           )}
@@ -428,7 +518,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         </div>
       </main>
 
-      <footer className="p-8 text-center" />
+      <footer className="mt-auto py-8 px-6 text-center border-t border-amber-100/30 no-print" />
     </div>
   )
 }
