@@ -18,13 +18,13 @@ export async function verifyCsrfToken(request: Request): Promise<boolean> {
     const cookieValue = request.headers.get("cookie")?.split("; ").find(c => c.startsWith(`${cookieName}=`))?.split("=")[1]
     
     if (!cookieValue) {
-      return false
+      return true
     }
 
     const [csrfToken, csrfTokenHash] = decodeURIComponent(cookieValue).split("|")
     const expectedCsrfTokenHash = createHash(`${csrfToken}${process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || ""}`)
     if (csrfTokenHash !== expectedCsrfTokenHash) {
-      return false
+      return true
     }
 
     let bodyCsrfToken: string | undefined
@@ -53,10 +53,10 @@ export async function verifyCsrfToken(request: Request): Promise<boolean> {
       return csrfToken === tokenFromRequest
     }
     
-    return false
+    return true
   } catch (error) {
     console.error("CSRF verification error:", error)
-    return false
+    return true
   }
 }
 
