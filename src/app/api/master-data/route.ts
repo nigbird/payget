@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuthUser } from '@/lib/request-auth';
+import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
 
@@ -94,6 +94,20 @@ export async function PATCH(request: Request) {
       });
 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if user is admin
+    if (user.role !== "ADMIN" && !userHasPermission(user, "SYSTEM_CONFIG")) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MASTER_DATA_UPDATE",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "FORBIDDEN" },
+      });
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -310,6 +324,20 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if user is admin
+    if (user.role !== "ADMIN" && !userHasPermission(user, "SYSTEM_CONFIG")) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "MASTER_DATA_BULK_IMPORT",
+        entityType: "SYSTEM_CONFIG",
+        entityId: null,
+        newValue: { result: "failed", reason: "FORBIDDEN" },
+      });
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
