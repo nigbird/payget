@@ -58,6 +58,9 @@ import {
   sanitizeSubsidiaryAccountNumberInput,
   getSubsidiaryAccountNumberValidationError,
   SUBSIDIARY_ACCOUNT_MAX_LENGTH,
+  sanitizeAccountNumberInput,
+  validateAccountNumber,
+  ACCOUNT_NUMBER_MAX_LENGTH,
 } from "@/lib/account-number"
 import {
   CASHBACK_LIMITS,
@@ -136,6 +139,7 @@ export function CashbackTab({ merchantId }: Props) {
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [categoryFieldErrors, setCategoryFieldErrors] = useState<Record<string, string>>({})
+  const [customerFieldErrors, setCustomerFieldErrors] = useState<Record<string, string>>({})
 
   const [form, setForm] = useState({
     enabled: false,
@@ -432,12 +436,28 @@ export function CashbackTab({ merchantId }: Props) {
 
   const saveCustomer = async () => {
     if (!editingCustomer) return
+    
+    const errors: Record<string, string> = {}
     if (!customerForm.phone.trim()) {
-      toast({ variant: "destructive", title: "Phone required" })
-      return
+      errors.phone = "Phone number is required."
     }
+    
+    if (customerForm.accountNumber.trim()) {
+      const accCheck = validateAccountNumber(customerForm.accountNumber.trim())
+      if (!accCheck.valid && accCheck.error) errors.accountNumber = accCheck.error
+    }
+
     if (!customerForm.categoryId) {
-      toast({ variant: "destructive", title: "Category required" })
+      errors.categoryId = "Category is required."
+    }
+
+    setCustomerFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Validation",
+        description: "Please fix the customer form fields.",
+      })
       return
     }
 
@@ -710,7 +730,16 @@ export function CashbackTab({ merchantId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={isCustomerModalOpen} onOpenChange={setIsCustomerModalOpen}>
+      <Dialog
+        open={isCustomerModalOpen}
+        onOpenChange={(open) => {
+          setIsCustomerModalOpen(open)
+          if (!open) {
+            setCustomerFieldErrors({})
+            setEditingCustomer(null)
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[400px] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-[#5b371f]">Edit Eligible Customer</DialogTitle>
@@ -719,29 +748,29 @@ export function CashbackTab({ merchantId }: Props) {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <CashbackFormField
+              label="Phone number"
+              fieldType="phone"
+              value={customerForm.phone}
+              error={customerFieldErrors.phone}
+              onChange={(v) => setCustomerForm((p) => ({ ...p, phone: v }))}
+            />
+            <CashbackFormField
+              label="Account number (Optional)"
+              fieldType="accountNumber"
+              value={customerForm.accountNumber}
+              error={customerFieldErrors.accountNumber}
+              onChange={(v) => setCustomerForm((p) => ({ ...p, accountNumber: v }))}
+            />
             <div className="space-y-2">
-              <Label className="text-xs font-medium">Phone number</Label>
-              <Input
-                value={customerForm.phone}
-                onChange={(e) => setCustomerForm(p => ({ ...p, phone: e.target.value }))}
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Account number (Optional)</Label>
-              <Input
-                value={customerForm.accountNumber}
-                onChange={(e) => setCustomerForm(p => ({ ...p, accountNumber: e.target.value }))}
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Cashback group</Label>
+              <Label className="text-xs font-medium text-slate-700">Cashback group</Label>
               <Select
                 value={customerForm.categoryId}
-                onValueChange={(v) => setCustomerForm(p => ({ ...p, categoryId: v }))}
+                onValueChange={(v) => setCustomerForm((p) => ({ ...p, categoryId: v }))}
               >
-                <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-sm">
+                <SelectTrigger
+                  className={`h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-sm ${customerFieldErrors.categoryId ? "border-rose-500 focus:ring-rose-500/20" : ""}`}
+                >
                   <SelectValue placeholder="Select a category…" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
@@ -752,6 +781,9 @@ export function CashbackTab({ merchantId }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+              {customerFieldErrors.categoryId && (
+                <p className="text-[11px] text-rose-600 font-medium">{customerFieldErrors.categoryId}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -1437,7 +1469,7 @@ export function CashbackTab({ merchantId }: Props) {
   )
 }
 
-type CashbackFieldType = "percent" | "amount" | "categoryName"
+type CashbackFieldType = "percent" | "amount" | "categoryName" | "phone" | "accountNumber"
 
 function CashbackFormField({
   label,
@@ -1457,7 +1489,10 @@ function CashbackFormField({
   const sanitize = (raw: string) => {
     if (fieldType === "percent") return sanitizePercentInput(raw)
     if (fieldType === "amount") return sanitizeAmountInput(raw)
-    return sanitizeCategoryNameInput(raw)
+    if (fieldType === "categoryName") return sanitizeCategoryNameInput(raw)
+    if (fieldType === "accountNumber") return sanitizeAccountNumberInput(raw)
+    if (fieldType === "phone") return raw.replace(/[^\d+]/g, "").slice(0, 15)
+    return raw
   }
 
   const maxLength =
@@ -1465,7 +1500,11 @@ function CashbackFormField({
       ? CASHBACK_LIMITS.percentMaxInputLength
       : fieldType === "categoryName"
         ? CASHBACK_LIMITS.categoryNameMax
-        : CASHBACK_LIMITS.amountMaxInputLength
+        : fieldType === "phone"
+          ? 15
+          : fieldType === "accountNumber"
+            ? ACCOUNT_NUMBER_MAX_LENGTH
+            : CASHBACK_LIMITS.amountMaxInputLength
 
   return (
     <div className="space-y-1">
