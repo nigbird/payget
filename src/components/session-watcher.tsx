@@ -18,7 +18,8 @@ import { SESSION_EXPIRED_EVENT } from "@/lib/api-client"
 // Configuration for session behavior (30-minute period)
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000 // 30 minutes of inactivity
 const WARNING_THRESHOLD = 28 * 60 * 1000 // Show warning 2 minutes before timeout (at 28 min)
-const SESSION_CHECK_INTERVAL = 30 * 1000 // Check every 30 seconds
+const SESSION_CHECK_INTERVAL = 5 * 1000 // Check every 5 seconds (concurrent session invalidation)
+const SESSION_UPDATE_THROTTLE = 5 * 1000 // Throttle session refresh on user activity
 const ACTIVITY_STORAGE_KEY = "last_activity_timestamp"
 
 export function SessionWatcher() {
@@ -81,8 +82,8 @@ export function SessionWatcher() {
     const now = Date.now()
     lastActivityRef.current = now
     
-    // Periodically update the NextAuth session (every 30 seconds) to keep it alive
-    if (status === "authenticated" && now - lastUpdateRef.current > 30 * 1000) {
+    // Periodically update the NextAuth session to verify validity (concurrent session check)
+    if (status === "authenticated" && now - lastUpdateRef.current > SESSION_UPDATE_THROTTLE) {
       update()
       lastUpdateRef.current = now
     }

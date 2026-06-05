@@ -233,12 +233,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await resetLoginIdentifierLockout(normalizedKey)
           await resetUserLockout(user.id)
           
-          // Increment session version on new login to invalidate previous sessions.
-          // This addresses the "Unrestricted Concurrent Session" security finding.
-          const updatedUser = await prisma.user.update({
-            where: { id: user.id },
-            data: { sessionVersion: { increment: 1 } }
-          })
+          // Increment session version and revoke all refresh tokens to invalidate previous sessions.
+          const [updatedUser] = await prisma.$transaction([
+            prisma.user.update({
+              where: { id: user.id },
+              data: { sessionVersion: { increment: 1 } }
+            }),
+            prisma.refreshToken.updateMany({
+              where: { userId: user.id, revokedAt: null },
+              data: { revokedAt: new Date() }
+            })
+          ])
           user.sessionVersion = updatedUser.sessionVersion
         } catch (e) {
           console.error("[auth] reset lockouts or update session version", e)

@@ -219,12 +219,17 @@ export async function POST(request: Request) {
     await resetLoginIdentifierLockout(normalizedKey)
     await resetUserLockout(user.id)
 
-    // Increment session version to invalidate old NextAuth JWTs
-    // This ensures only the most recent web session remains valid.
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: { sessionVersion: { increment: 1 } }
-    });
+    // Increment session version and revoke all existing refresh tokens so only this login remains valid.
+    const [updatedUser] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { sessionVersion: { increment: 1 } }
+      }),
+      prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() }
+      })
+    ])
 
     const accessToken = await signAccessToken({
       sub: user.id,
@@ -241,22 +246,6 @@ export async function POST(request: Request) {
     const refreshValue = generateRefreshTokenValue()
     const refreshHash = hashRefreshToken(refreshValue)
     const expiresAt = computeRefreshTokenExpiresAt()
-
-    // Enforce session concurrency limit for API sessions (Refresh Tokens)
-    // Revoke oldest sessions if we exceed the limit (e.g., 5)
-    const MAX_API_SESSIONS = 5;
-    const activeSessions = await prisma.refreshToken.findMany({
-      where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    if (activeSessions.length >= MAX_API_SESSIONS) {
-      const toRevoke = activeSessions.slice(MAX_API_SESSIONS - 1);
-      await prisma.refreshToken.updateMany({
-        where: { id: { in: toRevoke.map(s => s.id) } },
-        data: { revokedAt: new Date() }
-      });
-    }
 
     await prisma.refreshToken.create({
       data: {
