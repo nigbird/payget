@@ -215,6 +215,17 @@ export async function POST(request: Request) {
     const permissions =
       (user as any).customRole?.permissions?.map((p: any) => p.permission?.name).filter(Boolean) || []
 
+    await resetIpLockout(ip)
+    await resetLoginIdentifierLockout(normalizedKey)
+    await resetUserLockout(user.id)
+
+    // Increment session version to invalidate old NextAuth JWTs
+    // This ensures only the most recent web session remains valid.
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { sessionVersion: { increment: 1 } }
+    });
+
     const accessToken = await signAccessToken({
       sub: user.id,
       role: (user as any).role,
@@ -231,10 +242,6 @@ export async function POST(request: Request) {
     const refreshHash = hashRefreshToken(refreshValue)
     const expiresAt = computeRefreshTokenExpiresAt()
 
-    await resetIpLockout(ip)
-    await resetLoginIdentifierLockout(normalizedKey)
-    await resetUserLockout(user.id)
-
     // Enforce session concurrency limit for API sessions (Refresh Tokens)
     // Revoke oldest sessions if we exceed the limit (e.g., 5)
     const MAX_API_SESSIONS = 5;
@@ -250,13 +257,6 @@ export async function POST(request: Request) {
         data: { revokedAt: new Date() }
       });
     }
-
-    // Increment session version to invalidate old NextAuth JWTs
-    // This ensures only the most recent web session remains valid.
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: { sessionVersion: { increment: 1 } }
-    });
 
     await prisma.refreshToken.create({
       data: {

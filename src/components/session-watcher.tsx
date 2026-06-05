@@ -174,6 +174,13 @@ export function SessionWatcher() {
         setIsExpiring(true)
         setShowTimeoutModal(true)
       }
+
+      // Periodically verify session validity with the server (concurrency control)
+      // This ensures that if another session starts, this one is invalidated 
+      // even without user interaction.
+      if (statusRef.current === "authenticated" && !isAuthPageRef.current && !showTimeoutModal) {
+        update()
+      }
     }, SESSION_CHECK_INTERVAL)
 
     return () => clearInterval(interval)

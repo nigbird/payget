@@ -50,14 +50,21 @@ export async function PATCH(
     const updateData: any = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.email !== undefined) updateData.email = body.email;
-    if (body.customRoleId !== undefined) updateData.customRoleId = body.customRoleId;
+    if (body.customRoleId !== undefined) {
+      updateData.customRoleId = body.customRoleId;
+      updateData.sessionVersion = { increment: 1 };
+    }
     if (body.isHeadOffice !== undefined) updateData.isHeadOffice = body.isHeadOffice;
     if (body.district !== undefined) updateData.district = body.district;
     if (body.branch !== undefined) updateData.branch = body.branch;
-    if (body.status !== undefined) updateData.status = body.status;
+    if (body.status !== undefined) {
+      updateData.status = body.status;
+      updateData.sessionVersion = { increment: 1 };
+    }
     if (body.firstLogin !== undefined) updateData.firstLogin = body.firstLogin;
     if (body.password) {
       updateData.password = await bcrypt.hash(body.password, 10);
+      updateData.sessionVersion = { increment: 1 };
     }
 
     const oldUser = await prisma.user.findUnique({ where: { id } });
@@ -151,7 +158,10 @@ export async function DELETE(
     
     await prisma.user.update({
       where: { id },
-      data: { status: 'DEACTIVATED' },
+      data: { 
+        status: 'DEACTIVATED',
+        sessionVersion: { increment: 1 } 
+      },
     });
 
     await writeAuditLog({

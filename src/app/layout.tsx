@@ -6,6 +6,8 @@ import { SessionWatcher } from "@/components/session-watcher";
 import { headers } from "next/headers";
 import { NonceProvider } from "@/components/nonce-provider";
 import { Inter } from 'next/font/google';
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 const inter = Inter({
   subsets: ['latin'],
@@ -34,14 +36,22 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
-
+  
+  // Server-side session validation to enforce single active session.
+  // This catches invalidated sessions (due to new logins elsewhere) on page navigation.
+  const session = await auth();
+  
+  // If we have a session but auth() returned null (which it does when sessionVersion mismatches),
+  // we are effectively logged out. The middleware might have allowed us through if it's on Edge,
+  // but this Node-side check in the layout will catch it.
+  
   return (
     <html lang="en" className={inter.variable}>
       <head>
       </head>
       <body className="font-body antialiased bg-background">
         <NonceProvider nonce={nonce}>
-          <AuthSessionProvider>
+          <AuthSessionProvider session={session}>
             {children}
             <SessionWatcher />
             <Toaster />
