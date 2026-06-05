@@ -55,8 +55,9 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import {
-  sanitizeAccountNumberInput,
-  getAccountNumberValidationError,
+  sanitizeSubsidiaryAccountNumberInput,
+  getSubsidiaryAccountNumberValidationError,
+  SUBSIDIARY_ACCOUNT_MAX_LENGTH,
 } from "@/lib/account-number"
 import {
   CASHBACK_LIMITS,
@@ -228,7 +229,7 @@ export function CashbackTab({ merchantId }: Props) {
     const errors: Record<string, string> = {}
 
     const subsidiaryError = form.subsidiaryAccountNumber
-      ? getAccountNumberValidationError(form.subsidiaryAccountNumber)
+      ? getSubsidiaryAccountNumberValidationError(form.subsidiaryAccountNumber)
       : form.enabled
         ? "Subsidiary account is required when cashback is enabled."
         : undefined
@@ -666,14 +667,13 @@ export function CashbackTab({ merchantId }: Props) {
                       <Label htmlFor="subsidiary" className="text-sm font-medium">Subsidiary funding account</Label>
                       <Input
                         id="subsidiary"
-                        inputMode="numeric"
-                        maxLength={13}
-                        placeholder="7000123456789"
+                        maxLength={SUBSIDIARY_ACCOUNT_MAX_LENGTH}
+                        placeholder="ABC7000123456789"
                         value={form.subsidiaryAccountNumber}
                         onChange={(e) =>
                           setForm((p) => ({
                             ...p,
-                            subsidiaryAccountNumber: sanitizeAccountNumberInput(e.target.value),
+                            subsidiaryAccountNumber: sanitizeSubsidiaryAccountNumberInput(e.target.value),
                           }))
                         }
                         className={`h-11 rounded-xl font-mono focus:ring-amber-500/20 ${fieldErrors.subsidiaryAccountNumber ? "border-rose-500" : ""}`}
@@ -682,7 +682,7 @@ export function CashbackTab({ merchantId }: Props) {
                         <p className="text-xs text-rose-600">{fieldErrors.subsidiaryAccountNumber}</p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        Must start with 7000, up to 13 digits.
+                        First 3 characters: letters or numbers; up to 13 digits after (16 total).
                       </p>
                     </div>
                   </div>

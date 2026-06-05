@@ -560,7 +560,7 @@ export default function MerchantSelfRegistration() {
                         }
                       />
                       {errors.accountNumber && <p className="text-[11px] text-red-500 font-medium">{errors.accountNumber}</p>}
-                      <p className="text-xs text-gray-400">Must start with 7000, digits only, up to 13 characters.</p>
+                      <p className="text-xs text-gray-400">Must start with 7000, digits only, exactly 13 characters.</p>
                     </div>
                   </div>
                 </div>

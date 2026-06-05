@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
-import { validateAccountNumberField } from "@/lib/account-number"
+import { validateSubsidiaryAccountNumberField } from "@/lib/account-number"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { getOrCreateCashbackConfig, mapConfigToDto } from "@/lib/cashback/service"
 import { validateCashbackConfigBody } from "@/lib/cashback/validation"
@@ -45,7 +45,7 @@ export async function PUT(
       if (body.subsidiaryAccountNumber === null || body.subsidiaryAccountNumber === "") {
         subsidiaryAccountNumber = null
       } else {
-        subsidiaryAccountNumber = validateAccountNumberField(
+        subsidiaryAccountNumber = validateSubsidiaryAccountNumberField(
           body.subsidiaryAccountNumber,
           validationErrors,
           { required: true }

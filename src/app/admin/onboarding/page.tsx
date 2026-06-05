@@ -914,7 +914,7 @@ function MerchantOnboardingContent() {
                                     />
                                   </div>
                                   {errors.accountNumber && <p className="text-[10px] text-red-500 font-medium">{errors.accountNumber}</p>}
-                                  <p className="text-[10px] text-gray-400">Must start with 7000, digits only, up to 13 characters.</p>
+                                  <p className="text-[10px] text-gray-400">Must start with 7000, digits only, exactly 13 characters.</p>
                                 </div>
                                 <div className="space-y-2">
                                   <Label htmlFor="websiteUrl" className="text-sm font-medium text-gray-700">Website URL (Optional)</Label>

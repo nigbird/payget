@@ -777,7 +777,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             placeholder="7000123456789"
                             className="h-11 rounded-2xl border-white/60 bg-white/85"
                           />
-                          <p className="text-xs text-muted-foreground">Must start with 7000, digits only, up to 13 characters.</p>
+                          <p className="text-xs text-muted-foreground">Must start with 7000, digits only, exactly 13 characters.</p>
                           {errors.accountNumber && <p className="text-xs text-rose-600">{errors.accountNumber}</p>}
                         </div>
                       </div>

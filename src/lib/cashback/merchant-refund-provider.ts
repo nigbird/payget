@@ -43,7 +43,7 @@ export class MerchantRefundTransferProvider implements CashbackTransferProvider 
   constructor(private readonly config: MerchantRefundProviderConfig) {}
 
   async executeTransfer(request: CashbackTransferRequest): Promise<CashbackTransferResult> {
-    const debitAccount = normalizeAccount(request.subsidiaryAccountNumber)
+    const debitAccount = request.subsidiaryAccountNumber?.trim() || null
     if (!debitAccount) {
       return {
         success: false,

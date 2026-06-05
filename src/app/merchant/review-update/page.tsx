@@ -572,7 +572,7 @@ function ReviewUpdateForm() {
                         })
                       }
                     />
-                    <p className="text-xs text-gray-400">Must start with 7000, digits only, up to 13 characters.</p>
+                    <p className="text-xs text-gray-400">Must start with 7000, digits only, exactly 13 characters.</p>
                   </div>
                 </div>
               </div>
