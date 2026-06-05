@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
-import { validateCategoryBody, validateCategoryName } from "@/lib/cashback/validation"
+import { validateCategoryBody, validateCategoryName, validateNoOverlappingCategoryRules } from "@/lib/cashback/validation"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function PATCH(
   request: Request,
@@ -51,6 +52,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Validation failed", errors }, { status: 400 })
     }
 
+    if (body.minTransactionAmount !== undefined || body.maxTransactionAmount !== undefined) {
+      const newMin = parseNullableNumber(body.minTransactionAmount ?? existing.minTransactionAmount) ?? 0
+      const newMax = parseNullableNumber(body.maxTransactionAmount ?? existing.maxTransactionAmount)
+
+      const siblingCategories = await prisma.cashbackCategory.findMany({
+        where: { configId: existing.configId },
+        select: { id: true, name: true, minTransactionAmount: true, maxTransactionAmount: true },
+      })
+
+      const overlapCheck = validateNoOverlappingCategoryRules(newMin, newMax, siblingCategories, categoryId)
+      if (!overlapCheck.valid) {
+        return NextResponse.json({ error: "Validation failed", errors: { minTransactionAmount: overlapCheck.error } }, { status: 409 })
+      }
+    }
+
     const percent = body.percent !== undefined ? Number(body.percent) : undefined
 
     const updated = await prisma.cashbackCategory.update({
@@ -95,7 +111,7 @@ export async function DELETE(
     if (csrfError) return csrfError
 
     const { id: merchantId, categoryId } = await params
-    const { error } = await requireMerchantCashbackAccess(request, merchantId)
+    const { user, error } = await requireMerchantCashbackAccess(request, merchantId)
     if (error) return error
 
     const existing = await prisma.cashbackCategory.findFirst({
@@ -106,6 +122,16 @@ export async function DELETE(
     }
 
     await prisma.cashbackCategory.delete({ where: { id: categoryId } })
+
+    await writeAuditLog({
+      request,
+      userId: user!.id,
+      action: "CASHBACK_CATEGORY_DELETE",
+      entityType: "CASHBACK_CATEGORY",
+      entityId: categoryId,
+      oldValue: { name: existing.name, percent: existing.percent, isActive: existing.isActive },
+    })
+
     return NextResponse.json({ success: true })
   } catch (e) {
     console.error("Failed to delete cashback category:", e)

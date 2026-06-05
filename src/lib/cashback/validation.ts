@@ -245,6 +245,52 @@ export function validateImportFile(file: File): { valid: boolean; error?: string
   return { valid: true }
 }
 
+/**
+ * Check whether two transaction amount ranges overlap.
+ * null max means unbounded (infinity).
+ */
+function rangesOverlap(
+  minA: number | null,
+  maxA: number | null,
+  minB: number | null,
+  maxB: number | null
+): boolean {
+  const effectiveMinA = minA ?? 0
+  const effectiveMinB = minB ?? 0
+  const effectiveMaxA = maxA ?? Infinity
+  const effectiveMaxB = maxB ?? Infinity
+  return effectiveMinA <= effectiveMaxB && effectiveMinB <= effectiveMaxA
+}
+
+export interface ExistingCategoryRange {
+  id: string
+  name: string
+  minTransactionAmount: number | null
+  maxTransactionAmount: number | null
+}
+
+/**
+ * Validate that the given amount range does not overlap with existing categories.
+ * Pass excludeId to skip the category being updated.
+ */
+export function validateNoOverlappingCategoryRules(
+  min: number | null,
+  max: number | null,
+  existing: ExistingCategoryRange[],
+  excludeId?: string
+): { valid: boolean; error?: string } {
+  for (const cat of existing) {
+    if (excludeId && cat.id === excludeId) continue
+    if (rangesOverlap(min, max, cat.minTransactionAmount, cat.maxTransactionAmount)) {
+      return {
+        valid: false,
+        error: `Transaction amount range overlaps with existing category "${cat.name}".`,
+      }
+    }
+  }
+  return { valid: true }
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

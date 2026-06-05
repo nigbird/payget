@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { getOrCreateCashbackConfig } from "@/lib/cashback/service"
-import { validateCategoryBody } from "@/lib/cashback/validation"
+import { validateCategoryBody, validateNoOverlappingCategoryRules } from "@/lib/cashback/validation"
 
 export async function POST(
   request: Request,
@@ -25,8 +25,20 @@ export async function POST(
 
     const name = String(body.name).trim()
     const percent = Number(body.percent)
+    const minAmount = parseNullableNumber(body.minTransactionAmount) ?? 0
+    const maxAmount = parseNullableNumber(body.maxTransactionAmount)
 
     const config = await getOrCreateCashbackConfig(merchantId)
+
+    const existingCategories = await prisma.cashbackCategory.findMany({
+      where: { configId: config.id },
+      select: { id: true, name: true, minTransactionAmount: true, maxTransactionAmount: true },
+    })
+
+    const overlapCheck = validateNoOverlappingCategoryRules(minAmount, maxAmount, existingCategories)
+    if (!overlapCheck.valid) {
+      return NextResponse.json({ error: "Validation failed", errors: { minTransactionAmount: overlapCheck.error } }, { status: 409 })
+    }
 
     const category = await prisma.cashbackCategory.create({
       data: {
@@ -35,8 +47,8 @@ export async function POST(
         name,
         description: body.description ? String(body.description).trim() : null,
         percent,
-        minTransactionAmount: parseNullableNumber(body.minTransactionAmount) ?? 0,
-        maxTransactionAmount: parseNullableNumber(body.maxTransactionAmount),
+        minTransactionAmount: minAmount,
+        maxTransactionAmount: maxAmount,
         sortOrder: Number(body.sortOrder) || 0,
         isActive: body.isActive !== false,
       },

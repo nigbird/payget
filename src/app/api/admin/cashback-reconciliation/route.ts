@@ -255,6 +255,9 @@ export async function POST(request: Request) {
           data: { transactionReference: cashbackRequest.newTransactionReference }
         });
       } else if (cashbackRequest.type === 'RETRY') {
+        if (cashbackRequest.cashbackTransaction.status === 'COMPLETED') {
+          return NextResponse.json({ error: 'Transaction has already been successfully processed' }, { status: 409 });
+        }
         // Trigger actual execution using the refund API
         await executeTransferForTransaction(cashbackRequest.cashbackTransactionId);
       }
@@ -350,9 +353,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'No cashback transactions specified' }, { status: 400 });
       }
 
-      // Update transactions to PENDING for retry
+      // Update transactions to PENDING for retry — skip already-completed ones
       const updated = await prisma.cashbackTransaction.updateMany({
-        where: { id: { in: cashbackIds } },
+        where: { id: { in: cashbackIds }, status: { not: 'COMPLETED' } },
         data: { status: 'PENDING' }
       });
 
