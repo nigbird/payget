@@ -14,6 +14,17 @@ export async function GET(
     const url = new URL(request.url)
     const status = url.searchParams.get("status") ?? undefined
     const search = url.searchParams.get("search") ?? undefined
+    const download = url.searchParams.get("download") === "true"
+    
+    if (download) {
+      // For download, we get all transactions matching filters without pagination
+      const result = await listCashbackTransactions(id, { status, search, limit: 10000 })
+      return NextResponse.json({ 
+        transactions: result.transactions, 
+        total: result.total 
+      })
+    }
+
     const page = url.searchParams.get("page") ? Number(url.searchParams.get("page")) : undefined
     const limit = Math.min(Number(url.searchParams.get("limit")) || 30, 200)
     const offset = url.searchParams.get("offset") ? Number(url.searchParams.get("offset")) : undefined

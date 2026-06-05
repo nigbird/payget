@@ -117,8 +117,17 @@ export function CashbackTab({ merchantId }: Props) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const hadSearchFocusRef = useRef(false)
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
+  const [editingCategory, setEditingCategory] = useState<CashbackCategoryDto | null>(null)
+  const [editingCustomer, setEditingCustomer] = useState<CashbackEligibleCustomerDto | null>(null)
+  const [customerForm, setCustomerForm] = useState({
+    phone: "",
+    accountNumber: "",
+    categoryId: "",
+  })
+  const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
   const [activeTab, setActiveTab] = useState<string>("settings")
@@ -295,7 +304,7 @@ export function CashbackTab({ merchantId }: Props) {
     }
   }
 
-  const addCategory = async () => {
+  const saveCategory = async () => {
     const errors: Record<string, string> = {}
     const nameCheck = validateCategoryName(categoryForm.name)
     if (!nameCheck.valid && nameCheck.error) errors.name = nameCheck.error
@@ -320,8 +329,14 @@ export function CashbackTab({ merchantId }: Props) {
     }
 
     try {
-      const res = await fetch(`/api/merchants/${merchantId}/cashback/categories`, {
-        method: "POST",
+      const isEditing = !!editingCategory
+      const url = isEditing
+        ? `/api/merchants/${merchantId}/cashback/categories/${editingCategory.id}`
+        : `/api/merchants/${merchantId}/cashback/categories`
+      const method = isEditing ? "PATCH" : "POST"
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: categoryForm.name.trim(),
@@ -333,15 +348,16 @@ export function CashbackTab({ merchantId }: Props) {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         if (data.errors) setCategoryFieldErrors(data.errors)
-        throw new Error(data.error || data.errors?.name || "Failed to add category")
+        throw new Error(data.error || data.errors?.name || `Failed to ${isEditing ? "update" : "add"} category`)
       }
       setCategoryForm(emptyCategoryForm)
       setCategoryFieldErrors({})
       setIsCategoryModalOpen(false)
+      setEditingCategory(null)
       // Reload both config and transactions
       await loadInitialData()
       await loadTransactions()
-      toast({ title: "Category added" })
+      toast({ title: isEditing ? "Category updated" : "Category added" })
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -349,6 +365,17 @@ export function CashbackTab({ merchantId }: Props) {
         description: e instanceof Error ? e.message : "Failed",
       })
     }
+  }
+
+  const startEditCategory = (cat: CashbackCategoryDto) => {
+    setEditingCategory(cat)
+    setCategoryForm({
+      name: cat.name,
+      percent: cat.percent.toString(),
+      minTransactionAmount: cat.minTransactionAmount?.toString() ?? "",
+      maxTransactionAmount: cat.maxTransactionAmount?.toString() ?? "",
+    })
+    setIsCategoryModalOpen(true)
   }
 
   const requestDeleteCategory = (category: CashbackCategoryDto) => {
@@ -391,6 +418,55 @@ export function CashbackTab({ merchantId }: Props) {
         toast({ title: "Customer removed" })
       },
     })
+  }
+
+  const startEditCustomer = (customer: CashbackEligibleCustomerDto) => {
+    setEditingCustomer(customer)
+    setCustomerForm({
+      phone: customer.phone,
+      accountNumber: customer.accountNumber ?? "",
+      categoryId: customer.categoryId,
+    })
+    setIsCustomerModalOpen(true)
+  }
+
+  const saveCustomer = async () => {
+    if (!editingCustomer) return
+    if (!customerForm.phone.trim()) {
+      toast({ variant: "destructive", title: "Phone required" })
+      return
+    }
+    if (!customerForm.categoryId) {
+      toast({ variant: "destructive", title: "Category required" })
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/merchants/${merchantId}/cashback/eligible/${editingCustomer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: customerForm.phone.trim(),
+          accountNumber: customerForm.accountNumber.trim() || null,
+          categoryId: customerForm.categoryId,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to update customer")
+      }
+      setIsCustomerModalOpen(false)
+      setEditingCustomer(null)
+      await loadInitialData()
+      await loadTransactions()
+      toast({ title: "Customer updated" })
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: e instanceof Error ? e.message : "Failed",
+      })
+    }
   }
 
   const requestClearGroupImports = () => {
@@ -508,7 +584,76 @@ export function CashbackTab({ merchantId }: Props) {
     document.body.removeChild(a)
   }
 
+  const exportTransactions = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
+      if (statusFilter && statusFilter !== "ALL") params.set('status', statusFilter)
+      params.set('download', 'true')
+      
+      const res = await fetch(`/api/merchants/${merchantId}/cashback/transactions?${params.toString()}`)
+      if (!res.ok) throw new Error("Export failed")
+      
+      const data = await res.json()
+      const txs: CashbackTransactionDto[] = data.transactions ?? []
+      
+      if (txs.length === 0) {
+        toast({ title: "No data to export" })
+        return
+      }
 
+      const headers = [
+        "ID",
+        "Payment Transaction ID",
+        "Customer Phone",
+        "Customer Account",
+        "Payment Amount",
+        "Cashback Amount",
+        "Cashback %",
+        "Status",
+        "Category",
+        "Processed At",
+        "Created At",
+        "Failure/Skip Reason"
+      ].join(",")
+
+      const rows = txs.map(tx => [
+        tx.id,
+        tx.paymentTransactionId,
+        tx.customerPhone ?? "",
+        tx.customerAccount ?? "",
+        tx.paymentAmount,
+        tx.cashbackAmount,
+        tx.cashbackPercent,
+        tx.status,
+        tx.categoryName ?? "",
+        tx.processedAt ?? "",
+        tx.createdAt,
+        tx.failureReason || tx.skipReason || ""
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
+
+      const csv = `${headers}\n${rows}`
+      const blob = new Blob([csv], { type: "text/csv" })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.setAttribute("hidden", "")
+      a.setAttribute("href", url)
+      a.setAttribute("download", `cashback_history_${new Date().toISOString().split('T')[0]}.csv`)
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      toast({ title: "Export complete" })
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -564,6 +709,59 @@ export function CashbackTab({ merchantId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isCustomerModalOpen} onOpenChange={setIsCustomerModalOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#5b371f]">Edit Eligible Customer</DialogTitle>
+            <DialogDescription>
+              Update customer details or change their cashback group.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Phone number</Label>
+              <Input
+                value={customerForm.phone}
+                onChange={(e) => setCustomerForm(p => ({ ...p, phone: e.target.value }))}
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Account number (Optional)</Label>
+              <Input
+                value={customerForm.accountNumber}
+                onChange={(e) => setCustomerForm(p => ({ ...p, accountNumber: e.target.value }))}
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Cashback group</Label>
+              <Select
+                value={customerForm.categoryId}
+                onValueChange={(v) => setCustomerForm(p => ({ ...p, categoryId: v }))}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-sm">
+                  <SelectValue placeholder="Select a category…" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
+                  {config?.categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id} className="rounded-lg">
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={saveCustomer} className={`w-full ${THEME_BTN_MD}`}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
         <Gift className="h-5 w-5 text-amber-700 mt-0.5" />
         <div>
@@ -738,79 +936,88 @@ export function CashbackTab({ merchantId }: Props) {
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base text-[#5b371f]">Management categories</CardTitle>
                   <Dialog
-                    open={isCategoryModalOpen}
-                    onOpenChange={(open) => {
-                      setIsCategoryModalOpen(open)
-                      if (!open) setCategoryFieldErrors({})
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <Button size="sm" className={THEME_BTN_SM}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Category
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px] rounded-2xl">
-                      <DialogHeader>
-                        <DialogTitle className="text-[#5b371f]">Add New Category</DialogTitle>
-                        <DialogDescription>
-                          Define eligibility rules for a specific group of customers.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <CashbackFormField
-                          label="Category name"
-                          hint={`Max ${CASHBACK_LIMITS.categoryNameMax} characters`}
-                          fieldType="categoryName"
-                          value={categoryForm.name}
-                          error={categoryFieldErrors.name}
-                          onChange={(v) => setCategoryForm((p) => ({ ...p, name: v }))}
-                        />
-                        <CashbackFormField
-                          label="Cashback percentage"
-                          hint="0.01 – 100"
-                          fieldType="percent"
-                          value={categoryForm.percent}
-                          error={categoryFieldErrors.percent}
-                          onChange={(v) => setCategoryForm((p) => ({ ...p, percent: v }))}
-                        />
-                        <div className="grid grid-cols-2 gap-4">
-                          <CashbackFormField
-                            label="Min transaction"
-                            fieldType="amount"
-                            value={categoryForm.minTransactionAmount}
-                            error={categoryFieldErrors.minTransactionAmount}
-                            onChange={(v) =>
-                              setCategoryForm((p) => ({ ...p, minTransactionAmount: v }))
-                            }
-                          />
-                          <CashbackFormField
-                            label="Max transaction"
-                            fieldType="amount"
-                            value={categoryForm.maxTransactionAmount}
-                            error={categoryFieldErrors.maxTransactionAmount}
-                            onChange={(v) =>
-                              setCategoryForm((p) => ({ ...p, maxTransactionAmount: v }))
-                            }
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button onClick={addCategory} className={`w-full ${THEME_BTN_MD}`}>
-                          Create Category
+                      open={isCategoryModalOpen}
+                      onOpenChange={(open) => {
+                        setIsCategoryModalOpen(open)
+                        if (!open) {
+                          setCategoryFieldErrors({})
+                          setEditingCategory(null)
+                          setCategoryForm(emptyCategoryForm)
+                        }
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button size="sm" className={THEME_BTN_SM}>
+                          <Plus className="h-4 w-4 mr-2" /> Add Category
                         </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid gap-4">
-                    {config?.categories.map((cat) => (
-                      <CategoryRow
-                        key={cat.id}
-                        category={cat}
-                        onDelete={() => requestDeleteCategory(cat)}
-                      />
-                    ))}
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px] rounded-2xl">
+                        <DialogHeader>
+                          <DialogTitle className="text-[#5b371f]">
+                            {editingCategory ? "Edit Category" : "Add New Category"}
+                          </DialogTitle>
+                          <DialogDescription>
+                            {editingCategory
+                              ? `Updating rules for "${editingCategory.name}".`
+                              : "Define eligibility rules for a specific group of customers."}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <CashbackFormField
+                            label="Category name"
+                            hint={`Max ${CASHBACK_LIMITS.categoryNameMax} characters`}
+                            fieldType="categoryName"
+                            value={categoryForm.name}
+                            error={categoryFieldErrors.name}
+                            onChange={(v) => setCategoryForm((p) => ({ ...p, name: v }))}
+                          />
+                          <CashbackFormField
+                            label="Cashback percentage"
+                            hint="0.01 – 100"
+                            fieldType="percent"
+                            value={categoryForm.percent}
+                            error={categoryFieldErrors.percent}
+                            onChange={(v) => setCategoryForm((p) => ({ ...p, percent: v }))}
+                          />
+                          <div className="grid grid-cols-2 gap-4">
+                            <CashbackFormField
+                              label="Min transaction"
+                              fieldType="amount"
+                              value={categoryForm.minTransactionAmount}
+                              error={categoryFieldErrors.minTransactionAmount}
+                              onChange={(v) =>
+                                setCategoryForm((p) => ({ ...p, minTransactionAmount: v }))
+                              }
+                            />
+                            <CashbackFormField
+                              label="Max transaction"
+                              fieldType="amount"
+                              value={categoryForm.maxTransactionAmount}
+                              error={categoryFieldErrors.maxTransactionAmount}
+                              onChange={(v) =>
+                                setCategoryForm((p) => ({ ...p, maxTransactionAmount: v }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button onClick={saveCategory} className={`w-full ${THEME_BTN_MD}`}>
+                            {editingCategory ? "Save Changes" : "Create Category"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4">
+                      {config?.categories.map((cat) => (
+                        <CategoryRow
+                          key={cat.id}
+                          category={cat}
+                          onEdit={() => startEditCategory(cat)}
+                          onDelete={() => requestDeleteCategory(cat)}
+                        />
+                      ))}
                     {config?.categories.length === 0 && (
                       <div className="text-center py-12 rounded-xl border border-dashed border-slate-200 bg-slate-50/30">
                         <Plus className="h-10 w-10 text-slate-200 mx-auto mb-2" />
@@ -988,16 +1195,28 @@ export function CashbackTab({ merchantId }: Props) {
                               </Badge>
                             </td>
                             <td className="p-3 text-right">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                                onClick={() => requestDeleteCustomer(row)}
-                                title="Remove customer"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg text-amber-600 hover:bg-amber-50"
+                                  onClick={() => startEditCustomer(row)}
+                                  title="Edit customer"
+                                >
+                                  <Settings2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                  onClick={() => requestDeleteCustomer(row)}
+                                  title="Remove customer"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1024,10 +1243,24 @@ export function CashbackTab({ merchantId }: Props) {
 
             <TabsContent value="history" className="space-y-6">
               <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
-                <CardHeader className="pb-2">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
                     <History className="h-4 w-4" /> Transaction history
                   </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-9 border-amber-200 text-amber-800 hover:bg-amber-50"
+                    onClick={exportTransactions}
+                    disabled={exporting || transactions.length === 0}
+                  >
+                    {exporting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Export CSV
+                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Filters */}
@@ -1256,14 +1489,16 @@ function CashbackFormField({
 
 function CategoryRow({
   category,
+  onEdit,
   onDelete,
 }: {
   category: CashbackCategoryDto
+  onEdit: () => void
   onDelete: () => void
 }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-xl border p-3 bg-slate-50/50">
-      <div>
+      <div className="flex-1">
         <p className="font-semibold text-sm">{category.name}</p>
         <p className="text-xs text-muted-foreground">
           {category.percent}% · min {category.minTransactionAmount ?? 0}
@@ -1273,15 +1508,26 @@ function CategoryRow({
           {category.eligibleCount} eligible customers
         </p>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onDelete}
-        className="h-9 w-9 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700 shrink-0"
-        title="Delete category"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEdit}
+          className="h-9 w-9 rounded-lg text-amber-600 hover:bg-amber-50"
+          title="Edit category"
+        >
+          <Settings2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDelete}
+          className="h-9 w-9 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+          title="Delete category"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   )
 }
