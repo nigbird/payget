@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { validateCategoryBody, validateCategoryName } from "@/lib/cashback/validation"
+import { checkCategoryRuleOverlap } from "@/lib/cashback/service"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function PATCH(
   request: Request,
@@ -13,7 +15,7 @@ export async function PATCH(
     if (csrfError) return csrfError
 
     const { id: merchantId, categoryId } = await params
-    const { error } = await requireMerchantCashbackAccess(request, merchantId)
+    const { user, error } = await requireMerchantCashbackAccess(request, merchantId)
     if (error) return error
 
     const existing = await prisma.cashbackCategory.findFirst({
@@ -51,6 +53,29 @@ export async function PATCH(
       return NextResponse.json({ error: "Validation failed", errors }, { status: 400 })
     }
 
+    // Check for overlapping amount ranges with other active categories
+    const resolvedMin =
+      body.minTransactionAmount !== undefined
+        ? (parseNullableNumber(body.minTransactionAmount) ?? 0)
+        : (existing.minTransactionAmount ?? 0)
+    const resolvedMax =
+      body.maxTransactionAmount !== undefined
+        ? parseNullableNumber(body.maxTransactionAmount)
+        : existing.maxTransactionAmount
+
+    const overlapError = await checkCategoryRuleOverlap(
+      existing.configId,
+      resolvedMin,
+      resolvedMax,
+      categoryId
+    )
+    if (overlapError) {
+      return NextResponse.json(
+        { error: "Validation failed", errors: { minTransactionAmount: overlapError } },
+        { status: 409 }
+      )
+    }
+
     const percent = body.percent !== undefined ? Number(body.percent) : undefined
 
     const updated = await prisma.cashbackCategory.update({
@@ -67,6 +92,22 @@ export async function PATCH(
         isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
       },
       include: { _count: { select: { eligibleCustomers: true } } },
+    })
+
+    await writeAuditLog({
+      request,
+      userId: user!.id,
+      action: "CASHBACK_CATEGORY_UPDATE",
+      entityType: "CASHBACK_CATEGORY",
+      entityId: categoryId,
+      oldValue: {
+        name: existing.name,
+        percent: existing.percent,
+        minTransactionAmount: existing.minTransactionAmount,
+        maxTransactionAmount: existing.maxTransactionAmount,
+        isActive: existing.isActive,
+      },
+      newValue: body,
     })
 
     return NextResponse.json({
@@ -95,7 +136,7 @@ export async function DELETE(
     if (csrfError) return csrfError
 
     const { id: merchantId, categoryId } = await params
-    const { error } = await requireMerchantCashbackAccess(request, merchantId)
+    const { user, error } = await requireMerchantCashbackAccess(request, merchantId)
     if (error) return error
 
     const existing = await prisma.cashbackCategory.findFirst({
@@ -105,7 +146,36 @@ export async function DELETE(
       return NextResponse.json({ error: "Category not found" }, { status: 404 })
     }
 
+    // Block deletion if the category has non-skipped cashback transactions
+    const activeTransactionCount = await prisma.cashbackTransaction.count({
+      where: { categoryId, NOT: { status: "SKIPPED" } },
+    })
+    if (activeTransactionCount > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete category "${existing.name}" — it has ${activeTransactionCount} associated cashback transaction(s). Deactivate the category instead.`,
+        },
+        { status: 409 }
+      )
+    }
+
     await prisma.cashbackCategory.delete({ where: { id: categoryId } })
+
+    await writeAuditLog({
+      request,
+      userId: user!.id,
+      action: "CASHBACK_CATEGORY_DELETE",
+      entityType: "CASHBACK_CATEGORY",
+      entityId: categoryId,
+      oldValue: {
+        name: existing.name,
+        percent: existing.percent,
+        minTransactionAmount: existing.minTransactionAmount,
+        maxTransactionAmount: existing.maxTransactionAmount,
+        isActive: existing.isActive,
+      },
+    })
+
     return NextResponse.json({ success: true })
   } catch (e) {
     console.error("Failed to delete cashback category:", e)

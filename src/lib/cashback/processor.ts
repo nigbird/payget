@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { writeAuditLog } from "@/lib/audit-log"
+import { sendSms } from "@/lib/sms"
 import { db } from "@/app/lib/db"
 import { normalizeCashbackPhone } from "./phone"
 import {
@@ -359,6 +360,15 @@ export async function executeTransferForTransaction(cashbackTransactionId: strin
       debitRef: transfer.debitRef,
       creditRef: transfer.creditRef,
     })
+
+    if (cashbackTx.customerPhone) {
+      sendSms(
+        cashbackTx.customerPhone,
+        `Your cashback of ${cashbackTx.cashbackAmount.toFixed(2)} has been credited to your account. Thank you!`
+      ).catch((err) => {
+        console.error("[cashback] SMS notification failed", { error: String(err?.message ?? err) })
+      })
+    }
 
     await writeAuditLog({
       request: new Request("http://localhost/internal/cashback"),

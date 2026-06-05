@@ -65,7 +65,9 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Download,
 } from "lucide-react"
+import { downloadCsv } from "@/lib/export-csv"
 
 interface UserRecord {
   id: string
@@ -293,6 +295,20 @@ export default function UserManagementPage() {
   const userPermissions = (session?.user as any)?.permissions || []
   const isSuperAdmin = userRole === 'ADMIN'
   const canCreateUser = isSuperAdmin || userPermissions.includes('USER_CREATE')
+
+  const handleExport = () => {
+    downloadCsv(`users-${currentTab}`, [
+      'Name', 'Email', 'Role', 'Organization', 'Status', 'Joined Date'
+    ], filteredUsers.map(u => [
+      u.name,
+      u.email,
+      u.customRole?.name || u.role,
+      u.merchant?.name || (u.isHeadOffice ? 'Head Office' : u.district || u.branch || ''),
+      u.status,
+      new Date(u.createdAt).toLocaleDateString()
+    ]))
+    toast({ title: 'Export Complete', description: `${filteredUsers.length} users exported to CSV` })
+  }
 
   if (isLoading) {
     return (
@@ -535,6 +551,14 @@ export default function UserManagementPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <Button
+                variant="outline"
+                className="h-10 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors"
+                onClick={handleExport}
+              >
+                <Download className="h-4 w-4 mr-2 text-[#754319]" />
+                Export
+              </Button>
             </div>
           </div>
 

@@ -43,6 +43,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { downloadCsv } from '@/lib/export-csv'
 
 type CashbackReconciliationItem = {
   id: string
@@ -320,6 +321,38 @@ export default function CashbackReconciliationPage() {
       searchInputRef.current.setSelectionRange(end, end)
     }
   }, [isLoading, searchQuery])
+
+  const handleExport = (tab: 'transactions' | 'requests') => {
+    if (tab === 'transactions') {
+      downloadCsv('cashback-transactions', [
+        'Transaction Ref', 'Merchant', 'Customer', 'Payment Amount (ETB)', 'Cashback Amount (ETB)', 'Category', 'Status', 'Created At'
+      ], items.map(i => [
+        i.transactionReference,
+        i.merchantName,
+        i.customerPhone || i.customerAccount || '',
+        i.paymentAmount,
+        i.cashbackAmount,
+        i.categoryName || '',
+        i.status,
+        new Date(i.createdAt).toLocaleString()
+      ]))
+    } else {
+      downloadCsv('cashback-requests', [
+        'Type', 'Transaction Ref', 'Merchant', 'Customer', 'Cashback Amount (ETB)', 'Reason', 'Created By', 'Status', 'Created At'
+      ], requests.map(r => [
+        r.type === 'REFERENCE_UPDATE' ? 'Update Reference' : 'Retry',
+        r.cashbackTransaction?.transactionReference || '',
+        r.cashbackTransaction?.merchant?.name || '',
+        r.cashbackTransaction?.customerPhone || r.cashbackTransaction?.customerAccount || '',
+        r.cashbackTransaction?.cashbackAmount || '',
+        r.reason,
+        r.maker?.name || r.maker?.email || '',
+        r.status,
+        new Date(r.createdAt).toLocaleString()
+      ]))
+    }
+    toast({ title: 'Export Complete', description: `Exported to CSV successfully` })
+  }
 
   const handleViewDetails = (item: CashbackReconciliationItem) => {
     setSelectedItem(item)
@@ -606,6 +639,17 @@ export default function CashbackReconciliationPage() {
                     >
                       <RefreshCw className='h-4 w-4' />
                     </Button>
+                    {canExport && (
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
+                        onClick={() => handleExport('transactions')}
+                      >
+                        <Download className='h-4 w-4 mr-2' />
+                        Export
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -790,6 +834,17 @@ export default function CashbackReconciliationPage() {
                       {requests.length} requests waiting for approval
                     </CardDescription>
                   </div>
+                  {canExport && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
+                      onClick={() => handleExport('requests')}
+                    >
+                      <Download className='h-4 w-4 mr-2' />
+                      Export
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1035,7 +1090,7 @@ export default function CashbackReconciliationPage() {
 
               {/* Actions */}
               <div className='flex gap-3 pt-4 border-t border-[#F1E7D0]'>
-                {canRetry && (
+                {canRetry && selectedItem.status === 'FAILED' && (
                   <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
                     <DialogTrigger asChild>
                       <Button
@@ -1110,7 +1165,7 @@ export default function CashbackReconciliationPage() {
                     </DialogContent>
                   </Dialog>
                 )}
-                {canRetry && (
+                {canRetry && selectedItem.status === 'FAILED' && (
                   <Button
                     variant='outline'
                     className='flex-1 rounded-[18px] border-[#F1E7D0]'

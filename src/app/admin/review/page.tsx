@@ -62,8 +62,9 @@ import {
   ChevronsRight,
   Search,
   SlidersHorizontal,
-  Edit2
+  Edit2,
 } from "lucide-react"
+import { downloadCsv } from "@/lib/export-csv"
 import { 
   Select, 
   SelectContent, 
@@ -192,6 +193,24 @@ function MerchantReviewContent() {
 
   const totalPages = Math.ceil(filteredMerchants.length / itemsPerPage)
   const paginatedMerchants = filteredMerchants.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  const handleExport = () => {
+    downloadCsv('review-queue', [
+      'Merchant ID', 'Name', 'Email', 'Contact', 'Category', 'Business Type', 'Branch', 'District', 'Status', 'Days in Queue'
+    ], filteredMerchants.map(m => [
+      m.id,
+      m.name,
+      m.email,
+      m.contactName,
+      m.category,
+      m.businessType,
+      m.branchName,
+      m.district,
+      m.status,
+      Math.floor((Date.now() - new Date(m.createdAt).getTime()) / 86400000)
+    ]))
+    toast({ title: 'Export Complete', description: `${filteredMerchants.length} merchants exported to CSV` })
+  }
 
   if (isLoading) {
     return (
@@ -391,6 +410,14 @@ function MerchantReviewContent() {
                   >
                     <SlidersHorizontal className="h-4 w-4 mr-2 text-[#754319]" />
                     Filters
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50 transition-colors"
+                    onClick={handleExport}
+                  >
+                    <Download className="h-4 w-4 mr-2 text-[#754319]" />
+                    Export
                   </Button>
                 </div>
               </div>

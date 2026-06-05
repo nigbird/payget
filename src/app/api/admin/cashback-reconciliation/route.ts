@@ -195,6 +195,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
       }
 
+      if (type === 'RETRY' && transaction.status === 'COMPLETED') {
+        return NextResponse.json(
+          { error: 'Transaction has already been successfully processed and rewarded.' },
+          { status: 400 }
+        );
+      }
+
       const cashbackRequest = await prisma.cashbackRequest.create({
         data: {
           type,
@@ -350,9 +357,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'No cashback transactions specified' }, { status: 400 });
       }
 
-      // Update transactions to PENDING for retry
+      // Update transactions to PENDING for retry, excluding already-rewarded ones
       const updated = await prisma.cashbackTransaction.updateMany({
-        where: { id: { in: cashbackIds } },
+        where: { id: { in: cashbackIds }, NOT: { status: 'COMPLETED' } },
         data: { status: 'PENDING' }
       });
 

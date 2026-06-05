@@ -2,8 +2,9 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
-import { getOrCreateCashbackConfig } from "@/lib/cashback/service"
+import { getOrCreateCashbackConfig, checkCategoryRuleOverlap } from "@/lib/cashback/service"
 import { validateCategoryBody } from "@/lib/cashback/validation"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function POST(
   request: Request,
@@ -14,7 +15,7 @@ export async function POST(
     if (csrfError) return csrfError
 
     const { id: merchantId } = await params
-    const { error } = await requireMerchantCashbackAccess(request, merchantId)
+    const { user, error } = await requireMerchantCashbackAccess(request, merchantId)
     if (error) return error
 
     const body = await request.json()
@@ -25,8 +26,18 @@ export async function POST(
 
     const name = String(body.name).trim()
     const percent = Number(body.percent)
+    const minTransactionAmount = parseNullableNumber(body.minTransactionAmount) ?? 0
+    const maxTransactionAmount = parseNullableNumber(body.maxTransactionAmount)
 
     const config = await getOrCreateCashbackConfig(merchantId)
+
+    const overlapError = await checkCategoryRuleOverlap(config.id, minTransactionAmount, maxTransactionAmount)
+    if (overlapError) {
+      return NextResponse.json(
+        { error: "Validation failed", errors: { minTransactionAmount: overlapError } },
+        { status: 409 }
+      )
+    }
 
     const category = await prisma.cashbackCategory.create({
       data: {
@@ -35,12 +46,21 @@ export async function POST(
         name,
         description: body.description ? String(body.description).trim() : null,
         percent,
-        minTransactionAmount: parseNullableNumber(body.minTransactionAmount) ?? 0,
-        maxTransactionAmount: parseNullableNumber(body.maxTransactionAmount),
+        minTransactionAmount,
+        maxTransactionAmount,
         sortOrder: Number(body.sortOrder) || 0,
         isActive: body.isActive !== false,
       },
       include: { _count: { select: { eligibleCustomers: true } } },
+    })
+
+    await writeAuditLog({
+      request,
+      userId: user!.id,
+      action: "CASHBACK_CATEGORY_CREATE",
+      entityType: "CASHBACK_CATEGORY",
+      entityId: category.id,
+      newValue: { name, percent, minTransactionAmount, maxTransactionAmount },
     })
 
     return NextResponse.json({
