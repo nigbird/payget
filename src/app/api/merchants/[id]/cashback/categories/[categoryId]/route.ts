@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { validateCategoryBody, validateCategoryName } from "@/lib/cashback/validation"
-import { checkCategoryRuleOverlap } from "@/lib/cashback/service"
 import { writeAuditLog } from "@/lib/audit-log"
 
 export async function PATCH(
@@ -51,29 +50,6 @@ export async function PATCH(
 
     if (Object.keys(errors).length > 0) {
       return NextResponse.json({ error: "Validation failed", errors }, { status: 400 })
-    }
-
-    // Check for overlapping amount ranges with other active categories
-    const resolvedMin =
-      body.minTransactionAmount !== undefined
-        ? (parseNullableNumber(body.minTransactionAmount) ?? 0)
-        : (existing.minTransactionAmount ?? 0)
-    const resolvedMax =
-      body.maxTransactionAmount !== undefined
-        ? parseNullableNumber(body.maxTransactionAmount)
-        : existing.maxTransactionAmount
-
-    const overlapError = await checkCategoryRuleOverlap(
-      existing.configId,
-      resolvedMin,
-      resolvedMax,
-      categoryId
-    )
-    if (overlapError) {
-      return NextResponse.json(
-        { error: "Validation failed", errors: { minTransactionAmount: overlapError } },
-        { status: 409 }
-      )
     }
 
     const percent = body.percent !== undefined ? Number(body.percent) : undefined

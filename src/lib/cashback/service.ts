@@ -196,38 +196,3 @@ export type UpdateCashbackConfigInput = {
   allCustomersMaxAmount?: number | null
 }
 
-/**
- * Returns an error message if the given amount range overlaps with any active category
- * in the same config, or null if no overlap is found.
- * Ranges are treated as inclusive on both ends; null max means unbounded (infinity).
- */
-export async function checkCategoryRuleOverlap(
-  configId: string,
-  minAmount: number,
-  maxAmount: number | null,
-  excludeCategoryId?: string
-): Promise<string | null> {
-  const existing = await prisma.cashbackCategory.findMany({
-    where: {
-      configId,
-      isActive: true,
-      ...(excludeCategoryId ? { id: { not: excludeCategoryId } } : {}),
-    },
-    select: { name: true, minTransactionAmount: true, maxTransactionAmount: true },
-  })
-
-  for (const cat of existing) {
-    const catMin = cat.minTransactionAmount ?? 0
-    const catMax = cat.maxTransactionAmount
-
-    // Two inclusive ranges overlap unless one ends strictly before the other begins
-    const noOverlap =
-      (maxAmount !== null && maxAmount < catMin) ||
-      (catMax !== null && catMax < minAmount)
-
-    if (!noOverlap) {
-      return `Amount range overlaps with existing category "${cat.name}".`
-    }
-  }
-  return null
-}

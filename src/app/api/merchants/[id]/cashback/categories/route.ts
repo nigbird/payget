@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
-import { getOrCreateCashbackConfig, checkCategoryRuleOverlap } from "@/lib/cashback/service"
+import { getOrCreateCashbackConfig } from "@/lib/cashback/service"
 import { validateCategoryBody } from "@/lib/cashback/validation"
 import { writeAuditLog } from "@/lib/audit-log"
 
@@ -30,14 +30,6 @@ export async function POST(
     const maxTransactionAmount = parseNullableNumber(body.maxTransactionAmount)
 
     const config = await getOrCreateCashbackConfig(merchantId)
-
-    const overlapError = await checkCategoryRuleOverlap(config.id, minTransactionAmount, maxTransactionAmount)
-    if (overlapError) {
-      return NextResponse.json(
-        { error: "Validation failed", errors: { minTransactionAmount: overlapError } },
-        { status: 409 }
-      )
-    }
 
     const category = await prisma.cashbackCategory.create({
       data: {
