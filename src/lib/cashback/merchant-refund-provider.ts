@@ -74,6 +74,8 @@ export class MerchantRefundTransferProvider implements CashbackTransferProvider 
       amount: request.cashbackAmount,
     }
 
+    console.log("[MerchantRefundProvider] Request:", { url, body })
+
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -85,6 +87,7 @@ export class MerchantRefundTransferProvider implements CashbackTransferProvider 
       })
 
       const text = await response.text()
+      console.log("[MerchantRefundProvider] Response:", { status: response.status, body: text })
       let data: MerchantRefundResponse
       try {
         data = safeJsonParse(text)
