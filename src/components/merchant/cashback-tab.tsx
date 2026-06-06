@@ -13,6 +13,8 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Settings2,
+  Power,
+  PowerOff,
   Download,
   Search,
   Filter,
@@ -403,6 +405,34 @@ export function CashbackTab({ merchantId }: Props) {
           setCustomerFilterCategoryId("all")
         }
         toast({ title: "Category removed" })
+      },
+    })
+  }
+
+  const requestToggleCategory = (category: CashbackCategoryDto) => {
+    const deactivating = category.isActive
+    setConfirmState({
+      title: deactivating ? "Deactivate this category?" : "Activate this category?",
+      description: deactivating
+        ? `Customers in "${category.name}" will no longer receive cashback until the category is reactivated.`
+        : `Customers in "${category.name}" will start receiving cashback again.`,
+      confirmLabel: deactivating ? "Deactivate" : "Activate",
+      destructive: deactivating,
+      onConfirm: async () => {
+        const res = await fetch(
+          `/api/merchants/${merchantId}/cashback/categories/${category.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isActive: !category.isActive }),
+          }
+        )
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error ?? "Failed to update category")
+        }
+        await loadInitialData()
+        toast({ title: deactivating ? "Category deactivated" : "Category activated" })
       },
     })
   }
@@ -1050,6 +1080,7 @@ export function CashbackTab({ merchantId }: Props) {
                           key={cat.id}
                           category={cat}
                           onEdit={() => startEditCategory(cat)}
+                          onToggle={() => requestToggleCategory(cat)}
                           onDelete={() => requestDeleteCategory(cat)}
                         />
                       ))}
@@ -1532,16 +1563,25 @@ function CashbackFormField({
 function CategoryRow({
   category,
   onEdit,
+  onToggle,
   onDelete,
 }: {
   category: CashbackCategoryDto
   onEdit: () => void
+  onToggle: () => void
   onDelete: () => void
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-xl border p-3 bg-slate-50/50">
+    <div className={`flex items-start justify-between gap-3 rounded-xl border p-3 ${category.isActive ? "bg-slate-50/50" : "bg-slate-100/70 opacity-60"}`}>
       <div className="flex-1">
-        <p className="font-semibold text-sm">{category.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-sm">{category.name}</p>
+          {!category.isActive && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-slate-500 border-slate-300">
+              Inactive
+            </Badge>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           {category.percent}% · min {category.minTransactionAmount ?? 0}
           {category.maxTransactionAmount != null ? ` · max ${category.maxTransactionAmount}` : ""}
@@ -1559,6 +1599,15 @@ function CategoryRow({
           title="Edit category"
         >
           <Settings2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggle}
+          className={`h-9 w-9 rounded-lg ${category.isActive ? "text-slate-500 hover:bg-slate-100 hover:text-slate-700" : "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"}`}
+          title={category.isActive ? "Deactivate category" : "Activate category"}
+        >
+          {category.isActive ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
         </Button>
         <Button
           variant="ghost"
