@@ -32,6 +32,27 @@ export async function PATCH(
       return NextResponse.json({ error: "Customer not found" }, { status: 404 })
     }
 
+    // Reject if the new phone/category combination already exists in a different category
+    const resolvedPhone = phone !== undefined ? phone.trim() : existing.phone
+    const resolvedCategoryId = categoryId !== undefined ? categoryId : existing.categoryId
+    if (resolvedPhone !== existing.phone || resolvedCategoryId !== existing.categoryId) {
+      const conflict = await prisma.cashbackEligibleCustomer.findFirst({
+        where: {
+          merchantId,
+          phone: resolvedPhone,
+          categoryId: resolvedCategoryId,
+          NOT: { id: customerId },
+        },
+        select: { category: { select: { name: true } } },
+      })
+      if (conflict) {
+        return NextResponse.json(
+          { error: `Customer ${resolvedPhone} is already assigned to category "${conflict.category.name}"` },
+          { status: 409 }
+        )
+      }
+    }
+
     // Update customer
     const updated = await prisma.cashbackEligibleCustomer.update({
       where: { id: customerId },

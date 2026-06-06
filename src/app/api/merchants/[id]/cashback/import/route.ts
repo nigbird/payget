@@ -72,7 +72,34 @@ export async function POST(
     let skipped = 0
     const errors = [...parsed.errors]
 
+    // Pre-check: find phones already assigned to a DIFFERENT category for this merchant
+    const allPhones = [...new Set(parsed.rows.map(r => r.phone))]
+    const crossCategoryConflicts = await prisma.cashbackEligibleCustomer.findMany({
+      where: { merchantId, phone: { in: allPhones }, categoryId: { not: categoryId } },
+      select: { phone: true, category: { select: { name: true } } },
+    })
+    const conflictMap = new Map(crossCategoryConflicts.map(c => [c.phone, c.category.name]))
+
+    // Track phones seen in this batch to detect in-file duplicates
+    const seenInBatch = new Set<string>()
+
     for (const row of parsed.rows) {
+      if (conflictMap.has(row.phone)) {
+        skipped++
+        errors.push({
+          rowNumber: row.rowNumber,
+          message: `Customer ${row.phone} is already assigned to category "${conflictMap.get(row.phone)}"`,
+        })
+        continue
+      }
+
+      if (seenInBatch.has(row.phone)) {
+        skipped++
+        errors.push({ rowNumber: row.rowNumber, message: `Duplicate phone number in import file: ${row.phone}` })
+        continue
+      }
+      seenInBatch.add(row.phone)
+
       try {
         await prisma.cashbackEligibleCustomer.upsert({
           where: {
