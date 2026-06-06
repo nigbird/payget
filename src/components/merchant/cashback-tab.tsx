@@ -393,7 +393,10 @@ export function CashbackTab({ merchantId }: Props) {
           `/api/merchants/${merchantId}/cashback/categories/${category.id}`,
           { method: "DELETE" }
         )
-        if (!res.ok) throw new Error("Failed to delete category")
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error ?? "Failed to delete category")
+        }
         await loadInitialData()
         await loadTransactions()
         if (customerFilterCategoryId === category.id) {

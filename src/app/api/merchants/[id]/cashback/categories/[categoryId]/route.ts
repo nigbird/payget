@@ -122,6 +122,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Category not found" }, { status: 404 })
     }
 
+    const customerCount = await prisma.cashbackEligibleCustomer.count({ where: { categoryId } })
+    if (customerCount > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete category "${existing.name}" — it has ${customerCount} assigned customer${customerCount === 1 ? "" : "s"}. Remove the customers first or deactivate the category instead.`,
+        },
+        { status: 409 }
+      )
+    }
+
     // Block deletion if the category has non-skipped cashback transactions
     const activeTransactionCount = await prisma.cashbackTransaction.count({
       where: { categoryId, NOT: { status: "SKIPPED" } },
