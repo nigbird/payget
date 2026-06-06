@@ -122,7 +122,10 @@ export default function MerchantPortalShell({
   }, [merchantId])
 
   const visibleNavItems = navItems.filter((item) => {
-    if (status === "loading") return !("requiresRole" in item) || item.requiresRole === undefined
+    // During initial loading when no session exists, hide role-restricted items
+    if (status === "loading" && !session) return !("requiresRole" in item) || item.requiresRole === undefined
+    
+    // Otherwise, show if no role is required or if user has the correct role
     if (!("requiresRole" in item) || item.requiresRole === undefined) return true
     return item.requiresRole === activeRole
   })

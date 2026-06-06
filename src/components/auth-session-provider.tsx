@@ -13,7 +13,7 @@ export function AuthSessionProvider({
   return (
     <SessionProvider
       session={session}
-      refetchInterval={5}
+      refetchInterval={0} // Disable aggressive automatic refetching; SessionWatcher handles controlled updates
       refetchOnWindowFocus
     >
       {children}
