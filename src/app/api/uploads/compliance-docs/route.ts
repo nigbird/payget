@@ -7,6 +7,12 @@ import path from "path"
 import { writeAuditLog } from "@/lib/audit-log"
 import { isDangerousExtension, extensionsMatch, validateFileUpload, hasAnyDangerousExtension } from "@/lib/file-validation"
 import { prisma } from "@/lib/prisma"
+import {
+  getRegistrationUploadTotals,
+  MAX_FILES_PER_REGISTRATION,
+  MAX_BYTES_PER_REGISTRATION,
+  REG_ID_PATTERN,
+} from "@/lib/registration-upload-guard"
 
 const MAX_TOTAL_BYTES = 15 * 1024 * 1024 // 15MB total per application
 const MAX_SINGLE_FILE_BYTES = 5 * 1024 * 1024 // 5MB per file
@@ -60,6 +66,9 @@ export async function POST(request: Request) {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
+    const rawRegId = request.headers.get("X-Registration-Id") ?? ""
+    const registrationId = REG_ID_PATTERN.test(rawRegId) ? rawRegId : null
+
     // 1. Rate Limiting Check
     const now = new Date()
     const windowStart = new Date(now.getTime() - UPLOAD_RATE_LIMIT_WINDOW_MS)
@@ -68,17 +77,23 @@ export async function POST(request: Request) {
     if (user) {
       actorUserId = user.id
 
-      const userUploadCount = await prisma.auditLog.count({
-        where: {
-          userId: user.id,
-          action: "COMPLIANCE_DOC_UPLOAD",
-          createdAt: { gte: windowStart },
-          newValue: { path: ["result"], equals: "success" }
+      // Per-registration uploads bypass the time-window limit — quota enforced below per registrationId.
+      // For all other uploads apply the per-user time-window limit (staff are also exempt below).
+      if (!registrationId) {
+        const isMerchantCheck = user.role === "MERCHANT"
+        if (isMerchantCheck) {
+          const userUploadCount = await prisma.auditLog.count({
+            where: {
+              userId: user.id,
+              action: "COMPLIANCE_DOC_UPLOAD",
+              createdAt: { gte: windowStart },
+              newValue: { path: ["result"], equals: "success" }
+            }
+          })
+          if (userUploadCount >= MAX_UPLOADS_PER_WINDOW) {
+            return NextResponse.json({ error: "Upload limit exceeded. Please try again later." }, { status: 429 })
+          }
         }
-      })
-
-      if (userUploadCount >= MAX_UPLOADS_PER_WINDOW) {
-        return NextResponse.json({ error: "Upload limit exceeded. Please try again later." }, { status: 429 })
       }
     }
 
@@ -115,6 +130,44 @@ export async function POST(request: Request) {
         newValue: { result: "failed", reason: "MISSING_FILES" },
       })
       return NextResponse.json({ error: "Missing files" }, { status: 400 })
+    }
+
+    // Per-registration quota: combined 10 files + 50MB across the whole registration (logo + compliance docs).
+    if (registrationId) {
+      const incomingFiles = files.filter((f): f is File => f instanceof File && f.size > 0)
+      const incomingCount = incomingFiles.length
+      const incomingBytes = incomingFiles.reduce((sum, f) => sum + f.size, 0)
+      const { fileCount, totalBytes } = await getRegistrationUploadTotals(registrationId)
+
+      if (fileCount + incomingCount > MAX_FILES_PER_REGISTRATION) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { result: "failed", reason: "REGISTRATION_FILE_LIMIT", registrationId, fileCount, incomingCount },
+        })
+        return NextResponse.json(
+          { error: `This registration allows a maximum of ${MAX_FILES_PER_REGISTRATION} files. You have ${MAX_FILES_PER_REGISTRATION - fileCount} slot(s) remaining.` },
+          { status: 429 }
+        )
+      }
+
+      if (totalBytes + incomingBytes > MAX_BYTES_PER_REGISTRATION) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "COMPLIANCE_DOC_UPLOAD",
+          entityType: "DOCUMENT",
+          entityId: null,
+          newValue: { result: "failed", reason: "REGISTRATION_SIZE_LIMIT", registrationId, totalBytes, incomingBytes },
+        })
+        return NextResponse.json(
+          { error: "This registration has reached the 50MB upload limit." },
+          { status: 429 }
+        )
+      }
     }
 
     let totalSize = 0
@@ -283,11 +336,12 @@ export async function POST(request: Request) {
       action: "COMPLIANCE_DOC_UPLOAD",
       entityType: "DOCUMENT",
       entityId: null,
-      newValue: { 
-        result: "success", 
-        files: processedFileNames, 
+      newValue: {
+        result: "success",
+        files: processedFileNames,
         count: uploadedDocs.length,
-        totalSize
+        totalSize,
+        ...(registrationId ? { registrationId } : {}),
       },
     })
 
