@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/db';
+import { db, sanitizeTransaction } from '@/app/lib/db';
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth';
 
 export async function GET(
@@ -28,5 +28,5 @@ export async function GET(
     return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
   }
 
-  return NextResponse.json(transaction);
+  return NextResponse.json(sanitizeTransaction(transaction));
 }

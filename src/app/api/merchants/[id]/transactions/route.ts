@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/db';
+import { db, sanitizeTransaction } from '@/app/lib/db';
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth';
 import { transactionMatchesTeamMember } from '@/lib/transaction-initiator';
 
@@ -40,5 +40,5 @@ export async function GET(
     });
   }
 
-  return NextResponse.json(visibleTransactions);
+  return NextResponse.json(visibleTransactions.map(sanitizeTransaction));
 }

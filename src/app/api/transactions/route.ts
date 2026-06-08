@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/db';
+import { db, sanitizeTransaction } from '@/app/lib/db';
 import { requireAuthUser } from '@/lib/request-auth';
 
 export async function GET(request: Request) {
@@ -27,5 +27,5 @@ export async function GET(request: Request) {
   
   const transactions = await db.getTransactions(filters);
   
-  return NextResponse.json(transactions);
+  return NextResponse.json(transactions.map(sanitizeTransaction));
 }

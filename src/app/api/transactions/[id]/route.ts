@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/db';
+import { db, sanitizeTransaction } from '@/app/lib/db';
 import { requireAuthUser } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
@@ -13,7 +13,7 @@ export async function GET(
   if (!transaction) {
     return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
   }
-  return NextResponse.json(transaction);
+  return NextResponse.json(sanitizeTransaction(transaction));
 }
 
 export async function PATCH(
@@ -58,7 +58,7 @@ export async function PATCH(
       newValue: { result: "success", status },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(sanitizeTransaction(updated));
   } catch (error) {
     console.error('Error updating transaction:', error);
 

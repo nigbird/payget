@@ -178,6 +178,12 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
   };
 }
 
+export function sanitizeTransaction(tx: Transaction) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { providerSharedSecret, authToken, ...safeCredentials } = tx.userCredentials;
+  return { ...tx, userCredentials: safeCredentials };
+}
+
 export type MerchantTeamRole = 'payment_initiator' | 'account_admin';
 export type MerchantTeamMemberStatus = 'active' | 'deactivated';
 
