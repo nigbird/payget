@@ -89,6 +89,7 @@ function MerchantOnboardingContent() {
   const editMerchantIdParam = searchParams.get("editMerchantId")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const [registrationId] = useState(() => crypto.randomUUID())
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [systemConfig, setSystemConfig] = useState<any>({
     districts: [],
@@ -320,7 +321,7 @@ function MerchantOnboardingContent() {
       const fd = new FormData()
       validFiles.forEach(file => fd.append("files", file))
       
-      const res = await fetch("/api/uploads/compliance-docs", { method: "POST", body: fd })
+      const res = await fetch("/api/uploads/compliance-docs", { method: "POST", headers: { "X-Registration-Id": registrationId }, body: fd })
       const data = await res.json()
       
       if (!res.ok) throw new Error(data.error || "Upload failed")
@@ -341,7 +342,7 @@ function MerchantOnboardingContent() {
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const res = await fetch("/api/uploads/merchant-logo", { method: "POST", body: fd })
+      const res = await fetch("/api/uploads/merchant-logo", { method: "POST", headers: { "X-Registration-Id": registrationId }, body: fd })
       
       const contentType = res.headers.get("content-type")
       if (!contentType || !contentType.includes("application/json")) {

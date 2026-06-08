@@ -104,8 +104,11 @@ export async function POST(request: Request) {
       "TRANSACTION_LIMIT_OVERRIDE",
       "MERCHANT_APPROVE",
     ])
+    // Self-registration uploads arrive without a session — the registrationId is the
+    // capability token. Authenticated merchants and staff are also allowed.
+    const isGuestRegistration = !!registrationId && !user
 
-    if (!isMerchantUser && !hasStaffPermission) {
+    if (!isGuestRegistration && !isMerchantUser && !hasStaffPermission) {
       await writeAuditLog({
         request,
         userId: actorUserId,

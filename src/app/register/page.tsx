@@ -47,6 +47,7 @@ export default function MerchantSelfRegistration() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   
+  const [registrationId] = useState(() => crypto.randomUUID())
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -164,6 +165,7 @@ export default function MerchantSelfRegistration() {
       
       const res = await fetch("/api/uploads/compliance-docs", {
         method: "POST",
+        headers: { "X-Registration-Id": registrationId },
         body: fd
       })
       
@@ -207,7 +209,7 @@ export default function MerchantSelfRegistration() {
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const res = await fetch("/api/uploads/merchant-logo", { method: "POST", body: fd })
+      const res = await fetch("/api/uploads/merchant-logo", { method: "POST", headers: { "X-Registration-Id": registrationId }, body: fd })
       
       const contentType = res.headers.get("content-type")
       if (!contentType || !contentType.includes("application/json")) {
