@@ -17,7 +17,6 @@ import {
   Check,
   ChevronDown,
   Building,
-  Download,
   FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -34,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { QRCodeSVG } from "qrcode.react"
 
 export default function MerchantQrPaymentPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params)
@@ -232,6 +232,110 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         <h1 className="text-xl font-bold text-slate-800">Invalid Payment Link</h1>
         <p className="text-sm text-slate-500 max-w-xs">This QR code is no longer active or is invalid.</p>
         <Button variant="outline" className="rounded-xl" onClick={() => router.push('/')}>Return Home</Button>
+      </div>
+    )
+  }
+
+  if (view === "success") {
+    const transactionAmount = parseFloat(String(transaction?.amount || amount || 0)).toFixed(2)
+    const transactionDate = new Date(transaction?.timestamp || new Date()).toLocaleString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    })
+    const qrData = `TXN:${transaction?.transactionReference || "N/A"}|AMT:${transactionAmount}|DATE:${transactionDate}|FROM:${phone}|TO:${merchant?.name || "N/A"}`
+
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-100">
+        {/* Orange gradient header */}
+        <div className="relative bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 px-6 pt-14 pb-24 flex flex-col items-center text-center overflow-hidden">
+          <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-orange-400/40" />
+          <div className="absolute top-4 right-0 w-20 h-20 rounded-full bg-amber-300/30" />
+          <div className="absolute -bottom-2 right-8 w-14 h-14 rounded-full bg-orange-600/20" />
+          <div className="relative z-10 mb-5">
+            <div className="w-20 h-20 rounded-full bg-white/25 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-lg">
+                <CheckCircle2 className="w-9 h-9 text-emerald-500" />
+              </div>
+            </div>
+          </div>
+          <h1 className="relative z-10 text-white font-black text-2xl mb-1">Successful!</h1>
+          <p className="relative z-10 text-white font-bold text-sm">Thank You for Banking with NIB!</p>
+        </div>
+
+        <div className="flex-1 flex flex-col pb-4">
+          {/* Receipt card overlapping header */}
+          <div className="-mt-12 mx-4 bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div className="px-5 pt-6 space-y-3">
+              {[
+                { label: "From", value: phone },
+                { label: "To", value: merchant?.name || "N/A" },
+                { label: "Account", value: merchant?.accountNumber || "N/A" },
+                { label: "Date", value: transactionDate },
+                { label: "Reference", value: transaction?.transactionReference || "N/A" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">{label}</span>
+                  <span className="font-medium text-gray-800 text-right max-w-[60%] break-all">{value}</span>
+                </div>
+              ))}
+
+              <Separator />
+
+              {[
+                { label: "Amount", value: `ETB ${transactionAmount}` },
+                { label: "Amount Credited", value: "ETB 0.00" },
+                { label: "Service Charge", value: "ETB 0.00" },
+                { label: "Tax", value: "ETB 0.00" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">{label}</span>
+                  <span className="text-gray-500">{value}</span>
+                </div>
+              ))}
+
+              <Separator />
+
+              <div className="flex justify-between items-center pb-1">
+                <span className="font-bold text-gray-900 text-sm">Total Debited</span>
+                <span className="font-bold text-amber-500">ETB {transactionAmount}</span>
+              </div>
+            </div>
+
+            {/* QR Code */}
+            <div className="flex justify-center py-5 px-5">
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <QRCodeSVG value={qrData} size={150} level="H" />
+              </div>
+            </div>
+
+            {/* NIB branding */}
+            <div className="flex items-center justify-center gap-3 px-5 pb-6">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-900 border-2 border-amber-700 flex items-center justify-center shadow-sm">
+                <img src="/niblogo.png" alt="NIB" className="w-7 h-7 object-contain" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-gray-900 text-sm">Nib International Bank</p>
+                <p className="text-gray-400 text-xs">Committed to Service Excellence</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Done button */}
+          <div className="px-4 mt-4">
+            <Button
+              variant="outline"
+              className="w-full h-14 rounded-3xl border border-amber-200 text-amber-500 font-bold text-base bg-white hover:bg-amber-50"
+              onClick={() => {
+                setView("input")
+                setAmount("")
+                setPhone("")
+                setDescription("")
+              }}
+            >
+              Done
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -470,84 +574,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
             </div>
           )}
 
-          {view === "success" && (
-            <div className="text-center space-y-6 sm:space-y-8 py-8 sm:py-12 animate-in zoom-in-95 duration-500">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-emerald-100 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/10 no-print">
-                <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-600" />
-              </div>
-              <div className="space-y-2 no-print px-4">
-                <h2 className="text-2xl sm:text-3xl font-black text-emerald-950">Payment Success!</h2>
-                <p className="text-xs sm:text-sm text-emerald-800/60 font-medium">Your transaction of <b>{transaction?.amount || amount} ETB</b> to <b>{merchant?.name}</b> was successful.</p>
-              </div>
-              
-              <Card className="bg-white border-emerald-100 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl shadow-emerald-950/5 receipt-container mx-2 sm:mx-0">
-                <CardContent className="p-5 sm:p-8 space-y-5 sm:space-y-6">
-                  {/* Print Only Header */}
-                  <div className="print-only text-center space-y-4 mb-8">
-                    <div className="flex justify-center">
-                      <img src="/niblogo.png" alt="Nib International Bank" className="w-16 h-16 object-contain" />
-                    </div>
-                    <div className="space-y-1">
-                      <h1 className="text-xl font-bold text-amber-900">Payment Receipt</h1>
-                      <p className="text-xs text-amber-800/60 uppercase tracking-widest">Nib International Bank</p>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span>Transaction Successful</span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between text-xs sm:text-sm border-b border-slate-50 pb-3">
-                    <span className="text-slate-500">Merchant Name:</span>
-                    <span className="font-bold text-slate-900">{merchant?.name}</span>
-                  </div>
-                  <div className="flex justify-between text-xs sm:text-sm border-b border-slate-50 pb-3">
-                    <span className="text-slate-500">Reference:</span>
-                    <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] sm:text-[13px]">{transaction?.transactionReference || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-xs sm:text-sm border-b border-slate-50 pb-3">
-                    <span className="text-slate-500">Amount:</span>
-                    <span className="font-bold text-slate-900 text-base sm:text-lg">{transaction?.amount || amount} ETB</span>
-                  </div>
-                  <div className="flex justify-between text-xs sm:text-sm border-b border-slate-50 pb-3">
-                    <span className="text-slate-500">Date:</span>
-                    <span className="font-bold text-slate-900">{new Date(transaction?.timestamp || new Date()).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-xs sm:text-sm border-b border-slate-50 pb-3">
-                    <span className="text-slate-500">Merchant Account:</span>
-                    <span className="font-bold text-slate-900">{merchant?.accountNumber || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-xs sm:text-sm border-b border-slate-50 pb-3">
-                    <span className="text-slate-500">Customer Phone:</span>
-                    <span className="font-bold text-slate-900">{phone}</span>
-                  </div>
-                  {(transaction?.description || description) && (
-                    <div className="flex justify-between text-xs sm:text-sm border-b border-slate-50 pb-3">
-                      <span className="text-slate-500">Description:</span>
-                      <span className="font-bold text-slate-900 text-right max-w-[150px] sm:max-w-[180px]">{transaction?.description || description}</span>
-                    </div>
-                  )}
-                  
-                  <div className="no-print pt-4">
-                    <Separator className="bg-emerald-50 mb-4" />
-                    <Button variant="outline" className="w-full h-10 sm:h-12 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-bold text-sm sm:text-base" onClick={() => window.print()}>
-                      <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" /> Download Receipt
-                    </Button>
-                  </div>
-
-                  <div className="print-only pt-12 text-center">
-                    <p className="text-[10px] text-slate-400 mt-1">© {new Date().getFullYear()} NibteraMerchant Application</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Button variant="ghost" className="text-slate-500 no-print text-sm sm:text-base" onClick={() => {
-                setView("input");
-                setAmount("");
-                setPhone("");
-                setDescription("");
-              }}>Make Another Payment</Button>
-            </div>
-          )}
 
           {view === "failed" && merchant && (
             <div className="text-center space-y-6 sm:space-y-8 py-8 sm:py-12 animate-in zoom-in-95 duration-500">
