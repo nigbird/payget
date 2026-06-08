@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       prisma.cashbackTransaction.findMany({
         where,
         include: {
-          merchant: { select: { id: true, name: true } },
+          merchant: { select: { id: true, name: true, accountNumber: true } },
           category: { select: { id: true, name: true } },
           requests: {
             orderBy: { createdAt: 'desc' },

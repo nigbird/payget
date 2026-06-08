@@ -49,6 +49,7 @@ type CashbackReconciliationItem = {
   id: string
   merchantId: string
   merchantName: string
+  merchantAccountNumber: string | null
   paymentTransactionId: string
   transactionReference: string
   customerPhone: string | null
@@ -263,6 +264,7 @@ export default function CashbackReconciliationPage() {
           id: tx.id,
           merchantId: tx.merchantId,
           merchantName: tx.merchant?.name || 'Unknown Merchant',
+          merchantAccountNumber: tx.merchant?.accountNumber || null,
           paymentTransactionId: tx.paymentTransactionId,
           transactionReference: tx.transactionReference,
           customerPhone: tx.customerPhone,
@@ -325,10 +327,11 @@ export default function CashbackReconciliationPage() {
   const handleExport = (tab: 'transactions' | 'requests') => {
     if (tab === 'transactions') {
       downloadCsv('cashback-transactions', [
-        'Transaction Ref', 'Merchant', 'Customer', 'Payment Amount (ETB)', 'Cashback Amount (ETB)', 'Category', 'Status', 'Created At'
+        'Transaction Ref', 'Merchant', 'Merchant Account', 'Customer', 'Payment Amount (ETB)', 'Cashback Amount (ETB)', 'Category', 'Status', 'Created At'
       ], items.map(i => [
         i.transactionReference,
         i.merchantName,
+        i.merchantAccountNumber || '',
         i.customerPhone || i.customerAccount || '',
         i.paymentAmount,
         i.cashbackAmount,
@@ -680,6 +683,7 @@ export default function CashbackReconciliationPage() {
                           <TableRow>
                             <TableHead className='text-xs font-semibold'>Transaction Ref</TableHead>
                             <TableHead className='text-xs font-semibold'>Merchant</TableHead>
+                            <TableHead className='text-xs font-semibold'>Merchant Account</TableHead>
                             <TableHead className='text-xs font-semibold'>Customer</TableHead>
                             <TableHead className='text-xs font-semibold text-right'>Payment</TableHead>
                             <TableHead className='text-xs font-semibold text-right'>Cashback</TableHead>
@@ -693,6 +697,7 @@ export default function CashbackReconciliationPage() {
                             <TableRow key={item.id} className='hover:bg-amber-50/30 transition-colors'>
                               <TableCell className='font-mono text-xs'>{item.transactionReference}</TableCell>
                               <TableCell className='text-sm font-medium'>{item.merchantName}</TableCell>
+                              <TableCell className='font-mono text-xs text-slate-600'>{item.merchantAccountNumber || '-'}</TableCell>
                               <TableCell className='text-xs text-slate-600'>
                                 {item.customerPhone || item.customerAccount || '-'}
                               </TableCell>
@@ -735,7 +740,7 @@ export default function CashbackReconciliationPage() {
                           ))}
                           {items.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={8} className='h-32 text-center text-sm text-slate-500'>
+                              <TableCell colSpan={9} className='h-32 text-center text-sm text-slate-500'>
                                 No cashback transactions found
                               </TableCell>
                             </TableRow>
@@ -976,6 +981,9 @@ export default function CashbackReconciliationPage() {
                 <div>
                   <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Merchant</div>
                   <div className='mt-1 text-sm font-medium'>{selectedItem.merchantName}</div>
+                  {selectedItem.merchantAccountNumber && (
+                    <div className='mt-0.5 font-mono text-xs text-slate-500'>{selectedItem.merchantAccountNumber}</div>
+                  )}
                 </div>
                 <div>
                   <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Payment Amount</div>
