@@ -199,6 +199,119 @@ export async function sendPushToProvider(
   }
 }
 
+export type ProviderStatusPaymentStatus = "PAID" | "NOT_PAID" | "PENDING"
+
+export type ProviderStatusResponse = {
+  ok: true
+  transactionId: string
+  customerPhone: string
+  amount: number
+  paymentStatus: ProviderStatusPaymentStatus
+  cbsreference: string
+  message: string
+  updatedAt: string
+  raw: Record<string, unknown>
+} | {
+  ok: false
+  statusCode: number
+  error: string
+}
+
+/**
+ * Calls the provider's status endpoint and decrypts the response using the
+ * transaction's established shared secret (AES-256-GCM).
+ */
+export async function checkTransactionStatusAtProvider(
+  transactionRef: string,
+  sharedSecretBase64: string,
+  config?: ProviderConfig
+): Promise<ProviderStatusResponse> {
+  const { baseUrl, username, password } = config ?? resolveProviderConfig()
+  const auth = Buffer.from(`${username}:${password}`).toString("base64")
+
+  let responseText: string
+  let httpStatus: number
+  try {
+    const res = await fetch(`${baseUrl}/push-payment/status/${encodeURIComponent(transactionRef)}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+    })
+    httpStatus = res.status
+    responseText = await res.text()
+  } catch (err: unknown) {
+    return { ok: false, statusCode: 503, error: err instanceof Error ? err.message : String(err) }
+  }
+
+  let envelope: Record<string, unknown>
+  try {
+    envelope = safeJsonParse(responseText)
+  } catch {
+    return { ok: false, statusCode: httpStatus, error: "Failed to parse provider status response" }
+  }
+
+  const { payload, salt, tag, cksum } = envelope as {
+    payload?: string; salt?: string; tag?: string; cksum?: string
+  }
+
+  if (!payload || !salt || !tag || !cksum) {
+    return { ok: false, statusCode: httpStatus, error: "Malformed status response: missing encrypted fields" }
+  }
+
+  // Verify integrity (SHA-256 checksum over ciphertext bytes, same logic as callback)
+  const computedCksumBytes = crypto.createHash("sha256").update(Buffer.from(payload, "hex")).digest("hex")
+  const computedCksumText = crypto.createHash("sha256").update(payload).digest("hex")
+  if (
+    String(cksum).toLowerCase() !== computedCksumBytes.toLowerCase() &&
+    String(cksum).toLowerCase() !== computedCksumText.toLowerCase()
+  ) {
+    return { ok: false, statusCode: httpStatus, error: "Integrity check failed: checksum mismatch" }
+  }
+
+  // Decrypt using the established shared secret
+  const sharedSecret = Buffer.from(sharedSecretBase64, "base64")
+  const encryptionKey =
+    sharedSecret.length >= 32
+      ? sharedSecret.subarray(0, 32)
+      : crypto.createHash("sha256").update(sharedSecret).digest()
+
+  let decrypted: Record<string, unknown>
+  try {
+    const iv = Buffer.from(salt, "hex")
+    const authTag = Buffer.from(tag, "hex")
+    const decipher = crypto.createDecipheriv("aes-256-gcm", encryptionKey, iv)
+    decipher.setAuthTag(authTag)
+    let plain = decipher.update(payload, "hex", "utf8")
+    plain += decipher.final("utf8")
+    decrypted = safeJsonParse(plain)
+  } catch (err: unknown) {
+    return { ok: false, statusCode: httpStatus, error: "Decryption failed: " + (err instanceof Error ? err.message : String(err)) }
+  }
+
+  const paymentStatus = (decrypted.paymentStatus ?? decrypted.status ?? decrypted.state) as string | undefined
+  if (!paymentStatus) {
+    return { ok: false, statusCode: httpStatus, error: "Decrypted payload missing paymentStatus" }
+  }
+
+  const normalized = paymentStatus.toUpperCase()
+  const mappedStatus: ProviderStatusPaymentStatus =
+    normalized === "PAID" ? "PAID" : normalized === "NOT_PAID" ? "NOT_PAID" : "PENDING"
+
+  return {
+    ok: true,
+    transactionId: String(decrypted.transactionId ?? ""),
+    customerPhone: String(decrypted.customerPhone ?? ""),
+    amount: Number(decrypted.amount ?? 0),
+    paymentStatus: mappedStatus,
+    cbsreference: String(decrypted.cbsreference ?? decrypted.cbsReference ?? ""),
+    message: String(decrypted.message ?? ""),
+    updatedAt: String(decrypted.updatedAt ?? ""),
+    raw: decrypted,
+  }
+}
+
 /**
  * Unified Postman-aligned push payment client.
  * Fetches pubkey, encrypts payload, POSTs to /push-payment/transfer, returns shared secret for callbacks.
