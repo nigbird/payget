@@ -204,7 +204,6 @@ export async function POST(request: Request) {
       company: "NTMerchant",
       merchantName: merchant.name,
       description: tx.description,
-      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/provider/callback`,
     })
 
     console.log("Initiating USSD push from link page...")
