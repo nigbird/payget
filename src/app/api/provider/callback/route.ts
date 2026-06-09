@@ -3,6 +3,7 @@ import { db } from '@/app/lib/db';
 import { decryptProviderPayload, deriveSharedSecret } from '@/lib/crypto-provider';
 import crypto from 'crypto';
 import { writeAuditLog } from '@/lib/audit-log';
+import { deliverMerchantCallback } from '@/lib/merchant-callback';
 
 const TERMINAL_STATUSES = new Set(['success', 'failed']);
 
@@ -373,42 +374,30 @@ export async function POST(request: Request) {
       },
     });
 
-    // 6. Notify the merchant (via their registered callback) with canonical status fields
+    // 6. Notify the merchant (via their registered callback) with canonical status fields.
+    // Uses immediate retries + persistent queue on total failure — see src/lib/merchant-callback.ts
     if (merchant && merchant.callbackUrl) {
-      try {
-        await fetch(merchant.callbackUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            // Canonical payment status fields (source of truth)
-            statusCode: providerStatusCodeRaw ?? null,
-            status: finalStatus,
-            
-            // Provider-specific fields
-            transactionRef:
-              decryptedData.transactionRef ??
-              decryptedData.transactionReference ??
-              decryptedData.transactionId ??
-              null,
-            // Backward-compatible alias.
-            transactionId:
-              decryptedData.transactionId ??
-              decryptedData.transactionRef ??
-              decryptedData.transactionReference ??
-              null,
-            cbsreference: providerCbsReference,
-            statusDesc: providerStatusDesc ?? null,
-            company: providerCompany ?? null,
-            amount: decryptedData.amount ?? null,
-
-            // Keep extra context without breaking required fields above
-            transactionReference: tx.transactionReference,
-            processedAt: new Date().toISOString(),
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to notify merchant callback:", err);
+      const callbackPayload = {
+        statusCode: providerStatusCodeRaw ?? null,
+        status: finalStatus,
+        transactionRef:
+          decryptedData.transactionRef ??
+          decryptedData.transactionReference ??
+          decryptedData.transactionId ??
+          null,
+        transactionId:
+          decryptedData.transactionId ??
+          decryptedData.transactionRef ??
+          decryptedData.transactionReference ??
+          null,
+        cbsreference: providerCbsReference,
+        statusDesc: providerStatusDesc ?? null,
+        company: providerCompany ?? null,
+        amount: decryptedData.amount ?? null,
+        transactionReference: tx.transactionReference,
+        processedAt: new Date().toISOString(),
       }
+      void deliverMerchantCallback(tx.id, tx.merchantId, merchant.callbackUrl, callbackPayload)
     }
 
     return NextResponse.json({ message: 'Callback processed successfully' });

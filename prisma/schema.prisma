@@ -467,8 +467,35 @@ model RequestNonce {
   nonce         String
   expiresAt     DateTime
   usedAt        DateTime?
-  
+
   @@unique([merchantId, nonce])
   @@index([expiresAt])
+}
+
+enum MerchantCallbackStatus {
+  PENDING
+  DELIVERED
+  EXHAUSTED
+}
+
+/// Queues merchant webhook deliveries that failed all immediate retries.
+/// Processed manually via POST /api/admin/retry-callbacks.
+model MerchantCallbackQueue {
+  id            String                 @id @default(cuid())
+  transactionId String
+  merchantId    String
+  callbackUrl   String
+  payload       Json
+  status        MerchantCallbackStatus @default(PENDING)
+  attempts      Int                    @default(0)
+  lastError     String?
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([status, nextRetryAt])
+  @@index([transactionId])
+  @@index([merchantId])
 }
 
