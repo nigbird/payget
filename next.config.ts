@@ -32,6 +32,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Service worker must always be re-fetched so security fixes deploy immediately.
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
         source: '/:path*',
         headers: [
           {
@@ -45,6 +53,21 @@ const nextConfig: NextConfig = {
           {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
+          },
+          {
+            //  Disable browser features not used by this payment app
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), usb=(), bluetooth=(), serial=()',
+          },
+          {
+            //  Prevent this app's window from being opened by cross-origin pages
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            //  Prevent cross-origin pages from embedding this app's resources
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'same-site',
           },
           {
             key: 'Strict-Transport-Security',

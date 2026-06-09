@@ -2,6 +2,65 @@ import { z } from "zod"
 import crypto from "crypto"
 import { safeJsonParse } from "./json-utils"
 
+const PROVIDER_TIMEOUT_MS = 15_000
+const PROVIDER_RETRY_ATTEMPTS = 3
+const PROVIDER_RETRY_BASE_DELAY_MS = 600
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Retries a fetch request with exponential backoff.
+ * retryOn5xx=true for idempotent GET calls; false for POST payment initiations
+ * where a 5xx could mean the provider accepted the request but failed to respond.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  {
+    timeoutMs = PROVIDER_TIMEOUT_MS,
+    attempts = PROVIDER_RETRY_ATTEMPTS,
+    baseDelayMs = PROVIDER_RETRY_BASE_DELAY_MS,
+    retryOn5xx = true,
+  }: { timeoutMs?: number; attempts?: number; baseDelayMs?: number; retryOn5xx?: boolean } = {}
+): Promise<Response> {
+  let lastError: unknown
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, options, timeoutMs)
+      if (retryOn5xx && res.status >= 500 && attempt < attempts - 1) {
+        console.warn(`Provider returned ${res.status} on attempt ${attempt + 1}, retrying...`)
+        await delay(baseDelayMs * 2 ** attempt)
+        continue
+      }
+      return res
+    } catch (err) {
+      lastError = err
+      if (attempt < attempts - 1) {
+        const isTimeout = err instanceof Error && err.name === "AbortError"
+        console.warn(`Provider fetch ${isTimeout ? "timed out" : "failed"} on attempt ${attempt + 1} (${url}), retrying...`)
+        await delay(baseDelayMs * 2 ** attempt)
+      }
+    }
+  }
+  throw lastError
+}
+
 // Provider's payload schema for push (before encryption)
 export const ProviderPushPayloadSchema = z.object({
   amount: z.number().finite().positive(),
@@ -78,10 +137,11 @@ export async function fetchServerPublicKey(
     headers["Authorization"] = `Basic ${auth}`
   }
 
-  const response = await fetch(`${baseUrl}/nib-push-payment/api/get-pub-key`, {
-    method: "GET",
-    headers,
-  })
+  const response = await fetchWithRetry(
+    `${baseUrl}/nib-push-payment/api/get-pub-key`,
+    { method: "GET", headers },
+    { retryOn5xx: true }
+  )
 
   if (!response.ok) {
     throw new Error(`Failed to fetch server public key from provider: ${response.statusText}`)
@@ -170,14 +230,20 @@ export async function sendPushToProvider(
   password: string
 ): Promise<ProviderPushResponse> {
   const auth = Buffer.from(`${username}:${password}`).toString("base64")
-  const response = await fetch(`${baseUrl}/push-payment/transfer`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${auth}`,
+  // POST is not idempotent — only retry on network/timeout errors, never on 5xx
+  // (a 5xx could mean the provider accepted the payment but failed to send a response)
+  const response = await fetchWithRetry(
+    `${baseUrl}/push-payment/transfer`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify(encryptedRequest),
     },
-    body: JSON.stringify(encryptedRequest),
-  })
+    { retryOn5xx: false, timeoutMs: 20_000 }
+  )
 
   const text = await response.text()
   try {
@@ -232,17 +298,26 @@ export async function checkTransactionStatusAtProvider(
   let responseText: string
   let httpStatus: number
   try {
-    const res = await fetch(`${baseUrl}/push-payment/status/${encodeURIComponent(transactionRef)}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
+    const res = await fetchWithRetry(
+      `${baseUrl}/push-payment/status/${encodeURIComponent(transactionRef)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${auth}`,
+        },
       },
-    })
+      { retryOn5xx: true }
+    )
     httpStatus = res.status
     responseText = await res.text()
   } catch (err: unknown) {
-    return { ok: false, statusCode: 503, error: err instanceof Error ? err.message : String(err) }
+    const isTimeout = err instanceof Error && err.name === "AbortError"
+    return {
+      ok: false,
+      statusCode: isTimeout ? 408 : 503,
+      error: isTimeout ? "Provider status check timed out" : (err instanceof Error ? err.message : String(err)),
+    }
   }
 
   let envelope: Record<string, unknown>
