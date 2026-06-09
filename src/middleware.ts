@@ -10,6 +10,7 @@ export default auth((req) => {
     img-src 'self' blob: data: https://placehold.co https://images.unsplash.com https://picsum.photos;
     font-src 'self' data: https://fonts.gstatic.com;
     connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.provider.com;
+    worker-src 'self';
     object-src 'none';
     base-uri 'self';
     form-action 'self';

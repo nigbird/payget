@@ -5,6 +5,7 @@ import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { SessionWatcher } from "@/components/session-watcher";
 import { headers } from "next/headers";
 import { NonceProvider } from "@/components/nonce-provider";
+import { PWARegister } from "@/components/pwa-register";
 import { Inter } from 'next/font/google';
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
@@ -52,6 +53,7 @@ export default async function RootLayout({
       <body className="font-body antialiased bg-background">
         <NonceProvider nonce={nonce}>
           <AuthSessionProvider session={session}>
+            <PWARegister />
             {children}
             <SessionWatcher />
             <Toaster />

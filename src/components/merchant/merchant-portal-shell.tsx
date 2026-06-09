@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
 import { cn } from "@/lib/utils"
+import { PWAInstallButton } from "@/components/pwa-install-button"
 
 export type MerchantPortalModuleRole =
   | "payment_initiator"
@@ -226,6 +227,8 @@ export default function MerchantPortalShell({
                   </Select>
                 </div>
               ) : null}
+
+              <PWAInstallButton />
 
               <Button
                 variant="ghost"
