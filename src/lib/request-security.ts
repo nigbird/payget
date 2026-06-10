@@ -14,17 +14,29 @@ function randomString(length: number) {
 
 export function requireCsrf(request: Request): Response | null {
   // Defense-in-depth alongside SameSite=Lax cookies.
-  // Browsers always include Origin on cross-origin requests; same-origin browser
-  // requests include Origin matching the Host header. Server-to-server calls (no
-  // Origin header) are allowed through. This rejects requests where the Origin
-  // header is present but does not match the request Host.
+  // Browsers always send Origin on cross-origin requests; same-origin requests
+  // send Origin matching the app's host. Server-to-server calls (no Origin) pass.
   const origin = request.headers.get("origin")
   if (!origin) return null
 
-  const host = request.headers.get("host") || ""
+  // Resolve trusted host. Behind a reverse proxy the Host header reflects the
+  // internal address (e.g. localhost:3000). Prefer the configured app URL, then
+  // X-Forwarded-Host (set by most proxies), then fall back to Host header.
+  const appUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL
+  let trustedHost: string
+  if (appUrl) {
+    try {
+      trustedHost = new URL(appUrl).host
+    } catch {
+      trustedHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
+    }
+  } else {
+    trustedHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
+  }
+
   try {
     const originHost = new URL(origin).host
-    if (originHost !== host) {
+    if (originHost !== trustedHost) {
       return NextResponse.json({ error: "CSRF: origin mismatch" }, { status: 403 })
     }
   } catch {
@@ -122,7 +134,7 @@ export async function auditSecurityEvent(input: {
       action: input.action,
       entityType: "SECURITY",
       entityId: input.merchantId ?? null,
-      newValue: input.detail ?? undefined,
+      newValue: input.detail ? (input.detail as any) : undefined,
       ipAddress: input.ipAddress ?? null,
       userAgent: input.userAgent ?? null,
     },
