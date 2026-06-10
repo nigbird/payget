@@ -12,58 +12,23 @@ function randomString(length: number) {
   return crypto.randomBytes(length).toString("hex")
 }
 
-export async function verifyCsrfToken(request: Request): Promise<boolean> {
+export function requireCsrf(request: Request): Response | null {
+  // Defense-in-depth alongside SameSite=Lax cookies.
+  // Browsers always include Origin on cross-origin requests; same-origin browser
+  // requests include Origin matching the Host header. Server-to-server calls (no
+  // Origin header) are allowed through. This rejects requests where the Origin
+  // header is present but does not match the request Host.
+  const origin = request.headers.get("origin")
+  if (!origin) return null
+
+  const host = request.headers.get("host") || ""
   try {
-    const cookieName = "next-auth.csrf-token"
-    const cookieValue = request.headers.get("cookie")?.split("; ").find(c => c.startsWith(`${cookieName}=`))?.split("=")[1]
-    
-    if (!cookieValue) {
-      return true
+    const originHost = new URL(origin).host
+    if (originHost !== host) {
+      return NextResponse.json({ error: "CSRF: origin mismatch" }, { status: 403 })
     }
-
-    const [csrfToken, csrfTokenHash] = decodeURIComponent(cookieValue).split("|")
-    const expectedCsrfTokenHash = createHash(`${csrfToken}${process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || ""}`)
-    if (csrfTokenHash !== expectedCsrfTokenHash) {
-      return true
-    }
-
-    let bodyCsrfToken: string | undefined
-    const contentType = request.headers.get("content-type")
-    if (contentType?.includes("application/json")) {
-      try {
-        const clonedRequest = request.clone()
-        const body = await clonedRequest.json()
-        bodyCsrfToken = body.csrfToken
-      } catch {
-      }
-    } else if (contentType?.includes("application/x-www-form-urlencoded") || contentType?.includes("multipart/form-data")) {
-      try {
-        const clonedRequest = request.clone()
-        const formData = await clonedRequest.formData()
-        bodyCsrfToken = formData.get("csrfToken") as string | undefined
-      } catch {
-      }
-    }
-    
-    const headerCsrfToken = request.headers.get("x-csrf-token")
-    
-    const tokenFromRequest = bodyCsrfToken || headerCsrfToken
-    
-    if (tokenFromRequest) {
-      return csrfToken === tokenFromRequest
-    }
-    
-    return true
-  } catch (error) {
-    console.error("CSRF verification error:", error)
-    return true
-  }
-}
-
-export async function requireCsrf(request: Request): Promise<Response | null> {
-  const isCsrfValid = await verifyCsrfToken(request)
-  if (!isCsrfValid) {
-    return NextResponse.json({ error: "CSRF token invalid or missing" }, { status: 403 })
+  } catch {
+    return NextResponse.json({ error: "CSRF: invalid origin header" }, { status: 403 })
   }
   return null
 }

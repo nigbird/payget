@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { useRouter, usePathname } from "next/navigation"
 import {
   Dialog,
@@ -15,15 +15,14 @@ import { Button } from "@/components/ui/button"
 import { Clock, LogIn, AlertCircle } from "lucide-react"
 import { SESSION_EXPIRED_EVENT } from "@/lib/api-client"
 
-// Configuration for session behavior (30-minute period)
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000 // 30 minutes of inactivity
-const WARNING_THRESHOLD = 28 * 60 * 1000 // Show warning 2 minutes before timeout (at 28 min)
-const SESSION_CHECK_INTERVAL = 5 * 1000 // Check every 5 seconds (concurrent session invalidation)
-const SESSION_UPDATE_THROTTLE = 5 * 1000 // Throttle session refresh on user activity
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000
+const WARNING_THRESHOLD = 28 * 60 * 1000
+const SESSION_CHECK_INTERVAL = 5 * 1000
+const SESSION_UPDATE_THROTTLE = 5 * 1000
 const ACTIVITY_STORAGE_KEY = "last_activity_timestamp"
 
 export function SessionWatcher() {
-  const { data: session, status, update } = useSession()
+  const { user, status, refresh, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [showTimeoutModal, setShowTimeoutModal] = useState(false)
@@ -32,129 +31,115 @@ export function SessionWatcher() {
   const lastActivityRef = useRef<number>(Date.now())
   const lastUpdateRef = useRef<number>(Date.now())
   const statusRef = useRef(status)
-  
-  const isAuthPage = pathname?.startsWith("/login") || 
-                     pathname === "/" || 
-                     pathname?.startsWith("/forgot-password") || 
-                     pathname?.startsWith("/reset-password") ||
-                     pathname === "/change-password" ||
-                     pathname?.startsWith("/payment") ||
-                     pathname?.startsWith("/activate")
-  
+
+  const isAuthPage =
+    pathname?.startsWith("/login") ||
+    pathname === "/" ||
+    pathname?.startsWith("/forgot-password") ||
+    pathname?.startsWith("/reset-password") ||
+    pathname === "/change-password" ||
+    pathname?.startsWith("/payment") ||
+    pathname?.startsWith("/activate")
+
   const isAuthPageRef = useRef(isAuthPage)
 
-  // Keep refs in sync
   useEffect(() => {
     statusRef.current = status
     isAuthPageRef.current = isAuthPage
   }, [status, isAuthPage])
 
-  // Clear session-related data from storage
   const clearAuthData = useCallback(() => {
     localStorage.removeItem(ACTIVITY_STORAGE_KEY)
-    // Clear any other app-specific storage here
-    // e.g., localStorage.removeItem("user_settings"), etc.
   }, [])
 
-  const logout = useCallback(async (reason: "inactivity" | "unauthorized") => {
-    setExpiredReason(reason)
-    setIsExpiring(false)
-    setShowTimeoutModal(true)
-    
-    // Clear data before signing out
-    clearAuthData()
-    
-    // Sign out without immediate redirect to show the dialog
-    await signOut({ redirect: false })
-  }, [clearAuthData])
+  const handleSessionExpired = useCallback(
+    async (reason: "inactivity" | "unauthorized") => {
+      setExpiredReason(reason)
+      setIsExpiring(false)
+      setShowTimeoutModal(true)
+      clearAuthData()
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+      } catch {
+        // Best-effort
+      }
+    },
+    [clearAuthData]
+  )
 
-  // Monitor status transitions (e.g., session invalidated by version mismatch)
   const prevStatusRef = useRef(status)
   useEffect(() => {
-    if (prevStatusRef.current === "authenticated" && status === "unauthenticated" && !isAuthPage && !showTimeoutModal) {
-      console.warn("Session lost detected via status change. Triggering session expiry flow.")
-      logout("unauthorized")
+    if (
+      prevStatusRef.current === "authenticated" &&
+      status === "unauthenticated" &&
+      !isAuthPage &&
+      !showTimeoutModal
+    ) {
+      handleSessionExpired("unauthorized")
     }
     prevStatusRef.current = status
-  }, [status, isAuthPage, logout, showTimeoutModal])
+  }, [status, isAuthPage, handleSessionExpired, showTimeoutModal])
 
   const handleActivity = useCallback(() => {
     const now = Date.now()
     lastActivityRef.current = now
-    
-    // Periodically update the NextAuth session to verify validity (concurrent session check)
+
     if (status === "authenticated" && now - lastUpdateRef.current > SESSION_UPDATE_THROTTLE) {
-      update()
+      refresh()
       lastUpdateRef.current = now
     }
 
-    // Sync activity across tabs
     localStorage.setItem(ACTIVITY_STORAGE_KEY, now.toString())
-    
-    if (isExpiring || showTimeoutModal) {
-      // Only reset if it's just a warning, not a full expiry
-      if (expiredReason === null) {
-        setIsExpiring(false)
-        setShowTimeoutModal(false)
-      }
-    }
-  }, [isExpiring, showTimeoutModal, status, update, expiredReason])
 
-  // Listen for activity and storage changes in other tabs
+    if ((isExpiring || showTimeoutModal) && expiredReason === null) {
+      setIsExpiring(false)
+      setShowTimeoutModal(false)
+    }
+  }, [isExpiring, showTimeoutModal, status, refresh, expiredReason])
+
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === ACTIVITY_STORAGE_KEY && e.newValue) {
         lastActivityRef.current = parseInt(e.newValue, 10)
-        if (isExpiring || showTimeoutModal) {
-          // Only reset if it's just a warning, not a full expiry
-          if (expiredReason === null) {
-            setIsExpiring(false)
-            setShowTimeoutModal(false)
-          }
+        if ((isExpiring || showTimeoutModal) && expiredReason === null) {
+          setIsExpiring(false)
+          setShowTimeoutModal(false)
         }
       }
     }
 
-    // Handle global 401 unauthorized event from api-client.ts
     const handleUnauthorized = () => {
       if (statusRef.current === "authenticated" && !isAuthPageRef.current) {
-        logout("unauthorized")
+        handleSessionExpired("unauthorized")
       }
     }
 
     window.addEventListener("storage", handleStorageChange)
     window.addEventListener(SESSION_EXPIRED_EVENT, handleUnauthorized)
-    
     return () => {
       window.removeEventListener("storage", handleStorageChange)
       window.removeEventListener(SESSION_EXPIRED_EVENT, handleUnauthorized)
     }
-  }, [logout])
+  }, [handleSessionExpired, isExpiring, showTimeoutModal, expiredReason])
 
-  // Global fetch interceptor for 401 Unauthorized (runs once)
   useEffect(() => {
     const originalFetch = window.fetch
     window.fetch = async (...args) => {
       try {
         const response = await originalFetch(...args)
         if (response.status === 401 && !isAuthPageRef.current && statusRef.current === "authenticated") {
-          console.warn("Unauthorized request detected (401). Triggering session expiry flow.")
           window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
         }
         return response
       } catch (error) {
-        // Only log actual errors, not 401s which are handled above
-        console.error("Fetch error:", error)
         throw error
       }
     }
-
     return () => {
       window.fetch = originalFetch
     }
   }, [])
 
-  // Periodic session check and inactivity timeout
   useEffect(() => {
     if (isAuthPage) {
       if (showTimeoutModal) setShowTimeoutModal(false)
@@ -166,77 +151,58 @@ export function SessionWatcher() {
       const now = Date.now()
       const lastActivity = lastActivityRef.current
 
-      // Check for inactivity timeout
       if (now - lastActivity > INACTIVITY_TIMEOUT) {
         if (statusRef.current === "authenticated" && !isAuthPageRef.current) {
-          logout("inactivity")
+          handleSessionExpired("inactivity")
         }
       } else if (now - lastActivity > WARNING_THRESHOLD && !isExpiring) {
         setIsExpiring(true)
         setShowTimeoutModal(true)
       }
 
-      // Periodically verify session validity with the server (concurrency control)
-      // This ensures that if another session starts, this one is invalidated 
-      // even without user interaction.
       if (statusRef.current === "authenticated" && !isAuthPageRef.current && !showTimeoutModal) {
-        update()
+        refresh()
       }
     }, SESSION_CHECK_INTERVAL)
 
     return () => clearInterval(interval)
-  }, [logout, status, isAuthPage, isExpiring])
+  }, [handleSessionExpired, isAuthPage, isExpiring, showTimeoutModal, refresh])
 
-  // Reset activity timer on user interaction
   useEffect(() => {
     const events = ["mousedown", "mousemove", "keydown", "scroll", "click", "touchstart", "wheel"]
-    
-    // Throttle the handleActivity to avoid performance issues
     let lastCall = 0
-    const throttledHandleActivity = () => {
+    const throttled = () => {
       const now = Date.now()
       if (now - lastCall > 1000) {
         handleActivity()
         lastCall = now
       }
     }
-
-    events.forEach(event => window.addEventListener(event, throttledHandleActivity))
-
-    return () => {
-      events.forEach(event => window.removeEventListener(event, throttledHandleActivity))
-    }
+    events.forEach((e) => window.addEventListener(e, throttled))
+    return () => events.forEach((e) => window.removeEventListener(e, throttled))
   }, [handleActivity])
 
-  // Password change enforcement for first login
   useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      const user = session.user as any
-      const isFirstLogin = user.firstLogin === true
-      
-      // Check if user is a merchant - they shouldn't be enforced
-      const isMerchant = user.role === 'MERCHANT'
-      
-      if (isFirstLogin && !isMerchant && pathname !== "/change-password" && !isAuthPage) {
-        // Redirect to password change page
+    if (status === "authenticated" && user) {
+      const isMerchant = user.role === "MERCHANT"
+      if (user.firstLogin && !isMerchant && pathname !== "/change-password" && !isAuthPage) {
         router.push("/change-password")
       }
     }
-  }, [status, session, pathname, isAuthPage, router])
+  }, [status, user, pathname, isAuthPage, router])
 
   const handleLoginAgain = () => {
     setShowTimeoutModal(false)
+    clearAuthData()
     const loginUrl = pathname?.startsWith("/merchant") ? "/login/merchant" : "/login"
-    // Using signOut with callbackUrl is the most robust way to ensure 
-    // the session is fully cleared before landing on the login page.
-    signOut({ callbackUrl: loginUrl })
+    logout(loginUrl)
   }
 
   const handleLogoutNow = useCallback(() => {
     clearAuthData()
     const loginUrl = pathname?.startsWith("/merchant") ? "/login/merchant" : "/login"
-    signOut({ callbackUrl: loginUrl })
-  }, [clearAuthData, pathname])
+    logout(loginUrl)
+  }, [clearAuthData, pathname, logout])
 
   if (isAuthPage) return null
 
@@ -244,31 +210,39 @@ export function SessionWatcher() {
     <Dialog open={showTimeoutModal} onOpenChange={expiredReason ? undefined : setShowTimeoutModal}>
       <DialogContent className="sm:max-w-[425px] border-none bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl">
         <DialogHeader className="flex flex-col items-center pt-4">
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isExpiring ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+              isExpiring ? "bg-amber-100 text-amber-600" : "bg-rose-100 text-rose-600"
+            }`}
+          >
             {isExpiring ? <Clock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
           </div>
           <DialogTitle className="text-2xl font-bold text-gray-900 text-center">
-            {isExpiring ? "Session Expiring Soon" : (expiredReason === "inactivity" ? "Session Timeout" : "Session Expired")}
+            {isExpiring
+              ? "Session Expiring Soon"
+              : expiredReason === "inactivity"
+              ? "Session Timeout"
+              : "Session Expired"}
           </DialogTitle>
           <DialogDescription className="text-center text-gray-600 pt-2">
-            {isExpiring 
-              ? "You've been inactive for a while. For your security, you'll be logged out soon." 
-              : (expiredReason === "inactivity"
-                ? "Your session has expired due to inactivity. Please log in again to continue."
-                : "Your session is no longer valid. Please log in again to continue.")}
+            {isExpiring
+              ? "You've been inactive for a while. For your security, you'll be logged out soon."
+              : expiredReason === "inactivity"
+              ? "Your session has expired due to inactivity. Please log in again to continue."
+              : "Your session is no longer valid. Please log in again to continue."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-row gap-3 pt-6 pb-2">
           {isExpiring ? (
             <>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={handleLogoutNow}
                 className="w-full sm:flex-1 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
               >
                 Log Out
               </Button>
-              <Button 
+              <Button
                 onClick={handleActivity}
                 className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white shadow-lg shadow-amber-200/50"
               >
@@ -276,7 +250,7 @@ export function SessionWatcher() {
               </Button>
             </>
           ) : (
-            <Button 
+            <Button
               onClick={handleLoginAgain}
               className="w-full rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white shadow-lg shadow-amber-200/50 flex items-center justify-center gap-2"
             >

@@ -6,7 +6,7 @@ import Image from "next/image"
 import { z } from "zod"
 import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download } from "lucide-react"
 import { CashbackTab } from "@/components/merchant/cashback-tab"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { QRCodeCanvas } from "qrcode.react"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -59,7 +59,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const { id } = use(params)
   const role = useMerchantPortalRole()
   const { toast } = useToast()
-  const { update } = useSession()
+  const { refresh } = useAuth()
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
@@ -412,11 +412,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         const refreshed = await response.json()
         
         // Update session to reflect new email or name if changed
-        await update({
-          user: {
-            email: refreshed.email || undefined,
-          }
-        })
+        await refresh()
 
         setProfileData(prev => ({
           ...prev,

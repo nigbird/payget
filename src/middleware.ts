@@ -1,8 +1,58 @@
-import { auth } from "@/auth"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { jwtVerify } from "jose"
+import { decryptAccessTokenFromCookie, accessTokenCookieName } from "@/lib/access-token-cookie"
 
-export default auth((req) => {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getAccessSecret() {
+  const s = process.env.ACCESS_TOKEN_SECRET
+  if (!s) throw new Error("Missing ACCESS_TOKEN_SECRET")
+  return new TextEncoder().encode(s)
+}
+
+async function resolveUserFromRequest(req: NextRequest): Promise<{
+  isLoggedIn: boolean
+  role: string | null
+  permissions: string[]
+  sid: string | null
+} | null> {
+  try {
+    const raw = req.cookies.get(accessTokenCookieName())?.value
+    if (!raw) return null
+    const jwt = await decryptAccessTokenFromCookie(raw)
+    if (!jwt) return null
+    const { payload } = await jwtVerify(jwt, getAccessSecret(), { algorithms: ["HS256"] })
+    const role = typeof payload.role === "string" ? payload.role : null
+    const permissions = Array.isArray(payload.permissions) ? (payload.permissions as string[]) : []
+    const sid = typeof (payload as any).sid === "string" ? (payload as any).sid as string : null
+    return { isLoggedIn: true, role, permissions, sid }
+  } catch {
+    return null
+  }
+}
+
+async function validateSessionFromMiddleware(req: NextRequest): Promise<boolean> {
+  try {
+    const validateUrl = new URL("/api/auth/validate-session", req.url)
+    const res = await fetch(validateUrl.toString(), {
+      headers: { cookie: req.headers.get("cookie") ?? "" },
+      signal: AbortSignal.timeout(3000),
+    })
+    return res.ok
+  } catch {
+    // Network error or timeout — fail open to avoid locking out users during transient errors.
+    return true
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Middleware
+// ---------------------------------------------------------------------------
+
+export async function middleware(req: NextRequest) {
+  const nonce = btoa(crypto.randomUUID())
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
@@ -17,32 +67,30 @@ export default auth((req) => {
     frame-ancestors 'none';
     block-all-mixed-content;
     upgrade-insecure-requests;
-`.replace(/\s{2,}/g, ' ').trim()
+  `.replace(/\s{2,}/g, " ").trim()
 
   const requestHeaders = new Headers(req.headers)
-  requestHeaders.set('x-nonce', nonce)
-  requestHeaders.set('Content-Security-Policy', cspHeader)
+  requestHeaders.set("x-nonce", nonce)
+  requestHeaders.set("Content-Security-Policy", cspHeader)
 
-  const isLoggedIn = !!req.auth
   const { nextUrl } = req
-  const user = req.auth?.user as any
   const pathname = nextUrl.pathname
-  
-  const isMerchantRoute = nextUrl.pathname.startsWith("/merchant")
-  const isAdminRoute = 
-    nextUrl.pathname.startsWith("/admin") ||
-    nextUrl.pathname.startsWith("/maker") ||
-    nextUrl.pathname.startsWith("/checker") ||
-    nextUrl.pathname.startsWith("/head-office")
+
+  const isMerchantRoute = pathname.startsWith("/merchant")
+  const isAdminRoute =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/maker") ||
+    pathname.startsWith("/checker") ||
+    pathname.startsWith("/head-office")
 
   const isAuthExemptRoute =
     pathname === "/merchant/review-update" ||
     pathname === "/merchant/setup-password" ||
     pathname.startsWith("/pay/") ||
     pathname.startsWith("/l/") ||
-    nextUrl.searchParams.has("token");
+    nextUrl.searchParams.has("token")
 
-  const isAuthRoute = 
+  const isAuthRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
@@ -50,15 +98,37 @@ export default auth((req) => {
     pathname.startsWith("/pay/") ||
     pathname.startsWith("/l/")
 
+  const auth = await resolveUserFromRequest(req)
+  let isLoggedIn = auth?.isLoggedIn ?? false
+  const userRole = auth?.role ?? null
+  const userPermissions = auth?.permissions ?? []
+  const userSid = auth?.sid ?? null
+
+  // Validate the ActiveSession in the DB for every protected page navigation.
+  // This ensures that when a session is revoked (e.g. concurrent login limit reached),
+  // the old device is blocked from navigating even before its JWT expires.
+  // SALES users have no ActiveSession; tokens without sid are legacy — both skip this check.
+  if (isLoggedIn && userSid && !isAuthExemptRoute) {
+    const sessionValid = await validateSessionFromMiddleware(req)
+    if (!sessionValid) {
+      isLoggedIn = false
+    }
+  }
+
+  // Helpers for building redirect responses with security headers.
+  function redirect(url: string) {
+    const res = NextResponse.redirect(new URL(url, req.url))
+    res.headers.set("Content-Security-Policy", cspHeader)
+    res.headers.set("X-Frame-Options", "DENY")
+    return res
+  }
+
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login") return
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    const res = NextResponse.redirect(new URL("/login", req.url))
-    res.headers.set('Content-Security-Policy', cspHeader)
-    res.headers.set('X-Frame-Options', 'DENY')
-    return res
+    return redirect("/login")
   }
 
   if (isMerchantRoute && !isLoggedIn && !isAuthExemptRoute) {
@@ -67,10 +137,10 @@ export default auth((req) => {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const loginUrl = new URL("/login/merchant", req.url)
-    loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
+    loginUrl.searchParams.set("callbackUrl", pathname)
     const res = NextResponse.redirect(loginUrl)
-    res.headers.set('Content-Security-Policy', cspHeader)
-    res.headers.set('X-Frame-Options', 'DENY')
+    res.headers.set("Content-Security-Policy", cspHeader)
+    res.headers.set("X-Frame-Options", "DENY")
     return res
   }
 
@@ -78,25 +148,16 @@ export default auth((req) => {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    const res = NextResponse.redirect(new URL("/login", req.url))
-    res.headers.set('Content-Security-Policy', cspHeader)
-    res.headers.set('X-Frame-Options', 'DENY')
-    return res
-  }
-
-  const sessionExpiry = req.cookies.get("next-auth.session-token")?.expires
-  if (sessionExpiry && new Date(sessionExpiry) < new Date()) {
-    console.warn("Session expired. Redirecting to login.")
-    const res = NextResponse.redirect(new URL("/login", req.url))
-    res.headers.set('Content-Security-Policy', cspHeader)
-    res.headers.set('X-Frame-Options', 'DENY')
-    return res
+    return redirect("/login")
   }
 
   if (isLoggedIn) {
-    if (isAuthExemptRoute) return
-    const userPermissions = user?.permissions || []
-    const userRole = user?.role
+    if (isAuthExemptRoute) {
+      const res = NextResponse.next({ request: { headers: requestHeaders } })
+      res.headers.set("Content-Security-Policy", cspHeader)
+      res.headers.set("X-Frame-Options", "DENY")
+      return res
+    }
 
     const getAdminLandingPath = () => {
       if (userPermissions.includes("DASHBOARD_VIEW")) return "/admin"
@@ -111,180 +172,78 @@ export default auth((req) => {
 
     if (pathname === "/login" || pathname === "/login/merchant" || pathname === "/") {
       if (userRole === "MERCHANT" || userRole === "SALES") {
-        if (pathname === "/merchant") return
-        const res = NextResponse.redirect(new URL("/merchant", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
-      } else {
-        const landing = getAdminLandingPath()
-        if (landing && landing !== pathname) {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        if (userPermissions.includes("DASHBOARD_VIEW") && pathname !== "/admin") {
-          const res = NextResponse.redirect(new URL("/admin", req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        return
+        return redirect("/merchant")
       }
+      const landing = getAdminLandingPath()
+      if (landing) return redirect(landing)
+      return
     }
 
     if (isAdminRoute) {
-      const hasAdminAccess = 
-        userPermissions.includes('DASHBOARD_VIEW') || 
-        userPermissions.includes('MERCHANT_REGISTER') || 
-        userPermissions.includes('MERCHANT_APPROVE') ||
-        userPermissions.includes('USER_CREATE') ||
-        userPermissions.includes('ROLE_CREATE') ||
-        userPermissions.includes('CONFIGURATION_MANAGE') ||
-        userPermissions.includes('AUDIT_LOG_VIEW') ||
-        userRole === 'ADMIN' || userRole === 'MAKER' || userRole === 'CHECKER' || userRole === 'HEAD_OFFICE'
-      
+      const hasAdminAccess =
+        userPermissions.includes("DASHBOARD_VIEW") ||
+        userPermissions.includes("MERCHANT_REGISTER") ||
+        userPermissions.includes("MERCHANT_APPROVE") ||
+        userPermissions.includes("USER_CREATE") ||
+        userPermissions.includes("ROLE_CREATE") ||
+        userPermissions.includes("CONFIGURATION_MANAGE") ||
+        userPermissions.includes("AUDIT_LOG_VIEW") ||
+        userRole === "ADMIN" ||
+        userRole === "MAKER" ||
+        userRole === "CHECKER" ||
+        userRole === "HEAD_OFFICE"
+
       if (!hasAdminAccess) {
-        const res = NextResponse.redirect(new URL(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
+        return redirect(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login")
       }
 
       if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_VIEW")) {
         const landing = getAdminLandingPath()
-        if (landing && landing !== "/admin") {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        const res = NextResponse.redirect(new URL("/login", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
+        if (landing && landing !== "/admin") return redirect(landing)
+        return redirect("/login")
       }
 
-      if (pathname.startsWith("/admin/onboarding") && !userPermissions.includes("MERCHANT_REGISTER")) {
-        const landing = getAdminLandingPath()
-        if (landing) {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        const res = NextResponse.redirect(new URL("/admin", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
-      }
+      const permissionChecks: [string, string][] = [
+        ["/admin/onboarding", "MERCHANT_REGISTER"],
+        ["/admin/review", "MERCHANT_APPROVE"],
+        ["/admin/users", "USER_CREATE"],
+        ["/admin/roles", "ROLE_CREATE"],
+        ["/admin/configuration", "CONFIGURATION_MANAGE"],
+        ["/admin/audit-logs", "AUDIT_LOG_VIEW"],
+      ]
 
-      if (pathname.startsWith("/admin/review") && !userPermissions.includes("MERCHANT_APPROVE")) {
-        const landing = getAdminLandingPath()
-        if (landing) {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
+      for (const [prefix, perm] of permissionChecks) {
+        if (pathname.startsWith(prefix) && !userPermissions.includes(perm)) {
+          const landing = getAdminLandingPath()
+          return redirect(landing ?? "/admin")
         }
-        const res = NextResponse.redirect(new URL("/admin", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
-      }
-
-      if (pathname.startsWith("/admin/users") && !userPermissions.includes("USER_CREATE")) {
-        const landing = getAdminLandingPath()
-        if (landing) {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        const res = NextResponse.redirect(new URL("/admin", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
-      }
-
-      if (pathname.startsWith("/admin/roles") && !userPermissions.includes("ROLE_CREATE")) {
-        const landing = getAdminLandingPath()
-        if (landing) {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        const res = NextResponse.redirect(new URL("/admin", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
-      }
-
-      if (pathname.startsWith("/admin/configuration") && !userPermissions.includes("CONFIGURATION_MANAGE")) {
-        const landing = getAdminLandingPath()
-        if (landing) {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        const res = NextResponse.redirect(new URL("/admin", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
-      }
-
-      if (pathname.startsWith("/admin/audit-logs") && !userPermissions.includes("AUDIT_LOG_VIEW")) {
-        const landing = getAdminLandingPath()
-        if (landing) {
-          const res = NextResponse.redirect(new URL(landing, req.url))
-          res.headers.set('Content-Security-Policy', cspHeader)
-          res.headers.set('X-Frame-Options', 'DENY')
-          return res
-        }
-        const res = NextResponse.redirect(new URL("/admin", req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
       }
     }
 
-    if (isMerchantRoute && userRole !== 'MERCHANT' && userRole !== 'SALES') {
+    if (isMerchantRoute && userRole !== "MERCHANT" && userRole !== "SALES") {
       const landing = getAdminLandingPath()
-      if (landing) {
-        const res = NextResponse.redirect(new URL(landing, req.url))
-        res.headers.set('Content-Security-Policy', cspHeader)
-        res.headers.set('X-Frame-Options', 'DENY')
-        return res
-      }
-      const res = NextResponse.redirect(new URL("/login", req.url))
-      res.headers.set('Content-Security-Policy', cspHeader)
-      res.headers.set('X-Frame-Options', 'DENY')
-      return res
+      return redirect(landing ?? "/login")
     }
   }
 
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  })
+  const response = NextResponse.next({ request: { headers: requestHeaders } })
 
-  // Prevent caching of sensitive content
-  const isStaticAsset = pathname.match(/\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map)$/) || pathname.startsWith('/_next/')
+  const isStaticAsset =
+    /\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map)$/.test(pathname) ||
+    pathname.startsWith("/_next/")
   if (!isStaticAsset) {
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-    response.headers.set('Pragma', 'no-cache')
-    response.headers.set('Expires', '0')
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+    response.headers.set("Pragma", "no-cache")
+    response.headers.set("Expires", "0")
   }
 
-  response.headers.set('Content-Security-Policy', cspHeader)
-  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set("Content-Security-Policy", cspHeader)
+  response.headers.set("X-Frame-Options", "DENY")
   return response
-})
+}
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map)).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map)).*)",
+  ],
 }

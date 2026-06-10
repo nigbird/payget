@@ -1,36 +1,73 @@
 "use client"
 
-import { signIn } from "next-auth/react"
+// Replaces the old NextAuth safeCredentialsSignIn wrapper.
+// All auth flows now go through the custom JWT endpoints.
 
-export type SafeSignInResult = {
-  error: string | undefined
-  code: string | undefined
-  status: number
+export type LoginResult = {
   ok: boolean
-  url: string | null
+  error?: string
+  code?: string
+  retryAfterSeconds?: number
+  user?: Record<string, unknown>
 }
 
-/**
- * Wraps next-auth `signIn` so failures never reject (the library can throw when
- * parsing relative redirect URLs). Maps thrown errors to a CredentialsSignin-shaped result.
- */
-export async function safeCredentialsSignIn(
-  ...args: Parameters<typeof signIn>
-): Promise<SafeSignInResult | undefined> {
+export async function loginWithCredentials(params: {
+  identifier: string
+  password: string
+}): Promise<LoginResult> {
   try {
-    const r = await signIn(...args)
-    if (r === undefined) {
-      return undefined
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ identifier: params.identifier, password: params.password }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      return { ok: true, user: data.user }
     }
-    return r as SafeSignInResult
-  } catch (e) {
-    console.error("[safeCredentialsSignIn]", e)
+
+    // Translate API lockout codes to the LOCKOUT_IP_<sec> / LOCKOUT_IDENT_<sec> format
+    // that parseLockoutFromCredentialsCode (login-lockout-ui.ts) understands.
+    let code: string | undefined = data.code
+    if (data.retryAfterSeconds && code) {
+      if (code === "IP_LOCKOUT") code = `LOCKOUT_IP_${data.retryAfterSeconds}`
+      else if (code === "IDENTIFIER_LOCKOUT") code = `LOCKOUT_IDENT_${data.retryAfterSeconds}`
+    }
+
     return {
-      error: "CredentialsSignin",
-      code: "credentials",
-      status: 500,
       ok: false,
-      url: null,
+      error: data.error ?? "Login failed",
+      code,
+      retryAfterSeconds: data.retryAfterSeconds,
     }
+  } catch {
+    return { ok: false, error: "Network error. Check your connection and try again." }
+  }
+}
+
+export async function loginWithSalesOtp(params: {
+  phone: string
+  otp: string
+  merchantId?: string
+}): Promise<LoginResult> {
+  try {
+    const res = await fetch("/api/auth/login/sales-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ phone: params.phone, otp: params.otp, merchantId: params.merchantId }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      return { ok: true, user: data.user }
+    }
+    return {
+      ok: false,
+      error: data.error ?? "OTP login failed",
+      code: data.code,
+    }
+  } catch {
+    return { ok: false, error: "Network error. Check your connection and try again." }
   }
 }

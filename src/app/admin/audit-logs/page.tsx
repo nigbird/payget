@@ -34,7 +34,7 @@ import {
   Code2,
   Download
 } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -67,7 +67,7 @@ interface FilterOptions {
 }
 
 export default function AuditLogsPage() {
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -180,7 +180,7 @@ export default function AuditLogsPage() {
     return "bg-slate-50 text-slate-700"
   }
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = user?.permissions || []
   const canViewAuditLogs = userPermissions.includes("AUDIT_LOG_VIEW")
 
   if (!canViewAuditLogs) {

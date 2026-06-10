@@ -74,12 +74,12 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import type { Merchant } from "@/app/lib/db"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 
 function MerchantReviewContent() {
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -113,7 +113,7 @@ function MerchantReviewContent() {
   })
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = user?.permissions || []
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')
 

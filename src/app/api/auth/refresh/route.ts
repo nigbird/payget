@@ -8,6 +8,7 @@ import {
   hashRefreshToken,
   signAccessToken
 } from "@/lib/token-auth"
+import { touchSession } from "@/lib/session-manager"
 import { requireCsrf } from '@/lib/request-security';
 
 function refreshCookieName() {
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
     const existing = await prisma.refreshToken.findUnique({
       where: { tokenHash },
       include: {
+        session: {
+          select: { id: true, revokedAt: true, expiresAt: true }
+        },
         user: {
           include: {
             merchant: true,
@@ -47,18 +51,42 @@ export async function POST(request: Request) {
 
     if (!existing) return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 })
 
-    // Expired
+    // Expired refresh token.
     if (existing.expiresAt.getTime() <= Date.now()) {
       return NextResponse.json({ error: "Refresh token expired" }, { status: 401 })
     }
 
-    // Reuse detection (token already rotated/revoked)
+    // Reuse detection: token is already revoked — attacker may hold an old token.
     if (existing.revokedAt) {
-      await prisma.refreshToken.updateMany({
-        where: { familyId: existing.familyId, revokedAt: null },
-        data: { revokedAt: new Date() }
-      })
+      // Revoke entire family and the associated session to cut off the attacker.
+      await prisma.$transaction([
+        prisma.refreshToken.updateMany({
+          where: { familyId: existing.familyId, revokedAt: null },
+          data: { revokedAt: new Date() }
+        }),
+        ...(existing.sessionId
+          ? [
+              prisma.activeSession.updateMany({
+                where: { id: existing.sessionId, revokedAt: null },
+                data: { revokedAt: new Date() }
+              })
+            ]
+          : [])
+      ])
       return NextResponse.json({ error: "Refresh token reuse detected" }, { status: 401 })
+    }
+
+    // Validate the associated session.
+    if (existing.sessionId) {
+      const session = existing.session
+      if (!session || session.revokedAt !== null || session.expiresAt <= new Date()) {
+        // Session is gone; revoke this orphaned token too.
+        await prisma.refreshToken.update({
+          where: { id: existing.id },
+          data: { revokedAt: new Date() }
+        })
+        return NextResponse.json({ error: "Session expired or revoked" }, { status: 401 })
+      }
     }
 
     const user = existing.user
@@ -70,9 +98,11 @@ export async function POST(request: Request) {
     const newRefresh = generateRefreshTokenValue()
     const newHash = hashRefreshToken(newRefresh)
     const newExpiresAt = computeRefreshTokenExpiresAt()
+    const sid = existing.sessionId ?? ""
 
     const accessToken = await signAccessToken({
       sub: user.id,
+      sid,
       role: (user as any).role,
       merchantId: (user as any).merchantId,
       permissions,
@@ -87,6 +117,7 @@ export async function POST(request: Request) {
         data: {
           tokenHash: newHash,
           userId: user.id,
+          sessionId: existing.sessionId,
           familyId: existing.familyId,
           expiresAt: newExpiresAt,
           userAgent: request.headers.get("user-agent") ?? undefined,
@@ -102,11 +133,14 @@ export async function POST(request: Request) {
       return next
     })
 
+    // Update session activity timestamp without blocking the response.
+    if (sid) touchSession(sid)
+
     const res = NextResponse.json({
       expiresIn: accessTokenTtlSeconds()
     })
 
-    setAccessTokenCookie(res, accessToken)
+    await setAccessTokenCookie(res, accessToken)
 
     res.cookies.set({
       name,
@@ -124,4 +158,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

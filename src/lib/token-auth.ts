@@ -8,6 +8,7 @@ export const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60  // 7 days
 
 export type AccessTokenClaims = {
   sub: string
+  sid: string  // active session id — validated against ActiveSession table on every request
   role?: string
   merchantId?: string | null
   permissions?: string[]
@@ -36,9 +37,10 @@ export function computeRefreshTokenExpiresAt(nowMs = Date.now()) {
   return new Date(nowMs + REFRESH_TOKEN_TTL_SECONDS * 1000)
 }
 
-export async function signAccessToken(claims: AccessTokenClaims) {
-  const ttl = accessTokenTtlSeconds()
+export async function signAccessToken(claims: AccessTokenClaims, ttlSeconds?: number) {
+  const ttl = ttlSeconds ?? accessTokenTtlSeconds()
   return new SignJWT({
+    sid: claims.sid,
     role: claims.role,
     merchantId: claims.merchantId ?? null,
     permissions: claims.permissions ?? [],

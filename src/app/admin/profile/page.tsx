@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { Eye, EyeOff, KeyRound, Loader2, Shield, UserCircle2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -12,16 +12,8 @@ import { Label } from "@/components/ui/label"
 import { PasswordStrength } from "@/components/auth/password-strength"
 import { validatePassword } from "@/lib/password-policy"
 
-type SessionUser = {
-  name?: string | null
-  email?: string | null
-  role?: string
-  firstLogin?: boolean
-}
-
 export default function AdminProfilePage() {
-  const { data: session, update } = useSession()
-  const user = session?.user as SessionUser | undefined
+  const { user, refresh } = useAuth()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -74,7 +66,7 @@ export default function AdminProfilePage() {
         return
       }
 
-      await update({ ...session, user: { ...session?.user, firstLogin: false } })
+      await refresh()
       setForm({
         currentPassword: "",
         newPassword: "",

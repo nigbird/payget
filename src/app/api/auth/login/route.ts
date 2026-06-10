@@ -10,6 +10,11 @@ import {
   signAccessToken,
   accessTokenTtlSeconds
 } from "@/lib/token-auth"
+import {
+  enforceSessionLimitTx,
+  createActiveSessionTx,
+  cleanupExpiredSessions
+} from "@/lib/session-manager"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
 import { requireCsrf } from '@/lib/request-security';
@@ -67,7 +72,7 @@ export async function POST(request: Request) {
 
     const xForwardedFor = request.headers.get("x-forwarded-for")
     const ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : "127.0.0.1"
-    
+
     console.log('[Login] Login attempt from IP: %s', ip)
 
     const ipLockout = await checkIpLockout(ip)
@@ -219,42 +224,54 @@ export async function POST(request: Request) {
     await resetLoginIdentifierLockout(normalizedKey)
     await resetUserLockout(user.id)
 
-    // Increment session version and revoke all existing refresh tokens so only this login remains valid.
-    const [updatedUser] = await prisma.$transaction([
-      prisma.user.update({
-        where: { id: user.id },
-        data: { sessionVersion: { increment: 1 } }
-      }),
-      prisma.refreshToken.updateMany({
-        where: { userId: user.id, revokedAt: null },
-        data: { revokedAt: new Date() }
+    // Passive cleanup of stale sessions (non-blocking; runs in background).
+    cleanupExpiredSessions().catch(() => {})
+
+    const familyId = crypto.randomUUID()
+    const refreshValue = generateRefreshTokenValue()
+    const refreshHash = hashRefreshToken(refreshValue)
+    const expiresAt = computeRefreshTokenExpiresAt()
+    const userAgent = request.headers.get("user-agent")
+
+    // Atomic transaction: enforce session limit → create ActiveSession → bind RefreshToken.
+    const sid = await prisma.$transaction(async (tx) => {
+      // Revoke oldest sessions if MAX_CONCURRENT_SESSIONS is reached.
+      await enforceSessionLimitTx(tx, user!.id)
+
+      // Create the new session record; its id becomes the sid embedded in both tokens.
+      const sessionId = await createActiveSessionTx(tx, {
+        userId: user!.id,
+        expiresAt,
+        userAgent,
+        ipAddress: ip
       })
-    ])
+
+      // Create the refresh token bound to this session.
+      await tx.refreshToken.create({
+        data: {
+          tokenHash: refreshHash,
+          userId: user!.id,
+          sessionId,
+          familyId,
+          expiresAt,
+          userAgent: userAgent ?? undefined,
+          ipAddress: ip
+        }
+      })
+
+      return sessionId
+    })
 
     const accessToken = await signAccessToken({
       sub: user.id,
+      sid,
       role: (user as any).role,
       merchantId: (user as any).merchantId,
       permissions,
       isHeadOffice: (user as any).isHeadOffice,
       district: (user as any).district,
       branch: (user as any).branch,
-      sessionVersion: updatedUser.sessionVersion
-    })
-
-    const familyId = crypto.randomUUID()
-    const refreshValue = generateRefreshTokenValue()
-    const refreshHash = hashRefreshToken(refreshValue)
-    const expiresAt = computeRefreshTokenExpiresAt()
-
-    await prisma.refreshToken.create({
-      data: {
-        tokenHash: refreshHash,
-        userId: user.id,
-        familyId,
-        expiresAt,
-        userAgent: request.headers.get("user-agent") ?? undefined
-      }
+      sessionVersion: user.sessionVersion
     })
 
     await writeAuditLog({
@@ -268,7 +285,7 @@ export async function POST(request: Request) {
         role: (user as any).role,
         merchantId: (user as any).merchantId,
         merchantName: (user as any).merchant?.name,
-        sessionVersion: updatedUser.sessionVersion,
+        sessionId: sid,
       },
     })
 
@@ -281,11 +298,11 @@ export async function POST(request: Request) {
         role: (user as any).role,
         merchantId: (user as any).merchantId,
         permissions,
-        sessionVersion: updatedUser.sessionVersion,
+        sessionVersion: user.sessionVersion,
       }
     })
 
-    setAccessTokenCookie(res, accessToken)
+    await setAccessTokenCookie(res, accessToken)
 
     res.cookies.set({
       name: refreshCookieName(),
@@ -314,4 +331,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

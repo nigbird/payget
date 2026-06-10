@@ -33,6 +33,7 @@ model User {
   limitsSetMerchants   Merchant[]             @relation("MerchantLimitsSetter")
   approvedMerchants    Merchant[]             @relation("MerchantApprover")
   refreshTokens        RefreshToken[]
+  activeSessions       ActiveSession[]
   madeCashbackRequests CashbackRequest[]      @relation("CashbackRequestMaker")
   checkedCashbackRequests CashbackRequest[]   @relation("CashbackRequestChecker")
   createdAt            DateTime               @default(now())
@@ -44,6 +45,9 @@ model RefreshToken {
   tokenHash    String   @unique
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sessionId    String?
+  session      ActiveSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   familyId     String   // groups rotated tokens; revoke whole family on reuse
   createdAt    DateTime @default(now())
@@ -60,6 +64,24 @@ model RefreshToken {
   @@index([userId])
   @@index([familyId])
   @@index([expiresAt])
+  @@index([sessionId])
+}
+
+model ActiveSession {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+  expiresAt      DateTime
+  lastActivityAt DateTime       @default(now())
+  revokedAt      DateTime?
+  userAgent      String?
+  ipAddress      String?
+  refreshTokens  RefreshToken[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, revokedAt, expiresAt])
 }
 
 enum UserRole {
@@ -362,6 +384,8 @@ model MerchantTeamMember {
   name       String
   email      String
   phone      String?
+  otp        String?
+  otpExpires DateTime?
   role       TeamRole         @default(PAYMENT_INITIATOR)
   status     TeamMemberStatus @default(ACTIVE)
   createdAt  DateTime         @default(now())

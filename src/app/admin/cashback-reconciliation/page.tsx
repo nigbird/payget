@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useRef } from 'react'
-import { useSession } from 'next-auth/react'
+import { useAuth } from '@/lib/auth-context'
 import {
   Search,
   Filter,
@@ -200,7 +200,7 @@ function RequestStatusBadge({ status }: { status: string }) {
 }
 
 export default function CashbackReconciliationPage() {
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const [items, setItems] = useState<CashbackReconciliationItem[]>([])
   const [requests, setRequests] = useState<CashbackRequest[]>([])
   const [stats, setStats] = useState<ReconciliationStats | null>(null)
@@ -232,8 +232,8 @@ export default function CashbackReconciliationPage() {
 
   const { toast } = useToast()
 
-  const userRole = (session?.user as any)?.role
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userRole = user?.role
+  const userPermissions = user?.permissions || []
   const canView = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.view')
   const canRetry = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.retry')
   const canExport = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.export')
@@ -910,7 +910,7 @@ export default function CashbackReconciliationPage() {
                                 >
                                   <Eye className='h-4 w-4' />
                                 </Button>
-                                {canManage && (session?.user as any)?.id !== request.maker.id && (
+                                {canManage && user?.id !== request.maker.id && (
                                   <>
                                     <Button
                                       variant='ghost'
@@ -1258,7 +1258,7 @@ export default function CashbackReconciliationPage() {
               </div>
 
               {/* Review Section */}
-              {selectedRequest.status === 'PENDING' && canManage && (session?.user as any)?.id !== selectedRequest.maker.id && (
+              {selectedRequest.status === 'PENDING' && canManage && user?.id !== selectedRequest.maker.id && (
                 <div className='space-y-4 pt-4 border-t border-[#F1E7D0]'>
                   <div className='space-y-2'>
                     <Label htmlFor='comments'>Review Comments (Optional)</Label>

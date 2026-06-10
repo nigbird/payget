@@ -73,7 +73,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument, Merchant } from "@/app/lib/db"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
@@ -83,7 +83,7 @@ import {
 } from "@/lib/account-number"
 
 function MerchantOnboardingContent() {
-  const { data: session } = useSession()
+  const { user: session } = useAuth()
   const { toast } = useToast()
   const searchParams = useSearchParams()
   const editMerchantIdParam = searchParams.get("editMerchantId")
@@ -171,8 +171,8 @@ function MerchantOnboardingContent() {
 
   // Sync organization details from session when modal opens
   useEffect(() => {
-    if (isRegisterDialogOpen && session?.user) {
-      const user = session.user as any
+    if (isRegisterDialogOpen && session) {
+      const user = session as any
       setFormData(prev => ({
         ...prev,
         district: user.isHeadOffice ? "Head Office" : (user.district || ""),
@@ -212,7 +212,7 @@ function MerchantOnboardingContent() {
   }
 
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = session?.permissions || []
   const canRegister = userPermissions.includes('MERCHANT_REGISTER')
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')

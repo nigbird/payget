@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/db';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
-import { hasPermission } from '@/lib/rbac';
+import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { generateMerchantUpdateLink, sendNotification } from '@/lib/notifications';
 import crypto from 'crypto';
 import { requireCsrf } from '@/lib/request-security';
@@ -15,13 +14,12 @@ export async function POST(
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await requireAuthUser(request);
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const canApprove = await hasPermission('MERCHANT_APPROVE');
-    if (!canApprove) {
+    if (!userHasPermission(authUser, 'MERCHANT_APPROVE')) {
       return NextResponse.json({ error: 'Permission denied: MERCHANT_APPROVE required' }, { status: 403 });
     }
 
@@ -68,7 +66,7 @@ export async function POST(
     // Audit Log
     await prisma.auditLog.create({
       data: {
-        userId: session.user.id!,
+        userId: authUser.id,
         action: 'MERCHANT_REQUEST_UPDATE',
         entityType: 'MERCHANT',
         entityId: id,

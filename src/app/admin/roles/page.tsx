@@ -53,7 +53,7 @@ import {
   Loader2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 
 interface Permission {
   id: string
@@ -72,7 +72,7 @@ interface Role {
 }
 
 export default function RoleManagementPage() {
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const { toast } = useToast()
   const [roles, setRoles] = useState<Role[]>([])
   const [availablePermissions, setAvailablePermissions] = useState<Permission[]>([])
@@ -217,8 +217,8 @@ export default function RoleManagementPage() {
     }
   }
 
-  const userRole = (session?.user as any)?.role
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userRole = user?.role
+  const userPermissions = user?.permissions || []
   const isSuperAdmin = userRole === 'ADMIN'
   const canCreateRole = isSuperAdmin || userPermissions.includes('ROLE_CREATE')
   const canEditRole = isSuperAdmin || userPermissions.includes('ROLE_EDIT')

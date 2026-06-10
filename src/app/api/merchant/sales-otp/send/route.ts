@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No active sales user found for this phone number.' }, { status: 404 })
   }
 
-  const otp = generateSalesOtp(phone)
+  const otp = await generateSalesOtp(phone)
 
   console.info("[sales-otp] OTP generated and sent", { phone: maskPhone(phone) })
 

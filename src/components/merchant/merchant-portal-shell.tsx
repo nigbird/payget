@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, History, Users, Settings2, LogOut } from "lucide-react"
-import { signOut, useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,15 +31,15 @@ export default function MerchantPortalShell({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { user: sessionUser, status, logout } = useAuth()
 
   const [merchant, setMerchant] = React.useState<Merchant | null>(null)
   const [assignedMerchants, setAssignedMerchants] = React.useState<{ id: string; name: string }[]>([])
 
-  const isSalesUser = (session?.user as { role?: string } | undefined)?.role === "SALES"
+  const isSalesUser = sessionUser?.role === "SALES"
   const activeRole: MerchantTeamRole = isSalesUser ? "payment_initiator" : "account_admin"
 
-  const assignedMerchantsFromSession = (session?.user as any)?.assignedMerchants as { id: string; name: string }[] | undefined
+  const assignedMerchantsFromSession = sessionUser?.assignedMerchants
 
   React.useEffect(() => {
     if (!isSalesUser) return
@@ -123,7 +123,7 @@ export default function MerchantPortalShell({
 
   const visibleNavItems = navItems.filter((item) => {
     // During initial loading when no session exists, hide role-restricted items
-    if (status === "loading" && !session) return !("requiresRole" in item) || item.requiresRole === undefined
+    if (status === "loading" && !sessionUser) return !("requiresRole" in item) || item.requiresRole === undefined
     
     // Otherwise, show if no role is required or if user has the correct role
     if (!("requiresRole" in item) || item.requiresRole === undefined) return true
@@ -230,7 +230,7 @@ export default function MerchantPortalShell({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => signOut({ callbackUrl: "/login/merchant" })}
+                onClick={() => logout("/login/merchant")}
                 className="h-11 min-h-11 gap-2 rounded-xl px-2 text-[#754319] hover:bg-red-50 hover:text-red-600 md:px-3"
                 title="Log Out"
               >

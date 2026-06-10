@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import {
   Area,
   AreaChart,
@@ -120,7 +120,7 @@ function MetricCard({
 
 export default function AdminDashboard() {
   const { toast } = useToast()
-  const { data: session } = useSession()
+  const { user } = useAuth()
 
   const [merchants, setMerchants] = useState<any[]>([])
   const [stats, setStats] = useState<AdminStats | null>(null)
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = user?.permissions || []
   const canApprove = userPermissions.includes("MERCHANT_APPROVE")
 
   const allowedTypesValidation = useMemo(() => {

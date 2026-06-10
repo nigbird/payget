@@ -59,7 +59,7 @@ import {
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import {
   ChevronLeft,
   ChevronRight,
@@ -93,7 +93,7 @@ interface Role {
 }
 
 export default function UserManagementPage() {
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const { toast } = useToast()
   const [users, setUsers] = useState<UserRecord[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -291,8 +291,8 @@ export default function UserManagementPage() {
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
-  const userRole = (session?.user as any)?.role
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userRole = user?.role
+  const userPermissions = user?.permissions || []
   const isSuperAdmin = userRole === 'ADMIN'
   const canCreateUser = isSuperAdmin || userPermissions.includes('USER_CREATE')
 

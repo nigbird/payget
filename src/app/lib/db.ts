@@ -193,6 +193,8 @@ export interface MerchantTeamMember {
   name: string;
   email: string;
   phone?: string;
+  otp?: string | null;
+  otpExpires?: string | null;
   role: MerchantTeamRole;
   status: MerchantTeamMemberStatus;
   createdAt: string;
@@ -221,7 +223,9 @@ function mapTeamMember(tm: any): MerchantTeamMember {
     ...tm,
     role: mapTeamRole(tm.role),
     status: mapTeamMemberStatus(tm.status),
-    createdAt: tm.createdAt.toISOString()
+    createdAt: tm.createdAt.toISOString(),
+    otp: tm.otp ?? undefined,
+    otpExpires: tm.otpExpires ? tm.otpExpires.toISOString() : undefined
   };
 }
 
@@ -305,6 +309,50 @@ export const db = {
       orderBy: { createdAt: 'desc' }
     });
     return members.map(mapTeamMember);
+  },
+
+  setMerchantTeamMemberOtpByPhone: async (phone: string, otp: string, expiresAt: Date) => {
+    return prisma.merchantTeamMember.updateMany({
+      where: {
+        phone,
+        status: 'ACTIVE',
+        merchant: {
+          status: 'ACTIVE'
+        }
+      },
+      data: { otp, otpExpires: expiresAt }
+    });
+  },
+
+  verifyMerchantTeamMemberOtp: async (phone: string, code: string) => {
+    const member = await prisma.merchantTeamMember.findFirst({
+      where: {
+        phone,
+        otp: code,
+        otpExpires: { gte: new Date() },
+        status: 'ACTIVE',
+        merchant: {
+          status: 'ACTIVE'
+        }
+      }
+    });
+
+    if (!member) {
+      return false;
+    }
+
+    await prisma.merchantTeamMember.updateMany({
+      where: {
+        phone,
+        otp: code,
+        merchant: {
+          status: 'ACTIVE'
+        }
+      },
+      data: { otp: null, otpExpires: null }
+    });
+
+    return true;
   },
 
   addMerchantTeamMember: async (data: any) => {
