@@ -3,6 +3,28 @@ import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { searchAuditLogs, exportAuditLogs } from '@/lib/audit-log';
 
+const SENSITIVE_VALUE_KEYS = new Set([
+  'merchantId', 'transactionId', 'transactionReference',
+  'token', 'resetToken', 'authToken', 'secret', 'password',
+])
+
+function sanitizeJsonValue(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([k]) => !SENSITIVE_VALUE_KEYS.has(k))
+  )
+}
+
+function sanitizeLog<T extends { ipAddress?: unknown; userAgent?: unknown; oldValue?: unknown; newValue?: unknown }>(log: T) {
+  const { ipAddress: _ip, userAgent: _ua, ...rest } = log as any
+  return {
+    ...rest,
+    oldValue: sanitizeJsonValue(rest.oldValue),
+    newValue: sanitizeJsonValue(rest.newValue),
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const user = await requireAuthUser(request);
@@ -31,7 +53,7 @@ export async function GET(request: Request) {
 
     if (isExport) {
       const logs = await exportAuditLogs(params);
-      
+
       // Convert to CSV
       const headers = [
         'Timestamp',
@@ -40,26 +62,25 @@ export async function GET(request: Request) {
         'Action',
         'Entity Type',
         'Entity ID',
-        'IP Address',
-        'User Agent',
         'Old Value',
         'New Value'
       ];
-      
+
       const csvContent = [
         headers.join(','),
-        ...logs.map(log => [
-          `"${new Date(log.createdAt).toISOString()}"`,
-          `"${log.user?.name || 'System'}"`,
-          `"${log.user?.email || ''}"`,
-          `"${log.action}"`,
-          `"${log.entityType}"`,
-          `"${log.entityId || ''}"`,
-          `"${log.ipAddress || ''}"`,
-          `"${(log.userAgent || '').replace(/"/g, '""')}"`,
-          `"${JSON.stringify(log.oldValue || '').replace(/"/g, '""')}"`,
-          `"${JSON.stringify(log.newValue || '').replace(/"/g, '""')}"`
-        ].join(','))
+        ...logs.map(log => {
+          const s = sanitizeLog(log)
+          return [
+            `"${new Date(log.createdAt).toISOString()}"`,
+            `"${log.user?.name || 'System'}"`,
+            `"${log.user?.email || ''}"`,
+            `"${log.action}"`,
+            `"${log.entityType}"`,
+            `"${log.entityId || ''}"`,
+            `"${JSON.stringify(s.oldValue || '').replace(/"/g, '""')}"`,
+            `"${JSON.stringify(s.newValue || '').replace(/"/g, '""')}"`
+          ].join(',')
+        })
       ].join('\n');
       
       return new Response(csvContent, {
@@ -86,6 +107,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       ...result,
+      logs: result.logs.map(sanitizeLog),
       filterOptions: {
         actions: distinctActions.map(a => a.action),
         entityTypes: distinctEntityTypes.map(e => e.entityType),
