@@ -90,12 +90,15 @@ export function SessionWatcher() {
     }
 
     localStorage.setItem(ACTIVITY_STORAGE_KEY, now.toString())
+  }, [status, refresh])
 
-    if ((isExpiring || showTimeoutModal) && expiredReason === null) {
+  const handleStayLoggedIn = useCallback(() => {
+    handleActivity()
+    if (expiredReason === null) {
       setIsExpiring(false)
       setShowTimeoutModal(false)
     }
-  }, [isExpiring, showTimeoutModal, status, refresh, expiredReason])
+  }, [handleActivity, expiredReason])
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -248,7 +251,7 @@ export function SessionWatcher() {
                 Log Out
               </Button>
               <Button
-                onClick={handleActivity}
+                onClick={handleStayLoggedIn}
                 className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white shadow-lg shadow-amber-200/50"
               >
                 Stay Logged In
