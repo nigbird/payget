@@ -5,7 +5,7 @@ import { searchAuditLogs, exportAuditLogs } from '@/lib/audit-log';
 
 const SENSITIVE_VALUE_KEYS = new Set([
   'merchantId', 'transactionId', 'transactionReference',
-  'token', 'resetToken', 'authToken', 'secret', 'password',
+  'token', 'resetToken', 'authToken', 'secret', 'password', 'sessionId',
 ])
 
 function sanitizeJsonValue(value: unknown): unknown {
