@@ -333,15 +333,15 @@ export default function UserManagementPage() {
                   <Plus className="w-4 h-4" /> Add User
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
-                <DialogHeader className="p-6 border-b border-slate-50">
+              <DialogContent className="sm:max-w-[440px] max-h-[90vh] flex flex-col border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+                <DialogHeader className="p-6 border-b border-slate-50 shrink-0">
                   <DialogTitle className="text-xl font-medium text-slate-800">Add New User</DialogTitle>
                   <DialogDescription className="text-slate-500">
                     Create a new staff account and assign a role. Security checks will ensure no privilege escalation.
                   </DialogDescription>
                 </DialogHeader>
-                
-                <div className="grid gap-4 px-6 py-4">
+
+                <div className="grid gap-4 px-6 py-4 overflow-y-auto flex-1">
                   <div className="grid gap-2">
                     <Label htmlFor="name" className="text-xs font-medium text-slate-500">Full Name</Label>
                     <div className="relative">
@@ -487,15 +487,15 @@ export default function UserManagementPage() {
                   )}
                 </div>
 
-                <DialogFooter className="pt-4 px-6 pb-6">
-                  <Button 
-                    variant="outline" 
+                <DialogFooter className="pt-4 px-6 pb-6 border-t border-slate-50 shrink-0">
+                  <Button
+                    variant="outline"
                     onClick={() => setIsCreateDialogOpen(false)}
                     className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
                   >
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleCreateUser}
                     className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
                   >
