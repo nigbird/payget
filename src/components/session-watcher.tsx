@@ -127,7 +127,12 @@ export function SessionWatcher() {
     window.fetch = async (...args) => {
       try {
         const response = await originalFetch(...args)
-        if (response.status === 401 && !isAuthPageRef.current && statusRef.current === "authenticated") {
+        // /api/auth/* 401s are handled by auth-context (token refresh flow) —
+        // dispatching SESSION_EXPIRED_EVENT here would race with tryRefreshToken()
+        // and log the user out before the refresh has a chance to run.
+        const url = typeof args[0] === "string" ? args[0] : args[0] instanceof Request ? args[0].url : ""
+        const isAuthEndpoint = url.includes("/api/auth/")
+        if (response.status === 401 && !isAuthPageRef.current && statusRef.current === "authenticated" && !isAuthEndpoint) {
           window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
         }
         return response
