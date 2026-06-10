@@ -14,13 +14,14 @@ export type LoginResult = {
 export async function loginWithCredentials(params: {
   identifier: string
   password: string
+  portal: "admin" | "merchant"
 }): Promise<LoginResult> {
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ identifier: params.identifier, password: params.password }),
+      body: JSON.stringify({ identifier: params.identifier, password: params.password, portal: params.portal }),
     })
     const data = await res.json().catch(() => ({}))
     if (res.ok) {

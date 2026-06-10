@@ -78,6 +78,7 @@ export default function MerchantLogin() {
       const result = await loginWithCredentials({
         identifier: credentials.email,
         password: credentials.password,
+        portal: "merchant",
       })
 
       const lockoutActive = lockout.applyLockoutFromSignInResult(result, credentials.email)

@@ -34,6 +34,7 @@ export default function AdminLogin() {
       const result = await loginWithCredentials({
         identifier: credentials.email,
         password: credentials.password,
+        portal: "admin",
       })
 
       const lockoutSeen = lockout.applyLockoutFromSignInResult(result, credentials.email)

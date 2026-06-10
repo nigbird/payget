@@ -84,6 +84,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}))
     const identifier = typeof body.identifier === "string" ? body.identifier.trim() : ""
     const password = typeof body.password === "string" ? body.password : ""
+    const portal = typeof body.portal === "string" ? body.portal : null
     const normalizedKey = normalizeLoginIdentifierForLockout(identifier)
 
     if (!identifier || !password) {
@@ -211,6 +212,22 @@ export async function POST(request: Request) {
           reason: "INCORRECT_PASSWORD",
         },
       })
+      const after = await recordFailedLoginAttempt(ip, normalizedKey)
+      const lr = firstLockoutResponse(after.ip, after.identifier)
+      if (lr) return lr
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Portal enforcement: reject cross-portal login attempts without revealing
+    // the actual reason (avoids user enumeration of role vs. wrong password).
+    const userRole = (user as any).role as string
+    if (portal === "admin" && userRole === "MERCHANT") {
+      const after = await recordFailedLoginAttempt(ip, normalizedKey)
+      const lr = firstLockoutResponse(after.ip, after.identifier)
+      if (lr) return lr
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+    if (portal === "merchant" && userRole !== "MERCHANT") {
       const after = await recordFailedLoginAttempt(ip, normalizedKey)
       const lr = firstLockoutResponse(after.ip, after.identifier)
       if (lr) return lr
