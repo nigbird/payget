@@ -72,9 +72,6 @@ export async function POST(request: Request) {
 
     const xForwardedFor = request.headers.get("x-forwarded-for")
     const ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : "127.0.0.1"
-
-    console.log('[Login] Login attempt from IP: %s', ip)
-
     const ipLockout = await checkIpLockout(ip)
     if (ipLockout.locked) {
       console.log('[Login] IP %s is currently locked', ip)

@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/button"
 import { Clock, LogIn, AlertCircle } from "lucide-react"
 import { SESSION_EXPIRED_EVENT } from "@/lib/api-client"
 
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000
-const WARNING_THRESHOLD = 28 * 60 * 1000
+const INACTIVITY_TIMEOUT = 5 * 60 * 1000
+const WARNING_THRESHOLD = 4 * 60 * 1000
 const SESSION_CHECK_INTERVAL = 5 * 1000
 const SESSION_UPDATE_THROTTLE = 5 * 1000
 const ACTIVITY_STORAGE_KEY = "last_activity_timestamp"
