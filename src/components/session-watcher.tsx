@@ -31,6 +31,7 @@ export function SessionWatcher() {
   const lastActivityRef = useRef<number>(Date.now())
   const lastUpdateRef = useRef<number>(Date.now())
   const statusRef = useRef(status)
+  const expiredReasonRef = useRef<"inactivity" | "unauthorized" | null>(null)
 
   const isAuthPage =
     pathname?.startsWith("/login") ||
@@ -54,6 +55,7 @@ export function SessionWatcher() {
 
   const handleSessionExpired = useCallback(
     async (reason: "inactivity" | "unauthorized") => {
+      expiredReasonRef.current = reason
       setExpiredReason(reason)
       setIsExpiring(false)
       setShowTimeoutModal(true)
@@ -163,7 +165,7 @@ export function SessionWatcher() {
         if (statusRef.current === "authenticated" && !isAuthPageRef.current) {
           handleSessionExpired("inactivity")
         }
-      } else if (now - lastActivity > WARNING_THRESHOLD && !isExpiring) {
+      } else if (now - lastActivity > WARNING_THRESHOLD && !isExpiring && expiredReasonRef.current === null) {
         setIsExpiring(true)
         setShowTimeoutModal(true)
       }
@@ -200,6 +202,7 @@ export function SessionWatcher() {
   }, [status, user, pathname, isAuthPage, router])
 
   const handleLoginAgain = () => {
+    expiredReasonRef.current = null
     setShowTimeoutModal(false)
     clearAuthData()
     const loginUrl = pathname?.startsWith("/merchant") ? "/login/merchant" : "/login"
@@ -207,6 +210,7 @@ export function SessionWatcher() {
   }
 
   const handleLogoutNow = useCallback(() => {
+    expiredReasonRef.current = null
     clearAuthData()
     const loginUrl = pathname?.startsWith("/merchant") ? "/login/merchant" : "/login"
     logout(loginUrl)
