@@ -283,7 +283,7 @@ export default function MerchantLogin() {
                   </div>
 
                   <div className="flex justify-end pt-0.5">
-                    <Link href="/forgot-password" className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors">
+                    <Link href="/forgot-password?portal=merchant" className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors">
                       Forgot Password?
                     </Link>
                   </div>
