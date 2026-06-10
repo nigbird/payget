@@ -66,6 +66,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(10)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchMerchant = async () => {
@@ -476,7 +477,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                           </span>
                           <Badge className={cn(
                             "text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0",
-                            tx.status === 'success' ? "bg-emerald-100 text-emerald-700" : 
+                            tx.status === 'success' ? "bg-emerald-100 text-emerald-700" :
                             nonTerminalStatuses.includes(tx.status) ? "bg-amber-100 text-amber-700" :
                             "bg-rose-100 text-rose-700"
                           )}>
@@ -490,7 +491,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="hidden sm:flex flex-col items-end gap-1 text-right">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-bold text-slate-500">{tx.userCredentials.initiatedByName || "System"}</span>
@@ -501,10 +502,30 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       </p>
                     </div>
 
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 group-hover:text-slate-500 sm:hidden">
-                      <ChevronRight className="w-4 h-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-slate-300 group-hover:text-slate-500 sm:hidden shrink-0"
+                      onClick={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
+                    >
+                      <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", expandedId === tx.id && "rotate-180")} />
                     </Button>
                   </div>
+
+                  {expandedId === tx.id && (
+                    <div className="sm:hidden mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <UserIcon className="w-3 h-3 text-slate-300" />
+                        <span className="text-[11px] font-bold text-slate-500">{tx.userCredentials.initiatedByName || "System"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-slate-300" />
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
