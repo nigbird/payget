@@ -216,7 +216,7 @@ export function SessionWatcher() {
 
   return (
     <Dialog open={showTimeoutModal} onOpenChange={expiredReason ? undefined : setShowTimeoutModal}>
-      <DialogContent className="sm:max-w-[425px] border-none bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl">
+      <DialogContent className="sm:max-w-[425px] border-none bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl [&>button]:hidden">
         <DialogHeader className="flex flex-col items-center pt-4">
           <div
             className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
