@@ -2,9 +2,11 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Lock, CheckCircle2, Loader2, XCircle, Clock, Receipt,
+  ArrowRight, Phone, CreditCard, Copy, Check, Building, FileText
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Lock, CheckCircle2, Loader2, XCircle, Clock, Receipt, ArrowRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { QRCodeSVG } from "qrcode.react"
 import { Separator } from "@/components/ui/separator"
@@ -38,6 +40,14 @@ function PayLinkContent() {
   const [pushSent, setPushSent] = useState(false)
   const [view, setView] = useState<"checkout" | "success" | "failed" | "pending">("checkout")
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    toast({ description: "Account number copied to clipboard" })
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const handleDownloadReceipt = async (transactionId: string) => {
     setDownloadingReceipt(true)
@@ -339,120 +349,167 @@ function PayLinkContent() {
 
   // ── Checkout ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex flex-col">
-      {/* Branded header — same structure as QR payment page */}
-      <header className="bg-white border-b border-amber-100/50 px-4 sm:px-6 py-3 sm:py-4 shadow-sm sticky top-0 z-50">
-        <div className="max-w-md mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-inner">
-              <img src="/niblogo.png" alt="Nib International Bank" className="w-5 h-5 sm:w-7 sm:h-7 object-contain" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[8px] sm:text-[9px] font-bold text-amber-800/60 uppercase tracking-widest leading-none">Powered By</span>
-              <span className="text-xs sm:text-sm font-bold text-amber-900 leading-tight">Nib Bank</span>
-            </div>
-          </div>
-          <div className="h-6 sm:h-8 w-px bg-amber-100/60 mx-1 sm:mx-2 shrink-0" />
-          <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm shrink-0">
-              {payment.merchantLogoUrl ? (
-                <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-[10px] sm:text-xs uppercase">
-                  {payment.merchantName?.charAt(0)}
-                </div>
-              )}
-            </div>
-            <span className="text-[10px] sm:text-xs font-bold text-slate-700 truncate max-w-[100px]">{payment.merchantName}</span>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
 
-      <main className="flex-1 p-4 sm:p-6 flex flex-col items-center justify-center">
-        <div className="w-full max-w-[440px] space-y-4 sm:space-y-6">
+          {/* ── Merchant card ── */}
+          <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
+              </div>
+              <div>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-amber-800/50 leading-none">Powered by</p>
+                <p className="text-xs font-bold text-amber-900 leading-tight mt-0.5">Nib Bank</p>
+              </div>
+            </div>
+            <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                {payment.merchantLogoUrl ? (
+                  <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
+                ) : (
+                  <span className="text-amber-700 font-black text-base uppercase">{payment.merchantName?.charAt(0)}</span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-slate-900 text-sm truncate">{payment.merchantName}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
+                  <span className="text-xs text-amber-600 font-semibold">Verified Merchant</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* ── Awaiting PIN state ── */}
           {pushSent ? (
-            <div className="text-center space-y-6 sm:space-y-8 py-8 sm:py-12 animate-in zoom-in-95 duration-500">
-              <div className="relative">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amber-100/50 flex items-center justify-center mx-auto">
-                  <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 animate-spin text-amber-600" />
+            <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 text-center space-y-6">
+                <div className="relative mx-auto w-24 h-24">
+                  <div className="absolute inset-0 rounded-full bg-amber-200/60 animate-ping" style={{ animationDuration: "1.6s" }} />
+                  <div className="absolute inset-2 rounded-full bg-amber-100/80 animate-ping" style={{ animationDuration: "1.6s", animationDelay: "0.3s" }} />
+                  <div className="relative w-full h-full rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center shadow-sm">
+                    <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-black text-slate-800">Pushing USSD Request</h2>
+                  <p className="text-sm text-slate-500 leading-relaxed max-w-[270px] mx-auto">
+                    Please check your phone{" "}
+                    <span className="font-bold text-slate-700">({payment.payerPhone})</span>
+                    {" "}and enter your PIN to authorize the payment.
+                  </p>
+                </div>
+                <div className="bg-amber-50 rounded-2xl px-4 py-3.5 border border-amber-100/70 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>You are paying</span>
+                    <span className="font-bold text-slate-800">{payment.merchantName}</span>
+                  </div>
+                  <span className="font-bold text-slate-800 text-sm shrink-0 ml-2">
+                    ETB {payment.amount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-5 py-2.5 rounded-full w-fit mx-auto">
+                  <Clock className="w-3.5 h-3.5" />
+                  Awaiting PIN entry...
                 </div>
               </div>
-              <div className="space-y-3 px-4">
-                <h2 className="text-xl sm:text-2xl font-black text-[#5b371f]">Pushing USSD Request</h2>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto">
-                  Please check your phone (<b>{payment.payerPhone}</b>) and enter your PIN to authorize the payment.
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-2 text-[10px] sm:text-xs font-bold text-amber-600 bg-amber-50 px-4 py-2 rounded-full w-fit mx-auto border border-amber-100">
-                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Awaiting PIN entry...
-              </div>
+              <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5">
+                <Lock className="w-3 h-3" />
+                Secured by Nib Bank
+              </p>
             </div>
           ) : (
             /* ── Payment details + Pay Now ── */
-            <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="text-center space-y-1 sm:space-y-2">
-                <h1 className="text-xl sm:text-2xl font-black text-[#5b371f] tracking-tight px-2">
-                  Payment to {payment.merchantName}
-                </h1>
-                <p className="text-xs sm:text-sm text-amber-800/60 font-medium italic">Secure merchant checkout</p>
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+              {/* Amount display */}
+              <div className="text-center py-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Amount</p>
+                <p className="text-6xl font-black text-amber-500">{payment.amount.toFixed(2)}</p>
+                <div className="w-28 h-0.5 bg-amber-300/70 rounded-full mx-auto mt-1" />
+                <p className="text-sm font-semibold text-slate-400/60 mt-1.5">ETB</p>
+                <p className="text-xs text-slate-400 mt-3">
+                  Paying <span className="font-bold text-slate-700">{payment.merchantName}</span>
+                </p>
               </div>
 
-              <Card className="rounded-[1.5rem] sm:rounded-[2.5rem] border-none bg-white shadow-xl sm:shadow-2xl shadow-amber-950/10 overflow-hidden mx-auto">
-                <CardContent className="p-5 sm:p-8 space-y-5 sm:space-y-6">
+              {/* Phone Number */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Phone Number</p>
+                <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
+                  <Phone className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="flex-1 font-medium text-slate-800 text-sm">{payment.payerPhone}</span>
+                </div>
+              </div>
 
-                  {/* Amount highlight */}
-                  <div className="bg-amber-50/50 rounded-xl sm:rounded-2xl p-4 border border-amber-100/50 text-center">
-                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-amber-800/60 mb-1">Amount Due</p>
-                    <p className="text-3xl sm:text-4xl font-black text-amber-900">
-                      {payment.amount.toFixed(2)}{" "}
-                      <span className="text-lg sm:text-xl font-bold text-amber-700/60">ETB</span>
-                    </p>
-                  </div>
+              {/* Payment Method */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Payment Method</p>
+                <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
+                  <Building className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="flex-1 font-medium text-slate-800 text-sm">Nib Bank</span>
+                </div>
+              </div>
 
-                  {/* Payment details */}
-                  <div className="space-y-3">
-                    {[
-                      { label: "Merchant", value: payment.merchantName },
-                      { label: "Account", value: payment.merchantAccountNumber },
-                      { label: "Description", value: payment.serviceDescription },
-                      { label: "Phone", value: payment.payerPhone },
-                      { label: "Reference", value: payment.transactionReference },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex justify-between items-center text-sm border-b border-slate-50 pb-2 last:border-0">
-                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400">{label}</span>
-                        <span className="font-medium text-slate-700 text-right max-w-[55%] break-all text-xs sm:text-sm">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Pay Now button */}
-                  <Button
-                    className="w-full h-14 sm:h-16 rounded-xl sm:rounded-[1.5rem] border-t border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white text-base sm:text-lg font-bold shadow-lg sm:shadow-xl shadow-amber-950/20 hover:shadow-2xl hover:shadow-amber-950/30 transition-all duration-300 group"
-                    onClick={handleExecute}
-                    disabled={processing}
+              {/* Merchant Account Number */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Merchant Account Number</p>
+                <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
+                  <CreditCard className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="flex-1 font-mono font-medium text-slate-800 text-sm">{payment.merchantAccountNumber}</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(payment.merchantAccountNumber)}
+                    className="text-slate-300 hover:text-amber-500 transition-colors"
+                    aria-label="Copy account number"
                   >
-                    {processing ? (
-                      <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
-                        Pay Now
-                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
-                      </span>
-                    )}
-                  </Button>
+                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-                </CardContent>
-              </Card>
+              {/* Description */}
+              {payment.serviceDescription && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Payment Description</p>
+                  <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
+                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span className="flex-1 font-medium text-slate-800 text-sm">{payment.serviceDescription}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Pay Button */}
+              <button
+                type="button"
+                disabled={processing}
+                onClick={handleExecute}
+                className="w-full h-14 mt-1 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white font-bold text-base shadow-xl shadow-amber-950/20 hover:shadow-2xl hover:shadow-amber-950/30 transition-all duration-300 flex items-center justify-between px-5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processing ? (
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                ) : (
+                  <>
+                    <Lock className="w-5 h-5 opacity-80" />
+                    <span>Pay ETB {payment.amount.toFixed(2)}</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+
+              <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5 pt-1">
+                <Lock className="w-3 h-3" />
+                Secured by Nib Bank
+              </p>
             </div>
           )}
 
         </div>
       </main>
-
-      <footer className="mt-auto py-8 px-6 text-center border-t border-amber-100/30" />
     </div>
   )
 }
