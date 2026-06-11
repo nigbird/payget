@@ -133,7 +133,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
   }
 }
 
-export async function resolveEncryptedToken(token: string) {
+export async function resolveEncryptedToken(token: string, options?: { allowTerminal?: boolean }) {
   const kid = extractKidFromJwe(token)
   if (!kid) return { ok: false as const, error: "Invalid token (missing key id)" }
 
@@ -178,11 +178,15 @@ export async function resolveEncryptedToken(token: string) {
   const linkStatus = linkMeta?.status ?? (payload as any)?.linkStatus ?? "PENDING"
 
   if (tx.status === "success") {
-    return { ok: false as const, error: "Payment already completed" }
+    if (!options?.allowTerminal) {
+      return { ok: false as const, error: "Payment already completed" }
+    }
   }
 
   if (tx.status === "failed") {
-    return { ok: false as const, error: "Payment already failed and cannot be retried with this link" }
+    if (!options?.allowTerminal) {
+      return { ok: false as const, error: "Payment already failed and cannot be retried with this link" }
+    }
   }
 
   if (linkStatus === "USED") {

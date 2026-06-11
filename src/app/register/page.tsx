@@ -428,7 +428,7 @@ export default function MerchantSelfRegistration() {
       <header className="sticky top-0 z-50 flex h-16 items-center border-b border-[#eadcc4]/70 bg-[#fffdf8]/90 px-4 backdrop-blur-md">
         <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <Link href="/login/merchant" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </Link>
             <div className="flex items-center gap-2">
