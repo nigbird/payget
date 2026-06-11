@@ -1,12 +1,10 @@
 "use client"
 
 import { Suspense, useEffect, useMemo, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import Image from "next/image"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Lock, CheckCircle2, Loader2, XCircle, Clock, Receipt } from "lucide-react"
+import { Lock, CheckCircle2, Loader2, XCircle, Clock, Receipt, ArrowRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { QRCodeSVG } from "qrcode.react"
 import { Separator } from "@/components/ui/separator"
@@ -25,24 +23,8 @@ type ResolvedPayment = {
   payerPhone: string
 }
 
-const gatewayBrand = {
-  name: "NibTera Merchants",
-  initials: "NT",
-  logoUrl: "/bank-logo.jpg",
-}
-
-function getInitials(value: string) {
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("")
-}
-
 function PayLinkContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const { toast } = useToast()
 
   const token = useMemo(() => searchParams.get("token") || "", [searchParams])
@@ -52,11 +34,9 @@ function PayLinkContent() {
   const [payment, setPayment] = useState<ResolvedPayment | null>(null)
   const [merchantSessionToken, setMerchantSessionToken] = useState<string | null>(null)
 
-  const [pin, setPin] = useState("")
-  const [showPinEntry, setShowPinEntry] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [pushSent, setPushSent] = useState(false)
-  const [view, setView] = useState<"checkout" | "success" | "failed">("checkout")
+  const [view, setView] = useState<"checkout" | "success" | "failed" | "pending">("checkout")
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
 
   const handleDownloadReceipt = async (transactionId: string) => {
@@ -82,28 +62,15 @@ function PayLinkContent() {
 
   useEffect(() => {
     const run = async () => {
-      if (!token) {
-        setError("Missing token")
-        setLoading(false)
-        return
-      }
-
+      if (!token) { setError("Missing token"); setLoading(false); return }
       try {
         setLoading(true)
         setError(null)
-
         const res = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
         const data = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          setError(data?.error || "Invalid or expired link")
-          setLoading(false)
-          return
-        }
-
+        if (!res.ok) { setError(data?.error || "Invalid or expired link"); setLoading(false); return }
         setPayment(data)
         setMerchantSessionToken(data.merchantSessionToken)
-        
-        // If it's already success or failed, update view
         if (data?.status === "success") setView("success")
         else if (data?.status === "failed") setView("failed")
       } catch {
@@ -112,70 +79,63 @@ function PayLinkContent() {
         setLoading(false)
       }
     }
-
     run()
   }, [token])
 
   useEffect(() => {
     let interval: NodeJS.Timeout
-    if (pushSent && view === "checkout") {
+    if (pushSent && view === "checkout" && payment?.transactionId) {
+      let pollCount = 0
+      const maxPolls = 100
+
       interval = setInterval(async () => {
+        pollCount++
+        if (pollCount > maxPolls) {
+          clearInterval(interval)
+          setView("pending")
+          return
+        }
         try {
-          const res = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
+          const res = await fetch(`/api/pay/status/${payment.transactionId}`)
           const data = await res.json().catch(() => ({}))
           if (res.ok) {
             if (data?.status === "success") {
-              setPayment(data)
+              clearInterval(interval)
+              const txRes = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
+              if (txRes.ok) setPayment(await txRes.json().catch(() => payment))
               setView("success")
-              clearInterval(interval)
             } else if (data?.status === "failed") {
-              setPayment(data)
-              setView("failed")
               clearInterval(interval)
+              const txRes = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
+              if (txRes.ok) setPayment(await txRes.json().catch(() => payment))
+              setView("failed")
             }
           }
         } catch (err) {
           console.error("Polling error:", err)
         }
-      }, 3000) // Poll every 3 seconds
+      }, 3000)
     }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [pushSent, view, token])
+    return () => { if (interval) clearInterval(interval) }
+  }, [pushSent, view, token, payment?.transactionId])
 
   const handleExecute = async () => {
     if (!payment) return
-    // USSD Push flow: No PIN entry needed in web UI, customer enters PIN on their phone.
     setProcessing(true)
     try {
       const res = await fetch("/api/provider/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          token,
-          merchantSessionToken,
-        }),
+        body: JSON.stringify({ token, merchantSessionToken }),
       })
-
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         toast({ variant: "destructive", title: "Payment failed", description: data?.error || "Try again." })
         setProcessing(false)
         return
       }
-
-      // If successful, the provider has initiated the push.
       setPushSent(true)
-      
-      toast({ 
-        title: "USSD Push Sent", 
-        description: "Please check your phone and enter your PIN to authorize the payment." 
-      })
-      
-      // Update local status to reflect it's awaiting PIN
       setPayment(prev => prev ? { ...prev, status: "awaiting_pin" } : null)
-
     } catch {
       toast({ variant: "destructive", title: "Payment error", description: "Could not initiate USSD push." })
     } finally {
@@ -183,77 +143,29 @@ function PayLinkContent() {
     }
   }
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
       </div>
     )
   }
 
+  // ── Invalid link — no "Return Home" per design requirement ─────────────────
   if (error || !payment) {
     return (
-      <div className="min-h-screen bg-white p-4 flex items-center justify-center">
-        <Card className="w-full max-w-md rounded-2xl border border-amber-100 bg-white shadow-sm">
-          <CardContent className="p-8 space-y-4 text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-2 border border-rose-100">
-              <XCircle className="w-6 h-6" />
-            </div>
-            <h1 className="text-xl font-medium text-amber-900 tracking-tight">Unable to process payment</h1>
-            <p className="text-sm text-amber-800/70">{error || "This payment link is invalid or has expired."}</p>
-            <div className="pt-4">
-              <Button variant="outline" className="w-full rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50" onClick={() => router.push("/")}>
-                Return Home
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (view === "failed") {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-4">
-          <Card className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
-            <CardContent className="p-0">
-              <div className="bg-gradient-to-b from-rose-50 to-white px-6 pt-10 pb-6 flex flex-col items-center text-center border-b border-rose-100">
-                <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mb-4 shadow-sm">
-                  <XCircle className="w-8 h-8 text-rose-600" />
-                </div>
-                <h1 className="text-2xl font-semibold text-rose-900 tracking-tight">Payment Failed</h1>
-                <p className="mt-1 text-sm text-rose-700/70">The payment could not be completed</p>
-                <p className="mt-4 text-4xl font-bold tracking-tight text-[#3f210f]">{payment.amount.toFixed(2)} <span className="text-xl font-semibold text-amber-800/60">ETB</span></p>
-              </div>
-              <div className="px-6 py-5 space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Merchant</p>
-                  <p className="text-sm font-medium text-slate-800">{payment.merchantName}</p>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Description</p>
-                  <p className="text-sm text-slate-700">{payment.serviceDescription}</p>
-                </div>
-              </div>
-              <div className="px-6 pb-6">
-                <div className="rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-center mb-4">
-                  <p className="text-xs text-rose-700 font-medium">Your payment was not processed. You have not been charged.</p>
-                </div>
-                <Button
-                  className="w-full rounded-xl h-11 bg-gradient-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white"
-                  onClick={() => window.location.reload()}
-                >
-                  Try Again
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2 border border-rose-100">
+          <XCircle className="w-8 h-8" />
         </div>
+        <h1 className="text-xl font-bold text-slate-800">Unable to Process Payment</h1>
+        <p className="text-sm text-slate-500 max-w-xs">{error || "This payment link is invalid or has expired."}</p>
       </div>
     )
   }
 
+  // ── Success ────────────────────────────────────────────────────────────────
   if (view === "success") {
     const transactionAmount = payment.amount.toFixed(2)
     const transactionDate = new Date(payment.transactionTimestamp).toLocaleString("en-GB", {
@@ -264,7 +176,6 @@ function PayLinkContent() {
 
     return (
       <div className="min-h-screen flex flex-col bg-gray-100">
-        {/* Orange gradient header */}
         <div className="relative bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 px-6 pt-14 pb-24 flex flex-col items-center text-center overflow-hidden">
           <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-orange-400/40" />
           <div className="absolute top-4 right-0 w-20 h-20 rounded-full bg-amber-300/30" />
@@ -281,7 +192,6 @@ function PayLinkContent() {
         </div>
 
         <div className="flex-1 flex flex-col pb-4">
-          {/* Receipt card overlapping header */}
           <div className="-mt-12 mx-4 bg-white rounded-3xl shadow-lg overflow-hidden">
             <div className="px-5 pt-6 space-y-3">
               {[
@@ -319,29 +229,24 @@ function PayLinkContent() {
               </div>
             </div>
 
-            {/* QR Code */}
             <div className="flex justify-center py-5 px-5">
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                 <QRCodeSVG value={qrData} size={150} level="H" />
               </div>
             </div>
 
-            {/* View Receipt button */}
             <div className="px-5 pb-4">
               <Button
                 className="w-full h-12 rounded-2xl bg-amber-400 hover:bg-amber-500 text-white font-bold"
                 onClick={() => handleDownloadReceipt(payment.transactionId)}
                 disabled={downloadingReceipt}
               >
-                {downloadingReceipt ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating...</>
-                ) : (
-                  <><Receipt className="mr-2 h-4 w-4" />View Receipt</>
-                )}
+                {downloadingReceipt
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating...</>
+                  : <><Receipt className="mr-2 h-4 w-4" />View Receipt</>}
               </Button>
             </div>
 
-            {/* NIB branding */}
             <div className="flex items-center justify-center gap-3 px-5 pb-6">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-900 border-2 border-amber-700 flex items-center justify-center shadow-sm">
                 <img src="/niblogo.png" alt="NIB" className="w-7 h-7 object-contain" />
@@ -352,146 +257,202 @@ function PayLinkContent() {
               </div>
             </div>
           </div>
-
-          {/* Done button */}
-          <div className="px-4 mt-4">
-            <Button
-              variant="outline"
-              className="w-full h-14 rounded-3xl border border-amber-200 text-amber-500 font-bold text-base bg-white hover:bg-amber-50"
-              onClick={() => router.push("/")}
-            >
-              Done
-            </Button>
-          </div>
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="min-h-screen bg-white p-4 flex items-center justify-center">
-      <div className="mx-auto w-full max-w-md space-y-4">
-        <Card className="relative overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm shadow-amber-950/5">
-          <CardContent className="p-0">
-            <div className="bg-white px-6 pb-8 pt-6 border-b border-black/5">
-              <div className="flex flex-col gap-6">
-                <div className="rounded-xl border border-amber-100 bg-gradient-to-r from-white to-amber-50/40 px-4 py-3 shadow-sm">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-amber-100">
-                        {gatewayBrand.logoUrl ? (
-                          <Image
-                            src={gatewayBrand.logoUrl}
-                            alt={gatewayBrand.name}
-                            width={32}
-                            height={32}
-                            className="rounded-md"
-                          />
-                        ) : (
-                          <span className="text-[11px] font-medium tracking-widest text-[#754319]">{gatewayBrand.initials}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] uppercase tracking-widest text-amber-800/60">Powered by</p>
-                        <p className="truncate text-sm font-medium text-[#5b371f]">Nib International Bank</p>
-                      </div>
-                    </div>
-
-                    <div className="h-8 w-px bg-amber-100" />
-
-                    <div className="flex min-w-0 items-center gap-2">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-amber-100 shadow-[0_1px_6px_rgba(117,67,25,0.08)]">
-                        {payment.merchantLogoUrl ? (
-                          <Image
-                            src={payment.merchantLogoUrl}
-                            alt={payment.merchantName}
-                            width={32}
-                            height={32}
-                            className="rounded-md object-cover"
-                          />
-                        ) : (
-                          <span className="text-[11px] font-medium tracking-widest text-[#754319]">{getInitials(payment.merchantName)}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-widest text-amber-800/60">Payment</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-[#3f210f]">{payment.amount.toFixed(2)} ETB</p>
-                  <p className="mt-1 max-w-[14rem] text-sm text-[#754319]">{payment.serviceDescription}</p>
-                </div>
-              </div>
+  // ── Failed ─────────────────────────────────────────────────────────────────
+  if (view === "failed") {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col">
+        <header className="bg-white border-b border-amber-100/50 px-4 py-3 shadow-sm sticky top-0 z-50">
+          <div className="max-w-md mx-auto flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-inner">
+              <img src="/niblogo.png" alt="NIB" className="w-5 h-5 object-contain" />
             </div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-bold text-amber-800/60 uppercase tracking-widest leading-none">Powered By</span>
+              <span className="text-xs font-bold text-amber-900 leading-tight">Nib Bank</span>
+            </div>
+          </div>
+        </header>
 
-            <div className="space-y-5 bg-white p-6">
-              <div className="rounded-xl border border-amber-100 bg-white p-4">
-                <div className="space-y-3">
-                  <div className="grid grid-cols-[108px_minmax(0,1fr)] items-start gap-3 border-b border-amber-100 pb-3">
-                    <p className="text-[11px] uppercase tracking-widest text-amber-800/60">Merchant</p>
-                    <p className="text-right text-sm font-medium text-[#5b371f]">{payment.merchantName}</p>
-                  </div>
-                  <div className="grid grid-cols-[108px_minmax(0,1fr)] items-start gap-3 border-b border-amber-100 pb-3">
-                    <p className="text-[11px] uppercase tracking-widest text-amber-800/60">Account</p>
-                    <p className="break-all text-right font-mono text-sm text-[#754319]">{payment.merchantAccountNumber}</p>
-                  </div>
-                  <div className="grid grid-cols-[108px_minmax(0,1fr)] items-start gap-3 border-b border-amber-100 pb-3">
-                    <p className="text-[11px] uppercase tracking-widest text-amber-800/60">Reference</p>
-                    <p className="break-all text-right font-mono text-sm text-[#754319]">{payment.transactionReference}</p>
-                  </div>
-                  <div className="grid grid-cols-[108px_minmax(0,1fr)] items-start gap-3 border-b border-amber-100 pb-3">
-                    <p className="text-[11px] uppercase tracking-widest text-amber-800/60">Status</p>
-                    <p className="text-right text-sm font-medium text-[#5b371f] capitalize">
-                      {payment.status === "awaiting_pin"
-                        ? "Awaiting PIN"
-                        : payment.status === "processing"
-                          ? "Processing"
-                          : payment.status}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-[108px_minmax(0,1fr)] items-start gap-3">
-                    <p className="text-[11px] uppercase tracking-widest text-amber-800/60">Paying With</p>
-                    <p className="text-right text-sm font-medium text-[#5b371f]">{payment.payerPhone || "Customer"}</p>
-                  </div>
-                </div>
-              </div>
+        <main className="flex-1 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-[440px] text-center space-y-6 py-8 animate-in zoom-in-95 duration-500">
+            <div className="w-20 h-20 rounded-full bg-rose-100 flex items-center justify-center mx-auto shadow-lg shadow-rose-500/10">
+              <XCircle className="w-10 h-10 text-rose-500" />
+            </div>
+            <div className="space-y-2 px-2">
+              <h2 className="text-2xl font-black text-rose-900">Payment Failed</h2>
+              <p className="text-sm text-rose-700/60 font-medium">We couldn&apos;t process your payment at this time.</p>
+              <p className="text-xs text-slate-500">Your account has not been charged.</p>
+            </div>
+            <button
+              className="w-full h-14 rounded-2xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-colors"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
-              {view === "checkout" && (
-                <div className="space-y-4">
-                  {!pushSent ? (
-                    <Button
-                      className="h-12 w-full rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all"
-                      onClick={handleExecute}
-                      disabled={processing}
-                    >
-                      {processing ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Lock className="mr-2 h-4 w-4" />
-                      )}
-                      Pay Now
-                    </Button>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
-                        <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
-                          <Clock className="w-6 h-6 text-amber-600 animate-pulse" />
-                        </div>
-                        <h3 className="text-base font-medium text-amber-900">USSD Push Sent</h3>
-                        <p className="mt-2 text-sm text-amber-800/80 leading-relaxed">
-                          Please check your phone (<strong>{payment.payerPhone}</strong>) and enter your PIN to authorize the payment.
-                         </p>
-                      </div>
-                    </div>
-                  )}
+  // ── Pending ────────────────────────────────────────────────────────────────
+  if (view === "pending") {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col">
+        <header className="bg-white border-b border-amber-100/50 px-4 py-3 shadow-sm sticky top-0 z-50">
+          <div className="max-w-md mx-auto flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-inner">
+              <img src="/niblogo.png" alt="NIB" className="w-5 h-5 object-contain" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-bold text-amber-800/60 uppercase tracking-widest leading-none">Powered By</span>
+              <span className="text-xs font-bold text-amber-900 leading-tight">Nib Bank</span>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-[440px] text-center space-y-6 py-8 animate-in zoom-in-95 duration-500">
+            <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/10">
+              <Clock className="w-10 h-10 text-amber-600" />
+            </div>
+            <div className="space-y-2 px-2">
+              <h2 className="text-2xl font-black text-amber-900">Payment Pending</h2>
+              <p className="text-sm text-amber-800/70 font-medium">
+                We haven&apos;t received confirmation yet. If your PIN was accepted, the payment will reflect shortly.
+              </p>
+              <p className="text-xs text-slate-500 bg-amber-50 p-3 rounded-xl border border-amber-100 mt-2">
+                Please check your bank statement or contact Nib Bank if the amount was debited but not confirmed here.
+              </p>
+            </div>
+            <p className="text-xs font-mono text-slate-400">Ref: {payment.transactionReference}</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // ── Checkout ───────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] flex flex-col">
+      {/* Branded header — same structure as QR payment page */}
+      <header className="bg-white border-b border-amber-100/50 px-4 sm:px-6 py-3 sm:py-4 shadow-sm sticky top-0 z-50">
+        <div className="max-w-md mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-inner">
+              <img src="/niblogo.png" alt="Nib International Bank" className="w-5 h-5 sm:w-7 sm:h-7 object-contain" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[8px] sm:text-[9px] font-bold text-amber-800/60 uppercase tracking-widest leading-none">Powered By</span>
+              <span className="text-xs sm:text-sm font-bold text-amber-900 leading-tight">Nib Bank</span>
+            </div>
+          </div>
+          <div className="h-6 sm:h-8 w-px bg-amber-100/60 mx-1 sm:mx-2 shrink-0" />
+          <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm shrink-0">
+              {payment.merchantLogoUrl ? (
+                <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
+              ) : (
+                <div className="w-full h-full bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-[10px] sm:text-xs uppercase">
+                  {payment.merchantName?.charAt(0)}
                 </div>
               )}
-
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-700 truncate max-w-[100px]">{payment.merchantName}</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 p-4 sm:p-6 flex flex-col items-center justify-center">
+        <div className="w-full max-w-[440px] space-y-4 sm:space-y-6">
+
+          {/* ── Awaiting PIN state ── */}
+          {pushSent ? (
+            <div className="text-center space-y-6 sm:space-y-8 py-8 sm:py-12 animate-in zoom-in-95 duration-500">
+              <div className="relative">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amber-100/50 flex items-center justify-center mx-auto">
+                  <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 animate-spin text-amber-600" />
+                </div>
+              </div>
+              <div className="space-y-3 px-4">
+                <h2 className="text-xl sm:text-2xl font-black text-[#5b371f]">Pushing USSD Request</h2>
+                <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto">
+                  Please check your phone (<b>{payment.payerPhone}</b>) and enter your PIN to authorize the payment.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-[10px] sm:text-xs font-bold text-amber-600 bg-amber-50 px-4 py-2 rounded-full w-fit mx-auto border border-amber-100">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Awaiting PIN entry...
+              </div>
+            </div>
+          ) : (
+            /* ── Payment details + Pay Now ── */
+            <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="text-center space-y-1 sm:space-y-2">
+                <h1 className="text-xl sm:text-2xl font-black text-[#5b371f] tracking-tight px-2">
+                  Payment to {payment.merchantName}
+                </h1>
+                <p className="text-xs sm:text-sm text-amber-800/60 font-medium italic">Secure merchant checkout</p>
+              </div>
+
+              <Card className="rounded-[1.5rem] sm:rounded-[2.5rem] border-none bg-white shadow-xl sm:shadow-2xl shadow-amber-950/10 overflow-hidden mx-auto">
+                <CardContent className="p-5 sm:p-8 space-y-5 sm:space-y-6">
+
+                  {/* Amount highlight */}
+                  <div className="bg-amber-50/50 rounded-xl sm:rounded-2xl p-4 border border-amber-100/50 text-center">
+                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-amber-800/60 mb-1">Amount Due</p>
+                    <p className="text-3xl sm:text-4xl font-black text-amber-900">
+                      {payment.amount.toFixed(2)}{" "}
+                      <span className="text-lg sm:text-xl font-bold text-amber-700/60">ETB</span>
+                    </p>
+                  </div>
+
+                  {/* Payment details */}
+                  <div className="space-y-3">
+                    {[
+                      { label: "Merchant", value: payment.merchantName },
+                      { label: "Account", value: payment.merchantAccountNumber },
+                      { label: "Description", value: payment.serviceDescription },
+                      { label: "Phone", value: payment.payerPhone },
+                      { label: "Reference", value: payment.transactionReference },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center text-sm border-b border-slate-50 pb-2 last:border-0">
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400">{label}</span>
+                        <span className="font-medium text-slate-700 text-right max-w-[55%] break-all text-xs sm:text-sm">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pay Now button */}
+                  <Button
+                    className="w-full h-14 sm:h-16 rounded-xl sm:rounded-[1.5rem] border-t border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white text-base sm:text-lg font-bold shadow-lg sm:shadow-xl shadow-amber-950/20 hover:shadow-2xl hover:shadow-amber-950/30 transition-all duration-300 group"
+                    onClick={handleExecute}
+                    disabled={processing}
+                  >
+                    {processing ? (
+                      <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
+                        Pay Now
+                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    )}
+                  </Button>
+
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+        </div>
+      </main>
+
+      <footer className="mt-auto py-8 px-6 text-center border-t border-amber-100/30" />
     </div>
   )
 }
@@ -499,12 +460,11 @@ function PayLinkContent() {
 export default function PayLinkPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
       </div>
     }>
       <PayLinkContent />
     </Suspense>
   )
 }
-

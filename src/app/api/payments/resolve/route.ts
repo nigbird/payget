@@ -11,29 +11,35 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing token" }, { status: 400 })
     }
 
-    const result = await resolveEncryptedToken(token)
+    const result = await resolveEncryptedToken(token, { allowTerminal: true })
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
     const { merchant, payload, tx } = result
-    
-    // Issue a temporary merchant session token tied to this specific payment interaction
-    // Set a short expiration time for the session token (e.g., 15 minutes)
-    const exp = Date.now() + 15 * 60 * 1000
-    const merchantSessionToken = await withMerchantSecret(merchant.jweSecret, (merchantSecret) => 
-      encryptSessionToken({
-        merchantId: merchant.id,
-        transactionId: payload.transactionId,
-        exp,
-      }, merchantSecret)
-    )
 
     const rawLogo = (merchant as any).logoUrl as string | null | undefined
     const normalizedLogo =
       typeof rawLogo === "string" && rawLogo.startsWith("/uploads/merchant-logos/")
         ? `/api${rawLogo}`
         : rawLogo ?? null
+
+    const isTerminal = tx.status === "success" || tx.status === "failed"
+
+    // Only issue a merchantSessionToken for active (non-terminal) transactions.
+    // Completed transactions are returned read-only for display/receipt purposes.
+    let merchantSessionToken: string | null = null
+    if (!isTerminal) {
+      const exp = Date.now() + 15 * 60 * 1000
+      merchantSessionToken = await withMerchantSecret(merchant.jweSecret, (merchantSecret) =>
+        encryptSessionToken({
+          merchantId: merchant.id,
+          transactionId: payload.transactionId,
+          exp,
+        }, merchantSecret)
+      )
+    }
+
     return NextResponse.json({
       merchantId: merchant.id,
       merchantName: merchant.name,
@@ -46,7 +52,7 @@ export async function GET(request: Request) {
       status: tx.status,
       transactionTimestamp: tx.transactionTimestamp,
       payerPhone: payload.userCredentials.phone,
-      merchantSessionToken, // Return the newly generated session token
+      merchantSessionToken,
     })
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 400 })
