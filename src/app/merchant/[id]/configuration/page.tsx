@@ -749,6 +749,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           <Input
                             id="companyName"
                             value={formData.companyName}
+                            maxLength={50}
                             onChange={(e) => setFormData((p) => ({ ...p, companyName: e.target.value }))}
                             placeholder="Acme Payments Ltd."
                             className="h-11 rounded-2xl border-white/60 bg-white/85"
@@ -802,6 +803,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <Input
                           id="username"
                           value={profileData.username}
+                          maxLength={50}
                           onChange={(e) => setProfileData((p) => ({ ...p, username: e.target.value }))}
                           placeholder="email@example.com or 0912345678"
                           className="h-11 rounded-2xl border-white/60 bg-white/85"
