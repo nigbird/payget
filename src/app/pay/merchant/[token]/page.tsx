@@ -209,7 +209,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         </div>
         <h1 className="text-xl font-bold text-slate-800">Invalid Payment Link</h1>
         <p className="text-sm text-slate-500 max-w-xs">This QR code is no longer active or is invalid.</p>
-        <Button variant="outline" className="rounded-xl" onClick={() => router.push("/")}>Return Home</Button>
       </div>
     )
   }
