@@ -188,6 +188,107 @@ function PayLinkContent() {
     )
   }
 
+  if (view === "failed") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-4">
+          <Card className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              <div className="bg-gradient-to-b from-rose-50 to-white px-6 pt-10 pb-6 flex flex-col items-center text-center border-b border-rose-100">
+                <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mb-4 shadow-sm">
+                  <XCircle className="w-8 h-8 text-rose-600" />
+                </div>
+                <h1 className="text-2xl font-semibold text-rose-900 tracking-tight">Payment Failed</h1>
+                <p className="mt-1 text-sm text-rose-700/70">The payment could not be completed</p>
+                <p className="mt-4 text-4xl font-bold tracking-tight text-[#3f210f]">{payment.amount.toFixed(2)} <span className="text-xl font-semibold text-amber-800/60">ETB</span></p>
+              </div>
+              <div className="px-6 py-5 space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Merchant</p>
+                  <p className="text-sm font-medium text-slate-800">{payment.merchantName}</p>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Description</p>
+                  <p className="text-sm text-slate-700">{payment.serviceDescription}</p>
+                </div>
+              </div>
+              <div className="px-6 pb-6">
+                <div className="rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-center mb-4">
+                  <p className="text-xs text-rose-700 font-medium">Your payment was not processed. You have not been charged.</p>
+                </div>
+                <Button
+                  className="w-full rounded-xl h-11 bg-gradient-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white"
+                  onClick={() => window.location.reload()}
+                >
+                  Try Again
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (view === "success") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-4">
+          {/* Success card */}
+          <Card className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              {/* Green header */}
+              <div className="bg-gradient-to-b from-emerald-50 to-white px-6 pt-10 pb-6 flex flex-col items-center text-center border-b border-emerald-100">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4 shadow-sm">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                </div>
+                <h1 className="text-2xl font-semibold text-emerald-900 tracking-tight">Payment Successful</h1>
+                <p className="mt-1 text-sm text-emerald-700/70">Your transaction has been confirmed</p>
+                <p className="mt-4 text-4xl font-bold tracking-tight text-[#3f210f]">{payment.amount.toFixed(2)} <span className="text-xl font-semibold text-amber-800/60">ETB</span></p>
+              </div>
+
+              {/* Receipt details */}
+              <div className="px-6 py-5 space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Merchant</p>
+                  <p className="text-sm font-medium text-slate-800">{payment.merchantName}</p>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Description</p>
+                  <p className="text-sm text-slate-700">{payment.serviceDescription}</p>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Paid With</p>
+                  <p className="text-sm font-medium text-slate-800">{payment.payerPhone || "Customer"}</p>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Date</p>
+                  <p className="text-sm text-slate-700">
+                    {new Date(payment.transactionTimestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 pb-6">
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-center mb-4">
+                  <p className="text-xs text-emerald-700 font-medium">Transaction processed securely via Nib International Bank</p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+                  onClick={() => router.push("/")}
+                >
+                  Done
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white p-4 flex items-center justify-center">
       <div className="mx-auto w-full max-w-md space-y-4">
@@ -308,32 +409,6 @@ function PayLinkContent() {
                 </div>
               )}
 
-              {view === "success" && (
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-6 text-center">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <h3 className="text-lg font-medium text-emerald-900">Payment Successful</h3>
-                  <p className="mt-2 text-sm text-emerald-700/80">
-                    Your payment of {payment.amount.toFixed(2)} ETB has been confirmed.
-                  </p>
-                </div>
-              )}
-
-              {view === "failed" && (
-                <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mb-4">
-                    <XCircle className="w-6 h-6 text-rose-600" />
-                  </div>
-                  <h3 className="text-lg font-medium text-rose-900">Payment Failed</h3>
-                  <p className="mt-2 text-sm text-rose-700/80">
-                    Your payment could not be processed. Please try again.
-                  </p>
-                  <Button variant="outline" className="mt-6 w-full rounded-xl border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => window.location.reload()}>
-                    Try Again
-                  </Button>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

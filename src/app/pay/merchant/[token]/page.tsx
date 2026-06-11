@@ -198,10 +198,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
             clearInterval(interval)
             setTransaction(data)
             setView("success")
-            toast({
-              title: "Payment Successful",
-              description: "Thank you! Your payment has been received."
-            })
           } else if (data.status === "FAILED" || data.status === "failed") {
             clearInterval(interval)
             setTransaction(data)
