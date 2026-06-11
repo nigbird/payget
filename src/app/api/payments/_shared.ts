@@ -181,12 +181,16 @@ export async function resolveEncryptedToken(token: string, options?: { allowTerm
     if (!options?.allowTerminal) {
       return { ok: false as const, error: "Payment already completed" }
     }
+    // Return immediately — skip USED and expiry checks.
+    // The payment is done; USED/expired status is irrelevant for display.
+    return { ok: true as const, merchant, payload, tx }
   }
 
   if (tx.status === "failed") {
     if (!options?.allowTerminal) {
       return { ok: false as const, error: "Payment already failed and cannot be retried with this link" }
     }
+    return { ok: true as const, merchant, payload, tx }
   }
 
   if (linkStatus === "USED") {
