@@ -139,8 +139,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invoice service returned invalid response" }, { status: 502 })
     }
 
-    console.log("[receipt] viewUrl:", result.viewUrl)
-    return NextResponse.json({ viewUrl: result.viewUrl })
+    // Make the viewUrl absolute — the invoice service sometimes returns a relative path
+    const invoiceBase = "http://172.24.47.138:9003"
+    const viewUrl = result.viewUrl?.startsWith("http")
+      ? result.viewUrl
+      : `${invoiceBase}${result.viewUrl}`
+
+    console.log("[receipt] viewUrl:", viewUrl)
+    return NextResponse.json({ viewUrl })
   } catch (error) {
     console.error("[receipt] unexpected error:", error)
     return NextResponse.json({ error: "Internal error" }, { status: 500 })
