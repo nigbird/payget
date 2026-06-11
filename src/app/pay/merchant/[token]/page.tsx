@@ -41,7 +41,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   const [merchant, setMerchant] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [view, setView] = useState<"input" | "processing" | "success" | "failed">("input")
+  const [view, setView] = useState<"input" | "processing" | "success" | "failed" | "pending">("input")
 
   const [phone, setPhone] = useState("")
   const [amount, setAmount] = useState("")
@@ -168,22 +168,28 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       pollCount++;
       if (pollCount > maxPolls) {
         clearInterval(interval);
-        toast({ variant: "destructive", title: "Payment Timeout", description: "Confirmation is taking longer than expected. Please check your bank statement." });
-        setView("failed");
+        // Don't show "failed" — the payment may have succeeded but the callback
+        // was missed. Show "pending" so the customer knows to check their statement
+        // rather than thinking their money wasn't taken.
+        setView("pending");
         return;
       }
 
       try {
-        const response = await fetch(`/api/transactions/${txId}`)
+        // This endpoint actively queries the provider when status is awaiting_pin,
+        // catching missed callbacks in real time during the polling window.
+        const response = await fetch(`/api/pay/status/${txId}`)
         if (response.ok) {
           const data = await response.json()
-          if (data.status === "SUCCESS" || data.status === "success") {
+          if (data.status === "success") {
             clearInterval(interval)
-            setTransaction(data)
+            const txRes = await fetch(`/api/transactions/${txId}`)
+            if (txRes.ok) setTransaction(await txRes.json())
             setView("success")
-          } else if (data.status === "FAILED" || data.status === "failed") {
+          } else if (data.status === "failed") {
             clearInterval(interval)
-            setTransaction(data)
+            const txRes = await fetch(`/api/transactions/${txId}`)
+            if (txRes.ok) setTransaction(await txRes.json())
             setView("failed")
           }
         }
@@ -582,6 +588,37 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 onClick={() => setView("input")}
               >
                 Try Again
+              </button>
+            </div>
+          )}
+
+          {/* ── PENDING VIEW — shown when polling times out without a confirmed result ── */}
+          {view === "pending" && merchant && (
+            <div className="text-center space-y-6 py-8 animate-in zoom-in-95 duration-500">
+              <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/10">
+                <Clock className="w-10 h-10 text-amber-600" />
+              </div>
+              <div className="space-y-2 px-2">
+                <h2 className="text-2xl font-black text-amber-900">Payment Pending</h2>
+                <p className="text-sm text-amber-800/70 font-medium">
+                  We haven&apos;t received a confirmation yet. If your PIN was accepted,
+                  the payment will be reflected shortly.
+                </p>
+                <p className="text-xs text-slate-500 bg-amber-50 p-3 rounded-xl border border-amber-100 mt-2">
+                  Please check your bank statement or contact Nib Bank if the amount
+                  was debited but not confirmed here.
+                </p>
+              </div>
+              <button
+                className="w-full h-14 rounded-2xl border border-amber-200 text-amber-700 font-bold text-sm hover:bg-amber-50 transition-colors"
+                onClick={() => {
+                  setView("input")
+                  setAmount("")
+                  setPhone("")
+                  setDescription("")
+                }}
+              >
+                Back to Payment
               </button>
             </div>
           )}

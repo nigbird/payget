@@ -2,6 +2,7 @@
 import { db, type Transaction } from "@/app/lib/db";
 import { writeAuditLog } from "./audit-log";
 import { prisma } from "@/lib/prisma";
+import { checkTransactionStatusAtProvider } from "@/lib/provider-encryption";
 
 /**
  * Configuration for payment reconciliation
@@ -98,20 +99,55 @@ async function reconcileSingleTransaction(
     };
   }
 
-  // For now, this is a defensive check that we can expand later
-  // In a real implementation, you could:
-  // 1. Query the provider's status API (if available)
-  // 2. Check for any missed callbacks
-  // 3. Apply business rules for timeout (e.g., mark as failed after X hours)
+  const sharedSecret = freshTx.userCredentials?.providerSharedSecret
+  if (!sharedSecret) {
+    return {
+      transactionId: tx.id,
+      transactionReference: tx.transactionReference,
+      previousStatus: tx.status,
+      action: "skipped",
+      reason: "NO_SHARED_SECRET",
+    }
+  }
 
-  // For this implementation, we'll just log and skip for now
-  // (we don't want to mark as failed without provider confirmation)
+  let providerStatus: "success" | "failed" | null = null
+  try {
+    const result = await checkTransactionStatusAtProvider(freshTx.transactionReference, sharedSecret)
+    if (result.ok) {
+      if (result.paymentStatus === "PAID") providerStatus = "success"
+      else if (result.paymentStatus === "NOT_PAID") providerStatus = "failed"
+    }
+  } catch {
+    return {
+      transactionId: tx.id,
+      transactionReference: tx.transactionReference,
+      previousStatus: tx.status,
+      action: "skipped",
+      reason: "PROVIDER_UNREACHABLE",
+    }
+  }
+
+  if (!providerStatus) {
+    return {
+      transactionId: tx.id,
+      transactionReference: tx.transactionReference,
+      previousStatus: tx.status,
+      action: "skipped",
+      reason: "PROVIDER_STATUS_PENDING",
+    }
+  }
+
+  if (!dryRun) {
+    await db.updateTransactionStatus(freshTx.id, providerStatus)
+  }
+
   return {
     transactionId: tx.id,
     transactionReference: tx.transactionReference,
     previousStatus: tx.status,
-    action: "skipped",
-    reason: "AWAITING_PROVIDER_CONFIRMATION",
+    action: "reconciled",
+    newStatus: providerStatus,
+    reason: dryRun ? "DRY_RUN" : "PROVIDER_STATUS_RESOLVED",
   };
 }
 
