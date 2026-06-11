@@ -1,6 +1,23 @@
 import { NextResponse } from "next/server"
 import { db } from "@/app/lib/db"
 
+// Bank returns "YYMMDDHHMM ..." — parse first token into YYYY-MM-DD
+function parseValueDate(raw: string): string {
+  const part = (raw ?? "").split(" ")[0].trim()
+  if (part.length >= 6) {
+    const yy = part.substring(0, 2)
+    const mm = part.substring(2, 4)
+    const dd = part.substring(4, 6)
+    return `20${yy}-${mm}-${dd}`
+  }
+  return new Date().toISOString().split("T")[0]
+}
+
+// Bank returns "ETB68.00" — strip currency prefix and parse
+function parseAmount(raw: string): number {
+  return parseFloat((raw ?? "0").replace(/[^0-9.]/g, "")) || 0
+}
+
 export async function POST(request: Request) {
   try {
     const { transactionId } = await request.json()
@@ -32,7 +49,7 @@ export async function POST(request: Request) {
 
     const invoiceApiKey = process.env.INVOICE_API_KEY ?? ""
 
-    // Step 1: Fetch receipt/invoice data from bank core using FT number
+    // Step 1: Fetch receipt data from bank core using FT number
     const receiptPayload = { transactionId: ftNumber }
     console.log("[receipt] → bank receipt request:", JSON.stringify(receiptPayload))
 
@@ -55,17 +72,43 @@ export async function POST(request: Request) {
       )
     }
 
-    let invoiceData: any
+    let bankReceipt: any
     try {
-      invoiceData = JSON.parse(receiptText)
+      bankReceipt = JSON.parse(receiptText)
     } catch {
       console.error("[receipt] bank receipt response is not valid JSON:", receiptText)
       return NextResponse.json({ error: "Bank returned invalid receipt data" }, { status: 502 })
     }
 
-    // Step 2: Submit invoice data to generate a viewable receipt URL
+    // Step 2: Map bank response to InvoiceData structure
+    const d = bankReceipt?.data ?? {}
+    const issueDate = parseValueDate(d.debitValueDate)
+    const amount = parseAmount(d.debitAmount)
+
+    const invoiceData = {
+      invoiceId: ftNumber,
+      issueDate,
+      dueDate: issueDate,
+      creditedParty: {
+        name: d.creditedCustomer ?? "",
+        accountNumber: d.creditAccount ?? "",
+      },
+      payer: {
+        name: d.debitCustomer ?? "",
+        accountNumber: d.debitAccount ?? "",
+      },
+      paymentReason: tx.serviceDescription || "Payment",
+      settledAmount: amount,
+      currency: "Birr",
+      serviceFee: 0,
+      serviceFeeVat: 0,
+      totalAmount: amount,
+      paymentChannel: "USSD Push",
+    }
+
     console.log("[receipt] → invoice request body:", JSON.stringify(invoiceData))
 
+    // Step 3: Submit to invoice generator
     const invoiceRes = await fetch("http://172.24.47.138:9003/api/invoice/", {
       method: "POST",
       headers: {
