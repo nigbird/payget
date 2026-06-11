@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description: 'Secure Payment Gateway',
   icons: {
     icon: '/niblogo.png',
+    apple: '/icon-192.png',
   },
 };
 
