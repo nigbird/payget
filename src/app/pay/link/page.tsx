@@ -6,8 +6,10 @@ import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Lock, CheckCircle2, Loader2, XCircle, Clock } from "lucide-react"
+import { Lock, CheckCircle2, Loader2, XCircle, Clock, Receipt } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { QRCodeSVG } from "qrcode.react"
+import { Separator } from "@/components/ui/separator"
 
 type ResolvedPayment = {
   merchantId: string
@@ -55,6 +57,28 @@ function PayLinkContent() {
   const [processing, setProcessing] = useState(false)
   const [pushSent, setPushSent] = useState(false)
   const [view, setView] = useState<"checkout" | "success" | "failed">("checkout")
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false)
+
+  const handleDownloadReceipt = async (transactionReference: string) => {
+    setDownloadingReceipt(true)
+    try {
+      const res = await fetch("/api/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionReference }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Receipt unavailable", description: data.error || "Could not generate receipt." })
+        return
+      }
+      window.open(data.viewUrl, "_blank", "noopener,noreferrer")
+    } catch {
+      toast({ variant: "destructive", title: "Receipt unavailable", description: "Could not connect to receipt service." })
+    } finally {
+      setDownloadingReceipt(false)
+    }
+  }
 
   useEffect(() => {
     const run = async () => {
@@ -231,59 +255,114 @@ function PayLinkContent() {
   }
 
   if (view === "success") {
+    const transactionAmount = payment.amount.toFixed(2)
+    const transactionDate = new Date(payment.transactionTimestamp).toLocaleString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    })
+    const qrData = `TXN:${payment.transactionReference}|AMT:${transactionAmount}|DATE:${transactionDate}|FROM:${payment.payerPhone}|TO:${payment.merchantName}`
+
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-4">
-          {/* Success card */}
-          <Card className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
-            <CardContent className="p-0">
-              {/* Green header */}
-              <div className="bg-gradient-to-b from-emerald-50 to-white px-6 pt-10 pb-6 flex flex-col items-center text-center border-b border-emerald-100">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4 shadow-sm">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                </div>
-                <h1 className="text-2xl font-semibold text-emerald-900 tracking-tight">Payment Successful</h1>
-                <p className="mt-1 text-sm text-emerald-700/70">Your transaction has been confirmed</p>
-                <p className="mt-4 text-4xl font-bold tracking-tight text-[#3f210f]">{payment.amount.toFixed(2)} <span className="text-xl font-semibold text-amber-800/60">ETB</span></p>
+      <div className="min-h-screen flex flex-col bg-gray-100">
+        {/* Orange gradient header */}
+        <div className="relative bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 px-6 pt-14 pb-24 flex flex-col items-center text-center overflow-hidden">
+          <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-orange-400/40" />
+          <div className="absolute top-4 right-0 w-20 h-20 rounded-full bg-amber-300/30" />
+          <div className="absolute -bottom-2 right-8 w-14 h-14 rounded-full bg-orange-600/20" />
+          <div className="relative z-10 mb-5">
+            <div className="w-20 h-20 rounded-full bg-white/25 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-lg">
+                <CheckCircle2 className="w-9 h-9 text-emerald-500" />
               </div>
+            </div>
+          </div>
+          <h1 className="relative z-10 text-white font-black text-2xl mb-1">Successful!</h1>
+          <p className="relative z-10 text-white font-bold text-sm">Thank You for Banking with NIB!</p>
+        </div>
 
-              {/* Receipt details */}
-              <div className="px-6 py-5 space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Merchant</p>
-                  <p className="text-sm font-medium text-slate-800">{payment.merchantName}</p>
+        <div className="flex-1 flex flex-col pb-4">
+          {/* Receipt card overlapping header */}
+          <div className="-mt-12 mx-4 bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div className="px-5 pt-6 space-y-3">
+              {[
+                { label: "From", value: payment.payerPhone },
+                { label: "To", value: payment.merchantName },
+                { label: "Account", value: payment.merchantAccountNumber },
+                { label: "Date", value: transactionDate },
+                { label: "Reference", value: payment.transactionReference },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">{label}</span>
+                  <span className="font-medium text-gray-800 text-right max-w-[60%] break-all">{value}</span>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Description</p>
-                  <p className="text-sm text-slate-700">{payment.serviceDescription}</p>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Paid With</p>
-                  <p className="text-sm font-medium text-slate-800">{payment.payerPhone || "Customer"}</p>
-                </div>
-                <div className="flex items-center justify-between py-2">
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Date</p>
-                  <p className="text-sm text-slate-700">
-                    {new Date(payment.transactionTimestamp).toLocaleString()}
-                  </p>
-                </div>
-              </div>
+              ))}
 
-              {/* Footer */}
-              <div className="px-6 pb-6">
-                <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-center mb-4">
-                  <p className="text-xs text-emerald-700 font-medium">Transaction processed securely via Nib International Bank</p>
+              <Separator />
+
+              {[
+                { label: "Amount", value: `ETB ${transactionAmount}` },
+                { label: "Amount Credited", value: "ETB 0.00" },
+                { label: "Service Charge", value: "ETB 0.00" },
+                { label: "Tax", value: "ETB 0.00" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">{label}</span>
+                  <span className="text-gray-500">{value}</span>
                 </div>
-                <Button
-                  variant="outline"
-                  className="w-full rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
-                  onClick={() => router.push("/")}
-                >
-                  Done
-                </Button>
+              ))}
+
+              <Separator />
+
+              <div className="flex justify-between items-center pb-1">
+                <span className="font-bold text-gray-900 text-sm">Total Debited</span>
+                <span className="font-bold text-amber-500">ETB {transactionAmount}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* QR Code */}
+            <div className="flex justify-center py-5 px-5">
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <QRCodeSVG value={qrData} size={150} level="H" />
+              </div>
+            </div>
+
+            {/* View Receipt button */}
+            <div className="px-5 pb-4">
+              <Button
+                className="w-full h-12 rounded-2xl bg-amber-400 hover:bg-amber-500 text-white font-bold"
+                onClick={() => handleDownloadReceipt(payment.transactionReference)}
+                disabled={downloadingReceipt}
+              >
+                {downloadingReceipt ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating...</>
+                ) : (
+                  <><Receipt className="mr-2 h-4 w-4" />View Receipt</>
+                )}
+              </Button>
+            </div>
+
+            {/* NIB branding */}
+            <div className="flex items-center justify-center gap-3 px-5 pb-6">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-900 border-2 border-amber-700 flex items-center justify-center shadow-sm">
+                <img src="/niblogo.png" alt="NIB" className="w-7 h-7 object-contain" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-gray-900 text-sm">Nib International Bank</p>
+                <p className="text-gray-400 text-xs">Committed to Service Excellence</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Done button */}
+          <div className="px-4 mt-4">
+            <Button
+              variant="outline"
+              className="w-full h-14 rounded-3xl border border-amber-200 text-amber-500 font-bold text-base bg-white hover:bg-amber-50"
+              onClick={() => router.push("/")}
+            >
+              Done
+            </Button>
+          </div>
         </div>
       </div>
     )

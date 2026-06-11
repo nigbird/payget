@@ -4,12 +4,12 @@ import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { 
-  Loader2, 
-  CheckCircle2, 
-  XCircle, 
-  Phone, 
-  CreditCard, 
-  ShieldCheck, 
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Phone,
+  CreditCard,
+  ShieldCheck,
   Clock,
   ArrowRight,
   Wallet,
@@ -17,7 +17,8 @@ import {
   Check,
   ChevronDown,
   Building,
-  FileText
+  FileText,
+  Receipt
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -52,6 +53,30 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   const [copied, setCopied] = useState(false)
   const [transaction, setTransaction] = useState<any>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false)
+
+  const handleDownloadReceipt = async () => {
+    const ref = transaction?.transactionReference
+    if (!ref) return
+    setDownloadingReceipt(true)
+    try {
+      const res = await fetch("/api/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionReference: ref }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Receipt unavailable", description: data.error || "Could not generate receipt." })
+        return
+      }
+      window.open(data.viewUrl, "_blank", "noopener,noreferrer")
+    } catch {
+      toast({ variant: "destructive", title: "Receipt unavailable", description: "Could not connect to receipt service." })
+    } finally {
+      setDownloadingReceipt(false)
+    }
+  }
 
   useEffect(() => {
     const fetchMerchant = async () => {
@@ -302,6 +327,21 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                 <QRCodeSVG value={qrData} size={150} level="H" />
               </div>
+            </div>
+
+            {/* View Receipt button */}
+            <div className="px-5 pb-4">
+              <Button
+                className="w-full h-12 rounded-2xl bg-amber-400 hover:bg-amber-500 text-white font-bold"
+                onClick={handleDownloadReceipt}
+                disabled={downloadingReceipt}
+              >
+                {downloadingReceipt ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating...</>
+                ) : (
+                  <><Receipt className="mr-2 h-4 w-4" />View Receipt</>
+                )}
+              </Button>
             </div>
 
             {/* NIB branding */}
