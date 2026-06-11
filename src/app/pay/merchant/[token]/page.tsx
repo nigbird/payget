@@ -56,14 +56,14 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
 
   const handleDownloadReceipt = async () => {
-    const ref = transaction?.transactionReference
-    if (!ref) return
+    const id = transaction?.id
+    if (!id) return
     setDownloadingReceipt(true)
     try {
       const res = await fetch("/api/receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionReference: ref }),
+        body: JSON.stringify({ transactionId: id }),
       })
       const data = await res.json()
       if (!res.ok) {

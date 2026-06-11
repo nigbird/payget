@@ -59,13 +59,13 @@ function PayLinkContent() {
   const [view, setView] = useState<"checkout" | "success" | "failed">("checkout")
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
 
-  const handleDownloadReceipt = async (transactionReference: string) => {
+  const handleDownloadReceipt = async (transactionId: string) => {
     setDownloadingReceipt(true)
     try {
       const res = await fetch("/api/receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionReference }),
+        body: JSON.stringify({ transactionId }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -330,7 +330,7 @@ function PayLinkContent() {
             <div className="px-5 pb-4">
               <Button
                 className="w-full h-12 rounded-2xl bg-amber-400 hover:bg-amber-500 text-white font-bold"
-                onClick={() => handleDownloadReceipt(payment.transactionReference)}
+                onClick={() => handleDownloadReceipt(payment.transactionId)}
                 disabled={downloadingReceipt}
               >
                 {downloadingReceipt ? (

@@ -1,18 +1,39 @@
 import { NextResponse } from "next/server"
+import { db } from "@/app/lib/db"
 
 export async function POST(request: Request) {
   try {
-    const { transactionReference } = await request.json()
-    if (!transactionReference) {
-      return NextResponse.json({ error: "Missing transactionReference" }, { status: 400 })
+    const { transactionId } = await request.json()
+    if (!transactionId) {
+      return NextResponse.json({ error: "Missing transactionId" }, { status: 400 })
     }
 
-    console.log("[receipt] transactionReference:", transactionReference)
+    console.log("[receipt] transactionId:", transactionId)
+
+    // Look up the transaction to get the FT number (cbsreference)
+    const tx = await db.getTransactionById(transactionId)
+    if (!tx) {
+      console.error("[receipt] transaction not found:", transactionId)
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+    }
+
+    const creds = tx.userCredentials as any
+    const ftNumber: string =
+      creds?.providerCallback?.cbsreference ||
+      creds?.cbsreference ||
+      creds?.providerCallback?.transactionId ||
+      ""
+
+    console.log("[receipt] FT number from userCredentials:", ftNumber || "(not found)")
+
+    if (!ftNumber) {
+      return NextResponse.json({ error: "FT number not available for this transaction" }, { status: 404 })
+    }
 
     const invoiceApiKey = process.env.INVOICE_API_KEY ?? ""
 
-    // Step 1: Fetch receipt data from bank receipt service
-    const receiptPayload = { transactionId: transactionReference }
+    // Step 1: Fetch receipt/invoice data from bank core using FT number
+    const receiptPayload = { transactionId: ftNumber }
     console.log("[receipt] → bank receipt request:", JSON.stringify(receiptPayload))
 
     const receiptRes = await fetch("http://192.168.100.56:8280/receipt", {
