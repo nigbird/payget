@@ -56,7 +56,7 @@ function PayLinkContent() {
   const [showPinEntry, setShowPinEntry] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [pushSent, setPushSent] = useState(false)
-  const [view, setView] = useState<"checkout" | "success" | "failed">("checkout")
+  const [view, setView] = useState<"checkout" | "success" | "failed" | "pending">("checkout")
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
 
   const handleDownloadReceipt = async (transactionId: string) => {
@@ -118,31 +118,45 @@ function PayLinkContent() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout
-    if (pushSent && view === "checkout") {
+    if (pushSent && view === "checkout" && payment?.transactionId) {
+      let pollCount = 0
+      const maxPolls = 100 // ~5 minutes
+
       interval = setInterval(async () => {
+        pollCount++
+        if (pollCount > maxPolls) {
+          clearInterval(interval)
+          setView("pending")
+          return
+        }
+
         try {
-          const res = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
+          // Actively queries the provider when status is awaiting_pin,
+          // catching missed callbacks in real time during the polling window.
+          const res = await fetch(`/api/pay/status/${payment.transactionId}`)
           const data = await res.json().catch(() => ({}))
           if (res.ok) {
             if (data?.status === "success") {
-              setPayment(data)
+              clearInterval(interval)
+              const txRes = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
+              if (txRes.ok) setPayment(await txRes.json().catch(() => payment))
               setView("success")
-              clearInterval(interval)
             } else if (data?.status === "failed") {
-              setPayment(data)
-              setView("failed")
               clearInterval(interval)
+              const txRes = await fetch(`/api/payments/resolve?token=${encodeURIComponent(token)}`)
+              if (txRes.ok) setPayment(await txRes.json().catch(() => payment))
+              setView("failed")
             }
           }
         } catch (err) {
           console.error("Polling error:", err)
         }
-      }, 3000) // Poll every 3 seconds
+      }, 3000)
     }
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [pushSent, view, token])
+  }, [pushSent, view, token, payment?.transactionId])
 
   const handleExecute = async () => {
     if (!payment) return
@@ -245,6 +259,51 @@ function PayLinkContent() {
                   onClick={() => window.location.reload()}
                 >
                   Try Again
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (view === "pending") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-4">
+          <Card className="rounded-2xl border border-black/5 bg-white shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              <div className="bg-gradient-to-b from-amber-50 to-white px-6 pt-10 pb-6 flex flex-col items-center text-center border-b border-amber-100">
+                <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-4 shadow-sm">
+                  <Clock className="w-8 h-8 text-amber-600" />
+                </div>
+                <h1 className="text-2xl font-semibold text-amber-900 tracking-tight">Payment Pending</h1>
+                <p className="mt-1 text-sm text-amber-700/70">Confirmation is taking longer than expected</p>
+                <p className="mt-4 text-4xl font-bold tracking-tight text-[#3f210f]">{payment.amount.toFixed(2)} <span className="text-xl font-semibold text-amber-800/60">ETB</span></p>
+              </div>
+              <div className="px-6 py-5 space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Merchant</p>
+                  <p className="text-sm font-medium text-slate-800">{payment.merchantName}</p>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Reference</p>
+                  <p className="text-sm font-mono text-slate-700">{payment.transactionReference}</p>
+                </div>
+              </div>
+              <div className="px-6 pb-6">
+                <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-center mb-4">
+                  <p className="text-xs text-amber-800 font-medium">
+                    If your PIN was accepted, the payment will reflect shortly. Please check your bank statement or contact Nib Bank if the amount was debited.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl h-11 border-amber-200 text-amber-800 hover:bg-amber-50"
+                  onClick={() => window.location.reload()}
+                >
+                  Check Again
                 </Button>
               </div>
             </CardContent>
