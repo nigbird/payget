@@ -366,12 +366,15 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
           {view === "input" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-              {/* Amount display */}
-              <div className="text-center py-2">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">Payment Amount (ETB)</p>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 h-px bg-slate-200" />
+              {/* Amount entry — with clear input affordance */}
+              <div className="text-center py-4 space-y-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</p>
+
+                {/* ETB prefix + large number input inline */}
+                <div className="flex items-baseline justify-center gap-2 mt-2">
+                  <span className="text-2xl font-bold text-amber-400/60">ETB</span>
                   <input
+                    autoFocus
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
@@ -380,11 +383,30 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                       const val = e.target.value
                       if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
                     }}
-                    className="text-5xl font-black text-amber-500 text-center bg-transparent border-none outline-none w-48 placeholder:text-slate-400/30 caret-amber-500"
+                    className="text-5xl font-black text-amber-500 text-center bg-transparent border-none outline-none w-40 placeholder:text-slate-400/30 caret-amber-500"
                   />
-                  <div className="flex-1 h-px bg-slate-200" />
                 </div>
-                <p className="text-sm font-semibold text-slate-400 mt-3">ETB</p>
+
+                {/* Amber underline — the key affordance cue that this is editable */}
+                <div className="w-32 h-0.5 bg-amber-300/70 rounded-full mx-auto mt-1.5" />
+
+                {/* "Tap to enter" hint — only shown while empty */}
+                {!amount && (
+                  <p className="text-[10px] text-slate-400/50 mt-1.5">Tap to enter amount</p>
+                )}
+
+                {/* Merchant context — reassures customer who they're paying */}
+                <div className="flex items-center justify-center gap-1.5 mt-3">
+                  <div className="w-5 h-5 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center overflow-hidden shrink-0">
+                    {merchant?.logoUrl ? (
+                      <img src={merchant.logoUrl} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-amber-700 font-black text-[8px] uppercase">{merchant?.name?.charAt(0)}</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-400">Paying</span>
+                  <span className="text-xs font-bold text-slate-700">{merchant?.name}</span>
+                </div>
               </div>
 
               <form onSubmit={handlePayment} className="space-y-3">
