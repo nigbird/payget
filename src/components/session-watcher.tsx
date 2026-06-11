@@ -40,6 +40,7 @@ export function SessionWatcher() {
     pathname?.startsWith("/reset-password") ||
     pathname === "/change-password" ||
     pathname?.startsWith("/payment") ||
+    pathname?.startsWith("/pay") ||
     pathname?.startsWith("/activate")
 
   const isAuthPageRef = useRef(isAuthPage)
