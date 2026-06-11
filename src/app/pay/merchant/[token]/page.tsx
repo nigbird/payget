@@ -8,7 +8,6 @@ import {
   XCircle,
   Phone,
   CreditCard,
-  ShieldCheck,
   Clock,
   ArrowRight,
   Wallet,
@@ -17,7 +16,6 @@ import {
   Building,
   FileText,
   Receipt,
-  ChevronLeft,
   Lock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -115,19 +113,16 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       toast({ variant: "destructive", title: "Invalid Amount", description: "Please enter a valid amount (minimum 1 ETB)." })
       return
     }
-
     if (!phone.trim()) {
       toast({ variant: "destructive", title: "Phone Required", description: "Please provide your phone number." })
       return
     }
-
     const trimmedPhone = phone.trim()
     const isValidEthiopianPhone = /^(?:\+251|251|09)\d{7,10}$/.test(trimmedPhone)
     if (!isValidEthiopianPhone) {
       toast({ variant: "destructive", title: "Invalid Phone", description: "Please enter a valid Ethiopian phone number (e.g., 0912345678)." })
       return
     }
-
     if (description && description.length > 50) {
       toast({ variant: "destructive", title: "Description Too Long", description: "Payment description cannot exceed 50 characters." })
       return
@@ -142,7 +137,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: trimmedPhone, amount: amountNum, description: description })
       })
-
       if (response.ok) {
         const data = await response.json()
         setTransaction(data)
@@ -153,7 +147,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         setView("input")
         setIsProcessing(false)
       }
-    } catch (error) {
+    } catch {
       toast({ variant: "destructive", title: "Connection Error", description: "Please check your internet connection." })
       setView("input")
       setIsProcessing(false)
@@ -161,18 +155,17 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   }
 
   const startPolling = (txId: string) => {
-    let pollCount = 0;
-    const maxPolls = 100;
+    let pollCount = 0
+    const maxPolls = 100
 
     const interval = setInterval(async () => {
-      pollCount++;
+      pollCount++
       if (pollCount > maxPolls) {
-        clearInterval(interval);
-        toast({ variant: "destructive", title: "Payment Timeout", description: "Confirmation is taking longer than expected. Please check your bank statement." });
-        setView("failed");
-        return;
+        clearInterval(interval)
+        toast({ variant: "destructive", title: "Payment Timeout", description: "Confirmation is taking longer than expected. Please check your bank statement." })
+        setView("failed")
+        return
       }
-
       try {
         const response = await fetch(`/api/transactions/${txId}`)
         if (response.ok) {
@@ -210,7 +203,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         </div>
         <h1 className="text-xl font-bold text-slate-800">Invalid Payment Link</h1>
         <p className="text-sm text-slate-500 max-w-xs">This QR code is no longer active or is invalid.</p>
-        <Button variant="outline" className="rounded-xl" onClick={() => router.push('/')}>Return Home</Button>
+        <Button variant="outline" className="rounded-xl" onClick={() => router.push("/")}>Return Home</Button>
       </div>
     )
   }
@@ -255,9 +248,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                   <span className="font-medium text-gray-800 text-right max-w-[60%] break-all">{value}</span>
                 </div>
               ))}
-
               <Separator />
-
               {[
                 { label: "Amount", value: `ETB ${transactionAmount}` },
                 { label: "Amount Credited", value: "ETB 0.00" },
@@ -269,9 +260,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                   <span className="text-gray-500">{value}</span>
                 </div>
               ))}
-
               <Separator />
-
               <div className="flex justify-between items-center pb-1">
                 <span className="font-bold text-gray-900 text-sm">Total Debited</span>
                 <span className="font-bold text-amber-500">ETB {transactionAmount}</span>
@@ -323,44 +312,45 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
     )
   }
 
+  /* ─────────────────────────────────────────────
+     INPUT / PROCESSING / FAILED  (shared layout)
+  ───────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
-      {/* Navigation Header */}
-      <header className="bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-50">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-50 text-slate-700 transition-colors"
-            aria-label="Go back"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-base font-bold text-slate-900">Payment</h1>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
-            <span>Secure</span>
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
 
-          {/* Merchant Card — shown on input and processing views */}
+          {/* ── Merchant card: NIB branding + merchant info ── */}
           {merchant && (view === "input" || view === "processing") && (
-            <div className="bg-white rounded-2xl px-4 py-4 flex items-center gap-3 shadow-sm border border-slate-100">
-              <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
-                {merchant.logoUrl ? (
-                  <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
-                ) : (
-                  <span className="text-amber-700 font-black text-lg uppercase">{merchant.name?.charAt(0)}</span>
-                )}
+            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+              {/* NIB Bank */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                  <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
+                </div>
+                <div>
+                  <p className="text-[8px] font-bold uppercase tracking-widest text-amber-800/50 leading-none">Powered by</p>
+                  <p className="text-xs font-bold text-amber-900 leading-tight mt-0.5">Nib Bank</p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-slate-900 text-base leading-tight">{merchant.name}</p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <CheckCircle2 className="w-3 h-3 text-amber-500" />
-                  <span className="text-xs text-amber-600 font-semibold">Verified Merchant</span>
+
+              <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
+
+              {/* Merchant */}
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                  {merchant.logoUrl ? (
+                    <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-amber-700 font-black text-base uppercase">{merchant.name?.charAt(0)}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900 text-sm truncate">{merchant.name}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span className="text-xs text-amber-600 font-semibold">Verified Merchant</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -370,7 +360,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
           {view === "input" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-              {/* Prominent amount entry */}
+              {/* Amount display */}
               <div className="text-center py-2">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">Payment Amount (ETB)</p>
                 <div className="flex items-center gap-4">
@@ -384,14 +374,13 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                       const val = e.target.value
                       if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
                     }}
-                    className="text-5xl font-black text-amber-500 text-center bg-transparent border-none outline-none w-48 placeholder:text-slate-200 caret-amber-500"
+                    className="text-5xl font-black text-amber-500 text-center bg-transparent border-none outline-none w-48 placeholder:text-slate-400/30 caret-amber-500"
                   />
                   <div className="flex-1 h-px bg-slate-200" />
                 </div>
                 <p className="text-sm font-semibold text-slate-400 mt-3">ETB</p>
               </div>
 
-              {/* Form */}
               <form onSubmit={handlePayment} className="space-y-3">
 
                 {/* Phone Number */}
@@ -408,7 +397,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                         if (val.length <= 13) setPhone(val)
                       }}
                       required
-                      className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-300"
+                      className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/30"
                     />
                     {phone && (
                       <button
@@ -426,8 +415,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 {/* Payment Method */}
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Payment Method</p>
-                  <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
-                    <Building className="w-4 h-4 text-amber-500 shrink-0" />
+                  <div className="flex items-center px-3 pb-3 pt-2">
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                       <SelectTrigger className="border-none shadow-none h-auto p-0 font-medium text-slate-800 text-sm focus:ring-0 focus:ring-offset-0 flex-1">
                         <SelectValue />
@@ -480,10 +468,10 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                     <FileText className="w-4 h-4 text-amber-500 shrink-0" />
                     <input
                       type="text"
-                      placeholder="e.g. Order #1234, Invoice, etc."
+                      placeholder="Add a note"
                       value={description}
                       onChange={(e) => { if (e.target.value.length <= 50) setDescription(e.target.value) }}
-                      className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-300"
+                      className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/30"
                     />
                   </div>
                 </div>
