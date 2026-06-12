@@ -997,40 +997,41 @@ function MerchantReviewContent() {
 
           {/* Preview Modal */}
           <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-            <DialogContent className="max-w-4xl bg-white border border-slate-100 p-0 overflow-hidden shadow-sm rounded-2xl">
-              <DialogHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
-                <DialogTitle className="text-slate-800 text-sm font-medium truncate pr-8">
-                  {previewFile?.name}
-                </DialogTitle>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-slate-500 hover:bg-slate-100 rounded-full" 
-                  onClick={() => setPreviewFile(null)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+            <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
+              <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
+                    {previewFile?.name}
+                  </DialogTitle>
+                  <button
+                    type="button"
+                    className="text-white hover:bg-white/20 bg-black/40 rounded-full p-1.5 backdrop-blur-md transition-colors"
+                    onClick={() => setPreviewFile(null)}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </DialogHeader>
-              <div className="flex items-center justify-center min-h-[60vh] p-8 bg-slate-50/50">
+              <div className="flex items-center justify-center min-h-[60vh] p-8">
                 {previewFile?.type.startsWith('image/') ? (
-                  <img 
-                    src={previewFile.url} 
-                    alt={previewFile.name} 
-                    className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-sm border border-slate-200 animate-in zoom-in-95 duration-300"
+                  <img
+                    src={previewFile.url}
+                    alt={previewFile.name}
+                    className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg"
                   />
                 ) : (
-                  <div className="flex flex-col items-center gap-6 text-slate-800 animate-in fade-in duration-300">
-                    <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center border border-slate-200 shadow-sm">
-                      <FileText className="w-10 h-10 text-slate-400" />
+                  <div className="flex flex-col items-center gap-6 text-white">
+                    <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
+                      <FileText className="w-12 h-12 text-white/60" />
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-medium">Preview not available</p>
-                      <p className="text-sm text-slate-500 mt-1">Please download file to view its content.</p>
+                      <p className="text-lg font-bold">Preview not available</p>
+                      <p className="text-sm text-white/60 mt-1">Download the file to view its content.</p>
                     </div>
-                    <a 
-                      href={previewFile?.url} 
+                    <a
+                      href={previewFile?.url}
                       download={previewFile?.name}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300"
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-2xl font-bold hover:bg-slate-200 transition-colors"
                     >
                       <Download className="w-4 h-4" /> Download File
                     </a>
