@@ -38,6 +38,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const QR_DISPLAY_SIZE = 200
 const QR_DOWNLOAD_SIZE = 1024
@@ -54,6 +64,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isDownloadingQr, setIsDownloadingQr] = useState(false)
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
 
   const qrUrl = useMemo(() => {
     if (!qrConfig?.activeQr?.token) return ""
@@ -121,11 +132,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     }
   }
 
-  const handleRegenerateQr = async () => {
-    if (!confirm("Are you sure? This will invalidate the existing QR code and all printed copies will stop working.")) {
-      return
-    }
+  const handleRegenerateQr = () => {
+    setShowRegenConfirm(true)
+  }
 
+  const doRegenerateQr = async () => {
     setIsRegenerating(true)
     try {
       // First save current configuration changes
@@ -421,6 +432,31 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={showRegenConfirm} onOpenChange={setShowRegenConfirm}>
+        <AlertDialogContent className="rounded-2xl border-none bg-white shadow-2xl">
+          <AlertDialogHeader className="items-center text-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center">
+              <RotateCw className="w-7 h-7 text-rose-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-slate-900">Regenerate QR Code?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This will permanently invalidate the existing QR code. All printed copies will stop working immediately and cannot be reversed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-row gap-3 pt-2">
+            <AlertDialogCancel className="flex-1 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={doRegenerateQr}
+              className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Yes, Regenerate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

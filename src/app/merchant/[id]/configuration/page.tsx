@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { z } from "zod"
-import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download } from "lucide-react"
+import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download, RotateCw } from "lucide-react"
 import { CashbackTab } from "@/components/merchant/cashback-tab"
 import { useAuth } from "@/lib/auth-context"
 import { QRCodeCanvas } from "qrcode.react"
@@ -31,6 +31,16 @@ import {
   sanitizeAccountNumberInput,
   getAccountNumberValidationError,
 } from "@/lib/account-number"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const callbackUrlSchema = z
   .string()
@@ -112,6 +122,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   })
   const [isQrLoading, setIsQrLoading] = useState(false)
   const [isDownloadingQr, setIsDownloadingQr] = useState(false)
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
 
   const qrUrl = useMemo(() => {
     if (!qrConfig?.activeQr?.token) return ""
@@ -703,7 +714,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleQrAction("regenerate")}
+                              onClick={() => setShowRegenConfirm(true)}
                               disabled={isQrLoading}
                               className="h-8 text-[11px] font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1.5"
                             >
@@ -971,6 +982,30 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           </div>
         </CardContent>
       </Card>
+      <AlertDialog open={showRegenConfirm} onOpenChange={setShowRegenConfirm}>
+        <AlertDialogContent className="rounded-2xl border-none bg-white shadow-2xl">
+          <AlertDialogHeader className="items-center text-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center">
+              <RotateCw className="w-7 h-7 text-rose-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-slate-900">Regenerate QR Code?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This will permanently invalidate the existing QR code. All printed copies will stop working immediately and cannot be reversed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-row gap-3 pt-2">
+            <AlertDialogCancel className="flex-1 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleQrAction("regenerate")}
+              className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Yes, Regenerate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
