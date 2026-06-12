@@ -48,12 +48,23 @@ export async function POST(request: Request) {
     }
 
     const invoiceApiKey = process.env.INVOICE_API_KEY ?? ""
+    const providerBase = (process.env.PROVIDER_BASE_URL ?? "").replace(/\/$/, "")
+    const invoiceBase = (process.env.INVOICE_SERVICE_BASE_URL ?? "").replace(/\/$/, "")
+
+    if (!providerBase) {
+      console.error("[receipt] PROVIDER_BASE_URL is not configured")
+      return NextResponse.json({ error: "Receipt service not configured" }, { status: 503 })
+    }
+    if (!invoiceBase) {
+      console.error("[receipt] INVOICE_SERVICE_BASE_URL is not configured")
+      return NextResponse.json({ error: "Invoice service not configured" }, { status: 503 })
+    }
 
     // Step 1: Fetch receipt data from bank core using FT number
     const receiptPayload = { transactionId: ftNumber }
     console.log("[receipt] → bank receipt request:", JSON.stringify(receiptPayload))
 
-    const receiptRes = await fetch("http://192.168.100.56:8280/receipt", {
+    const receiptRes = await fetch(`${providerBase}/receipt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(receiptPayload),
@@ -109,7 +120,7 @@ export async function POST(request: Request) {
     console.log("[receipt] → invoice request body:", JSON.stringify(invoiceData))
 
     // Step 3: Submit to invoice generator
-    const invoiceRes = await fetch("http://172.24.47.138:9003/api/invoice/", {
+    const invoiceRes = await fetch(`${invoiceBase}/api/invoice/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -140,7 +151,6 @@ export async function POST(request: Request) {
     }
 
     // Make the viewUrl absolute — the invoice service sometimes returns a relative path
-    const invoiceBase = "http://172.24.47.138:9003"
     const viewUrl = result.viewUrl?.startsWith("http")
       ? result.viewUrl
       : `${invoiceBase}${result.viewUrl}`
