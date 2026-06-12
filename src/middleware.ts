@@ -144,7 +144,7 @@ export async function middleware(req: NextRequest) {
     return res
   }
 
-  if (!isLoggedIn && !isAuthRoute) {
+  if (!isLoggedIn && !isAuthRoute && !isAuthExemptRoute) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
