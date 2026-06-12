@@ -8,12 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Loader2, 
-  Store, 
-  Globe, 
-  Building2, 
-  User, 
+import {
+  Loader2,
+  Store,
+  Globe,
+  Building2,
+  User,
   Link as LinkIcon,
   FileText,
   Upload,
@@ -25,8 +25,16 @@ import {
   ShieldCheck,
   MessageSquare,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Download
 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument } from "@/app/lib/db"
 import Link from "next/link"
@@ -81,6 +89,7 @@ function ReviewUpdateForm() {
   
   const [documents, setDocuments] = useState<MerchantDocument[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
   const handleOtpChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, "").slice(0, 1)
@@ -491,7 +500,7 @@ function ReviewUpdateForm() {
   }
 
   if (step === 'review') {
-    return (
+    return (<>
       <div className="min-h-screen bg-white flex items-start justify-center p-4">
         <div className="max-w-5xl w-full py-8 space-y-10">
         <div className="relative overflow-hidden">
@@ -617,9 +626,20 @@ function ReviewUpdateForm() {
                   <div className="space-y-2 sm:col-span-2">
                     <Label>Business Logo (Optional)</Label>
                     <div className="flex items-center gap-4">
-                      {formData.logoUrl && (
-                        <div className="w-20 h-20 rounded-xl border overflow-hidden bg-white flex-shrink-0">
-                          <img src={formData.logoUrl} className="w-full h-full object-contain" />
+                      {formData.logoUrl ? (
+                        <div className="relative group w-20 h-20 rounded-xl border border-[#eadcc4] overflow-hidden bg-white flex-shrink-0 shadow-sm">
+                          <img src={formData.logoUrl} alt="Business logo" className="w-full h-full object-contain p-1" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile({ url: formData.logoUrl, name: "Business Logo", type: "image/png" })}
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                            <Eye className="w-5 h-5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="w-7 h-7 text-gray-300" />
                         </div>
                       )}
                       <Button variant="outline" type="button" onClick={() => logoInputRef.current?.click()} disabled={isLogoUploading}>
@@ -703,15 +723,30 @@ function ReviewUpdateForm() {
                 </div>
                 <div className="grid gap-3">
                   {documents.map(doc => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 border rounded-xl bg-white shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-slate-400" />
-                        <div>
-                          <p className="text-sm font-medium truncate max-w-[250px]">{doc.name}</p>
+                    <div key={doc.id} className="group flex items-center justify-between p-3 border rounded-xl bg-white shadow-sm hover:border-[#f8b513]/40 transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden border border-gray-100">
+                          {doc.type?.startsWith('image/') && doc.url ? (
+                            <img src={doc.url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-slate-50 flex items-center justify-center">
+                              <FileText className="w-4 h-4 text-slate-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate max-w-[200px]">{doc.name}</p>
                           <p className="text-[10px] text-slate-400">{(doc.size / 1024).toFixed(1)} KB</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="text-red-500" onClick={() => removeDoc(doc.id)}><X className="w-4 h-4" /></Button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600" onClick={() => setPreviewFile({ url: doc.url, name: doc.name, type: doc.type })}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-rose-50" onClick={() => removeDoc(doc.id)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -728,7 +763,53 @@ function ReviewUpdateForm() {
         </Card>
         </div>
       </div>
-    )
+
+      {/* File preview modal */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
+          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
+                {previewFile?.name}
+              </DialogTitle>
+              <button
+                type="button"
+                className="text-white hover:bg-white/20 bg-black/40 rounded-full p-1.5 backdrop-blur-md transition-colors"
+                onClick={() => setPreviewFile(null)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </DialogHeader>
+          <div className="flex items-center justify-center min-h-[60vh] p-8">
+            {previewFile?.type.startsWith('image/') ? (
+              <img
+                src={previewFile.url}
+                alt={previewFile.name}
+                className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-6 text-white">
+                <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
+                  <FileText className="w-12 h-12 text-white/60" />
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold">Preview not available</p>
+                  <p className="text-sm text-white/60 mt-1">Download the file to view its content.</p>
+                </div>
+                <a
+                  href={previewFile?.url}
+                  download={previewFile?.name}
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-2xl font-bold hover:bg-slate-200 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Download File
+                </a>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>)
   }
 
   if (step === 'success') {

@@ -1043,21 +1043,37 @@ function MerchantOnboardingContent() {
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {documents.map(doc => (
                                   <div key={doc.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 text-xs shadow-sm hover:border-[#f8b513]/30 transition-all">
-                                    <div className="p-2 rounded-lg bg-emerald-50 shrink-0">
-                                      <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                    <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden border border-gray-100">
+                                      {doc.type?.startsWith('image/') && doc.url ? (
+                                        <img src={doc.url} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full bg-emerald-50 flex items-center justify-center">
+                                          <FileCheck className="w-4 h-4 text-emerald-600" />
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="truncate font-medium text-gray-700">{doc.name}</p>
                                       <p className="text-[10px] text-gray-400">{(doc.size / 1024 / 1024).toFixed(2)} MB</p>
                                     </div>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 transition-all" 
-                                      onClick={() => handleRemoveDoc(doc.id)}
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </Button>
+                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-all"
+                                        onClick={() => setPreviewFile({ url: doc.url, name: doc.name, type: doc.type })}
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-lg hover:bg-rose-50 hover:text-rose-600 transition-all"
+                                        onClick={() => handleRemoveDoc(doc.id)}
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>

@@ -42,7 +42,8 @@ export function SessionWatcher() {
     pathname?.startsWith("/payment") ||
     pathname?.startsWith("/pay") ||
     pathname?.startsWith("/activate") ||
-    pathname?.startsWith("/l/")
+    pathname?.startsWith("/l/") ||
+    pathname?.startsWith("/merchant/review-update")
 
   const isAuthPageRef = useRef(isAuthPage)
 
