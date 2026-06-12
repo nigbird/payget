@@ -7,7 +7,7 @@ import {
   Eye, EyeOff, Phone, CreditCard, Copy, Check, Building,
   FileText, ArrowRight, Receipt
 } from "lucide-react"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -83,11 +83,6 @@ function OpaqueLinkContent() {
             <h1 className="text-xl font-medium text-amber-900">Invalid or Expired Link</h1>
             <p className="text-sm text-amber-800/70">{error}</p>
           </CardContent>
-          <CardFooter className="pb-8">
-            <Button className="w-full" onClick={() => router.push('/')}>
-              Return Home
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     )
