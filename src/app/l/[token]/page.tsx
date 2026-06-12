@@ -568,23 +568,62 @@ function PayLinkPageStandalone({ token }: { token: string }) {
   if (view === "failed") {
     return (
       <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
-        <div className="max-w-md mx-auto p-4 pb-10 w-full space-y-4 pt-10">
-          <div className="text-center space-y-6 py-8 animate-in zoom-in-95 duration-500">
-            <div className="w-20 h-20 rounded-full bg-rose-100 flex items-center justify-center mx-auto shadow-lg shadow-rose-500/10">
-              <XCircle className="w-10 h-10 text-rose-500" />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
+            {/* Branding header */}
+            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                  <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
+                </div>
+                <div>
+                  <p className="text-[8px] font-bold uppercase tracking-widest text-amber-800/50 leading-none">Powered by</p>
+                  <p className="text-xs font-bold text-amber-900 leading-tight mt-0.5">Nib Bank</p>
+                </div>
+              </div>
+              <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                  {payment.merchantLogoUrl ? (
+                    <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-amber-700 font-black text-base uppercase">{payment.merchantName?.charAt(0)}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900 text-sm truncate">{payment.merchantName}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span className="text-xs text-amber-600 font-semibold">Verified Merchant</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black text-rose-900">Payment Failed</h2>
-              <p className="text-sm text-rose-700/60 font-medium">We couldn&apos;t process your payment at this time.</p>
+
+            {/* Failure card */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 py-8 text-center space-y-5 animate-in zoom-in-95 duration-500">
+              <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mx-auto border border-rose-100">
+                <XCircle className="w-10 h-10 text-rose-500" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-2xl font-black text-slate-800">Payment Failed</h2>
+                <p className="text-sm text-slate-500">We couldn&apos;t process your payment at this time.</p>
+              </div>
+              <button
+                className="w-full h-14 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white font-bold text-base shadow-lg shadow-amber-950/20 hover:opacity-95 transition-opacity flex items-center justify-center gap-2"
+                onClick={() => window.location.reload()}
+              >
+                <ArrowRight className="w-4 h-4" />
+                Try Again
+              </button>
             </div>
-            <button
-              className="w-full h-14 rounded-2xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-colors"
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
+
+            <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5 pb-2">
+              <Lock className="w-3 h-3" />
+              Secured by Nib Bank
+            </p>
           </div>
-        </div>
+        </main>
       </div>
     )
   }
@@ -593,23 +632,62 @@ function PayLinkPageStandalone({ token }: { token: string }) {
   if (view === "pending") {
     return (
       <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
-        <div className="max-w-md mx-auto p-4 pb-10 w-full space-y-4 pt-10">
-          <div className="text-center space-y-6 py-8 animate-in zoom-in-95 duration-500">
-            <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/10">
-              <Clock className="w-10 h-10 text-amber-600" />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
+            {/* Branding header */}
+            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                  <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
+                </div>
+                <div>
+                  <p className="text-[8px] font-bold uppercase tracking-widest text-amber-800/50 leading-none">Powered by</p>
+                  <p className="text-xs font-bold text-amber-900 leading-tight mt-0.5">Nib Bank</p>
+                </div>
+              </div>
+              <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                  {payment.merchantLogoUrl ? (
+                    <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-amber-700 font-black text-base uppercase">{payment.merchantName?.charAt(0)}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900 text-sm truncate">{payment.merchantName}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span className="text-xs text-amber-600 font-semibold">Verified Merchant</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2 px-2">
-              <h2 className="text-2xl font-black text-amber-900">Payment Pending</h2>
-              <p className="text-sm text-amber-800/70 font-medium">
-                We haven&apos;t received a confirmation yet. If your PIN was accepted, the payment will reflect shortly.
-              </p>
-              <p className="text-xs text-slate-500 bg-amber-50 p-3 rounded-xl border border-amber-100 mt-2">
-                Please check your bank statement or contact Nib Bank if the amount was debited but not confirmed here.
-              </p>
+
+            {/* Pending card */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 py-8 text-center space-y-5 animate-in zoom-in-95 duration-500">
+              <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mx-auto border border-amber-100">
+                <Clock className="w-10 h-10 text-amber-500" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-2xl font-black text-slate-800">Payment Pending</h2>
+                <p className="text-sm text-slate-500">
+                  We haven&apos;t received a confirmation yet. If your PIN was accepted, the payment will be reflected shortly.
+                </p>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-left">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-1">What to do</p>
+                <p className="text-sm text-slate-600">Check your bank statement or contact Nib Bank if the amount was debited but not confirmed here.</p>
+              </div>
+              <p className="text-xs font-mono text-slate-400">Ref: {payment.transactionReference}</p>
             </div>
-            <p className="text-xs font-mono text-slate-400">Ref: {payment.transactionReference}</p>
+
+            <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5 pb-2">
+              <Lock className="w-3 h-3" />
+              Secured by Nib Bank
+            </p>
           </div>
-        </div>
+        </main>
       </div>
     )
   }
