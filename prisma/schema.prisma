@@ -150,7 +150,7 @@ model Merchant {
   accountNumber       String
   dailyLimit          Float            @default(0)
   transactionLimit    Float            @default(0)
-  dailyCountLimit     Int              @default(0)
+  dailyCountLimit     Float            @default(0)
   status              MerchantStatus   @default(PENDING)
   rejectionReason     String?
   businessDescription String?

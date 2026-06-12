@@ -124,29 +124,33 @@ function MerchantOnboardingContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const validateLimit = (value: string, fieldName: string): string | null => {
-    if (!value || value.trim() === '') {
-      return 'This field is required'
-    }
-    if (!/^\d+$/.test(value)) {
-      return 'Only numbers are allowed'
-    }
-    if (value.length > 10) {
-      return 'Maximum 10 digits allowed'
-    }
+  const sanitizeLimitInput = (value: string): string => {
+    // Strip non-numeric characters except a single decimal point
+    const cleaned = value.replace(/[^\d.]/g, '')
+    const parts = cleaned.split('.')
+    if (parts.length === 1) return parts[0]
+    return `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`
+  }
+
+  const validateLimit = (value: string): string | null => {
+    if (!value || value.trim() === '') return 'This field is required'
+    if (!/^\d+(\.\d{0,2})?$/.test(value)) return 'Enter a valid number (up to 2 decimal places)'
+    const num = parseFloat(value)
+    if (isNaN(num) || num < 0) return 'Must be a positive number'
+    if (num > 999_999_999.99) return 'Value exceeds maximum allowed (999,999,999.99)'
     return null
   }
 
   const handleLimitChange = (field: keyof typeof limits, value: string) => {
-    setLimits(prev => ({ ...prev, [field]: value }))
-    const error = validateLimit(value, field)
-    setLimitErrors(prev => ({ ...prev, [field]: error || '' }))
+    const sanitized = sanitizeLimitInput(value)
+    setLimits(prev => ({ ...prev, [field]: sanitized }))
+    setLimitErrors(prev => ({ ...prev, [field]: validateLimit(sanitized) || '' }))
   }
 
   const handleFormLimitChange = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    const error = validateLimit(value, field)
-    setErrors(prev => ({ ...prev, [field]: error || '' }))
+    const sanitized = sanitizeLimitInput(value)
+    setFormData(prev => ({ ...prev, [field]: sanitized }))
+    setErrors(prev => ({ ...prev, [field]: validateLimit(sanitized) || '' }))
   }
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
@@ -1642,7 +1646,7 @@ function MerchantOnboardingContent() {
                       placeholder="e.g. 10000" 
                       value={limits.dailyLimit}
                       onChange={(e) => handleLimitChange('dailyLimit', e.target.value)}
-                      maxLength={10}
+                      maxLength={13}
                       className={limitErrors.dailyLimit ? 'border-red-500' : ''}
                     />
                     {limitErrors.dailyLimit && (
@@ -1656,7 +1660,7 @@ function MerchantOnboardingContent() {
                       placeholder="e.g. 1000" 
                       value={limits.transactionLimit}
                       onChange={(e) => handleLimitChange('transactionLimit', e.target.value)}
-                      maxLength={10}
+                      maxLength={13}
                       className={limitErrors.transactionLimit ? 'border-red-500' : ''}
                     />
                     {limitErrors.transactionLimit && (
@@ -1670,7 +1674,7 @@ function MerchantOnboardingContent() {
                       placeholder="e.g. 100" 
                       value={limits.dailyCountLimit}
                       onChange={(e) => handleLimitChange('dailyCountLimit', e.target.value)}
-                      maxLength={10}
+                      maxLength={13}
                       className={limitErrors.dailyCountLimit ? 'border-red-500' : ''}
                     />
                     {limitErrors.dailyCountLimit && (
