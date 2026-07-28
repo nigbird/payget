@@ -641,11 +641,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Daily Limit</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.daily.toLocaleString()}
+                            ETB {transactionLimits.daily.toLocaleString()}
                           </span>
                         </div>
-                        <Progress 
-                          value={(transactionLimits.daily / 10000) * 100} 
+                        <Progress
+                          value={(transactionLimits.daily / 10000) * 100}
                           className="h-2 bg-white/60"
                         />
                       </div>
@@ -654,11 +654,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Daily Max</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.daily.toLocaleString()}
+                            ETB {transactionLimits.daily.toLocaleString()}
                           </span>
                         </div>
-                        <Progress 
-                          value={(transactionLimits.daily / 10000) * 100} 
+                        <Progress
+                          value={(transactionLimits.daily / 10000) * 100}
                           className="h-2 bg-white/60"
                         />
                       </div>
@@ -667,7 +667,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Max Transaction</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.maxTransaction.toLocaleString()}
+                            ETB {transactionLimits.maxTransaction.toLocaleString()}
                           </span>
                         </div>
                       </div>

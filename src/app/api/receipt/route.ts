@@ -48,6 +48,8 @@ export async function POST(request: Request) {
     }
 
     const invoiceApiKey = process.env.INVOICE_API_KEY ?? ""
+    const invoiceUsername = process.env.INVOICE_USERNAME ?? ""
+    const invoicePassword = process.env.INVOICE_PASSWORD ?? ""
     const providerBase = (process.env.PROVIDER_BASE_URL ?? "").replace(/\/$/, "")
     const invoiceBase = (process.env.INVOICE_SERVICE_BASE_URL ?? "").replace(/\/$/, "")
 
@@ -64,9 +66,13 @@ export async function POST(request: Request) {
     const receiptPayload = { transactionId: ftNumber }
     console.log("[receipt] → bank receipt request:", JSON.stringify(receiptPayload))
 
-    const receiptRes = await fetch(`${providerBase}/receipt`, {
+    const invoiceAuth = Buffer.from(`${invoiceUsername}:${invoicePassword}`).toString("base64")
+    const receiptRes = await fetch(`${providerBase}/api/v1/merchant/ft/details`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${invoiceAuth}`,
+      },
       body: JSON.stringify(receiptPayload),
     })
 
