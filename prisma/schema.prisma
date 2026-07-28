@@ -38,6 +38,8 @@ model User {
   checkedCashbackRequests CashbackRequest[]   @relation("CashbackRequestChecker")
   madeSubsidiaryAccountRequests SubsidiaryAccountRequest[] @relation("SubsidiaryAccountRequestMaker")
   checkedSubsidiaryAccountRequests SubsidiaryAccountRequest[] @relation("SubsidiaryAccountRequestChecker")
+  submittedPaymentEligibilityImports PaymentEligibilityImport[] @relation("PaymentEligibilitySubmitter")
+  reviewedPaymentEligibilityImports PaymentEligibilityImport[] @relation("PaymentEligibilityReviewer")
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
 }
@@ -188,6 +190,8 @@ model Merchant {
   cashbackTransactions CashbackTransaction[]
   cashbackEligibleCustomers CashbackEligibleCustomer[]
   subsidiaryAccountRequests SubsidiaryAccountRequest[]
+  paymentEligibilityImports PaymentEligibilityImport[]
+  paymentEligibleCustomers PaymentEligibleCustomer[]
 }
 
 enum CashbackMode {
@@ -263,6 +267,60 @@ model SubsidiaryAccountRequest {
 
   @@index([merchantId])
   @@index([status])
+}
+
+enum PaymentEligibilityRequestStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentEligibilityRequestType {
+  IMPORT
+  REMOVAL
+}
+
+model PaymentEligibilityImport {
+  id          String                           @id @default(cuid())
+  merchantId  String
+  merchant    Merchant                         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  type        PaymentEligibilityRequestType    @default(IMPORT)
+  fileName    String?
+  totalRows   Int
+  status      PaymentEligibilityRequestStatus  @default(PENDING)
+  submittedBy String
+  submitter   User                             @relation("PaymentEligibilitySubmitter", fields: [submittedBy], references: [id])
+  reviewedBy  String?
+  reviewer    User?                            @relation("PaymentEligibilityReviewer", fields: [reviewedBy], references: [id])
+  reviewedAt  DateTime?
+  comments    String?
+  createdAt   DateTime                         @default(now())
+  updatedAt   DateTime                         @updatedAt
+  rows        PaymentEligibilityImportRow[]
+
+  @@index([merchantId])
+  @@index([status])
+}
+
+model PaymentEligibilityImportRow {
+  id       String                   @id @default(cuid())
+  importId String
+  import   PaymentEligibilityImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  phone    String
+
+  @@index([importId])
+}
+
+model PaymentEligibleCustomer {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  phone      String
+  approvedAt DateTime @default(now())
+
+  @@unique([merchantId, phone])
+  @@index([merchantId])
 }
 
 model MerchantCashbackConfig {

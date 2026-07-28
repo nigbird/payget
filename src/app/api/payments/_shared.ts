@@ -3,6 +3,7 @@ import { db, type Merchant, type Transaction } from "@/app/lib/db"
 import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPayload } from "@/lib/jwe"
 import { withMerchantSecret, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
 import { auditSecurityEvent } from "@/lib/request-security"
+import { checkPaymentEligibility } from "@/lib/payment-eligibility"
 
 export const PaymentInitiateSchema = z.object({
   merchantId: z.string().min(1),
@@ -48,6 +49,9 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
   const merchant = await db.getMerchantById(input.merchantId, { includeSecret: true })
   if (!merchant) return { ok: false as const, error: "Merchant not found" }
   if (merchant.status !== "approved" && merchant.status !== "active") return { ok: false as const, error: "Merchant account is not active" }
+
+  const eligibility = await checkPaymentEligibility(input.merchantId, input.userCredentials.phone)
+  if (!eligibility.eligible) return { ok: false as const, error: eligibility.error }
 
   // Amount limit checks (mirrors legacy /api/pay route semantics).
   if (input.amount > merchant.transactionLimit) {

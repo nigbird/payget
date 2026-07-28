@@ -65,6 +65,7 @@ import {
   SlidersHorizontal,
   Edit2,
   Landmark,
+  ListChecks,
 } from "lucide-react"
 import { downloadCsv } from "@/lib/export-csv"
 import { 
@@ -128,12 +129,14 @@ function MerchantReviewContent() {
     previousAccountNumber: string | null
     reason: string
     makerId: string
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
     merchant: { id: string; name: string }
     maker: { id: string; name: string | null; email: string | null }
     createdAt: string
   }
   const [subsidiaryRequests, setSubsidiaryRequests] = useState<SubsidiaryAccountRequestItem[]>([])
   const [subsidiaryActionId, setSubsidiaryActionId] = useState<string | null>(null)
+  const [subsidiarySearch, setSubsidiarySearch] = useState('')
 
   const fetchSubsidiaryRequests = async () => {
     try {
@@ -178,6 +181,89 @@ function MerchantReviewContent() {
       toast({ variant: 'destructive', title: 'Action failed', description: error.message })
     } finally {
       setSubsidiaryActionId(null)
+    }
+  }
+
+  const canApproveEligibility = userPermissions.includes('PAYMENT_ELIGIBILITY_APPROVE')
+
+  type EligibilityRequestItem = {
+    id: string
+    type: 'IMPORT' | 'REMOVAL'
+    fileName: string | null
+    totalRows: number
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    createdAt: string
+    merchant: { id: string; name: string }
+    submitter: { id: string; name: string | null; email: string | null }
+  }
+  const [eligibilityRequests, setEligibilityRequests] = useState<EligibilityRequestItem[]>([])
+  const [eligibilityActionId, setEligibilityActionId] = useState<string | null>(null)
+  const [eligibilitySearch, setEligibilitySearch] = useState('')
+  const [viewListRequest, setViewListRequest] = useState<EligibilityRequestItem | null>(null)
+  const [viewListPhones, setViewListPhones] = useState<string[]>([])
+  const [viewListSearch, setViewListSearch] = useState('')
+  const [isViewListOpen, setIsViewListOpen] = useState(false)
+  const [isViewListLoading, setIsViewListLoading] = useState(false)
+
+  const fetchEligibilityRequests = async () => {
+    try {
+      const response = await fetch('/api/admin/payment-eligibility-requests')
+      if (response.ok) {
+        const data = await response.json()
+        setEligibilityRequests(data.requests || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment eligibility requests:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (canApproveEligibility) {
+      fetchEligibilityRequests()
+    }
+  }, [canApproveEligibility])
+
+  const openViewList = async (request: EligibilityRequestItem) => {
+    setViewListRequest(request)
+    setViewListSearch('')
+    setIsViewListOpen(true)
+    setIsViewListLoading(true)
+    try {
+      const response = await fetch(`/api/admin/payment-eligibility-requests/${request.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setViewListPhones(data.phones || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch eligibility request list:', error)
+    } finally {
+      setIsViewListLoading(false)
+    }
+  }
+
+  const handleEligibilityDecision = async (request: EligibilityRequestItem, decision: 'approve' | 'reject') => {
+    setEligibilityActionId(request.id)
+    try {
+      const response = await fetch(`/api/admin/payment-eligibility-requests/${request.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: decision }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to submit decision')
+
+      toast({
+        title: decision === 'approve' ? 'Eligible customers approved' : 'Import rejected',
+        description: decision === 'approve'
+          ? `${request.merchant.name}'s eligible customer list is now active.`
+          : `The import for ${request.merchant.name} was rejected.`,
+      })
+      setIsViewListOpen(false)
+      await fetchEligibilityRequests()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Action failed', description: error.message })
+    } finally {
+      setEligibilityActionId(null)
     }
   }
 
@@ -419,6 +505,23 @@ function MerchantReviewContent() {
     }
   }
 
+  const getRequestStatusBadge = (status: 'PENDING' | 'APPROVED' | 'REJECTED') => {
+    switch (status) {
+      case 'APPROVED': return <Badge className="bg-emerald-500 gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</Badge>
+      case 'REJECTED': return <Badge className="bg-rose-500 gap-1"><XCircle className="w-3 h-3" /> Rejected</Badge>
+      default: return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 gap-1"><Clock className="w-3 h-3" /> Pending</Badge>
+    }
+  }
+
+  const filteredSubsidiaryRequests = subsidiaryRequests.filter((req) =>
+    req.merchant.name.toLowerCase().includes(subsidiarySearch.toLowerCase())
+  )
+  const filteredEligibilityRequests = eligibilityRequests.filter((req) =>
+    req.merchant.name.toLowerCase().includes(eligibilitySearch.toLowerCase()) ||
+    (req.fileName ?? '').toLowerCase().includes(eligibilitySearch.toLowerCase())
+  )
+  const filteredViewListPhones = viewListPhones.filter((p) => p.includes(viewListSearch))
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -434,6 +537,14 @@ function MerchantReviewContent() {
               Subsidiary Account Requests
               {subsidiaryRequests.length > 0 && (
                 <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{subsidiaryRequests.length}</Badge>
+              )}
+            </TabsTrigger>
+          )}
+          {canApproveEligibility && (
+            <TabsTrigger value="eligibility" className="gap-1.5">
+              Eligible Customer Imports
+              {eligibilityRequests.length > 0 && (
+                <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{eligibilityRequests.length}</Badge>
               )}
             </TabsTrigger>
           )}
@@ -1136,21 +1247,33 @@ function MerchantReviewContent() {
                 <CardDescription className="text-slate-600">
                   Maker-checker: a different admin than the requester must approve or reject each request.
                 </CardDescription>
+                <div className="relative w-full sm:w-72 pt-2">
+                  <Search className="absolute left-3 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    placeholder="Search by merchant name..."
+                    className="h-10 rounded-2xl border-black/10 bg-white pl-9"
+                    value={subsidiarySearch}
+                    onChange={(e) => setSubsidiarySearch(e.target.value)}
+                  />
+                </div>
               </CardHeader>
               <CardContent className="p-0">
-                {subsidiaryRequests.length === 0 ? (
+                {filteredSubsidiaryRequests.length === 0 ? (
                   <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
-                    No pending subsidiary account requests.
+                    No subsidiary account requests found.
                   </div>
                 ) : (
                   <div className="divide-y divide-black/5">
-                    {subsidiaryRequests.map((req) => {
+                    {filteredSubsidiaryRequests.map((req) => {
                       const isOwnRequest = req.makerId === user?.id
                       const isActing = subsidiaryActionId === req.id
                       return (
                         <div key={req.id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
                           <div className="flex-1 min-w-0 space-y-1">
-                            <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
+                              {getRequestStatusBadge(req.status)}
+                            </div>
                             <p className="text-xs font-mono text-slate-600">
                               {req.previousAccountNumber ? `${req.previousAccountNumber} → ` : ""}
                               <span className="font-bold text-slate-900">{req.requestedAccountNumber}</span>
@@ -1161,31 +1284,33 @@ function MerchantReviewContent() {
                             </p>
                           </div>
 
-                          {isOwnRequest ? (
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
-                              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                              Maker-Checker: you submitted this request and cannot approve it.
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-9 rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
-                                disabled={!canApproveSubsidiary || isActing}
-                                onClick={() => handleSubsidiaryDecision(req, 'reject')}
-                              >
-                                {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Reject'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="h-9 rounded-2xl"
-                                disabled={!canApproveSubsidiary || isActing}
-                                onClick={() => handleSubsidiaryDecision(req, 'approve')}
-                              >
-                                {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Approve'}
-                              </Button>
-                            </div>
+                          {req.status === 'PENDING' && (
+                            isOwnRequest ? (
+                              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
+                                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                                Maker-Checker: you submitted this request and cannot approve it.
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-9 rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                                  disabled={!canApproveSubsidiary || isActing}
+                                  onClick={() => handleSubsidiaryDecision(req, 'reject')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Reject'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-9 rounded-2xl"
+                                  disabled={!canApproveSubsidiary || isActing}
+                                  onClick={() => handleSubsidiaryDecision(req, 'approve')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Approve'}
+                                </Button>
+                              </div>
+                            )
                           )}
                         </div>
                       )
@@ -1196,7 +1321,162 @@ function MerchantReviewContent() {
             </Card>
           </TabsContent>
         )}
+
+        {canApproveEligibility && (
+          <TabsContent value="eligibility" className="space-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+              <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-primary" />
+                  <CardTitle className="text-base tracking-tight">Eligible customer imports</CardTitle>
+                </div>
+                <CardDescription className="text-slate-600">
+                  Merchants import a phone-number allowlist here; approving one restricts that merchant's
+                  Push, Payment Link, and QR payments to only these customers.
+                </CardDescription>
+                <div className="relative w-full sm:w-72 pt-2">
+                  <Search className="absolute left-3 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    placeholder="Search by merchant name..."
+                    className="h-10 rounded-2xl border-black/10 bg-white pl-9"
+                    value={eligibilitySearch}
+                    onChange={(e) => setEligibilitySearch(e.target.value)}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {filteredEligibilityRequests.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                    No eligible customer requests found.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-black/5">
+                    {filteredEligibilityRequests.map((req) => {
+                      const isActing = eligibilityActionId === req.id
+                      return (
+                        <div key={req.id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
+                              {getRequestStatusBadge(req.status)}
+                              <Badge
+                                variant="outline"
+                                className={req.type === 'REMOVAL'
+                                  ? 'text-rose-600 border-rose-200 bg-rose-50'
+                                  : 'text-blue-600 border-blue-200 bg-blue-50'}
+                              >
+                                {req.type === 'REMOVAL' ? 'Removal' : 'Import'}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-600">
+                              {req.fileName ?? 'Removal request'} —{' '}
+                              <span className="font-bold text-slate-900">{req.totalRows}</span> customer(s)
+                            </p>
+                            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                              Submitted by {req.submitter.name || req.submitter.email} on{" "}
+                              {new Date(req.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-9 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50"
+                              onClick={() => openViewList(req)}
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1.5" /> View List
+                            </Button>
+                            {req.status === 'PENDING' && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-9 rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                                  disabled={isActing}
+                                  onClick={() => handleEligibilityDecision(req, 'reject')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Reject'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-9 rounded-2xl"
+                                  disabled={isActing}
+                                  onClick={() => handleEligibilityDecision(req, 'approve')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Approve'}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
+
+      <Dialog open={isViewListOpen} onOpenChange={setIsViewListOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              <ListChecks className="w-5 h-5 text-primary" />
+              {viewListRequest?.merchant.name} — Eligible Customers
+              {viewListRequest && getRequestStatusBadge(viewListRequest.status)}
+            </DialogTitle>
+            <DialogDescription>
+              {viewListRequest?.totalRows} phone number(s) {viewListRequest?.type === 'REMOVAL' ? 'requested for removal' : 'submitted for approval'}.
+            </DialogDescription>
+          </DialogHeader>
+          {!isViewListLoading && viewListPhones.length > 10 && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={viewListSearch}
+                onChange={(e) => setViewListSearch(e.target.value)}
+                placeholder="Search phone number..."
+                className="h-10 rounded-2xl pl-9"
+              />
+            </div>
+          )}
+          {isViewListLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="max-h-80 overflow-y-auto rounded-xl border border-black/5 divide-y divide-black/5">
+              {filteredViewListPhones.map((phone) => (
+                <div key={phone} className="px-4 py-2 text-sm font-mono text-slate-800">
+                  {phone}
+                </div>
+              ))}
+            </div>
+          )}
+          {viewListRequest && viewListRequest.status === 'PENDING' && (
+            <DialogFooter>
+              <Button
+                variant="outline"
+                className="rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                disabled={eligibilityActionId === viewListRequest.id}
+                onClick={() => handleEligibilityDecision(viewListRequest, 'reject')}
+              >
+                Reject
+              </Button>
+              <Button
+                className="rounded-2xl"
+                disabled={eligibilityActionId === viewListRequest.id}
+                onClick={() => handleEligibilityDecision(viewListRequest, 'approve')}
+              >
+                Approve
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
