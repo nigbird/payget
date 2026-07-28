@@ -36,6 +36,8 @@ model User {
   activeSessions       ActiveSession[]
   madeCashbackRequests CashbackRequest[]      @relation("CashbackRequestMaker")
   checkedCashbackRequests CashbackRequest[]   @relation("CashbackRequestChecker")
+  madeSubsidiaryAccountRequests SubsidiaryAccountRequest[] @relation("SubsidiaryAccountRequestMaker")
+  checkedSubsidiaryAccountRequests SubsidiaryAccountRequest[] @relation("SubsidiaryAccountRequestChecker")
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
 }
@@ -185,6 +187,7 @@ model Merchant {
   cashbackConfig      MerchantCashbackConfig?
   cashbackTransactions CashbackTransaction[]
   cashbackEligibleCustomers CashbackEligibleCustomer[]
+  subsidiaryAccountRequests SubsidiaryAccountRequest[]
 }
 
 enum CashbackMode {
@@ -233,6 +236,33 @@ model CashbackRequest {
   @@index([cashbackTransactionId])
   @@index([status])
   @@index([createdAt])
+}
+
+enum SubsidiaryAccountRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SubsidiaryAccountRequest {
+  id                     String                         @id @default(cuid())
+  merchantId             String
+  merchant               Merchant                       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  requestedAccountNumber String
+  previousAccountNumber  String?
+  reason                 String
+  comments               String?
+  status                 SubsidiaryAccountRequestStatus @default(PENDING)
+  makerId                String
+  maker                  User                           @relation("SubsidiaryAccountRequestMaker", fields: [makerId], references: [id])
+  checkerId              String?
+  checker                User?                          @relation("SubsidiaryAccountRequestChecker", fields: [checkerId], references: [id])
+  checkedAt              DateTime?
+  createdAt              DateTime                       @default(now())
+  updatedAt              DateTime                       @updatedAt
+
+  @@index([merchantId])
+  @@index([status])
 }
 
 model MerchantCashbackConfig {

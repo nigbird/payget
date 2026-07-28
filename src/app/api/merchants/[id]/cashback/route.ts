@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
-import { validateSubsidiaryAccountNumberField } from "@/lib/account-number"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
 import { getOrCreateCashbackConfig, mapConfigToDto } from "@/lib/cashback/service"
 import { validateCashbackConfigBody } from "@/lib/cashback/validation"
@@ -40,29 +39,24 @@ export async function PUT(
     const body = await request.json()
     const validationErrors: Record<string, string> = {}
 
-    let subsidiaryAccountNumber: string | null | undefined = undefined
-    if (body.subsidiaryAccountNumber !== undefined) {
-      if (body.subsidiaryAccountNumber === null || body.subsidiaryAccountNumber === "") {
-        subsidiaryAccountNumber = null
-      } else {
-        subsidiaryAccountNumber = validateSubsidiaryAccountNumberField(
-          body.subsidiaryAccountNumber,
-          validationErrors,
-          { required: true }
-        )
-      }
-    }
+    const config = await getOrCreateCashbackConfig(id)
 
     const enabled = typeof body.enabled === "boolean" ? body.enabled : undefined
     const mode = body.mode === "ALL_CUSTOMERS" || body.mode === "CATEGORY_ELIGIBLE" ? body.mode : undefined
     const configErrors = validateCashbackConfigBody(body, Boolean(enabled && mode === "ALL_CUSTOMERS"))
     Object.assign(validationErrors, configErrors)
 
+    // The subsidiary account is admin-managed via a maker-checker request flow
+    // (see /api/merchants/[id]/subsidiary-account) — merchants can no longer set
+    // it here, only enable cashback once an admin has approved one.
+    if (enabled === true && !config.subsidiaryAccountNumber) {
+      validationErrors.subsidiaryAccountNumber =
+        "A subsidiary account must be approved by an admin before cashback can be enabled."
+    }
+
     if (Object.keys(validationErrors).length > 0) {
       return NextResponse.json({ error: "Validation failed", errors: validationErrors }, { status: 400 })
     }
-
-    const config = await getOrCreateCashbackConfig(id)
 
     const updated = await prisma.merchantCashbackConfig.update({
       where: { id: config.id },
@@ -72,7 +66,6 @@ export async function PUT(
           body.mode === "ALL_CUSTOMERS" || body.mode === "CATEGORY_ELIGIBLE"
             ? (body.mode as CashbackMode)
             : undefined,
-        subsidiaryAccountNumber,
         allCustomersPercent: parseOptionalNumber(body.allCustomersPercent),
         allCustomersMinAmount: parseOptionalNumber(body.allCustomersMinAmount),
         allCustomersMaxAmount: parseOptionalNumber(body.allCustomersMaxAmount),

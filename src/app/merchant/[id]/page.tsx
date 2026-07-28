@@ -58,6 +58,7 @@ import {
   Share2,
   ExternalLink,
   FileText,
+  Landmark,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -67,6 +68,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const { toast } = useToast()
   const isMobile = useIsMobile()
   const [merchant, setMerchant] = useState<any>(null)
+  const [subsidiaryAccountNumber, setSubsidiaryAccountNumber] = useState<string | null>(null)
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false)
@@ -171,12 +173,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   useEffect(() => {
     async function fetchData() {
       try {
-        const [mRes, tRes] = await Promise.all([
+        const [mRes, tRes, cbRes] = await Promise.all([
           fetch(`/api/merchants/${id}`),
-          fetch(`/api/merchants/${id}/transactions`)
+          fetch(`/api/merchants/${id}/transactions`),
+          fetch(`/api/merchants/${id}/cashback`)
         ]);
         if (mRes.ok) setMerchant(await mRes.json());
         if (tRes.ok) setTransactions(await tRes.json());
+        if (cbRes.ok) {
+          const cb = await cbRes.json();
+          setSubsidiaryAccountNumber(cb.subsidiaryAccountNumber ?? null);
+        }
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
       } finally {
@@ -727,17 +734,34 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               </div>
             </div>
             
-            <div className="flex items-center gap-1.5 md:gap-2.5 group cursor-pointer" onClick={() => copyText(merchant.accountNumber, "acc")}>
-              <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-xl bg-amber-50/50 border border-amber-100/50 transition-all hover:bg-amber-100/50 hover:border-amber-200/50">
-                <Wallet className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-700" />
-                <span className="text-xs md:text-sm font-bold text-amber-900/80 font-mono tracking-wider">{merchant.accountNumber}</span>
-                {copied === "acc" ? (
-                  <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-600" />
-                ) : (
-                  <Copy className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-400 group-hover:text-amber-600 transition-colors" />
-                )}
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <div className="flex items-center gap-1.5 md:gap-2.5 group cursor-pointer" onClick={() => copyText(merchant.accountNumber, "acc")}>
+                <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-xl bg-amber-50/50 border border-amber-100/50 transition-all hover:bg-amber-100/50 hover:border-amber-200/50">
+                  <Wallet className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-700" />
+                  <span className="text-xs md:text-sm font-bold text-amber-900/80 font-mono tracking-wider">{merchant.accountNumber}</span>
+                  {copied === "acc" ? (
+                    <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-400 group-hover:text-amber-600 transition-colors" />
+                  )}
+                </div>
+                <span className="text-[9px] md:text-[10px] font-bold text-amber-700/40 uppercase tracking-tight group-hover:text-amber-700/60 transition-colors">Settlement Account</span>
               </div>
-              <span className="text-[9px] md:text-[10px] font-bold text-amber-700/40 uppercase tracking-tight group-hover:text-amber-700/60 transition-colors">Settlement Account</span>
+
+              {subsidiaryAccountNumber && (
+                <div className="flex items-center gap-1.5 md:gap-2.5 group cursor-pointer" onClick={() => copyText(subsidiaryAccountNumber, "sub")}>
+                  <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-xl bg-amber-50/50 border border-amber-100/50 transition-all hover:bg-amber-100/50 hover:border-amber-200/50">
+                    <Landmark className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-700" />
+                    <span className="text-xs md:text-sm font-bold text-amber-900/80 font-mono tracking-wider">{subsidiaryAccountNumber}</span>
+                    {copied === "sub" ? (
+                      <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-400 group-hover:text-amber-600 transition-colors" />
+                    )}
+                  </div>
+                  <span className="text-[9px] md:text-[10px] font-bold text-amber-700/40 uppercase tracking-tight group-hover:text-amber-700/60 transition-colors">Subsidiary Account</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">

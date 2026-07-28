@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Table, 
   TableBody, 
@@ -63,6 +64,7 @@ import {
   Search,
   SlidersHorizontal,
   Edit2,
+  Landmark,
 } from "lucide-react"
 import { downloadCsv } from "@/lib/export-csv"
 import { 
@@ -116,6 +118,68 @@ function MerchantReviewContent() {
   const userPermissions = user?.permissions || []
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')
+  const canRequestSubsidiary = userPermissions.includes('SUBSIDIARY_ACCOUNT_REQUEST')
+  const canApproveSubsidiary = userPermissions.includes('SUBSIDIARY_ACCOUNT_APPROVE')
+
+  type SubsidiaryAccountRequestItem = {
+    id: string
+    merchantId: string
+    requestedAccountNumber: string
+    previousAccountNumber: string | null
+    reason: string
+    makerId: string
+    merchant: { id: string; name: string }
+    maker: { id: string; name: string | null; email: string | null }
+    createdAt: string
+  }
+  const [subsidiaryRequests, setSubsidiaryRequests] = useState<SubsidiaryAccountRequestItem[]>([])
+  const [subsidiaryActionId, setSubsidiaryActionId] = useState<string | null>(null)
+
+  const fetchSubsidiaryRequests = async () => {
+    try {
+      const response = await fetch('/api/admin/subsidiary-account-requests')
+      if (response.ok) {
+        const data = await response.json()
+        setSubsidiaryRequests(data.requests || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch subsidiary account requests:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (canRequestSubsidiary || canApproveSubsidiary) {
+      fetchSubsidiaryRequests()
+    }
+  }, [canRequestSubsidiary, canApproveSubsidiary])
+
+  const handleSubsidiaryDecision = async (request: SubsidiaryAccountRequestItem, decision: 'approve' | 'reject') => {
+    setSubsidiaryActionId(request.id)
+    try {
+      const response = await fetch(`/api/merchants/${request.merchantId}/subsidiary-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: decision === 'approve' ? 'approve_request' : 'reject_request',
+          requestId: request.id,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to submit decision')
+
+      toast({
+        title: decision === 'approve' ? 'Subsidiary account approved' : 'Request rejected',
+        description: decision === 'approve'
+          ? `${request.merchant.name}'s subsidiary account is now active.`
+          : `The request for ${request.merchant.name} was rejected.`,
+      })
+      await fetchSubsidiaryRequests()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Action failed', description: error.message })
+    } finally {
+      setSubsidiaryActionId(null)
+    }
+  }
 
   const sanitizeLimitInput = (value: string): string => {
     const cleaned = value.replace(/[^\d.]/g, '')
@@ -362,6 +426,20 @@ function MerchantReviewContent() {
         <p className="text-sm text-amber-800/60 font-medium">Approve registrations, adjust limits, and perform final audits.</p>
       </div>
 
+      <Tabs defaultValue="onboarding" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="onboarding">Merchant Onboarding</TabsTrigger>
+          {(canRequestSubsidiary || canApproveSubsidiary) && (
+            <TabsTrigger value="subsidiary" className="gap-1.5">
+              Subsidiary Account Requests
+              {subsidiaryRequests.length > 0 && (
+                <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{subsidiaryRequests.length}</Badge>
+              )}
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="onboarding" className="space-y-4">
       <div className="rounded-2xl">
         <div className="relative overflow-hidden rounded-2xl">
           <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
@@ -1045,6 +1123,80 @@ function MerchantReviewContent() {
           </Dialog>
         </div>
       </div>
+        </TabsContent>
+
+        {(canRequestSubsidiary || canApproveSubsidiary) && (
+          <TabsContent value="subsidiary" className="space-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+              <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
+                <div className="flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-primary" />
+                  <CardTitle className="text-base tracking-tight">Subsidiary account requests</CardTitle>
+                </div>
+                <CardDescription className="text-slate-600">
+                  Maker-checker: a different admin than the requester must approve or reject each request.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {subsidiaryRequests.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                    No pending subsidiary account requests.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-black/5">
+                    {subsidiaryRequests.map((req) => {
+                      const isOwnRequest = req.makerId === user?.id
+                      const isActing = subsidiaryActionId === req.id
+                      return (
+                        <div key={req.id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
+                            <p className="text-xs font-mono text-slate-600">
+                              {req.previousAccountNumber ? `${req.previousAccountNumber} → ` : ""}
+                              <span className="font-bold text-slate-900">{req.requestedAccountNumber}</span>
+                            </p>
+                            <p className="text-xs text-slate-500">{req.reason || "No reason provided."}</p>
+                            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                              Requested by {req.maker.name || req.maker.email}
+                            </p>
+                          </div>
+
+                          {isOwnRequest ? (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
+                              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                              Maker-Checker: you submitted this request and cannot approve it.
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                                disabled={!canApproveSubsidiary || isActing}
+                                onClick={() => handleSubsidiaryDecision(req, 'reject')}
+                              >
+                                {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Reject'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-9 rounded-2xl"
+                                disabled={!canApproveSubsidiary || isActing}
+                                onClick={() => handleSubsidiaryDecision(req, 'approve')}
+                              >
+                                {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Approve'}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   )
 }

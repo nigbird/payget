@@ -23,24 +23,30 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog"
-import { 
-  Loader2, 
-  Sparkles, 
-  UserPlus, 
-  Globe, 
-  Building2, 
-  User, 
-  Phone, 
-  MapPin, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Loader2,
+  Sparkles,
+  UserPlus,
+  Globe,
+  Building2,
+  User,
+  Phone,
+  MapPin,
   Link as LinkIcon,
   FileText,
   Upload,
@@ -69,7 +75,9 @@ import {
   CreditCard,
   Store,
   Download,
-  MessageSquare
+  MessageSquare,
+  MoreVertical,
+  Landmark,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { MerchantDocument, Merchant } from "@/app/lib/db"
@@ -80,6 +88,8 @@ import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/ut
 import {
   sanitizeAccountNumberInput,
   getAccountNumberValidationError,
+  sanitizeSubsidiaryAccountNumberInput,
+  getSubsidiaryAccountNumberValidationError,
 } from "@/lib/account-number"
 
 function MerchantOnboardingContent() {
@@ -108,6 +118,17 @@ function MerchantOnboardingContent() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [selectedForReview, setSelectedForReview] = useState<Merchant | null>(null)
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false)
+  const [selectedForSubsidiary, setSelectedForSubsidiary] = useState<Merchant | null>(null)
+  const [isSubsidiaryDialogOpen, setIsSubsidiaryDialogOpen] = useState(false)
+  const [subsidiaryLoading, setSubsidiaryLoading] = useState(false)
+  const [subsidiarySubmitting, setSubsidiarySubmitting] = useState(false)
+  const [subsidiaryCurrent, setSubsidiaryCurrent] = useState<string | null>(null)
+  const [subsidiaryPendingRequest, setSubsidiaryPendingRequest] = useState<{
+    requestedAccountNumber: string
+    maker: { name: string | null; email: string | null }
+  } | null>(null)
+  const [subsidiaryForm, setSubsidiaryForm] = useState({ accountNumber: "", reason: "" })
+  const [subsidiaryFieldErrors, setSubsidiaryFieldErrors] = useState<Record<string, string>>({})
   const [limits, setLimits] = useState({
     dailyLimit: "10000",
     transactionLimit: "1000",
@@ -220,6 +241,72 @@ function MerchantOnboardingContent() {
   const canRegister = userPermissions.includes('MERCHANT_REGISTER')
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')
+  const canRequestSubsidiary = userPermissions.includes('SUBSIDIARY_ACCOUNT_REQUEST')
+
+  const openSubsidiaryDialog = async (merchant: Merchant) => {
+    setSelectedForSubsidiary(merchant)
+    setSubsidiaryForm({ accountNumber: "", reason: "" })
+    setSubsidiaryFieldErrors({})
+    setSubsidiaryCurrent(null)
+    setSubsidiaryPendingRequest(null)
+    setIsSubsidiaryDialogOpen(true)
+    setSubsidiaryLoading(true)
+    try {
+      const res = await fetch(`/api/merchants/${merchant.id}/subsidiary-account`)
+      if (res.ok) {
+        const data = await res.json()
+        setSubsidiaryCurrent(data.subsidiaryAccountNumber ?? null)
+        setSubsidiaryPendingRequest(data.pendingRequest ?? null)
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Failed to load subsidiary account status' })
+    } finally {
+      setSubsidiaryLoading(false)
+    }
+  }
+
+  const handleSubsidiaryAccountChange = (value: string) => {
+    const sanitized = sanitizeSubsidiaryAccountNumberInput(value)
+    setSubsidiaryForm(prev => ({ ...prev, accountNumber: sanitized }))
+    setSubsidiaryFieldErrors(prev => ({ ...prev, requestedAccountNumber: '' }))
+  }
+
+  const submitSubsidiaryRequest = async () => {
+    if (!selectedForSubsidiary) return
+    const errors: Record<string, string> = {}
+    const accountError = getSubsidiaryAccountNumberValidationError(subsidiaryForm.accountNumber)
+    if (accountError) errors.requestedAccountNumber = accountError
+
+    setSubsidiaryFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    setSubsidiarySubmitting(true)
+    try {
+      const res = await fetch(`/api/merchants/${selectedForSubsidiary.id}/subsidiary-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_request',
+          requestedAccountNumber: subsidiaryForm.accountNumber,
+          reason: subsidiaryForm.reason.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (data.errors) setSubsidiaryFieldErrors(data.errors)
+        throw new Error(data.error || 'Failed to submit request')
+      }
+      toast({
+        title: 'Request submitted',
+        description: 'A different admin must approve this before it takes effect.',
+      })
+      setIsSubsidiaryDialogOpen(false)
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Request failed', description: error.message })
+    } finally {
+      setSubsidiarySubmitting(false)
+    }
+  }
 
   const handleResendSetupLink = async (merchantId: string) => {
     setResendLoadingId(merchantId)
@@ -1244,17 +1331,40 @@ function MerchantOnboardingContent() {
                                 )}
                               </Button>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-9 rounded-2xl gap-2 hover:bg-amber-50/50 transition-colors"
-                              onClick={() => {
-                                setSelectedMerchant(s)
-                                setIsDetailsDialogOpen(true)
-                              }}
-                            >
-                              View Details <Eye className="w-3.5 h-3.5" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 rounded-2xl hover:bg-amber-50/50 transition-colors"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault()
+                                    setTimeout(() => {
+                                      setSelectedMerchant(s)
+                                      setIsDetailsDialogOpen(true)
+                                    }, 0)
+                                  }}
+                                >
+                                  <Eye className="w-3.5 h-3.5 mr-2" /> View Details
+                                </DropdownMenuItem>
+                                {canRequestSubsidiary && (
+                                  <DropdownMenuItem
+                                    onSelect={(e) => {
+                                      e.preventDefault()
+                                      setTimeout(() => openSubsidiaryDialog(s), 0)
+                                    }}
+                                  >
+                                    <Landmark className="w-3.5 h-3.5 mr-2" /> Add Subsidiary Account
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1702,6 +1812,97 @@ function MerchantOnboardingContent() {
                       'Confirm & Queue for Activation'
                     )}
                   </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Add Subsidiary Account (Maker) Dialog */}
+            <Dialog open={isSubsidiaryDialogOpen} onOpenChange={setIsSubsidiaryDialogOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Landmark className="w-5 h-5 text-primary" />
+                    Add Subsidiary Account
+                  </DialogTitle>
+                  <DialogDescription>
+                    Propose a subsidiary funding account for{" "}
+                    <span className="font-bold text-foreground">{selectedForSubsidiary?.name}</span>.
+                    A different admin must approve this before it takes effect.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {subsidiaryLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-4 py-2">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Current subsidiary account</p>
+                      <p className="text-sm font-mono font-semibold text-slate-900">
+                        {subsidiaryCurrent || "Not yet configured"}
+                      </p>
+                    </div>
+
+                    {subsidiaryPendingRequest ? (
+                      <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-3">
+                        <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                        <p className="text-xs text-amber-800 leading-relaxed">
+                          A request for <span className="font-mono font-bold">{subsidiaryPendingRequest.requestedAccountNumber}</span>{" "}
+                          submitted by {subsidiaryPendingRequest.maker.name || subsidiaryPendingRequest.maker.email} is already
+                          pending approval on the Review &amp; Approvals page.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label>New subsidiary account number</Label>
+                          <Input
+                            value={subsidiaryForm.accountNumber}
+                            onChange={(e) => handleSubsidiaryAccountChange(e.target.value)}
+                            placeholder="e.g. ABC1234567890"
+                            className={subsidiaryFieldErrors.requestedAccountNumber ? 'border-red-500' : ''}
+                          />
+                          {subsidiaryFieldErrors.requestedAccountNumber && (
+                            <p className="text-[10px] text-red-500 font-medium">{subsidiaryFieldErrors.requestedAccountNumber}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Reason <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                          <Textarea
+                            value={subsidiaryForm.reason}
+                            onChange={(e) => {
+                              setSubsidiaryForm(prev => ({ ...prev, reason: e.target.value }))
+                              setSubsidiaryFieldErrors(prev => ({ ...prev, reason: '' }))
+                            }}
+                            placeholder="Why is this subsidiary account being added? (optional)"
+                            className={subsidiaryFieldErrors.reason ? 'border-red-500' : ''}
+                          />
+                          {subsidiaryFieldErrors.reason && (
+                            <p className="text-[10px] text-red-500 font-medium">{subsidiaryFieldErrors.reason}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsSubsidiaryDialogOpen(false)} disabled={subsidiarySubmitting}>
+                    Cancel
+                  </Button>
+                  {!subsidiaryLoading && !subsidiaryPendingRequest && (
+                    <Button onClick={submitSubsidiaryRequest} disabled={subsidiarySubmitting}>
+                      {subsidiarySubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit for Approval'
+                      )}
+                    </Button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>

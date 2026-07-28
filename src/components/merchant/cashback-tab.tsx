@@ -57,9 +57,6 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import {
-  sanitizeSubsidiaryAccountNumberInput,
-  getSubsidiaryAccountNumberValidationError,
-  SUBSIDIARY_ACCOUNT_MAX_LENGTH,
   sanitizeAccountNumberInput,
   validateAccountNumber,
   ACCOUNT_NUMBER_MAX_LENGTH,
@@ -243,12 +240,10 @@ export function CashbackTab({ merchantId }: Props) {
   const saveConfig = async () => {
     const errors: Record<string, string> = {}
 
-    const subsidiaryError = form.subsidiaryAccountNumber
-      ? getSubsidiaryAccountNumberValidationError(form.subsidiaryAccountNumber)
-      : form.enabled
-        ? "Subsidiary account is required when cashback is enabled."
-        : undefined
-    if (subsidiaryError) errors.subsidiaryAccountNumber = subsidiaryError
+    if (form.enabled && !form.subsidiaryAccountNumber) {
+      errors.subsidiaryAccountNumber =
+        "A subsidiary account must be approved by an admin before cashback can be enabled."
+    }
 
     if (form.enabled && form.mode === "ALL_CUSTOMERS") {
       const pct = validatePercent(form.allCustomersPercent, true)
@@ -280,7 +275,6 @@ export function CashbackTab({ merchantId }: Props) {
         body: JSON.stringify({
           enabled: form.enabled,
           mode: form.mode,
-          subsidiaryAccountNumber: form.subsidiaryAccountNumber || null,
           allCustomersPercent: parseNum(form.allCustomersPercent),
           allCustomersMinAmount: parseNum(form.allCustomersMinAmount),
           allCustomersMaxAmount: parseNum(form.allCustomersMaxAmount),
@@ -927,26 +921,12 @@ export function CashbackTab({ merchantId }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="subsidiary" className="text-sm font-medium">Subsidiary funding account</Label>
-                      <Input
-                        id="subsidiary"
-                        maxLength={SUBSIDIARY_ACCOUNT_MAX_LENGTH}
-                        placeholder="ABC7000123456789"
-                        value={form.subsidiaryAccountNumber}
-                        onChange={(e) =>
-                          setForm((p) => ({
-                            ...p,
-                            subsidiaryAccountNumber: sanitizeSubsidiaryAccountNumberInput(e.target.value),
-                          }))
-                        }
-                        className={`h-11 rounded-xl font-mono focus:ring-amber-500/20 ${fieldErrors.subsidiaryAccountNumber ? "border-rose-500" : ""}`}
-                      />
-                      {fieldErrors.subsidiaryAccountNumber && (
-                        <p className="text-xs text-rose-600">{fieldErrors.subsidiaryAccountNumber}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        First 3 characters: letters or numbers; up to 13 digits after (16 total).
-                      </p>
+                      <Label className="text-sm font-medium">Subsidiary funding account</Label>
+                      <div className="h-11 rounded-xl border border-amber-200/80 bg-amber-50/40 flex items-center px-3 font-mono text-sm text-[#5b371f]">
+                        {form.subsidiaryAccountNumber || (
+                          <span className="text-muted-foreground font-sans">Not yet configured</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
