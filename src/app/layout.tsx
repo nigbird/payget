@@ -6,6 +6,7 @@ import { SessionWatcher } from "@/components/session-watcher";
 import { headers } from "next/headers";
 import { NonceProvider } from "@/components/nonce-provider";
 import { PWARegister } from "@/components/pwa-register";
+import { RadixOverlayFix } from "@/components/radix-overlay-fix";
 import { Inter } from 'next/font/google';
 
 const inter = Inter({
@@ -45,6 +46,7 @@ export default async function RootLayout({
         <NonceProvider nonce={nonce}>
           <AuthSessionProvider>
             <PWARegister />
+            <RadixOverlayFix />
             {children}
             <SessionWatcher />
             <Toaster />
