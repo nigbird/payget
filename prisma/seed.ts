@@ -47,6 +47,9 @@ async function main() {
     { name: 'cashback.reconciliation.export', category: 'CASHBACK', description: 'Export cashback reconciliation reports' },
     { name: 'cashback.reconciliation.manual_review', category: 'CASHBACK', description: 'Move transactions to manual review' },
     { name: 'cashback.reconciliation.manage', category: 'CASHBACK', description: 'Manage cashback reconciliation operations' },
+    { name: 'payment.reconciliation.view', category: 'TRANSACTION', description: 'View unresolved payments and reconciliation requests' },
+    { name: 'payment.reconciliation.request', category: 'TRANSACTION', description: 'Submit an FT from a bank receipt to settle a payment (maker)' },
+    { name: 'payment.reconciliation.manage', category: 'TRANSACTION', description: 'Approve or reject payment reconciliation requests (checker)' },
     { name: 'qr.generation.manage', category: 'MERCHANT', description: 'Manage QR code generation and merchant configuration' },
   ]
 
@@ -65,7 +68,7 @@ async function main() {
     {
       name: 'Super Admin',
       description: 'Full system access',
-      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_REQUEST', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW', 'cashback.reconciliation.view', 'cashback.reconciliation.retry', 'cashback.reconciliation.export', 'cashback.reconciliation.manual_review', 'cashback.reconciliation.manage', 'qr.generation.manage']
+      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_REQUEST', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW', 'cashback.reconciliation.view', 'cashback.reconciliation.retry', 'cashback.reconciliation.export', 'cashback.reconciliation.manual_review', 'cashback.reconciliation.manage', 'payment.reconciliation.view', 'payment.reconciliation.request', 'payment.reconciliation.manage', 'qr.generation.manage']
     },
 
     {

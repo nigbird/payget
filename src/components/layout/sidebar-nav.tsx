@@ -15,6 +15,7 @@ import {
   User as UserIcon,
   FileText,
   RefreshCw,
+  ReceiptText,
   type LucideIcon,
 } from "lucide-react"
 import { 
@@ -36,7 +37,8 @@ const mainMenuItems = [
   { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_VIEW" },
   { name: "Merchant Onboarding", href: "/admin/onboarding", icon: UserPlus, permission: "MERCHANT_REGISTER" },
   { name: "Review & Approvals", href: "/admin/review", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
-  { name: "Cashback Reconciliation", href: "/admin/cashback-reconciliation", icon: RefreshCw, permission: "cashback.reconciliation.view" },
+  // Payments and cashback share one console; either view permission opens it.
+  { name: "Reconciliation", href: "/admin/reconciliation", icon: ReceiptText, anyPermission: ["payment.reconciliation.view", "cashback.reconciliation.view"] },
   { name: "QR Generation", href: "/admin/merchants", icon: Settings, permission: "qr.generation.manage" },
 ]
 
@@ -58,13 +60,16 @@ export function SidebarNav() {
   const { user, logout } = useAuth()
   const userPermissions = user?.permissions || []
 
-  const filteredMenuItems = mainMenuItems.filter(item => 
-    !item.permission || userPermissions.includes(item.permission)
-  )
+  // An item is visible when it needs no permission, when the user holds its
+  // required one, or when it lists alternatives and the user holds any of them.
+  const isVisible = (item: { permission?: string; anyPermission?: string[] }) => {
+    if (item.anyPermission) return item.anyPermission.some(p => userPermissions.includes(p))
+    return !item.permission || userPermissions.includes(item.permission)
+  }
 
-  const filteredAdminItems = adminMenuItems.filter(item => 
-    !item.permission || userPermissions.includes(item.permission)
-  )
+  const filteredMenuItems = mainMenuItems.filter(isVisible)
+
+  const filteredAdminItems = adminMenuItems.filter(isVisible)
 
   const merchantId = user?.merchantId
 

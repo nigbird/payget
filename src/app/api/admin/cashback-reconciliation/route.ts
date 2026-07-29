@@ -45,6 +45,11 @@ export async function GET(request: Request) {
     if (search) {
       where.OR = [
         { transactionReference: { contains: search, mode: 'insensitive' } },
+        // FT / receipt numbers, so a cashback settled from a bank receipt can be
+        // found again by that FT — matches how payment reconciliation searches.
+        { providerCreditRef: { contains: search, mode: 'insensitive' } },
+        { providerDebitRef: { contains: search, mode: 'insensitive' } },
+        { requests: { some: { ftNumber: { contains: search, mode: 'insensitive' } } } },
         { customerPhone: { contains: search } },
         { customerAccount: { contains: search } }
       ];
@@ -176,7 +181,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
       }
 
-      const { type, cashbackTransactionId, newTransactionReference, reason } = body;
+      const { type, cashbackTransactionId, newTransactionReference, ftNumber, reason } = body;
 
       if (!type || !cashbackTransactionId || !reason) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -184,6 +189,13 @@ export async function POST(request: Request) {
 
       if (type === 'REFERENCE_UPDATE' && !newTransactionReference) {
         return NextResponse.json({ error: 'New transaction reference is required' }, { status: 400 });
+      }
+
+      if (type === 'MANUAL_SETTLE' && !ftNumber?.trim()) {
+        return NextResponse.json(
+          { error: 'FT number from the bank receipt is required' },
+          { status: 400 }
+        );
       }
 
       // Get the transaction to get the old reference
@@ -195,7 +207,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
       }
 
-      if (type === 'RETRY' && transaction.status === 'COMPLETED') {
+      if ((type === 'RETRY' || type === 'MANUAL_SETTLE') && transaction.status === 'COMPLETED') {
         return NextResponse.json(
           { error: 'Transaction has already been successfully processed and rewarded.' },
           { status: 400 }
@@ -208,6 +220,7 @@ export async function POST(request: Request) {
           cashbackTransactionId,
           oldTransactionReference: transaction.transactionReference,
           newTransactionReference: newTransactionReference || null,
+          ftNumber: ftNumber?.trim() || null,
           reason,
           makerId: userId
         }
@@ -264,6 +277,31 @@ export async function POST(request: Request) {
       } else if (cashbackRequest.type === 'RETRY') {
         // Trigger actual execution using the refund API
         await executeTransferForTransaction(cashbackRequest.cashbackTransactionId);
+      } else if (cashbackRequest.type === 'MANUAL_SETTLE') {
+        // The FT on the bank receipt is the evidence that the credit landed —
+        // record it and close the cashback out without calling the provider.
+        await prisma.cashbackTransaction.update({
+          where: { id: cashbackRequest.cashbackTransactionId },
+          data: {
+            status: 'COMPLETED',
+            providerCreditRef: cashbackRequest.ftNumber,
+            failureReason: null,
+            processedAt: new Date(),
+          }
+        });
+        await prisma.cashbackProcessingLog.create({
+          data: {
+            cashbackTransactionId: cashbackRequest.cashbackTransactionId,
+            level: 'INFO',
+            message: 'Cashback settled manually from bank receipt FT',
+            metadata: {
+              ftNumber: cashbackRequest.ftNumber,
+              makerId: cashbackRequest.makerId,
+              checkerId: userId,
+              reason: cashbackRequest.reason,
+            },
+          }
+        });
       }
 
       const updatedRequest = await prisma.cashbackRequest.update({

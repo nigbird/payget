@@ -84,6 +84,8 @@ export interface Transaction {
   transactionReference: string;
   serviceDescription: string;
   transactionTimestamp: string;
+  /** Core-banking FT / receipt number, once the payment has been resolved. */
+  cbsreference?: string | null;
   userCredentials: {
     phone: string;
     authToken: string;
@@ -91,6 +93,7 @@ export interface Transaction {
     initiatedByName?: string;
     providerSharedSecret?: string;
     previousTransactionReferences?: string[];
+    cbsreference?: string;
     link?: {
       expiresAt: string;
       status: 'PENDING' | 'USED' | 'EXPIRED';
@@ -168,6 +171,7 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
       initiatedByName?: string;
       providerSharedSecret?: string;
       previousTransactionReferences?: string[];
+      cbsreference?: string;
       link?: {
         expiresAt: string;
         status: 'PENDING' | 'USED' | 'EXPIRED';
@@ -570,6 +574,15 @@ export const db = {
   getTransactionByReference: async (transactionReference: string) => {
     const tx = await prisma.transaction.findFirst({
       where: { transactionReference }
+    });
+    if (!tx) return null;
+    return mapTransaction(tx);
+  },
+
+  /** Resolve a transaction by its core-banking FT / receipt number. */
+  getTransactionByCbsReference: async (cbsreference: string) => {
+    const tx = await prisma.transaction.findUnique({
+      where: { cbsreference }
     });
     if (!tx) return null;
     return mapTransaction(tx);

@@ -40,6 +40,8 @@ model User {
   checkedSubsidiaryAccountRequests SubsidiaryAccountRequest[] @relation("SubsidiaryAccountRequestChecker")
   submittedPaymentEligibilityImports PaymentEligibilityImport[] @relation("PaymentEligibilitySubmitter")
   reviewedPaymentEligibilityImports PaymentEligibilityImport[] @relation("PaymentEligibilityReviewer")
+  madePaymentReconciliationRequests PaymentReconciliationRequest[] @relation("PaymentReconciliationRequestMaker")
+  checkedPaymentReconciliationRequests PaymentReconciliationRequest[] @relation("PaymentReconciliationRequestChecker")
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
 }
@@ -210,6 +212,9 @@ enum CashbackProcessingStatus {
 enum CashbackRequestType {
   REFERENCE_UPDATE
   RETRY
+  /// Operator has an FT from an internal bank receipt proving the cashback
+  /// transfer landed. Settles the cashback to COMPLETED without a provider call.
+  MANUAL_SETTLE
 }
 
 enum CashbackRequestStatus {
@@ -226,6 +231,8 @@ model CashbackRequest {
   cashbackTransaction  CashbackTransaction    @relation(fields: [cashbackTransactionId], references: [id], onDelete: Cascade)
   oldTransactionReference String?
   newTransactionReference String?
+  /// FT from the bank receipt, supplied by the maker for MANUAL_SETTLE requests.
+  ftNumber             String?
   reason               String
   comments             String?
   status               CashbackRequestStatus  @default(PENDING)
@@ -508,6 +515,43 @@ model Transaction {
   transactionTimestamp DateTime          @default(now())
   userCredentials      Json
   paymentMethod        PaymentMethod     @default(BANK)
+  /// Core-banking FT / receipt number for this payment. Promoted out of the
+  /// userCredentials blob so it can be searched and so one receipt can never
+  /// settle two transactions. Populated by the provider callback, the status
+  /// poll, or manual FT reconciliation.
+  cbsreference         String?           @unique
+  reconciliationRequests PaymentReconciliationRequest[]
+}
+
+enum PaymentReconciliationRequestStatus {
+  PENDING
+  REJECTED
+  EXECUTED
+}
+
+/// Maker/checker record for settling a payment from an FT on an internal bank
+/// receipt, used when the provider callback never resolved the transaction.
+/// The FT is the evidence — no provider call is made.
+model PaymentReconciliationRequest {
+  id            String                             @id @default(cuid())
+  transactionId String
+  transaction   Transaction                        @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  ftNumber      String
+  previousStatus String
+  reason        String
+  comments      String?
+  status        PaymentReconciliationRequestStatus @default(PENDING)
+  makerId       String
+  maker         User                               @relation("PaymentReconciliationRequestMaker", fields: [makerId], references: [id])
+  checkerId     String?
+  checker       User?                              @relation("PaymentReconciliationRequestChecker", fields: [checkerId], references: [id])
+  checkedAt     DateTime?
+  createdAt     DateTime                           @default(now())
+  updatedAt     DateTime                           @updatedAt
+
+  @@index([transactionId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 enum PaymentMethod {

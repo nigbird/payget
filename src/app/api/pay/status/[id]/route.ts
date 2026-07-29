@@ -61,6 +61,7 @@ export async function GET(
 
       if (result.cbsreference) {
         await db.updateTransaction(tx.id, {
+          cbsreference: result.cbsreference,
           userCredentials: {
             ...tx.userCredentials,
             cbsreference: result.cbsreference,
