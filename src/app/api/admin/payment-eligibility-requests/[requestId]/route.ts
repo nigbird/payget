@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { writeAuditLog } from "@/lib/audit-log"
+import { ELIGIBILITY_ROWS_PAGE_SIZE } from "@/lib/payment-eligibility"
 
 export async function GET(
   request: Request,
@@ -22,13 +23,37 @@ export async function GET(
     include: {
       merchant: { select: { id: true, name: true } },
       submitter: { select: { id: true, name: true, email: true } },
-      rows: { select: { phone: true }, orderBy: { phone: "asc" } },
     },
   })
 
   if (!importRequest) {
     return NextResponse.json({ error: "Request not found" }, { status: 404 })
   }
+
+  const url = new URL(request.url)
+  const search = url.searchParams.get("search")?.trim() ?? ""
+  const pageSize = Math.min(
+    100,
+    Math.max(1, Number(url.searchParams.get("pageSize")) || ELIGIBILITY_ROWS_PAGE_SIZE)
+  )
+  const requestedPage = Math.max(1, Number(url.searchParams.get("page")) || 1)
+
+  const where = {
+    importId: requestId,
+    ...(search ? { phone: { contains: search } } : {}),
+  }
+
+  const total = await prisma.paymentEligibilityImportRow.count({ where })
+  const totalPages = Math.ceil(total / pageSize)
+  const page = totalPages > 0 ? Math.min(requestedPage, totalPages) : 1
+
+  const rows = await prisma.paymentEligibilityImportRow.findMany({
+    where,
+    select: { phone: true },
+    orderBy: { phone: "asc" },
+    take: pageSize,
+    skip: (page - 1) * pageSize,
+  })
 
   return NextResponse.json({
     id: importRequest.id,
@@ -39,7 +64,12 @@ export async function GET(
     createdAt: importRequest.createdAt.toISOString(),
     merchant: importRequest.merchant,
     submitter: importRequest.submitter,
-    phones: importRequest.rows.map((r) => r.phone),
+    rejectionReason: importRequest.status === "REJECTED" ? importRequest.comments : null,
+    phones: rows.map((r) => r.phone),
+    total,
+    page,
+    pageSize,
+    totalPages,
   })
 }
 
@@ -123,9 +153,24 @@ export async function POST(
     }
 
     if (action === "reject") {
+      // The merchant needs to know what to fix before resubmitting, so a reason is mandatory.
+      const reason = comments?.trim()
+      if (!reason) {
+        return NextResponse.json(
+          { error: "A rejection reason is required so the merchant knows what to correct." },
+          { status: 400 }
+        )
+      }
+      if (reason.length > 1000) {
+        return NextResponse.json(
+          { error: "Rejection reason must be 1000 characters or fewer." },
+          { status: 400 }
+        )
+      }
+
       await prisma.paymentEligibilityImport.update({
         where: { id: requestId },
-        data: { status: "REJECTED", reviewedBy: userId, reviewedAt: new Date(), comments },
+        data: { status: "REJECTED", reviewedBy: userId, reviewedAt: new Date(), comments: reason },
       })
 
       await writeAuditLog({
@@ -137,7 +182,7 @@ export async function POST(
             : "PAYMENT_ELIGIBILITY_IMPORT_REJECT",
         entityType: "MERCHANT",
         entityId: importRequest.merchantId,
-        newValue: { importId: requestId, comments },
+        newValue: { importId: requestId, comments: reason },
       })
 
       return NextResponse.json({ status: "REJECTED" })

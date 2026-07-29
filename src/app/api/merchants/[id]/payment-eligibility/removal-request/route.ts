@@ -25,11 +25,23 @@ export async function POST(
     }
 
     const existingActive = await prisma.paymentEligibilityImport.findFirst({
-      where: { merchantId: id, status: { in: ["DRAFT", "PENDING"] } },
+      where: {
+        merchantId: id,
+        OR: [
+          { status: { in: ["DRAFT", "PENDING"] } },
+          // A rejected import still needs the merchant's attention before anything else.
+          { type: "IMPORT", status: "REJECTED" },
+        ],
+      },
     })
     if (existingActive) {
       return NextResponse.json(
-        { error: "A request is already pending admin approval for this merchant." },
+        {
+          error:
+            existingActive.status === "REJECTED"
+              ? "Resolve your rejected eligible customer import before requesting a removal."
+              : "A request is already pending admin approval for this merchant.",
+        },
         { status: 409 }
       )
     }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { writeAuditLog } from "@/lib/audit-log"
+import { ACTIVE_IMPORT_STATUSES, EDITABLE_IMPORT_STATUSES } from "@/lib/payment-eligibility"
 
 export async function GET(
   request: Request,
@@ -16,8 +17,11 @@ export async function GET(
     }
 
     const active = await prisma.paymentEligibilityImport.findFirst({
-      where: { merchantId: id, type: "IMPORT", status: { in: ["DRAFT", "PENDING"] } },
-      include: { rows: { select: { id: true, phone: true }, orderBy: { phone: "asc" } } },
+      where: { merchantId: id, type: "IMPORT", status: { in: [...ACTIVE_IMPORT_STATUSES] } },
+      include: {
+        _count: { select: { rows: true } },
+        reviewer: { select: { name: true, email: true } },
+      },
       orderBy: { createdAt: "desc" },
     })
 
@@ -30,9 +34,13 @@ export async function GET(
         id: active.id,
         status: active.status,
         fileName: active.fileName,
-        totalRows: active.rows.length,
+        totalRows: active._count.rows,
         createdAt: active.createdAt.toISOString(),
-        rows: active.rows,
+        reviewedAt: active.reviewedAt?.toISOString() ?? null,
+        reviewedBy: active.reviewer?.name || active.reviewer?.email || null,
+        // `comments` carries the admin's rejection reason for REJECTED requests.
+        rejectionReason: active.status === "REJECTED" ? active.comments : null,
+        editable: (EDITABLE_IMPORT_STATUSES as readonly string[]).includes(active.status),
       },
     })
   } catch (e) {
@@ -56,12 +64,13 @@ export async function DELETE(
     }
 
     const active = await prisma.paymentEligibilityImport.findFirst({
-      where: { merchantId: id, type: "IMPORT", status: { in: ["DRAFT", "PENDING"] } },
+      where: { merchantId: id, type: "IMPORT", status: { in: [...ACTIVE_IMPORT_STATUSES] } },
+      orderBy: { createdAt: "desc" },
     })
     if (!active) {
       return NextResponse.json({ error: "No active request found" }, { status: 404 })
     }
-    if (active.status !== "DRAFT") {
+    if (!(EDITABLE_IMPORT_STATUSES as readonly string[]).includes(active.status)) {
       return NextResponse.json(
         { error: "A request already submitted for admin approval can't be discarded." },
         { status: 400 }
@@ -76,7 +85,7 @@ export async function DELETE(
       action: "PAYMENT_ELIGIBILITY_DRAFT_DISCARD",
       entityType: "MERCHANT",
       entityId: id,
-      oldValue: { importId: active.id },
+      oldValue: { importId: active.id, status: active.status },
     })
 
     return NextResponse.json({ discarded: true })

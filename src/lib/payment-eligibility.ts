@@ -1,6 +1,17 @@
 import { prisma } from "@/lib/prisma"
 import { normalizeCashbackPhone } from "@/lib/cashback/phone"
 
+/**
+ * An IMPORT request the merchant can still change: never submitted (DRAFT), or
+ * sent back by an admin (REJECTED) so the list can be fixed and resubmitted.
+ */
+export const EDITABLE_IMPORT_STATUSES = ["DRAFT", "REJECTED"] as const
+
+/** Statuses that occupy the merchant's single active IMPORT slot. */
+export const ACTIVE_IMPORT_STATUSES = ["DRAFT", "PENDING", "REJECTED"] as const
+
+export const ELIGIBILITY_ROWS_PAGE_SIZE = 25
+
 export type PaymentEligibilityResult =
   | { eligible: true }
   | { eligible: false; error: string }

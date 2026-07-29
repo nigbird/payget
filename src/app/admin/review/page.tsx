@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -193,17 +193,28 @@ function MerchantReviewContent() {
     totalRows: number
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
     createdAt: string
+    comments: string | null
+    reviewedAt: string | null
     merchant: { id: string; name: string }
     submitter: { id: string; name: string | null; email: string | null }
   }
+  const ELIGIBILITY_PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
   const [eligibilityRequests, setEligibilityRequests] = useState<EligibilityRequestItem[]>([])
   const [eligibilityActionId, setEligibilityActionId] = useState<string | null>(null)
   const [eligibilitySearch, setEligibilitySearch] = useState('')
   const [viewListRequest, setViewListRequest] = useState<EligibilityRequestItem | null>(null)
   const [viewListPhones, setViewListPhones] = useState<string[]>([])
   const [viewListSearch, setViewListSearch] = useState('')
+  const [viewListSearchTerm, setViewListSearchTerm] = useState('')
+  const [viewListPage, setViewListPage] = useState(1)
+  const [viewListPageSize, setViewListPageSize] = useState(25)
+  const [viewListTotal, setViewListTotal] = useState(0)
+  const [viewListTotalPages, setViewListTotalPages] = useState(0)
   const [isViewListOpen, setIsViewListOpen] = useState(false)
   const [isViewListLoading, setIsViewListLoading] = useState(false)
+  const [viewListLoadedOnce, setViewListLoadedOnce] = useState(false)
+  const [rejectTarget, setRejectTarget] = useState<EligibilityRequestItem | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   const fetchEligibilityRequests = async () => {
     try {
@@ -223,48 +234,94 @@ function MerchantReviewContent() {
     }
   }, [canApproveEligibility])
 
-  const openViewList = async (request: EligibilityRequestItem) => {
+  const fetchViewListPage = useCallback(
+    async (requestId: string, page: number, search: string, pageSize: number) => {
+      setIsViewListLoading(true)
+      try {
+        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+        if (search) params.set('search', search)
+        const response = await fetch(`/api/admin/payment-eligibility-requests/${requestId}?${params.toString()}`)
+        if (response.ok) {
+          const data = await response.json()
+          setViewListPhones(data.phones || [])
+          setViewListTotal(data.total ?? 0)
+          setViewListTotalPages(data.totalPages ?? 0)
+          if (data.page && data.page !== page) setViewListPage(data.page)
+        }
+      } catch (error) {
+        console.error('Failed to fetch eligibility request list:', error)
+      } finally {
+        setIsViewListLoading(false)
+        setViewListLoadedOnce(true)
+      }
+    },
+    []
+  )
+
+  const openViewList = (request: EligibilityRequestItem) => {
     setViewListRequest(request)
     setViewListSearch('')
+    setViewListSearchTerm('')
+    setViewListPage(1)
+    setViewListPhones([])
+    setViewListLoadedOnce(false)
     setIsViewListOpen(true)
-    setIsViewListLoading(true)
-    try {
-      const response = await fetch(`/api/admin/payment-eligibility-requests/${request.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setViewListPhones(data.phones || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch eligibility request list:', error)
-    } finally {
-      setIsViewListLoading(false)
-    }
   }
 
-  const handleEligibilityDecision = async (request: EligibilityRequestItem, decision: 'approve' | 'reject') => {
+  // Debounced mirror of the search box — page/pageSize changes fetch immediately.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setViewListSearchTerm(viewListSearch.trim())
+      setViewListPage(1)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [viewListSearch])
+
+  useEffect(() => {
+    if (!isViewListOpen || !viewListRequest) return
+    fetchViewListPage(viewListRequest.id, viewListPage, viewListSearchTerm, viewListPageSize)
+  }, [isViewListOpen, viewListRequest, viewListPage, viewListPageSize, viewListSearchTerm, fetchViewListPage])
+
+  const submitEligibilityDecision = async (
+    request: EligibilityRequestItem,
+    decision: 'approve' | 'reject',
+    reason?: string
+  ) => {
     setEligibilityActionId(request.id)
     try {
       const response = await fetch(`/api/admin/payment-eligibility-requests/${request.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: decision }),
+        body: JSON.stringify({ action: decision, comments: reason }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to submit decision')
 
       toast({
-        title: decision === 'approve' ? 'Eligible customers approved' : 'Import rejected',
+        title: decision === 'approve' ? 'Eligible customers approved' : 'Request rejected',
         description: decision === 'approve'
           ? `${request.merchant.name}'s eligible customer list is now active.`
-          : `The import for ${request.merchant.name} was rejected.`,
+          : `${request.merchant.name} can now correct the list and resubmit it.`,
       })
       setIsViewListOpen(false)
+      setRejectTarget(null)
+      setRejectReason('')
       await fetchEligibilityRequests()
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Action failed', description: error.message })
     } finally {
       setEligibilityActionId(null)
     }
+  }
+
+  /** Rejection always goes through the reason dialog; approval is submitted directly. */
+  const handleEligibilityDecision = (request: EligibilityRequestItem, decision: 'approve' | 'reject') => {
+    if (decision === 'reject') {
+      setRejectReason('')
+      setRejectTarget(request)
+      return
+    }
+    submitEligibilityDecision(request, 'approve')
   }
 
   const sanitizeLimitInput = (value: string): string => {
@@ -520,7 +577,6 @@ function MerchantReviewContent() {
     req.merchant.name.toLowerCase().includes(eligibilitySearch.toLowerCase()) ||
     (req.fileName ?? '').toLowerCase().includes(eligibilitySearch.toLowerCase())
   )
-  const filteredViewListPhones = viewListPhones.filter((p) => p.includes(viewListSearch))
 
   return (
     <div className="space-y-6">
@@ -1376,6 +1432,12 @@ function MerchantReviewContent() {
                               Submitted by {req.submitter.name || req.submitter.email} on{" "}
                               {new Date(req.createdAt).toLocaleDateString()}
                             </p>
+                            {req.status === 'REJECTED' && (
+                              <p className="text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 whitespace-pre-wrap">
+                                <span className="font-semibold">Rejection reason: </span>
+                                {req.comments || 'No reason provided.'}
+                              </p>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
@@ -1432,30 +1494,111 @@ function MerchantReviewContent() {
               {viewListRequest?.totalRows} phone number(s) {viewListRequest?.type === 'REMOVAL' ? 'requested for removal' : 'submitted for approval'}.
             </DialogDescription>
           </DialogHeader>
-          {!isViewListLoading && viewListPhones.length > 10 && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                value={viewListSearch}
-                onChange={(e) => setViewListSearch(e.target.value)}
-                placeholder="Search phone number..."
-                className="h-10 rounded-2xl pl-9"
-              />
+          {viewListRequest?.status === 'REJECTED' && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 whitespace-pre-wrap">
+              <span className="font-semibold">Rejection reason: </span>
+              {viewListRequest.comments || 'No reason provided.'}
             </div>
           )}
-          {isViewListLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="max-h-80 overflow-y-auto rounded-xl border border-black/5 divide-y divide-black/5">
-              {filteredViewListPhones.map((phone) => (
-                <div key={phone} className="px-4 py-2 text-sm font-mono text-slate-800">
-                  {phone}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              value={viewListSearch}
+              onChange={(e) => setViewListSearch(e.target.value)}
+              placeholder="Search phone number..."
+              className="h-10 rounded-2xl pl-9"
+            />
+          </div>
+          {/* Keeps the previous page mounted while the next loads so paging doesn't flicker. */}
+          <div className="relative" aria-busy={isViewListLoading}>
+            {isViewListLoading && viewListLoadedOnce && (
+              <div className="absolute inset-0 z-10 flex items-start justify-center bg-white/50 pt-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!viewListLoadedOnce ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div
+                className={`max-h-80 overflow-y-auto rounded-xl border border-black/5 divide-y divide-black/5 transition-opacity duration-150 ${
+                  isViewListLoading ? 'opacity-40' : 'opacity-100'
+                }`}
+              >
+                {viewListPhones.length === 0 && (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    {viewListSearchTerm ? 'No phone numbers match your search.' : 'No phone numbers in this list.'}
+                  </div>
+                )}
+                {viewListPhones.map((phone) => (
+                  <div key={phone} className="px-4 py-2 text-sm font-mono text-slate-800">
+                    {phone}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {viewListTotal === 0
+                ? '0 phone number(s)'
+                : `${(viewListPage - 1) * viewListPageSize + 1}–${Math.min(
+                    viewListPage * viewListPageSize,
+                    viewListTotal
+                  )} of ${viewListTotal} phone number(s)`}
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Show</span>
+                <Select
+                  value={String(viewListPageSize)}
+                  onValueChange={(v) => {
+                    setViewListPageSize(Number(v))
+                    setViewListPage(1)
+                  }}
+                >
+                  <SelectTrigger className="h-7 w-[68px] rounded-lg px-2 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ELIGIBILITY_PAGE_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={String(option)} className="text-xs">
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {viewListTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-lg p-0"
+                    disabled={isViewListLoading || viewListPage <= 1}
+                    onClick={() => setViewListPage((p) => p - 1)}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="px-1 text-xs tabular-nums text-slate-600">
+                    {viewListPage} / {viewListTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-lg p-0"
+                    disabled={isViewListLoading || viewListPage >= viewListTotalPages}
+                    onClick={() => setViewListPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-              ))}
+              )}
             </div>
-          )}
+          </div>
           {viewListRequest && viewListRequest.status === 'PENDING' && (
             <DialogFooter>
               <Button
@@ -1475,6 +1618,63 @@ function MerchantReviewContent() {
               </Button>
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(rejectTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectTarget(null)
+            setRejectReason('')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-rose-500" />
+              Reject {rejectTarget?.type === 'REMOVAL' ? 'removal request' : 'eligible customer import'}
+            </DialogTitle>
+            <DialogDescription>
+              {rejectTarget?.merchant.name} will see this reason alongside the list and can correct the
+              entries and resubmit them for approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="eligibility-reject-reason">Rejection reason (required)</Label>
+            <Textarea
+              id="eligibility-reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Rows 4 and 9 are not valid Ethiopian mobile numbers — correct them and resubmit."
+              className="min-h-24 rounded-2xl"
+              maxLength={1000}
+            />
+            <p className="text-xs text-muted-foreground">{rejectReason.trim().length}/1000</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              onClick={() => setRejectTarget(null)}
+              disabled={eligibilityActionId === rejectTarget?.id}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-2xl"
+              disabled={!rejectReason.trim() || eligibilityActionId === rejectTarget?.id}
+              onClick={() => rejectTarget && submitEligibilityDecision(rejectTarget, 'reject', rejectReason.trim())}
+            >
+              {eligibilityActionId === rejectTarget?.id ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Confirm Rejection'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

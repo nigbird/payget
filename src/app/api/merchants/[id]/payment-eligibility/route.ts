@@ -62,18 +62,23 @@ export async function POST(
     }
 
     const existingActive = await prisma.paymentEligibilityImport.findFirst({
-      where: { merchantId: id, status: { in: ["DRAFT", "PENDING"] } },
+      where: {
+        merchantId: id,
+        OR: [
+          { status: { in: ["DRAFT", "PENDING"] } },
+          { type: "IMPORT", status: "REJECTED" },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
     })
     if (existingActive) {
-      return NextResponse.json(
-        {
-          error:
-            existingActive.status === "DRAFT"
-              ? "You already have a draft in progress. Finish or discard it before starting a new import."
-              : "A request is already pending admin approval for this merchant.",
-        },
-        { status: 409 }
-      )
+      const errors: Record<string, string> = {
+        DRAFT: "You already have a draft in progress. Finish or discard it before starting a new import.",
+        PENDING: "A request is already pending admin approval for this merchant.",
+        REJECTED:
+          "Your last import was rejected. Update and resubmit that list, or discard it before starting a new import.",
+      }
+      return NextResponse.json({ error: errors[existingActive.status] }, { status: 409 })
     }
 
     const formData = await request.formData()

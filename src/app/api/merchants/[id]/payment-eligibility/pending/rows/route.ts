@@ -4,6 +4,64 @@ import { requireCsrf } from "@/lib/request-security"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { normalizeCashbackPhone } from "@/lib/cashback/phone"
 import { CASHBACK_LIMITS } from "@/lib/cashback/validation"
+import {
+  ACTIVE_IMPORT_STATUSES,
+  EDITABLE_IMPORT_STATUSES,
+  ELIGIBILITY_ROWS_PAGE_SIZE,
+} from "@/lib/payment-eligibility"
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const user = await requireAuthUser(request)
+    if (!user || !canAccessMerchant(user, id)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const active = await prisma.paymentEligibilityImport.findFirst({
+      where: { merchantId: id, type: "IMPORT", status: { in: [...ACTIVE_IMPORT_STATUSES] } },
+      select: { id: true },
+      orderBy: { createdAt: "desc" },
+    })
+    if (!active) {
+      return NextResponse.json({ rows: [], total: 0, page: 1, totalPages: 0 })
+    }
+
+    const url = new URL(request.url)
+    const search = url.searchParams.get("search")?.trim() ?? ""
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Number(url.searchParams.get("pageSize")) || ELIGIBILITY_ROWS_PAGE_SIZE)
+    )
+    const requestedPage = Math.max(1, Number(url.searchParams.get("page")) || 1)
+
+    const where = {
+      importId: active.id,
+      ...(search ? { phone: { contains: search } } : {}),
+    }
+
+    const total = await prisma.paymentEligibilityImportRow.count({ where })
+    const totalPages = Math.ceil(total / pageSize)
+    // Clamp so deleting the last row on a page doesn't strand the caller on an empty one.
+    const page = totalPages > 0 ? Math.min(requestedPage, totalPages) : 1
+
+    const rows = await prisma.paymentEligibilityImportRow.findMany({
+      where,
+      select: { id: true, phone: true },
+      orderBy: { phone: "asc" },
+      take: pageSize,
+      skip: (page - 1) * pageSize,
+    })
+
+    return NextResponse.json({ rows, total, page, pageSize, totalPages })
+  } catch (e) {
+    console.error("Failed to list payment eligibility rows:", e)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
 
 export async function POST(
   request: Request,
@@ -20,11 +78,12 @@ export async function POST(
     }
 
     const draft = await prisma.paymentEligibilityImport.findFirst({
-      where: { merchantId: id, type: "IMPORT", status: "DRAFT" },
+      where: { merchantId: id, type: "IMPORT", status: { in: [...EDITABLE_IMPORT_STATUSES] } },
       include: { _count: { select: { rows: true } } },
+      orderBy: { createdAt: "desc" },
     })
     if (!draft) {
-      return NextResponse.json({ error: "No draft found" }, { status: 404 })
+      return NextResponse.json({ error: "No editable list found" }, { status: 404 })
     }
 
     const body = await request.json().catch(() => ({}))

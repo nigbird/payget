@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { writeAuditLog } from "@/lib/audit-log"
+import { EDITABLE_IMPORT_STATUSES } from "@/lib/payment-eligibility"
 
 export async function POST(
   request: Request,
@@ -19,8 +20,9 @@ export async function POST(
     }
 
     const draft = await prisma.paymentEligibilityImport.findFirst({
-      where: { merchantId: id, type: "IMPORT", status: "DRAFT" },
+      where: { merchantId: id, type: "IMPORT", status: { in: [...EDITABLE_IMPORT_STATUSES] } },
       include: { _count: { select: { rows: true } } },
+      orderBy: { createdAt: "desc" },
     })
     if (!draft) {
       return NextResponse.json({ error: "No draft found" }, { status: 404 })
@@ -29,17 +31,30 @@ export async function POST(
       return NextResponse.json({ error: "Add at least one phone number before submitting." }, { status: 400 })
     }
 
+    const isResubmission = draft.status === "REJECTED"
+
+    // Clear the previous decision so the request returns to the admin queue clean.
     const updated = await prisma.paymentEligibilityImport.update({
       where: { id: draft.id },
-      data: { status: "PENDING", totalRows: draft._count.rows },
+      data: {
+        status: "PENDING",
+        totalRows: draft._count.rows,
+        submittedBy: user.id,
+        reviewedBy: null,
+        reviewedAt: null,
+        comments: null,
+      },
     })
 
     await writeAuditLog({
       request,
       userId: user.id,
-      action: "PAYMENT_ELIGIBILITY_IMPORT_CREATE",
+      action: isResubmission
+        ? "PAYMENT_ELIGIBILITY_IMPORT_RESUBMIT"
+        : "PAYMENT_ELIGIBILITY_IMPORT_CREATE",
       entityType: "MERCHANT",
       entityId: id,
+      oldValue: isResubmission ? { status: "REJECTED", rejectionReason: draft.comments } : undefined,
       newValue: { importId: updated.id, totalRows: updated.totalRows },
     })
 

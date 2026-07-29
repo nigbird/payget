@@ -15,30 +15,32 @@ export async function GET(
 
     const url = new URL(request.url)
     const search = url.searchParams.get("search")?.trim() ?? ""
-    const page = Math.max(1, Number(url.searchParams.get("page")) || 1)
-    const limit = 50
-    const offset = (page - 1) * limit
+    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("pageSize")) || 50))
+    const requestedPage = Math.max(1, Number(url.searchParams.get("page")) || 1)
 
     const where = {
       merchantId: id,
       ...(search ? { phone: { contains: search } } : {}),
     }
 
-    const [customers, total] = await Promise.all([
-      prisma.paymentEligibleCustomer.findMany({
-        where,
-        orderBy: { phone: "asc" },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.paymentEligibleCustomer.count({ where }),
-    ])
+    const total = await prisma.paymentEligibleCustomer.count({ where })
+    const totalPages = Math.ceil(total / limit)
+    // Clamp so a shrinking result set can't strand the caller on an empty page.
+    const page = totalPages > 0 ? Math.min(requestedPage, totalPages) : 1
+
+    const customers = await prisma.paymentEligibleCustomer.findMany({
+      where,
+      orderBy: { phone: "asc" },
+      take: limit,
+      skip: (page - 1) * limit,
+    })
 
     return NextResponse.json({
       customers: customers.map((c) => ({ id: c.id, phone: c.phone, approvedAt: c.approvedAt.toISOString() })),
       total,
       page,
-      totalPages: Math.ceil(total / limit),
+      pageSize: limit,
+      totalPages,
     })
   } catch (e) {
     console.error("Failed to list approved eligible customers:", e)

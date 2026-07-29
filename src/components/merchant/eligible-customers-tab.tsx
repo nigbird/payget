@@ -13,6 +13,11 @@ import {
   Search,
   Eye,
   X,
+  Pencil,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +31,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 
 type Props = { merchantId: string }
@@ -35,14 +47,95 @@ type Status = { approvedCount: number }
 type PendingRow = { id: string; phone: string }
 type PendingRequest = {
   id: string
-  status: "DRAFT" | "PENDING"
+  status: "DRAFT" | "PENDING" | "REJECTED"
   fileName: string | null
   totalRows: number
   createdAt: string
-  rows: PendingRow[]
+  reviewedAt: string | null
+  reviewedBy: string | null
+  rejectionReason: string | null
+  editable: boolean
 }
 
 type ApprovedCustomer = { id: string; phone: string; approvedAt: string }
+
+const ROWS_PAGE_SIZE = 25
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
+
+function Pagination({
+  page,
+  totalPages,
+  total,
+  pageSize,
+  label,
+  onPageChange,
+  onPageSizeChange,
+  disabled,
+}: {
+  page: number
+  totalPages: number
+  total: number
+  pageSize: number
+  label: string
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
+  disabled?: boolean
+}) {
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const to = Math.min(page * pageSize, total)
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <p className="text-xs text-muted-foreground tabular-nums">
+        {total === 0 ? `0 ${label}` : `${from}–${to} of ${total} ${label}`}
+      </p>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Show</span>
+          <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>
+            <SelectTrigger className="h-7 w-[68px] rounded-lg px-2 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <SelectItem key={option} value={String(option)} className="text-xs">
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 rounded-lg p-0"
+              disabled={disabled || page <= 1}
+              onClick={() => onPageChange(page - 1)}
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="px-1 text-xs tabular-nums text-slate-600">
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 rounded-lg p-0"
+              disabled={disabled || page >= totalPages}
+              onClick={() => onPageChange(page + 1)}
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function EligibleCustomersTab({ merchantId }: Props) {
   const { toast } = useToast()
@@ -57,15 +150,62 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   const [discarding, setDiscarding] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [rows, setRows] = useState<PendingRow[]>([])
+  const [rowsLoading, setRowsLoading] = useState(false)
+  const [rowsLoadedOnce, setRowsLoadedOnce] = useState(false)
+  const [rowsSearch, setRowsSearch] = useState("")
+  // Debounced mirror of rowsSearch — page/pageSize changes fetch immediately, typing waits.
+  const [rowsSearchTerm, setRowsSearchTerm] = useState("")
+  const [rowsPage, setRowsPage] = useState(1)
+  const [rowsPageSize, setRowsPageSize] = useState(ROWS_PAGE_SIZE)
+  const [rowsTotal, setRowsTotal] = useState(0)
+  const [rowsTotalPages, setRowsTotalPages] = useState(0)
+  const [editingRowId, setEditingRowId] = useState<string | null>(null)
+  const [editingPhone, setEditingPhone] = useState("")
+  const [savingRowId, setSavingRowId] = useState<string | null>(null)
+
   const [isApprovedOpen, setIsApprovedOpen] = useState(false)
   const [approvedSearch, setApprovedSearch] = useState("")
+  const [approvedSearchTerm, setApprovedSearchTerm] = useState("")
+  const [approvedPage, setApprovedPage] = useState(1)
+  const [approvedPageSize, setApprovedPageSize] = useState(ROWS_PAGE_SIZE)
+  const [approvedTotal, setApprovedTotal] = useState(0)
+  const [approvedTotalPages, setApprovedTotalPages] = useState(0)
   const [approvedCustomers, setApprovedCustomers] = useState<ApprovedCustomer[]>([])
   const [approvedLoading, setApprovedLoading] = useState(false)
+  const [approvedLoadedOnce, setApprovedLoadedOnce] = useState(false)
   const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set())
   const [submittingRemoval, setSubmittingRemoval] = useState(false)
 
-  const loadStatus = useCallback(async () => {
-    setLoading(true)
+  const loadRows = useCallback(
+    async (page: number, search: string, pageSize: number) => {
+      setRowsLoading(true)
+      try {
+        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+        if (search) params.set("search", search)
+        const res = await fetch(
+          `/api/merchants/${merchantId}/payment-eligibility/pending/rows?${params.toString()}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setRows(data.rows ?? [])
+          setRowsTotal(data.total ?? 0)
+          setRowsTotalPages(data.totalPages ?? 0)
+          if (data.page && data.page !== page) setRowsPage(data.page)
+        }
+      } catch {
+        toast({ variant: "destructive", title: "Failed to load the imported list" })
+      } finally {
+        setRowsLoading(false)
+        setRowsLoadedOnce(true)
+      }
+    },
+    [merchantId, toast]
+  )
+
+  /** `silent` skips the full-card spinner so post-mutation refreshes don't flash the UI. */
+  const loadStatus = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true)
     try {
       const [statusRes, pendingRes] = await Promise.all([
         fetch(`/api/merchants/${merchantId}/payment-eligibility`),
@@ -75,6 +215,11 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       if (pendingRes.ok) {
         const data = await pendingRes.json()
         setActiveRequest(data.request ?? null)
+        if (!data.request) {
+          setRows([])
+          setRowsTotal(0)
+          setRowsTotalPages(0)
+        }
       }
     } catch {
       toast({ variant: "destructive", title: "Failed to load eligible customers status" })
@@ -86,6 +231,29 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   useEffect(() => {
     loadStatus()
   }, [loadStatus])
+
+  const hasRequest = Boolean(activeRequest)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setRowsSearchTerm(rowsSearch.trim())
+      setRowsPage(1)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [rowsSearch])
+
+  useEffect(() => {
+    if (!hasRequest) return
+    loadRows(rowsPage, rowsSearchTerm, rowsPageSize)
+  }, [hasRequest, rowsPage, rowsPageSize, rowsSearchTerm, loadRows])
+
+  /** Reloads the request meta and the current page of rows together. */
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      loadStatus({ silent: true }),
+      loadRows(rowsPage, rowsSearchTerm, rowsPageSize),
+    ])
+  }, [loadStatus, loadRows, rowsPage, rowsSearchTerm, rowsPageSize])
 
   const handleImport = async (file: File) => {
     setImporting(true)
@@ -102,7 +270,9 @@ export function EligibleCustomersTab({ merchantId }: Props) {
         title: "Draft created",
         description: `${data.totalRows} customer(s) parsed. Review the list, then submit for approval.`,
       })
-      await loadStatus()
+      setRowsPage(1)
+      setRowsSearch("")
+      await refreshAll()
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -127,7 +297,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to add phone number")
       setNewPhone("")
-      await loadStatus()
+      await refreshAll()
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -136,6 +306,43 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       })
     } finally {
       setAddingRow(false)
+    }
+  }
+
+  const startEditRow = (row: PendingRow) => {
+    setEditingRowId(row.id)
+    setEditingPhone(row.phone)
+  }
+
+  const cancelEditRow = () => {
+    setEditingRowId(null)
+    setEditingPhone("")
+  }
+
+  const handleSaveRow = async (rowId: string) => {
+    if (!editingPhone.trim()) return
+    setSavingRowId(rowId)
+    try {
+      const res = await fetch(
+        `/api/merchants/${merchantId}/payment-eligibility/pending/rows/${rowId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: editingPhone }),
+        }
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to update phone number")
+      cancelEditRow()
+      await refreshAll()
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Failed to update",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setSavingRowId(null)
     }
   }
 
@@ -148,7 +355,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       )
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to remove phone number")
-      await loadStatus()
+      await refreshAll()
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -169,7 +376,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to submit")
       toast({ title: "Submitted for admin approval" })
-      await loadStatus()
+      await refreshAll()
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -189,8 +396,10 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to discard")
-      toast({ title: "Draft discarded" })
-      await loadStatus()
+      toast({ title: "List discarded" })
+      setRowsPage(1)
+      setRowsSearch("")
+      await loadStatus({ silent: true })
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -203,10 +412,10 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   }
 
   const loadApprovedCustomers = useCallback(
-    async (search: string) => {
+    async (search: string, page: number, pageSize: number) => {
       setApprovedLoading(true)
       try {
-        const params = new URLSearchParams()
+        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
         if (search) params.set("search", search)
         const res = await fetch(
           `/api/merchants/${merchantId}/payment-eligibility/customers?${params.toString()}`
@@ -214,11 +423,15 @@ export function EligibleCustomersTab({ merchantId }: Props) {
         if (res.ok) {
           const data = await res.json()
           setApprovedCustomers(data.customers ?? [])
+          setApprovedTotal(data.total ?? 0)
+          setApprovedTotalPages(data.totalPages ?? 0)
+          if (data.page && data.page !== page) setApprovedPage(data.page)
         }
       } catch {
         toast({ variant: "destructive", title: "Failed to load approved customers" })
       } finally {
         setApprovedLoading(false)
+        setApprovedLoadedOnce(true)
       }
     },
     [merchantId, toast]
@@ -227,16 +440,24 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   const openApprovedList = () => {
     setSelectedPhones(new Set())
     setApprovedSearch("")
+    setApprovedSearchTerm("")
+    setApprovedPage(1)
+    setApprovedLoadedOnce(false)
     setIsApprovedOpen(true)
-    loadApprovedCustomers("")
   }
 
   useEffect(() => {
-    if (!isApprovedOpen) return
-    const timer = setTimeout(() => loadApprovedCustomers(approvedSearch), 250)
+    const timer = setTimeout(() => {
+      setApprovedSearchTerm(approvedSearch.trim())
+      setApprovedPage(1)
+    }, 250)
     return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [approvedSearch, isApprovedOpen])
+  }, [approvedSearch])
+
+  useEffect(() => {
+    if (!isApprovedOpen) return
+    loadApprovedCustomers(approvedSearchTerm, approvedPage, approvedPageSize)
+  }, [approvedSearchTerm, approvedPage, approvedPageSize, isApprovedOpen, loadApprovedCustomers])
 
   const togglePhone = (phone: string) => {
     setSelectedPhones((prev) => {
@@ -263,7 +484,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
         description: "An admin must approve this before the numbers are removed.",
       })
       setIsApprovedOpen(false)
-      await loadStatus()
+      await loadStatus({ silent: true })
     } catch (e: unknown) {
       toast({
         variant: "destructive",
@@ -297,6 +518,15 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   }
 
   const hasActiveRequest = Boolean(activeRequest)
+  const isEditable = Boolean(activeRequest?.editable)
+  const isRejected = activeRequest?.status === "REJECTED"
+
+  const listHeading =
+    activeRequest?.status === "DRAFT"
+      ? "Draft list"
+      : activeRequest?.status === "PENDING"
+        ? "Pending list"
+        : "Rejected list"
 
   return (
     <div className="space-y-6">
@@ -338,13 +568,36 @@ export function EligibleCustomersTab({ merchantId }: Props) {
             </div>
           )}
 
+          {isRejected && activeRequest && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <div className="text-sm text-rose-900 space-y-1">
+                <p className="font-semibold">Rejected by admin</p>
+                <p className="whitespace-pre-wrap text-rose-800">
+                  <span className="font-medium">Reason: </span>
+                  {activeRequest.rejectionReason || "No reason provided."}
+                </p>
+                <p className="text-xs text-rose-800/70">
+                  {activeRequest.reviewedBy ? `Reviewed by ${activeRequest.reviewedBy}` : "Reviewed"}
+                  {activeRequest.reviewedAt
+                    ? ` on ${new Date(activeRequest.reviewedAt).toLocaleString()}`
+                    : ""}
+                  .
+                </p>
+                <p className="text-xs text-rose-800/70">
+                  Correct the list below then resubmit it for approval.
+                </p>
+              </div>
+            </div>
+          )}
+
           {activeRequest && (
             <div className="rounded-xl border border-black/5 overflow-hidden">
-              <div className="px-4 py-2 bg-slate-50 border-b border-black/5 flex items-center justify-between">
+              <div className="px-4 py-2 bg-slate-50 border-b border-black/5 flex items-center justify-between gap-2">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {activeRequest.status === "DRAFT" ? "Draft" : "Pending"} list ({activeRequest.rows.length})
+                  {listHeading} ({activeRequest.totalRows})
                 </p>
-                {activeRequest.status === "DRAFT" && (
+                {isEditable && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -356,32 +609,138 @@ export function EligibleCustomersTab({ merchantId }: Props) {
                   </Button>
                 )}
               </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-black/5">
-                {activeRequest.rows.length === 0 && (
-                  <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                    No phone numbers yet. Add one below.
+
+              {(activeRequest.totalRows > 10 || rowsSearch) && (
+                <div className="px-3 pt-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      value={rowsSearch}
+                      onChange={(e) => setRowsSearch(e.target.value)}
+                      placeholder="Search phone number..."
+                      className="h-9 rounded-xl pl-9"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/*
+                The list keeps the previous page mounted while the next one loads and only
+                dims — swapping in a spinner collapsed the container and made paging flicker.
+              */}
+              <div className="relative" aria-busy={rowsLoading}>
+                {rowsLoading && rowsLoadedOnce && (
+                  <div className="absolute inset-0 z-10 flex items-start justify-center bg-white/50 pt-6">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
                 )}
-                {activeRequest.rows.map((row) => (
-                  <div key={row.id} className="px-4 py-2 flex items-center justify-between text-sm font-mono">
-                    <span>{row.phone}</span>
-                    {activeRequest.status === "DRAFT" && (
-                      <button
-                        onClick={() => handleRemoveRow(row.id)}
-                        disabled={removingRowId === row.id}
-                        className="text-slate-300 hover:text-rose-600 transition-colors"
-                      >
-                        {removingRowId === row.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    )}
+                <div
+                  className={`divide-y divide-black/5 transition-opacity duration-150 ${
+                    rowsLoading && rowsLoadedOnce ? "opacity-40" : "opacity-100"
+                  }`}
+                >
+                {!rowsLoadedOnce ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
-                ))}
+                ) : rows.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                    {rowsSearchTerm
+                      ? "No phone numbers match your search."
+                      : "No phone numbers yet. Add one below."}
+                  </div>
+                ) : (
+                  rows.map((row) => (
+                    <div key={row.id} className="px-4 py-2 flex items-center justify-between gap-2 text-sm">
+                      {editingRowId === row.id ? (
+                        <>
+                          <Input
+                            value={editingPhone}
+                            onChange={(e) => setEditingPhone(e.target.value)}
+                            className="h-8 rounded-lg font-mono text-sm"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleSaveRow(row.id)
+                              }
+                              if (e.key === "Escape") cancelEditRow()
+                            }}
+                          />
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleSaveRow(row.id)}
+                              disabled={savingRowId === row.id || !editingPhone.trim()}
+                              className="text-emerald-600 hover:text-emerald-700 disabled:opacity-40"
+                              aria-label="Save phone number"
+                            >
+                              {savingRowId === row.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Check className="w-4 h-4" />
+                              )}
+                            </button>
+                            <button
+                              onClick={cancelEditRow}
+                              disabled={savingRowId === row.id}
+                              className="text-slate-400 hover:text-slate-600"
+                              aria-label="Cancel edit"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-mono">{row.phone}</span>
+                          {isEditable && (
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => startEditRow(row)}
+                                className="text-slate-300 hover:text-[#754319] transition-colors"
+                                aria-label="Edit phone number"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleRemoveRow(row.id)}
+                                disabled={removingRowId === row.id}
+                                className="text-slate-300 hover:text-rose-600 transition-colors"
+                                aria-label="Delete phone number"
+                              >
+                                {removingRowId === row.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+                </div>
               </div>
-              {activeRequest.status === "DRAFT" && (
+
+              <div className="px-4 py-2 bg-slate-50/60 border-t border-black/5">
+                <Pagination
+                  page={rowsPage}
+                  totalPages={rowsTotalPages}
+                  total={rowsTotal}
+                  pageSize={rowsPageSize}
+                  label="phone number(s)"
+                  onPageChange={setRowsPage}
+                  onPageSizeChange={(size) => {
+                    setRowsPageSize(size)
+                    setRowsPage(1)
+                  }}
+                  disabled={rowsLoading}
+                />
+              </div>
+
+              {isEditable && (
                 <div className="p-3 bg-slate-50 border-t border-black/5 space-y-3">
                   <div className="flex gap-2">
                     <Input
@@ -407,11 +766,11 @@ export function EligibleCustomersTab({ merchantId }: Props) {
                   </div>
                   <Button
                     onClick={handleSubmitDraft}
-                    disabled={submitting || activeRequest.rows.length === 0}
+                    disabled={submitting || activeRequest.totalRows === 0}
                     className="w-full rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
                   >
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Submit for Approval
+                    {isRejected ? "Resubmit for Approval" : "Submit for Approval"}
                   </Button>
                 </div>
               )}
@@ -481,34 +840,59 @@ export function EligibleCustomersTab({ merchantId }: Props) {
             />
           </div>
 
-          {approvedLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="max-h-80 overflow-y-auto rounded-xl border border-black/5 divide-y divide-black/5">
-              {approvedCustomers.length === 0 && (
-                <div className="px-4 py-8 text-center text-xs text-muted-foreground">No customers found.</div>
-              )}
-              {approvedCustomers.map((c) => (
-                <label
-                  key={c.id}
-                  className="px-4 py-2 flex items-center gap-3 text-sm font-mono cursor-pointer hover:bg-slate-50"
-                >
-                  <Checkbox
-                    checked={selectedPhones.has(c.phone)}
-                    onCheckedChange={() => togglePhone(c.phone)}
-                    disabled={hasActiveRequest}
-                  />
-                  {c.phone}
-                </label>
-              ))}
-            </div>
-          )}
+          <div className="relative" aria-busy={approvedLoading}>
+            {approvedLoading && approvedLoadedOnce && (
+              <div className="absolute inset-0 z-10 flex items-start justify-center bg-white/50 pt-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!approvedLoadedOnce ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div
+                className={`max-h-80 overflow-y-auto rounded-xl border border-black/5 divide-y divide-black/5 transition-opacity duration-150 ${
+                  approvedLoading ? "opacity-40" : "opacity-100"
+                }`}
+              >
+                {approvedCustomers.length === 0 && (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">No customers found.</div>
+                )}
+                {approvedCustomers.map((c) => (
+                  <label
+                    key={c.id}
+                    className="px-4 py-2 flex items-center gap-3 text-sm font-mono cursor-pointer hover:bg-slate-50"
+                  >
+                    <Checkbox
+                      checked={selectedPhones.has(c.phone)}
+                      onCheckedChange={() => togglePhone(c.phone)}
+                      disabled={hasActiveRequest}
+                    />
+                    {c.phone}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Pagination
+            page={approvedPage}
+            totalPages={approvedTotalPages}
+            total={approvedTotal}
+            pageSize={approvedPageSize}
+            label="approved customer(s)"
+            onPageChange={setApprovedPage}
+            onPageSizeChange={(size) => {
+              setApprovedPageSize(size)
+              setApprovedPage(1)
+            }}
+            disabled={approvedLoading}
+          />
 
           {hasActiveRequest && (
             <p className="text-xs text-amber-700">
-              You already have a request pending — finish or discard it before requesting a removal.
+              You already have a request in progress — finish or discard it before requesting a removal.
             </p>
           )}
 
