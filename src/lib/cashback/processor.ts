@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { writeAuditLog } from "@/lib/audit-log"
 import { sendSms } from "@/lib/sms"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { normalizeCashbackPhone } from "./phone"
 import {
   calculateCashbackAmount,

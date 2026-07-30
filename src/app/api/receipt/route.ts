@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 
 // Bank returns "YYMMDDHHMM ..." — parse first token into YYYY-MM-DD
 function parseValueDate(raw: string): string {

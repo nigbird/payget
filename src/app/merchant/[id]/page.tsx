@@ -3,7 +3,7 @@
 import { use, useEffect, useState, useMemo, useRef, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import type { TransactionStatus } from "@/app/lib/db"
+import type { TransactionStatus } from "@/lib/db"
 
 const nonTerminalStatuses: TransactionStatus[] = ["pending", "initiated", "awaiting_pin", "processing"]
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { verifySalesOtp } from "@/lib/otp"
 import { writeAuditLog } from "@/lib/audit-log"
 import { signAccessToken, accessTokenTtlSeconds } from "@/lib/token-auth"

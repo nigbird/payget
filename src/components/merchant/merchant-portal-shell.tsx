@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
+import type { Merchant, MerchantTeamRole } from "@/lib/db"
 import { cn } from "@/lib/utils"
 
 export type MerchantPortalModuleRole =

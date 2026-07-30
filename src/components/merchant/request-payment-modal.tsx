@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { TransactionStatus } from "@/app/lib/db"
+import type { TransactionStatus } from "@/lib/db"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

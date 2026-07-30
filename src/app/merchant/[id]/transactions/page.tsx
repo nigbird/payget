@@ -39,7 +39,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
-import type { Merchant, Transaction, MerchantTeamMember } from "@/app/lib/db"
+import type { Merchant, Transaction, MerchantTeamMember } from "@/lib/db"
 import {
   buildSalesUserFilterOptions,
   transactionMatchesSalesUserFilter,

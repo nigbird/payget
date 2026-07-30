@@ -38,7 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import type { MerchantDocument } from "@/app/lib/db"
+import type { MerchantDocument } from "@/lib/db"
 import Link from "next/link"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 import { validateUrl } from "@/lib/url-validation"

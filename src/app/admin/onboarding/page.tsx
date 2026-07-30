@@ -80,7 +80,7 @@ import {
   Landmark,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import type { MerchantDocument, Merchant } from "@/app/lib/db"
+import type { MerchantDocument, Merchant } from "@/lib/db"
 import { useAuth } from "@/lib/auth-context"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"

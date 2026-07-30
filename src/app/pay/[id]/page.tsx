@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Wallet, CheckCircle2, XCircle, Loader2, Clock, Send, QrCode, ChevronRight } from "lucide-react"
-import type { Transaction, Merchant } from "@/app/lib/db"
+import type { Transaction, Merchant } from "@/lib/db"
 import { useToast } from "@/hooks/use-toast"
 
 export default function PayerRequestPage({ params }: { params: Promise<{ id: string }> }) {

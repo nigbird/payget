@@ -2,7 +2,7 @@ import crypto from "crypto"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createGatewayTransactionAndToken } from "@/app/api/payments/_shared"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import {
   sendProviderPushPayment,
   ProviderPushPayloadSchema,

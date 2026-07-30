@@ -6,7 +6,7 @@
  * matches the one stored in the database.
  */
 
-import { db } from '@/app/lib/db';
+import { db } from '@/lib/db';
 import { decryptMerchantSecretInMemory } from '@/lib/merchant-secret';
 
 async function main() {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { generateJweSecret } from "@/lib/jwe"
 import { encryptMerchantSecretAtRest } from "@/lib/merchant-secret"

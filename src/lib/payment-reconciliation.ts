@@ -1,5 +1,5 @@
 
-import { db, type Transaction } from "@/app/lib/db";
+import { db, type Transaction } from "@/lib/db";
 import { writeAuditLog } from "./audit-log";
 import { prisma } from "@/lib/prisma";
 import { checkTransactionStatusAtProvider } from "@/lib/provider-encryption";

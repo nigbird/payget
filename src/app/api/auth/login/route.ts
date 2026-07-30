@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
 import { setAccessTokenCookie } from "@/lib/access-token-cookie"
 import {

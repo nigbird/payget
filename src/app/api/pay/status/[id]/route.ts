@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { checkTransactionStatusAtProvider } from "@/lib/provider-encryption"
 
 // In-memory rate limit: only call provider once per 10s per transaction ID.

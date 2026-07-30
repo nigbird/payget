@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, sanitizeTransaction } from '@/app/lib/db';
+import { db, sanitizeTransaction } from '@/lib/db';
 import { requireAuthUser } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';

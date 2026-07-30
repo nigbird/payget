@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/app/lib/db'
+import { db } from '@/lib/db'
 import { generateSalesOtp } from '@/lib/otp'
 import { sendNotification } from '@/lib/notifications'
 import { writeAuditLog } from '@/lib/audit-log'

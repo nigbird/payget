@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/db';
+import { db } from '@/lib/db';
 import { decryptProviderPayload, deriveSharedSecret } from '@/lib/crypto-provider';
 import crypto from 'crypto';
 import { writeAuditLog } from '@/lib/audit-log';

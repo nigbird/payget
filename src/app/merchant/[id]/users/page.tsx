@@ -54,7 +54,7 @@ import {
   ChevronRight,
   ArrowLeft,
 } from "lucide-react"
-import type { Merchant, MerchantTeamMember, MerchantTeamRole } from "@/app/lib/db"
+import type { Merchant, MerchantTeamMember, MerchantTeamRole } from "@/lib/db"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 

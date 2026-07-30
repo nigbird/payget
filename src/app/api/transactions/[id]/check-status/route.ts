@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { requireAuthUser } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
 import { checkTransactionStatusAtProvider } from "@/lib/provider-encryption"

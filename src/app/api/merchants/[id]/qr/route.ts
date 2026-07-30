@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"

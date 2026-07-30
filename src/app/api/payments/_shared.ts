@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { db, type Merchant, type Transaction } from "@/app/lib/db"
+import { db, type Merchant, type Transaction } from "@/lib/db"
 import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPayload } from "@/lib/jwe"
 import { withMerchantSecret, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
 import { auditSecurityEvent } from "@/lib/request-security"

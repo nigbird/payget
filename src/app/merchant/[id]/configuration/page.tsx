@@ -17,7 +17,7 @@ import {
 } from "@/lib/qr-download"
 import { resolveAbsoluteImageUrl, useQrLogoImageSettings } from "@/lib/qr-logo"
 
-import type { Merchant } from "@/app/lib/db"
+import type { Merchant } from "@/lib/db"
 import { useMerchantPortalRole } from "@/components/merchant/merchant-portal-shell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

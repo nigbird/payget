@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { db } from '@/app/lib/db'
+import { db } from '@/lib/db'
 
 const OTP_TTL_MS = 5 * 60 * 1000 // 5 minutes
 

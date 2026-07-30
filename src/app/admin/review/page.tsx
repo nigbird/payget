@@ -76,7 +76,7 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import type { Merchant } from "@/app/lib/db"
+import type { Merchant } from "@/lib/db"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"

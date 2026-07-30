@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, sanitizeTransaction } from '@/app/lib/db';
+import { db, sanitizeTransaction } from '@/lib/db';
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth';
 import { transactionMatchesTeamMember } from '@/lib/transaction-initiator';
 

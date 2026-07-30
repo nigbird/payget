@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/app/lib/db'
+import { db } from '@/lib/db'
 import { prisma } from '@/lib/prisma'
 import bcrypt from "bcryptjs"
 import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth'

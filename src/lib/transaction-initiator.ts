@@ -1,4 +1,4 @@
-import type { MerchantTeamMember, Transaction } from "@/app/lib/db"
+import type { MerchantTeamMember, Transaction } from "@/lib/db"
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "")
