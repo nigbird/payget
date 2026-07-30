@@ -83,12 +83,16 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/checker") ||
     pathname.startsWith("/head-office")
 
+  // Routes reachable without a session, listed by path only.
+  // blanket `searchParams.has("token")` clause: magic links are opaque /l/<token>
+  // paths now (see generate*Link in lib/notifications.ts), and the two pages that
+  // still take ?token= are named explicitly below. A query-param exemption would
+  // let any URL skip the session-revocation check and page-level RBAC further down.
   const isAuthExemptRoute =
     pathname === "/merchant/review-update" ||
     pathname === "/merchant/setup-password" ||
     pathname.startsWith("/pay/") ||
-    pathname.startsWith("/l/") ||
-    nextUrl.searchParams.has("token")
+    pathname.startsWith("/l/")
 
   const isAuthRoute =
     pathname.startsWith("/login") ||
