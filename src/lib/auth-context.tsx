@@ -55,16 +55,26 @@ async function fetchMe(): Promise<AuthUser | null> {
   }
 }
 
-async function tryRefreshToken(): Promise<boolean> {
-  try {
-    const res = await fetch("/api/auth/refresh", {
+// Module-level (not per-component) in-flight promise so every caller — the
+// auth context's own me->refresh fallback, and SessionWatcher's 401
+// interceptor — shares one outstanding refresh. The refresh endpoint rotates
+// the refresh token and treats a reused token as theft, revoking the whole
+// session, so two concurrent POSTs here would lock the user out.
+let refreshPromise: Promise<boolean> | null = null
+
+export function refreshAccessToken(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch("/api/auth/refresh", {
       method: "POST",
       credentials: "include",
     })
-    return res.ok
-  } catch {
-    return false
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null
+      })
   }
+  return refreshPromise
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -80,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let me = await fetchMe()
       if (!me) {
         // Access token may be expired — try refreshing.
-        const refreshed = await tryRefreshToken()
+        const refreshed = await refreshAccessToken()
         if (refreshed) {
           me = await fetchMe()
         }

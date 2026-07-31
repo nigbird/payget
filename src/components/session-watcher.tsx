@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth, refreshAccessToken } from "@/lib/auth-context"
 import { useRouter, usePathname } from "next/navigation"
 import {
   Dialog,
@@ -138,11 +138,21 @@ export function SessionWatcher() {
       try {
         const response = await originalFetch(...args)
         // /api/auth/* 401s are handled by auth-context (token refresh flow) —
-        // dispatching SESSION_EXPIRED_EVENT here would race with tryRefreshToken()
+        // dispatching SESSION_EXPIRED_EVENT here would race with refreshAccessToken()
         // and log the user out before the refresh has a chance to run.
         const url = typeof args[0] === "string" ? args[0] : args[0] instanceof Request ? args[0].url : ""
         const isAuthEndpoint = url.includes("/api/auth/")
         if (response.status === 401 && !isAuthPageRef.current && statusRef.current === "authenticated" && !isAuthEndpoint) {
+          // The access token may have simply expired (it's short-lived and only
+          // renewed reactively). Try a silent refresh and replay the request once
+          // before treating this as a real session expiry.
+          const refreshed = await refreshAccessToken()
+          if (refreshed) {
+            const retryResponse = await originalFetch(...args)
+            if (retryResponse.status !== 401) return retryResponse
+            window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
+            return retryResponse
+          }
           window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
         }
         return response
