@@ -67,7 +67,7 @@ export function ApprovalsQueue({
   const [isLoading, setIsLoading] = useState(true)
   const [selected, setSelected] = useState<QueueRow | null>(null)
   const [comments, setComments] = useState('')
-  const [acting, setActing] = useState(false)
+  const [acting, setActing] = useState<'approve' | 'reject' | null>(null)
 
   const fetchQueue = useCallback(async () => {
     setIsLoading(true)
@@ -131,7 +131,7 @@ export function ApprovalsQueue({
   }
 
   const handleReview = async (row: QueueRow, approve: boolean) => {
-    setActing(true)
+    setActing(approve ? 'approve' : 'reject')
     try {
       const res = await fetch(ENDPOINTS[row.kind], {
         method: 'POST',
@@ -162,7 +162,7 @@ export function ApprovalsQueue({
     } catch {
       toast({ variant: 'destructive', title: 'Error', description: 'A technical error occurred.' })
     } finally {
-      setActing(false)
+      setActing(null)
     }
   }
 
@@ -306,14 +306,22 @@ export function ApprovalsQueue({
           <DialogFooter>
             <Button
               variant="outline"
-              disabled={acting}
+              disabled={!!acting}
               onClick={() => selected && handleReview(selected, false)}
             >
-              <XCircle className="mr-2 h-4 w-4" />
+              {acting === 'reject' ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-4 w-4" />
+              )}
               Reject
             </Button>
-            <Button disabled={acting} onClick={() => selected && handleReview(selected, true)}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
+            <Button disabled={!!acting} onClick={() => selected && handleReview(selected, true)}>
+              {acting === 'approve' ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+              )}
               Approve
             </Button>
           </DialogFooter>
