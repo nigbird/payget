@@ -473,10 +473,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           setIsRequestPanelOpen(false)
           setIsSuccessModalOpen(true)
           startPushStatusPolling(transactionReference)
-          toast({
-            title: "USSD PIN Prompt Sent",
-            description: "Ask the customer to authorize the payment on their phone.",
-          })
         } else {
           setPaymentFlowPhase("idle")
           toast({

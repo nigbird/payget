@@ -238,10 +238,6 @@ export function RequestPaymentModal({
         if (transactionReference) {
           setPaymentFlowPhase("awaiting_pin")
           startPushStatusPolling(transactionReference)
-          toast({
-            title: "USSD PIN Prompt Sent",
-            description: "Ask the customer to authorize the payment on their phone.",
-          })
         } else {
           setPaymentFlowPhase("idle")
         }

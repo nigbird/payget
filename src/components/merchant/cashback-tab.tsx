@@ -195,7 +195,11 @@ export function CashbackTab({ merchantId }: Props) {
       )
       if (txRes.ok) {
         const data = await txRes.json()
-        setTransactions(data.transactions ?? [])
+        const loadedTransactions: CashbackTransactionDto[] = data.transactions ?? []
+        loadedTransactions
+          .filter((tx) => tx.failureReason)
+          .forEach((tx) => console.error(`Cashback transaction ${tx.paymentTransactionId} failed:`, tx.failureReason))
+        setTransactions(loadedTransactions)
         setTransactionsTotal(data.total ?? 0)
       }
     } catch {
@@ -1379,11 +1383,6 @@ export function CashbackTab({ merchantId }: Props) {
                         {tx.skipReason && (
                           <div className="mt-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 flex items-center gap-2 text-xs text-amber-800">
                             <AlertCircle className="h-3.5 w-3.5" /> {tx.skipReason}
-                          </div>
-                        )}
-                        {tx.failureReason && (
-                          <div className="mt-3 p-2 rounded-lg bg-rose-50 border border-rose-100 flex items-center gap-2 text-xs text-rose-700">
-                            <AlertCircle className="h-3.5 w-3.5" /> {tx.failureReason}
                           </div>
                         )}
                       </div>
