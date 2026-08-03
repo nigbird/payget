@@ -61,6 +61,13 @@ type ApprovedCustomer = { id: string; phone: string; approvedAt: string }
 
 const ROWS_PAGE_SIZE = 25
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
+/** Mirrors ELIGIBILITY_MANUAL_ADD_MAX_ROWS on the server. */
+const MANUAL_ADD_MAX = 100
+
+/** One number, or a pasted batch separated by spaces, commas, or newlines. */
+function splitPhoneInput(value: string): string[] {
+  return value.split(/[\s,;]+/).map((p) => p.trim()).filter(Boolean)
+}
 
 function Pagination({
   page,
@@ -176,6 +183,11 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   const [approvedLoadedOnce, setApprovedLoadedOnce] = useState(false)
   const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set())
   const [submittingRemoval, setSubmittingRemoval] = useState(false)
+
+  const [isAddPanelOpen, setIsAddPanelOpen] = useState(false)
+  const [addInput, setAddInput] = useState("")
+  const [addPhones, setAddPhones] = useState<string[]>([])
+  const [submittingAdd, setSubmittingAdd] = useState(false)
 
   const loadRows = useCallback(
     async (page: number, search: string, pageSize: number) => {
@@ -443,6 +455,9 @@ export function EligibleCustomersTab({ merchantId }: Props) {
     setApprovedSearchTerm("")
     setApprovedPage(1)
     setApprovedLoadedOnce(false)
+    setIsAddPanelOpen(false)
+    setAddInput("")
+    setAddPhones([])
     setIsApprovedOpen(true)
   }
 
@@ -493,6 +508,71 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       })
     } finally {
       setSubmittingRemoval(false)
+    }
+  }
+
+  // Anything typed but not staged still counts — merchants forget to press Add.
+  const pendingAddPhones = [...new Set([...addPhones, ...splitPhoneInput(addInput)])]
+
+  const stageAddPhones = () => {
+    const parts = splitPhoneInput(addInput)
+    if (parts.length === 0) return
+    let overflow = false
+    setAddPhones((prev) => {
+      const next = [...prev]
+      for (const part of parts) {
+        if (next.includes(part)) continue
+        if (next.length >= MANUAL_ADD_MAX) {
+          overflow = true
+          break
+        }
+        next.push(part)
+      }
+      return next
+    })
+    setAddInput("")
+    if (overflow) {
+      toast({
+        variant: "destructive",
+        title: `Limit is ${MANUAL_ADD_MAX} numbers`,
+        description: "Import a file instead for a longer list.",
+      })
+    }
+  }
+
+  const unstageAddPhone = (phone: string) => {
+    setAddPhones((prev) => prev.filter((p) => p !== phone))
+  }
+
+  const handleRequestAddition = async () => {
+    const phones = pendingAddPhones
+    if (phones.length === 0) return
+    setSubmittingAdd(true)
+    try {
+      const res = await fetch(`/api/merchants/${merchantId}/payment-eligibility/add-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phones }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to submit add request")
+      toast({
+        title: "Add request submitted",
+        description:
+          data.skipped > 0
+            ? `${data.totalRows} number(s) sent for admin approval. ${data.skipped} already approved.`
+            : `${data.totalRows} number(s) sent for admin approval.`,
+      })
+      setIsApprovedOpen(false)
+      await refreshAll()
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Request failed",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setSubmittingAdd(false)
     }
   }
 
@@ -825,10 +905,97 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               Approved Eligible Customers
             </DialogTitle>
             <DialogDescription>
-              Select customers to request their removal. A different admin must approve the removal before it
-              takes effect.
+              Add new numbers, or select customers to request their removal. A different admin must approve
+              either change before it takes effect.
             </DialogDescription>
           </DialogHeader>
+
+          {!isAddPanelOpen ? (
+            <Button
+              variant="outline"
+              className="w-full justify-center rounded-2xl border-dashed border-amber-200 bg-amber-50/40 text-[#754319] hover:bg-amber-50"
+              onClick={() => setIsAddPanelOpen(true)}
+              disabled={hasActiveRequest}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add new numbers
+            </Button>
+          ) : (
+            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/40 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-800/70">
+                  Add new numbers
+                </p>
+                <button
+                  onClick={() => {
+                    setIsAddPanelOpen(false)
+                    setAddInput("")
+                    setAddPhones([])
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                  aria-label="Close add panel"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  value={addInput}
+                  onChange={(e) => setAddInput(e.target.value)}
+                  placeholder="Enter a phone number"
+                  className="h-9 rounded-xl bg-white"
+                  disabled={hasActiveRequest}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      stageAddPhones()
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  className="h-9 shrink-0 rounded-xl bg-white"
+                  onClick={stageAddPhones}
+                  disabled={hasActiveRequest || !addInput.trim()}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Paste several at once separated by commas, spaces, or new lines.
+              </p>
+
+              {addPhones.length > 0 && (
+                <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+                  {addPhones.map((phone) => (
+                    <span
+                      key={phone}
+                      className="flex items-center gap-1 rounded-lg border border-black/5 bg-white px-2 py-1 font-mono text-xs"
+                    >
+                      {phone}
+                      <button
+                        onClick={() => unstageAddPhone(phone)}
+                        className="text-slate-300 transition-colors hover:text-rose-600"
+                        aria-label={`Remove ${phone}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                onClick={handleRequestAddition}
+                disabled={hasActiveRequest || submittingAdd || pendingAddPhones.length === 0}
+                className="w-full rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+              >
+                {submittingAdd ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Request Addition ({pendingAddPhones.length})
+              </Button>
+            </div>
+          )}
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -892,7 +1059,8 @@ export function EligibleCustomersTab({ merchantId }: Props) {
 
           {hasActiveRequest && (
             <p className="text-xs text-amber-700">
-              You already have a request in progress — finish or discard it before requesting a removal.
+              You already have a request in progress — finish or discard it before adding numbers or
+              requesting a removal.
             </p>
           )}
 

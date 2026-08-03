@@ -12,6 +12,12 @@ export const ACTIVE_IMPORT_STATUSES = ["DRAFT", "PENDING", "REJECTED"] as const
 
 export const ELIGIBILITY_ROWS_PAGE_SIZE = 25
 
+/**
+ * Cap for the typed-in add request. This path exists for the handful of numbers
+ * a merchant collects after an import — anything larger belongs in a file.
+ */
+export const ELIGIBILITY_MANUAL_ADD_MAX_ROWS = 100
+
 export type PaymentEligibilityResult =
   | { eligible: true }
   | { eligible: false; error: string }
