@@ -578,6 +578,14 @@ function MerchantReviewContent() {
     (req.fileName ?? '').toLowerCase().includes(eligibilitySearch.toLowerCase())
   )
 
+  // Tab badges count only items still awaiting a decision — approved/rejected ones drop off.
+  const pendingOnboardingCount = pending.length
+  const pendingSubsidiaryCount = subsidiaryRequests.filter((req) => req.status === 'PENDING').length
+  const pendingEligibilityCount = eligibilityRequests.filter((req) => req.status === 'PENDING').length
+
+  const renderTabCount = (count: number) =>
+    count > 0 ? <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{count}</Badge> : null
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -587,21 +595,20 @@ function MerchantReviewContent() {
 
       <Tabs defaultValue="onboarding" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="onboarding">Merchant Onboarding</TabsTrigger>
+          <TabsTrigger value="onboarding" className="gap-1.5">
+            Merchant Onboarding
+            {renderTabCount(pendingOnboardingCount)}
+          </TabsTrigger>
           {(canRequestSubsidiary || canApproveSubsidiary) && (
             <TabsTrigger value="subsidiary" className="gap-1.5">
               Subsidiary Account Requests
-              {subsidiaryRequests.length > 0 && (
-                <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{subsidiaryRequests.length}</Badge>
-              )}
+              {renderTabCount(pendingSubsidiaryCount)}
             </TabsTrigger>
           )}
           {canApproveEligibility && (
             <TabsTrigger value="eligibility" className="gap-1.5">
               Eligible Customer Imports
-              {eligibilityRequests.length > 0 && (
-                <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{eligibilityRequests.length}</Badge>
-              )}
+              {renderTabCount(pendingEligibilityCount)}
             </TabsTrigger>
           )}
         </TabsList>
