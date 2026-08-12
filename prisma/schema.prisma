@@ -530,6 +530,7 @@ model MerchantTeamMember {
 enum TeamRole {
   PAYMENT_INITIATOR
   ACCOUNT_ADMIN
+  SALES_ADMIN
 }
 
 enum TeamMemberStatus {

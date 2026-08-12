@@ -39,10 +39,12 @@ import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 import type { Merchant, Transaction, MerchantTeamMember } from "@/lib/db"
 import {
   buildSalesUserFilterOptions,
   transactionMatchesSalesUserFilter,
+  findSelfTeamMember,
 } from "@/lib/transaction-initiator"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
@@ -53,6 +55,7 @@ type Density = "comfortable" | "compact"
 export default function MerchantTransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { toast } = useToast()
+  const { user: sessionUser } = useAuth()
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -122,9 +125,23 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return () => clearInterval(interval)
   }, [id])
 
+  const isSalesUser = sessionUser?.role === "SALES"
+  const selfTeamMember = useMemo(
+    () => (isSalesUser && sessionUser ? findSelfTeamMember(teamMembers, sessionUser) : undefined),
+    [isSalesUser, sessionUser, teamMembers]
+  )
+  // Plain sales users may only filter between their own transactions and QR customer
+  // transactions; sales admins (and account admins) can filter across the whole team.
+  const isRestrictedSalesUser = isSalesUser && selfTeamMember?.role !== "sales_admin"
+
   const salesUserOptions = useMemo(
-    () => buildSalesUserFilterOptions(teamMembers, transactions),
-    [teamMembers, transactions]
+    () =>
+      buildSalesUserFilterOptions(
+        teamMembers,
+        transactions,
+        isRestrictedSalesUser ? { onlyMemberId: selfTeamMember?.id } : undefined
+      ),
+    [teamMembers, transactions, isRestrictedSalesUser, selfTeamMember]
   )
 
   const filtered = useMemo(() => {

@@ -188,7 +188,7 @@ export function sanitizeTransaction(tx: Transaction) {
   return { ...tx, userCredentials: safeCredentials };
 }
 
-export type MerchantTeamRole = 'payment_initiator' | 'account_admin';
+export type MerchantTeamRole = 'payment_initiator' | 'account_admin' | 'sales_admin';
 export type MerchantTeamMemberStatus = 'active' | 'deactivated';
 
 export interface MerchantTeamMember {

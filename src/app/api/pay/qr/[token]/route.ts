@@ -9,6 +9,7 @@ import {
   isProviderPushSuccess,
 } from "@/lib/provider-encryption"
 import { writeAuditLog } from "@/lib/audit-log"
+import { QR_CUSTOMER_INITIATOR_ID } from "@/lib/transaction-initiator"
 
 export async function GET(
   request: Request,
@@ -85,8 +86,8 @@ export async function POST(
       method: "BANK" as const
     }
 
-    const result = await createGatewayTransactionAndToken(paymentInput, { 
-      initiatedBy: { id: "QR_CUSTOMER", name: "QR Customer" } 
+    const result = await createGatewayTransactionAndToken(paymentInput, {
+      initiatedBy: { id: QR_CUSTOMER_INITIATOR_ID, name: "QR Customer" }
     })
 
     if (!result.ok) {

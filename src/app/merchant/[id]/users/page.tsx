@@ -58,6 +58,12 @@ import type { Merchant, MerchantTeamMember, MerchantTeamRole } from "@/lib/db"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 
+const ROLE_BADGE: Record<MerchantTeamRole, { label: string; className: string }> = {
+  account_admin: { label: "Account Admin", className: "bg-amber-100 text-amber-800" },
+  sales_admin: { label: "Sales Admin", className: "bg-purple-100 text-purple-800" },
+  payment_initiator: { label: "Sales", className: "bg-blue-100 text-blue-800" },
+}
+
 export default function UserManagementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { toast } = useToast()
@@ -333,11 +339,9 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     variant="outline"
-                    className={`rounded-full px-3 py-0.5 text-[11px] font-medium border-0 ${
-                      member.role === "account_admin" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
-                    }`}
+                    className={`rounded-full px-3 py-0.5 text-[11px] font-medium border-0 ${ROLE_BADGE[member.role].className}`}
                   >
-                    {member.role === "account_admin" ? "Account Admin" : "Sales"}
+                    {ROLE_BADGE[member.role].label}
                   </Badge>
                   <Badge
                     variant="outline"
@@ -396,18 +400,14 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                       <TableCell className="py-4">
                         <Badge
                           variant="outline"
-                          className={`rounded-full px-3 py-0.5 text-[11px] font-medium border-0 ${
-                            member.role === "account_admin"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
+                          className={`rounded-full px-3 py-0.5 text-[11px] font-medium border-0 ${ROLE_BADGE[member.role].className}`}
                         >
-                          {member.role === "account_admin" ? (
-                            <ShieldCheck className="mr-1 h-3 w-3" />
-                          ) : (
+                          {member.role === "payment_initiator" ? (
                             <ShieldAlert className="mr-1 h-3 w-3" />
+                          ) : (
+                            <ShieldCheck className="mr-1 h-3 w-3" />
                           )}
-                          {member.role === "account_admin" ? "Account Admin" : "Sales"}
+                          {ROLE_BADGE[member.role].label}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-4">
@@ -487,9 +487,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
               <p className="font-bold text-[#5b371f] text-sm">Account Admin</p>
               <p className="text-xs text-[#754319]/80 mt-1">Full control over merchant settings, including configuration, profile settings, and team management.</p>
             </div>
+            <div className="p-4 rounded-2xl border border-purple-200/50 bg-purple-50/30">
+              <p className="font-bold text-[#5b371f] text-sm">Sales Admin</p>
+              <p className="text-xs text-[#754319]/80 mt-1">Can generate payment links or trigger push payments, and view every transaction made by the sales team, including QR customer payments. No access to settings or team management.</p>
+            </div>
             <div className="p-4 rounded-2xl border border-blue-200/50 bg-blue-50/30">
               <p className="font-bold text-[#5b371f] text-sm">Sales</p>
-              <p className="text-xs text-[#754319]/80 mt-1">Can generate payment links or trigger push payments. No access to settings or team management.</p>
+              <p className="text-xs text-[#754319]/80 mt-1">Can generate payment links or trigger push payments. Can only view their own transactions and QR customer payments. No access to settings or team management.</p>
             </div>
           </div>
         </Card>
@@ -590,6 +594,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-slate-200 bg-white">
                   <SelectItem value="payment_initiator" className="rounded-lg">Sales</SelectItem>
+                  <SelectItem value="sales_admin" className="rounded-lg">Sales Admin</SelectItem>
                   <SelectItem value="account_admin" className="rounded-lg">Account Admin</SelectItem>
                 </SelectContent>
               </Select>
@@ -693,6 +698,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-slate-200 bg-white">
                   <SelectItem value="payment_initiator" className="rounded-lg">Sales</SelectItem>
+                  <SelectItem value="sales_admin" className="rounded-lg">Sales Admin</SelectItem>
                   <SelectItem value="account_admin" className="rounded-lg">Account Admin</SelectItem>
                 </SelectContent>
               </Select>
