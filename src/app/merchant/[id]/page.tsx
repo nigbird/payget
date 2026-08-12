@@ -190,6 +190,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     return catalogItems.filter((i) => i.name.toLowerCase().includes(q))
   }, [catalogItems, itemSearch])
 
+  const DESCRIPTION_MAX_LENGTH = 500
+
   /**
    * Description sent to the provider is always a plain, capped string composed from the
    * cart plus whatever free text is typed after it — the pill/search UI is presentational
@@ -197,18 +199,18 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
    */
   const composeDescription = (nextCart: CartLine[], note: string) => {
     const itemsText = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ")
-    return [itemsText, note.trim()].filter(Boolean).join(", ").slice(0, 50)
+    return [itemsText, note.trim()].filter(Boolean).join(", ").slice(0, DESCRIPTION_MAX_LENGTH)
   }
 
-  /** Recomputes Amount + Description from the cart (+ any typed note). Amount stays untouched once the cart is emptied so a manually adjusted value isn't wiped. */
+  /** Recomputes Amount + Description from the cart (+ any typed note). Amount is fully cart-derived once a catalog exists, so it's reset to "" when the cart is empty rather than left stale. */
   const applyCartToForm = useCallback((nextCart: CartLine[], note: string) => {
     setRequestForm((prev) => {
-      const next = { ...prev, description: composeDescription(nextCart, note) }
-      if (nextCart.length > 0) {
-        const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
-        next.amount = String(Math.round(total * 100) / 100)
+      const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
+      return {
+        ...prev,
+        description: composeDescription(nextCart, note),
+        amount: nextCart.length > 0 ? String(Math.round(total * 100) / 100) : "",
       }
-      return next
     })
   }, [])
 
@@ -752,10 +754,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description</Label>
-                <span className="text-[9px] font-medium text-slate-400">{requestForm.description.length}/50</span>
-              </div>
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description</Label>
 
               {catalogItems.length > 0 ? (
                 <>
@@ -930,7 +929,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     disabled={isFormLocked}
                     value={requestForm.description}
                     onChange={(e) => {
-                      if (e.target.value.length <= 50) {
+                      if (e.target.value.length <= DESCRIPTION_MAX_LENGTH) {
                         setRequestForm({ ...requestForm, description: e.target.value });
                       }
                     }}
@@ -940,7 +939,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount</Label>
+                {catalogItems.length > 0 && (
+                  <span className="text-[9px] font-medium text-slate-400">Calculated from items</span>
+                )}
+              </div>
               <div className="relative group transition-all duration-200">
                 <Wallet className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                 <Input
@@ -948,11 +952,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   type="text"
                   inputMode="decimal"
                   placeholder="0.00"
-                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 font-medium text-sm text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                  className={`h-10 rounded-lg border-slate-200 pl-9 font-medium text-sm text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm ${catalogItems.length > 0 ? "bg-slate-50 cursor-not-allowed" : "bg-white"}`}
                   required
                   disabled={isFormLocked}
+                  readOnly={catalogItems.length > 0}
                   value={requestForm.amount}
                   onChange={(e) => {
+                    if (catalogItems.length > 0) return
                     const val = e.target.value;
                     if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) {
                       setRequestForm({ ...requestForm, amount: val });
