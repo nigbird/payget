@@ -23,9 +23,16 @@ import {
   FileText,
   Clock,
   ShieldAlert,
+  Plus,
+  Minus,
+  X,
+  Tag,
 } from "lucide-react"
 
 type PaymentFlowPhase = "idle" | "push_submitting" | "awaiting_pin" | "link_submitting"
+
+type CatalogItem = { id: string; name: string; price: number; categoryId: string | null }
+type CartLine = { itemId: string; name: string; price: number; qty: number }
 
 export function RequestPaymentModal({
   merchantId,
@@ -64,6 +71,70 @@ export function RequestPaymentModal({
     method: "BANK" as "BANK" | "TELEBIRR",
   })
 
+  const [catalogItems, setCatalogItems] = React.useState<CatalogItem[]>([])
+  const [cart, setCart] = React.useState<CartLine[]>([])
+  const [itemQuery, setItemQuery] = React.useState("")
+  const [showItemSuggestions, setShowItemSuggestions] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch(`/api/merchants/${merchantId}/items`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return
+        const items: CatalogItem[] = (data.items ?? [])
+          .filter((i: any) => i.isActive)
+          .map((i: any) => ({ id: i.id, name: i.name, price: i.price, categoryId: i.categoryId }))
+        setCatalogItems(items)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open, merchantId])
+
+  const filteredCatalogItems = React.useMemo(() => {
+    const q = itemQuery.trim().toLowerCase()
+    if (!q) return catalogItems
+    return catalogItems.filter((i) => i.name.toLowerCase().includes(q))
+  }, [catalogItems, itemQuery])
+
+  /** Recomputes Amount + Description from the cart. Fields stay freely editable afterwards. */
+  const applyCartToForm = React.useCallback((nextCart: CartLine[]) => {
+    if (nextCart.length === 0) return
+    const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
+    const description = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ").slice(0, 50)
+    setRequestForm((prev) => ({
+      ...prev,
+      amount: String(Math.round(total * 100) / 100),
+      description,
+    }))
+  }, [])
+
+  const addItemToCart = (item: CatalogItem) => {
+    setCart((prev) => {
+      const idx = prev.findIndex((c) => c.itemId === item.id)
+      const next =
+        idx >= 0
+          ? prev.map((c, i) => (i === idx ? { ...c, qty: c.qty + 1 } : c))
+          : [...prev, { itemId: item.id, name: item.name, price: item.price, qty: 1 }]
+      applyCartToForm(next)
+      return next
+    })
+    setItemQuery("")
+    setShowItemSuggestions(false)
+  }
+
+  const updateCartQty = (itemId: string, qty: number) => {
+    setCart((prev) => {
+      const next =
+        qty <= 0 ? prev.filter((c) => c.itemId !== itemId) : prev.map((c) => (c.itemId === itemId ? { ...c, qty } : c))
+      applyCartToForm(next)
+      return next
+    })
+  }
+
   const isFormLocked = paymentFlowPhase !== "idle"
   const isPushSubmitting = paymentFlowPhase === "push_submitting"
   const isAwaitingPin = paymentFlowPhase === "awaiting_pin"
@@ -97,6 +168,7 @@ export function RequestPaymentModal({
                 description: "The customer completed authorization on their phone.",
               })
               setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
+              setCart([])
             } else {
               toast({
                 variant: "destructive",
@@ -251,6 +323,7 @@ export function RequestPaymentModal({
       })
       setPaymentFlowPhase("idle")
       setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
+      setCart([])
       toast({
         title: "Payment Link Generated",
         description: "Share the secure payment link with your customer.",
@@ -371,6 +444,105 @@ export function RequestPaymentModal({
                 />
               </div>
             </div>
+
+            {catalogItems.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Quick Add Items (optional)
+                </Label>
+                <div className="relative">
+                  <Tag className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search your configured items..."
+                    className="h-9 rounded-lg border-slate-200 bg-white pl-9 text-xs shadow-sm"
+                    disabled={isFormLocked}
+                    value={itemQuery}
+                    onChange={(e) => {
+                      setItemQuery(e.target.value)
+                      setShowItemSuggestions(true)
+                    }}
+                    onFocus={() => setShowItemSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowItemSuggestions(false), 150)}
+                  />
+                  {showItemSuggestions && !isFormLocked && filteredCatalogItems.length > 0 && (
+                    <div className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {filteredCatalogItems.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => addItemToCart(item)}
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-amber-50"
+                        >
+                          <span className="truncate text-slate-700">{item.name}</span>
+                          <span className="shrink-0 font-semibold text-[#754319]">
+                            ETB {item.price.toLocaleString()}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {cart.length > 0 && (
+                  <div className="space-y-1.5 pt-0.5">
+                    {cart.map((line) => (
+                      <div
+                        key={line.itemId}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5"
+                      >
+                        <span className="flex-1 truncate text-xs text-slate-700">{line.name}</span>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={isFormLocked}
+                            onClick={() => updateCartQty(line.itemId, line.qty - 1)}
+                            className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-50"
+                            aria-label={`Decrease ${line.name} quantity`}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            disabled={isFormLocked}
+                            value={line.qty}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, "")
+                              if (digits === "") return
+                              updateCartQty(line.itemId, Math.max(1, Math.min(999, Number(digits))))
+                            }}
+                            className="h-5 w-8 rounded border border-slate-200 text-center text-xs"
+                          />
+                          <button
+                            type="button"
+                            disabled={isFormLocked}
+                            onClick={() => updateCartQty(line.itemId, line.qty + 1)}
+                            className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-50"
+                            aria-label={`Increase ${line.name} quantity`}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <span className="w-16 shrink-0 text-right text-xs font-semibold text-[#754319]">
+                          ETB {(line.price * line.qty).toLocaleString()}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isFormLocked}
+                          onClick={() => updateCartQty(line.itemId, 0)}
+                          className="text-slate-300 hover:text-rose-600 disabled:opacity-50"
+                          aria-label={`Remove ${line.name}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">

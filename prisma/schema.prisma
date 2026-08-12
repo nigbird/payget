@@ -194,6 +194,8 @@ model Merchant {
   subsidiaryAccountRequests SubsidiaryAccountRequest[]
   paymentEligibilityImports PaymentEligibilityImport[]
   paymentEligibleCustomers PaymentEligibleCustomer[]
+  itemCategories      MerchantItemCategory[]
+  items               MerchantItem[]
 }
 
 enum CashbackMode {
@@ -436,6 +438,42 @@ model MerchantQrCode {
   updatedAt  DateTime @updatedAt
 
   @@index([token])
+}
+
+/// Optional catalog category grouping a merchant's priced items. Purely a
+/// convenience for prefilling the Push Payment amount/description — items
+/// are never mandatory and don't affect the payment flow itself.
+model MerchantItemCategory {
+  id         String         @id @default(cuid())
+  merchantId String
+  merchant   Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  name       String
+  sortOrder  Int            @default(0)
+  isActive   Boolean        @default(true)
+  items      MerchantItem[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([merchantId, name])
+  @@index([merchantId])
+}
+
+model MerchantItem {
+  id         String                @id @default(cuid())
+  merchantId String
+  merchant   Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   MerchantItemCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name       String
+  price      Float
+  sortOrder  Int                   @default(0)
+  isActive   Boolean               @default(true)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@unique([merchantId, categoryId, name])
+  @@index([merchantId])
+  @@index([categoryId])
 }
 
 enum MerchantStatus {

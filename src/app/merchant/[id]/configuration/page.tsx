@@ -4,9 +4,10 @@ import { use, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { z } from "zod"
-import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download, RotateCw, ListChecks } from "lucide-react"
+import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download, RotateCw, ListChecks, Package } from "lucide-react"
 import { CashbackTab } from "@/components/merchant/cashback-tab"
 import { EligibleCustomersTab } from "@/components/merchant/eligible-customers-tab"
+import { ItemsTab } from "@/components/merchant/items-tab"
 import { useAuth } from "@/lib/auth-context"
 import { QRCodeCanvas } from "qrcode.react"
 import { Switch } from "@/components/ui/switch"
@@ -57,7 +58,7 @@ type ProfileData = {
   confirmPassword: string
 }
 
-type TabValue = "system" | "profile" | "cashback" | "eligibility"
+type TabValue = "system" | "profile" | "cashback" | "eligibility" | "items"
 
 const QR_DISPLAY_SIZE = 200
 const QR_DOWNLOAD_SIZE = 1024
@@ -611,6 +612,20 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   <span className="hidden sm:inline">Eligible Customers</span>
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab("items")}
+                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
+                  activeTab === "items"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
+                }`}
+                title="Items"
+              >
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  <span className="hidden sm:inline">Items</span>
+                </div>
+              </button>
             </div>
           </div>
 
@@ -955,8 +970,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               <EligibleCustomersTab merchantId={id} />
             )}
 
+            {activeTab === "items" && (
+              <ItemsTab merchantId={id} />
+            )}
+
             {/* Action Buttons */}
-            {activeTab !== "cashback" && activeTab !== "eligibility" && (
+            {activeTab !== "cashback" && activeTab !== "eligibility" && activeTab !== "items" && (
             <div className="mt-6 flex flex-col gap-3 border-t border-white/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 type="button"

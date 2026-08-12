@@ -1,6 +1,7 @@
 "use client"
 
 import { use, useEffect, useState, useMemo, useRef, useCallback } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import type { TransactionStatus } from "@/lib/db"
@@ -29,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
@@ -59,7 +61,12 @@ import {
   ExternalLink,
   FileText,
   Landmark,
+  Minus,
+  Tag,
 } from "lucide-react"
+
+type CatalogItem = { id: string; name: string; price: number; categoryId: string | null }
+type CartLine = { itemId: string; name: string; price: number; qty: number }
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -99,6 +106,115 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     payerPhone: "",
     method: "BANK" as "BANK" | "TELEBIRR",
   })
+
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([])
+  const [cart, setCart] = useState<CartLine[]>([])
+  const [showItemPicker, setShowItemPicker] = useState(false)
+  const [itemSearch, setItemSearch] = useState("")
+  const [itemPickerStyle, setItemPickerStyle] = useState<React.CSSProperties | null>(null)
+  const descriptionFieldRef = useRef<HTMLDivElement>(null)
+  const itemPickerDropdownRef = useRef<HTMLDivElement>(null)
+
+  const updateItemPickerPosition = useCallback(() => {
+    const el = descriptionFieldRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const openAbove = spaceBelow < 220 && rect.top > 220
+    setItemPickerStyle(
+      openAbove
+        ? {
+            position: "fixed",
+            bottom: window.innerHeight - rect.top + 4,
+            left: rect.left,
+            width: rect.width,
+            zIndex: 50,
+            pointerEvents: "auto",
+          }
+        : {
+            position: "fixed",
+            top: rect.bottom + 4,
+            left: rect.left,
+            width: rect.width,
+            zIndex: 50,
+            pointerEvents: "auto",
+          }
+    )
+  }, [])
+
+  useEffect(() => {
+    if (!showItemPicker) return
+    updateItemPickerPosition()
+    window.addEventListener("resize", updateItemPickerPosition)
+    window.addEventListener("scroll", updateItemPickerPosition, true)
+    return () => {
+      window.removeEventListener("resize", updateItemPickerPosition)
+      window.removeEventListener("scroll", updateItemPickerPosition, true)
+    }
+  }, [showItemPicker, updateItemPickerPosition])
+
+  useEffect(() => {
+    if (!showItemPicker) return
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (descriptionFieldRef.current?.contains(target)) return
+      if (itemPickerDropdownRef.current?.contains(target)) return
+      setShowItemPicker(false)
+    }
+    document.addEventListener("mousedown", onDocMouseDown)
+    return () => document.removeEventListener("mousedown", onDocMouseDown)
+  }, [showItemPicker])
+
+  useEffect(() => {
+    if (!isRequestPanelOpen) return
+    let cancelled = false
+    fetch(`/api/merchants/${id}/items`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return
+        const items: CatalogItem[] = (data.items ?? [])
+          .filter((i: any) => i.isActive)
+          .map((i: any) => ({ id: i.id, name: i.name, price: i.price, categoryId: i.categoryId }))
+        setCatalogItems(items)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [isRequestPanelOpen, id])
+
+  const filteredCatalogItems = useMemo(() => {
+    if (!itemSearch) return catalogItems
+    return catalogItems.filter((i) => i.name.toLowerCase().includes(itemSearch))
+  }, [catalogItems, itemSearch])
+
+  /** Recomputes Amount + Description from the cart. Fields stay freely editable afterwards. */
+  const applyCartToForm = useCallback((nextCart: CartLine[]) => {
+    if (nextCart.length === 0) return
+    const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
+    const description = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ").slice(0, 50)
+    setRequestForm((prev) => ({
+      ...prev,
+      amount: String(Math.round(total * 100) / 100),
+      description,
+    }))
+  }, [])
+
+  const updateCartQty = (item: CatalogItem, qty: number) => {
+    setCart((prev) => {
+      const exists = prev.some((c) => c.itemId === item.id)
+      const next =
+        qty <= 0
+          ? prev.filter((c) => c.itemId !== item.id)
+          : exists
+            ? prev.map((c) => (c.itemId === item.id ? { ...c, qty } : c))
+            : [...prev, { itemId: item.id, name: item.name, price: item.price, qty }]
+      applyCartToForm(next)
+      return next
+    })
+    // Newly selecting an item clears the search so the full catalog is browsable again for the next pick.
+    if (qty > 0) setItemSearch("")
+  }
 
   const [timeRange, setTimeRange] = useState<"today" | "week" | "month" | "year">("today")
 
@@ -257,6 +373,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 description: "The customer completed authorization on their phone.",
               })
               setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
+              setCart([])
             } else {
               toast({
                 variant: "destructive",
@@ -352,7 +469,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   }
 
   const preventLockedModalDismiss = (e: Event) => {
-    if (isFormLocked) e.preventDefault()
+    if (isFormLocked) {
+      e.preventDefault()
+      return
+    }
+    const target = e.target as Node | null
+    if (target && itemPickerDropdownRef.current?.contains(target)) {
+      e.preventDefault()
+    }
   }
 
   const isSuccessPushActive =
@@ -493,6 +617,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       setIsRequestPanelOpen(false)
       setIsSuccessModalOpen(true)
       setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
+      setCart([])
       toast({
         title: "Payment Link Generated",
         description: "Share the secure payment link with your customer.",
@@ -623,26 +748,119 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 />
               </div>
             </div>
+
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="description" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description</Label>
                 <span className="text-[9px] font-medium text-slate-400">{requestForm.description.length}/50</span>
               </div>
-              <div className="relative group transition-all duration-200">
+              <div ref={descriptionFieldRef} className="relative group transition-all duration-200">
                 <FileText className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
                 <Textarea
                   id="description"
                   placeholder="Order #1022"
-                  className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm"
+                  className={`min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm ${catalogItems.length > 0 ? "pr-9" : ""}`}
                   disabled={isFormLocked}
                   value={requestForm.description}
                   onChange={(e) => {
                     if (e.target.value.length <= 50) {
                       setRequestForm({ ...requestForm, description: e.target.value });
                     }
+                    if (catalogItems.length > 0) {
+                      setShowItemPicker(true)
+                      const parts = e.target.value.split(",")
+                      setItemSearch(parts[parts.length - 1].trim().toLowerCase())
+                    }
+                  }}
+                  onFocus={() => {
+                    if (catalogItems.length > 0) setShowItemPicker(true)
                   }}
                 />
+                {catalogItems.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={isFormLocked}
+                    onClick={() => {
+                      setShowItemPicker((v) => !v)
+                      setItemSearch("")
+                    }}
+                    className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-amber-600 hover:bg-amber-50 disabled:opacity-50"
+                    aria-label="Browse configured items"
+                    title="Browse configured items"
+                  >
+                    <Tag className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
+              {showItemPicker &&
+                !isFormLocked &&
+                catalogItems.length > 0 &&
+                itemPickerStyle &&
+                typeof document !== "undefined" &&
+                createPortal(
+                  <div
+                    ref={itemPickerDropdownRef}
+                    style={itemPickerStyle}
+                    className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+                  >
+                    {filteredCatalogItems.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-slate-400">No matching items.</p>
+                    ) : (
+                      filteredCatalogItems.map((item) => {
+                        const line = cart.find((c) => c.itemId === item.id)
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-amber-50/60"
+                          >
+                            <label className="flex flex-1 min-w-0 items-center gap-2 cursor-pointer">
+                              <Checkbox
+                                checked={!!line}
+                                onCheckedChange={(checked) => updateCartQty(item, checked ? 1 : 0)}
+                              />
+                              <span className="truncate text-slate-700">
+                                {item.name}{" "}
+                                <span className="font-semibold text-[#754319]">ETB {item.price.toLocaleString()}</span>
+                              </span>
+                            </label>
+                            {line && (
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateCartQty(item, line.qty - 1)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
+                                  aria-label={`Decrease ${item.name} quantity`}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={line.qty}
+                                  onChange={(e) => {
+                                    const digits = e.target.value.replace(/\D/g, "")
+                                    if (digits === "") return
+                                    updateCartQty(item, Math.max(1, Math.min(999, Number(digits))))
+                                  }}
+                                  className="h-5 w-8 rounded border border-slate-200 text-center text-xs"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => updateCartQty(item, line.qty + 1)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
+                                  aria-label={`Increase ${item.name} quantity`}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>,
+                  document.body
+                )}
             </div>
           </div>
         </div>
