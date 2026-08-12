@@ -29,10 +29,6 @@ import { useToast } from "@/hooks/use-toast"
 import { PasswordStrength } from "@/components/auth/password-strength"
 import { validatePassword } from "@/lib/password-policy"
 import {
-  sanitizeAccountNumberInput,
-  getAccountNumberValidationError,
-} from "@/lib/account-number"
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -219,11 +215,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
     if (!formData.companyName.trim()) nextErrors.companyName = "Company Name is required."
 
-    const accountNumberError = getAccountNumberValidationError(formData.accountNumber)
-    if (accountNumberError) {
-      nextErrors.accountNumber = accountNumberError
-    }
-
     // callbackUrl is optional for this page and not currently editable in the UI.
     if (formData.callbackUrl.trim()) {
       const parsed = callbackUrlSchema.safeParse(formData.callbackUrl.trim())
@@ -280,7 +271,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
       const updatePayload: any = {
         name: formData.companyName.trim(),
-        accountNumber: formData.accountNumber.trim(),
       }
 
       if (formData.callbackUrl.trim()) {
@@ -791,17 +781,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             inputMode="numeric"
                             maxLength={13}
                             value={formData.accountNumber}
-                            onChange={(e) =>
-                              setFormData((p) => ({
-                                ...p,
-                                accountNumber: sanitizeAccountNumberInput(e.target.value),
-                              }))
-                            }
+                            readOnly
+                            disabled
                             placeholder="7000123456789"
-                            className="h-11 rounded-2xl border-white/60 bg-white/85"
+                            className="h-11 rounded-2xl border-white/60 bg-white/50 text-[#5b371f]/80 cursor-not-allowed"
                           />
-                          <p className="text-xs text-muted-foreground">Must start with 7000, digits only, exactly 13 characters.</p>
-                          {errors.accountNumber && <p className="text-xs text-rose-600">{errors.accountNumber}</p>}
+                          <p className="text-xs text-muted-foreground">Account number is fixed after onboarding and cannot be changed.</p>
                         </div>
                       </div>
                     </CardContent>

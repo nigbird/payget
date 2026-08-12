@@ -85,7 +85,20 @@ export async function PATCH(
 
     const body = await request.json();
 
+    const currentMerchant = await db.getMerchantById(id);
+    if (!currentMerchant) {
+      return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
+    }
+
     if (body.accountNumber !== undefined) {
+      // Account number is fixed after onboarding; merchants cannot change it themselves.
+      if ((user as any).role === "MERCHANT") {
+        return NextResponse.json(
+          { error: "Account number cannot be changed from the merchant portal." },
+          { status: 403 }
+        );
+      }
+
       const accountErrors: Record<string, string> = {};
       const normalizedAccountNumber = validateAccountNumberField(
         body.accountNumber,
@@ -96,11 +109,6 @@ export async function PATCH(
         return NextResponse.json({ error: "Validation failed", errors: accountErrors }, { status: 400 });
       }
       body.accountNumber = normalizedAccountNumber;
-    }
-    
-    const currentMerchant = await db.getMerchantById(id);
-    if (!currentMerchant) {
-      return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
     }
 
     // Restrict logo updates:
