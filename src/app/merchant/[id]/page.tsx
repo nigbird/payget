@@ -62,7 +62,7 @@ import {
   FileText,
   Landmark,
   Minus,
-  Tag,
+  X,
 } from "lucide-react"
 
 type CatalogItem = { id: string; name: string; price: number; categoryId: string | null }
@@ -112,11 +112,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const [showItemPicker, setShowItemPicker] = useState(false)
   const [itemSearch, setItemSearch] = useState("")
   const [itemPickerStyle, setItemPickerStyle] = useState<React.CSSProperties | null>(null)
-  const descriptionFieldRef = useRef<HTMLDivElement>(null)
+  const itemFieldRef = useRef<HTMLDivElement>(null)
+  const itemSearchInputRef = useRef<HTMLInputElement>(null)
   const itemPickerDropdownRef = useRef<HTMLDivElement>(null)
 
   const updateItemPickerPosition = useCallback(() => {
-    const el = descriptionFieldRef.current
+    const el = itemFieldRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
     const spaceBelow = window.innerHeight - rect.bottom
@@ -157,7 +158,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     if (!showItemPicker) return
     const onDocMouseDown = (e: MouseEvent) => {
       const target = e.target as Node
-      if (descriptionFieldRef.current?.contains(target)) return
+      if (itemFieldRef.current?.contains(target)) return
       if (itemPickerDropdownRef.current?.contains(target)) return
       setShowItemPicker(false)
     }
@@ -184,23 +185,34 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   }, [isRequestPanelOpen, id])
 
   const filteredCatalogItems = useMemo(() => {
-    if (!itemSearch) return catalogItems
-    return catalogItems.filter((i) => i.name.toLowerCase().includes(itemSearch))
+    const q = itemSearch.trim().toLowerCase()
+    if (!q) return catalogItems
+    return catalogItems.filter((i) => i.name.toLowerCase().includes(q))
   }, [catalogItems, itemSearch])
 
-  /** Recomputes Amount + Description from the cart. Fields stay freely editable afterwards. */
-  const applyCartToForm = useCallback((nextCart: CartLine[]) => {
-    if (nextCart.length === 0) return
-    const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
-    const description = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ").slice(0, 50)
-    setRequestForm((prev) => ({
-      ...prev,
-      amount: String(Math.round(total * 100) / 100),
-      description,
-    }))
+  /**
+   * Description sent to the provider is always a plain, capped string composed from the
+   * cart plus whatever free text is typed after it — the pill/search UI is presentational
+   * only and never changes the shape of this value.
+   */
+  const composeDescription = (nextCart: CartLine[], note: string) => {
+    const itemsText = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ")
+    return [itemsText, note.trim()].filter(Boolean).join(", ").slice(0, 50)
+  }
+
+  /** Recomputes Amount + Description from the cart (+ any typed note). Amount stays untouched once the cart is emptied so a manually adjusted value isn't wiped. */
+  const applyCartToForm = useCallback((nextCart: CartLine[], note: string) => {
+    setRequestForm((prev) => {
+      const next = { ...prev, description: composeDescription(nextCart, note) }
+      if (nextCart.length > 0) {
+        const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
+        next.amount = String(Math.round(total * 100) / 100)
+      }
+      return next
+    })
   }, [])
 
-  const updateCartQty = (item: CatalogItem, qty: number) => {
+  const updateCartQty = (item: { id: string; name: string; price: number }, qty: number) => {
     setCart((prev) => {
       const exists = prev.some((c) => c.itemId === item.id)
       const next =
@@ -209,11 +221,21 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           : exists
             ? prev.map((c) => (c.itemId === item.id ? { ...c, qty } : c))
             : [...prev, { itemId: item.id, name: item.name, price: item.price, qty }]
-      applyCartToForm(next)
+      // Newly selecting an item clears the search/note so the full catalog is browsable again for the next pick.
+      const isNewSelection = !exists && qty > 0
+      applyCartToForm(next, isNewSelection ? "" : itemSearch)
+      if (isNewSelection) setItemSearch("")
       return next
     })
-    // Newly selecting an item clears the search so the full catalog is browsable again for the next pick.
-    if (qty > 0) setItemSearch("")
+  }
+
+  const removeLastCartItem = () => {
+    setCart((prev) => {
+      if (prev.length === 0) return prev
+      const next = prev.slice(0, -1)
+      applyCartToForm(next, itemSearch)
+      return next
+    })
   }
 
   const [timeRange, setTimeRange] = useState<"today" | "week" | "month" | "year">("today")
@@ -374,6 +396,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               })
               setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
               setCart([])
+              setItemSearch("")
             } else {
               toast({
                 variant: "destructive",
@@ -618,6 +641,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       setIsSuccessModalOpen(true)
       setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
       setCart([])
+      setItemSearch("")
       toast({
         title: "Payment Link Generated",
         description: "Share the secure payment link with your customer.",
@@ -726,6 +750,195 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 />
               </div>
             </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description</Label>
+                <span className="text-[9px] font-medium text-slate-400">{requestForm.description.length}/50</span>
+              </div>
+
+              {catalogItems.length > 0 ? (
+                <>
+                  <div
+                    ref={itemFieldRef}
+                    className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-sm"
+                  >
+                    {cart.map((line) => (
+                      <div
+                        key={line.itemId}
+                        className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 py-0.5 pl-2 pr-1 text-[11px] text-amber-900"
+                      >
+                        <span className="max-w-[90px] truncate font-medium">{line.name}</span>
+                        <button
+                          type="button"
+                          disabled={isFormLocked}
+                          onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, line.qty - 1)}
+                          className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 disabled:opacity-50"
+                          aria-label={`Decrease ${line.name} quantity`}
+                        >
+                          <Minus className="h-2.5 w-2.5" />
+                        </button>
+                        <span className="min-w-[10px] text-center font-semibold">{line.qty}</span>
+                        <button
+                          type="button"
+                          disabled={isFormLocked}
+                          onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, line.qty + 1)}
+                          className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 disabled:opacity-50"
+                          aria-label={`Increase ${line.name} quantity`}
+                        >
+                          <Plus className="h-2.5 w-2.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isFormLocked}
+                          onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, 0)}
+                          className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-rose-100 hover:text-rose-600 disabled:opacity-50"
+                          aria-label={`Remove ${line.name}`}
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex min-w-[100px] flex-1 items-center gap-1.5">
+                      {cart.length === 0 && <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+                      <input
+                        ref={itemSearchInputRef}
+                        type="text"
+                        disabled={isFormLocked}
+                        placeholder={cart.length === 0 ? "Order #1022, or search your items…" : "Add more…"}
+                        className="h-6 min-w-0 flex-1 border-0 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400 disabled:opacity-50"
+                        value={itemSearch}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setItemSearch(val)
+                          setShowItemPicker(true)
+                          applyCartToForm(cart, val)
+                        }}
+                        onFocus={() => setShowItemPicker(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && itemSearch === "" && cart.length > 0) {
+                            removeLastCartItem()
+                          }
+                        }}
+                      />
+                      {itemSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setItemSearch("")
+                            applyCartToForm(cart, "")
+                            itemSearchInputRef.current?.focus()
+                          }}
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-slate-300 hover:text-slate-600"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {showItemPicker &&
+                    !isFormLocked &&
+                    itemPickerStyle &&
+                    typeof document !== "undefined" &&
+                    createPortal(
+                      <div
+                        ref={itemPickerDropdownRef}
+                        style={itemPickerStyle}
+                        className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
+                      >
+                        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-3 py-1.5">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Select items</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowItemPicker(false)}
+                            className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                            aria-label="Close item list"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {filteredCatalogItems.length === 0 ? (
+                            <p className="px-3 py-2 text-xs text-slate-400">No matching items.</p>
+                          ) : (
+                            filteredCatalogItems.map((item) => {
+                              const line = cart.find((c) => c.itemId === item.id)
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-amber-50/60"
+                                >
+                                  <label className="flex flex-1 min-w-0 items-center gap-2 cursor-pointer">
+                                    <Checkbox
+                                      checked={!!line}
+                                      onCheckedChange={(checked) => updateCartQty(item, checked ? 1 : 0)}
+                                    />
+                                    <span className="truncate text-slate-700">
+                                      {item.name}{" "}
+                                      <span className="font-semibold text-[#754319]">ETB {item.price.toLocaleString()}</span>
+                                    </span>
+                                  </label>
+                                  {line && (
+                                    <div className="flex shrink-0 items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateCartQty(item, line.qty - 1)}
+                                        className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
+                                        aria-label={`Decrease ${item.name} quantity`}
+                                      >
+                                        <Minus className="h-3 w-3" />
+                                      </button>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={line.qty}
+                                        onChange={(e) => {
+                                          const digits = e.target.value.replace(/\D/g, "")
+                                          if (digits === "") return
+                                          updateCartQty(item, Math.max(1, Math.min(999, Number(digits))))
+                                        }}
+                                        className="h-5 w-8 rounded border border-slate-200 text-center text-xs"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => updateCartQty(item, line.qty + 1)}
+                                        className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
+                                        aria-label={`Increase ${item.name} quantity`}
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                </>
+              ) : (
+                <div className="relative group transition-all duration-200">
+                  <FileText className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
+                  <Textarea
+                    id="description"
+                    placeholder="Order #1022"
+                    className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm"
+                    disabled={isFormLocked}
+                    value={requestForm.description}
+                    onChange={(e) => {
+                      if (e.target.value.length <= 50) {
+                        setRequestForm({ ...requestForm, description: e.target.value });
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount</Label>
               <div className="relative group transition-all duration-200">
@@ -747,120 +960,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   }}
                 />
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="description" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description</Label>
-                <span className="text-[9px] font-medium text-slate-400">{requestForm.description.length}/50</span>
-              </div>
-              <div ref={descriptionFieldRef} className="relative group transition-all duration-200">
-                <FileText className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
-                <Textarea
-                  id="description"
-                  placeholder="Order #1022"
-                  className={`min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm ${catalogItems.length > 0 ? "pr-9" : ""}`}
-                  disabled={isFormLocked}
-                  value={requestForm.description}
-                  onChange={(e) => {
-                    if (e.target.value.length <= 50) {
-                      setRequestForm({ ...requestForm, description: e.target.value });
-                    }
-                    if (catalogItems.length > 0) {
-                      setShowItemPicker(true)
-                      const parts = e.target.value.split(",")
-                      setItemSearch(parts[parts.length - 1].trim().toLowerCase())
-                    }
-                  }}
-                  onFocus={() => {
-                    if (catalogItems.length > 0) setShowItemPicker(true)
-                  }}
-                />
-                {catalogItems.length > 0 && (
-                  <button
-                    type="button"
-                    disabled={isFormLocked}
-                    onClick={() => {
-                      setShowItemPicker((v) => !v)
-                      setItemSearch("")
-                    }}
-                    className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md text-amber-600 hover:bg-amber-50 disabled:opacity-50"
-                    aria-label="Browse configured items"
-                    title="Browse configured items"
-                  >
-                    <Tag className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              {showItemPicker &&
-                !isFormLocked &&
-                catalogItems.length > 0 &&
-                itemPickerStyle &&
-                typeof document !== "undefined" &&
-                createPortal(
-                  <div
-                    ref={itemPickerDropdownRef}
-                    style={itemPickerStyle}
-                    className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
-                  >
-                    {filteredCatalogItems.length === 0 ? (
-                      <p className="px-3 py-2 text-xs text-slate-400">No matching items.</p>
-                    ) : (
-                      filteredCatalogItems.map((item) => {
-                        const line = cart.find((c) => c.itemId === item.id)
-                        return (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-amber-50/60"
-                          >
-                            <label className="flex flex-1 min-w-0 items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={!!line}
-                                onCheckedChange={(checked) => updateCartQty(item, checked ? 1 : 0)}
-                              />
-                              <span className="truncate text-slate-700">
-                                {item.name}{" "}
-                                <span className="font-semibold text-[#754319]">ETB {item.price.toLocaleString()}</span>
-                              </span>
-                            </label>
-                            {line && (
-                              <div className="flex shrink-0 items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => updateCartQty(item, line.qty - 1)}
-                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
-                                  aria-label={`Decrease ${item.name} quantity`}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={line.qty}
-                                  onChange={(e) => {
-                                    const digits = e.target.value.replace(/\D/g, "")
-                                    if (digits === "") return
-                                    updateCartQty(item, Math.max(1, Math.min(999, Number(digits))))
-                                  }}
-                                  className="h-5 w-8 rounded border border-slate-200 text-center text-xs"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => updateCartQty(item, line.qty + 1)}
-                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
-                                  aria-label={`Increase ${item.name} quantity`}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })
-                    )}
-                  </div>,
-                  document.body
-                )}
             </div>
           </div>
         </div>

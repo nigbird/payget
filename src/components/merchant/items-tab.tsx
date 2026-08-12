@@ -230,11 +230,6 @@ export function ItemsTab({ merchantId }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Optionally configure the items you sell with their prices. They&apos;ll show up as a quick-pick list in
-            the push payment Description field — selecting one fills in the amount for you, and you can still edit
-            the amount and description by hand afterwards.
-          </p>
 
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-black/5 bg-slate-50/60 p-3">
             <div className="min-w-[180px] flex-1 space-y-1.5">
