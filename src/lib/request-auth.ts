@@ -16,6 +16,9 @@ export type ResolvedAuthUser = {
   branch?: string | null
   assignedMerchantIds?: string[]
   assignedMerchants?: { id: string; name: string }[]
+  /** Actual MerchantTeamMember role (account_admin/sales_admin/payment_initiator) for OTP-based SALES sessions. */
+  teamRole?: string | null
+  teamMemberId?: string | null
 }
 
 export async function requireAuthUser(request: Request): Promise<ResolvedAuthUser | null> {
@@ -76,7 +79,9 @@ export async function requireAuthUser(request: Request): Promise<ResolvedAuthUse
         : [],
       assignedMerchants: Array.isArray((payload as any).assignedMerchants)
         ? ((payload as any).assignedMerchants as { id: string; name: string }[])
-        : []
+        : [],
+      teamRole: typeof (payload as any).teamRole === "string" ? (payload as any).teamRole : null,
+      teamMemberId: typeof (payload as any).teamMemberId === "string" ? (payload as any).teamMemberId : null
     }
   } catch {
     return null
@@ -123,7 +128,9 @@ export async function requireAuthUserFromContext(): Promise<ResolvedAuthUser | n
       district: typeof payload.district === "string" ? payload.district : null,
       branch: typeof payload.branch === "string" ? payload.branch : null,
       assignedMerchantIds: Array.isArray((payload as any).assignedMerchantIds) ? ((payload as any).assignedMerchantIds as string[]) : [],
-      assignedMerchants: Array.isArray((payload as any).assignedMerchants) ? ((payload as any).assignedMerchants as { id: string; name: string }[]) : []
+      assignedMerchants: Array.isArray((payload as any).assignedMerchants) ? ((payload as any).assignedMerchants as { id: string; name: string }[]) : [],
+      teamRole: typeof (payload as any).teamRole === "string" ? (payload as any).teamRole : null,
+      teamMemberId: typeof (payload as any).teamMemberId === "string" ? (payload as any).teamMemberId : null
     }
   } catch {
     return null
@@ -155,5 +162,17 @@ export function canAccessMerchant(user: ResolvedAuthUser | null, targetMerchantI
   if (["ADMIN", "MAKER", "CHECKER", "HEAD_OFFICE"].includes(user.role || "")) return true
   if (user.role === "MERCHANT") return user.merchantId === targetMerchantId
   if (user.role === "SALES") return user.assignedMerchantIds?.includes(targetMerchantId) ?? false
+  return false
+}
+
+/**
+ * Whether this session has Account Admin-level control over its merchant:
+ * the merchant's own password login, or an OTP session for a team member
+ * whose MerchantTeamMember.role is account_admin.
+ */
+export function isMerchantAccountAdmin(user: ResolvedAuthUser | null) {
+  if (!user) return false
+  if (user.role === "MERCHANT") return true
+  if (user.role === "SALES") return user.teamRole === "account_admin"
   return false
 }

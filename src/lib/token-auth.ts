@@ -16,7 +16,11 @@ export type AccessTokenClaims = {
   district?: string | null
   branch?: string | null
   assignedMerchantIds?: string[]
+  assignedMerchants?: { id: string; name: string }[]
   sessionVersion?: number
+  /** Actual MerchantTeamMember role (account_admin/sales_admin/payment_initiator) for OTP-based SALES sessions. */
+  teamRole?: string | null
+  teamMemberId?: string | null
 }
 
 function getEnvOrThrow(name: string) {
@@ -48,7 +52,10 @@ export async function signAccessToken(claims: AccessTokenClaims, ttlSeconds?: nu
     district: claims.district ?? null,
     branch: claims.branch ?? null,
     assignedMerchantIds: claims.assignedMerchantIds ?? [],
-    sessionVersion: claims.sessionVersion
+    assignedMerchants: claims.assignedMerchants ?? [],
+    sessionVersion: claims.sessionVersion,
+    teamRole: claims.teamRole ?? null,
+    teamMemberId: claims.teamMemberId ?? null
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(claims.sub)

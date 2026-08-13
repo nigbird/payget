@@ -37,7 +37,10 @@ export default function MerchantPortalShell({
   const [assignedMerchants, setAssignedMerchants] = React.useState<{ id: string; name: string }[]>([])
 
   const isSalesUser = sessionUser?.role === "SALES"
-  const activeRole: MerchantTeamRole = isSalesUser ? "payment_initiator" : "account_admin"
+  const activeRole: MerchantTeamRole = isSalesUser
+    ? ((sessionUser?.teamRole as MerchantTeamRole | undefined) ?? "payment_initiator")
+    : "account_admin"
+  const isAccountAdmin = activeRole === "account_admin"
 
   const assignedMerchantsFromSession = sessionUser?.assignedMerchants
 
@@ -82,7 +85,7 @@ export default function MerchantPortalShell({
     [merchantId]
   )
 
-  const isRestrictedSalesPath = isSalesUser && restrictedSalesPaths.some((path) => pathname.startsWith(path))
+  const isRestrictedSalesPath = !isAccountAdmin && restrictedSalesPaths.some((path) => pathname.startsWith(path))
 
   React.useEffect(() => {
     if (status === "authenticated" && isRestrictedSalesPath) {
@@ -152,7 +155,7 @@ export default function MerchantPortalShell({
                 )}
               </div>
               <div className="leading-tight">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70 hidden md:block">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70 hidden md:block">{isAccountAdmin ? "Merchant Portal" : "Sales Portal"}</p>
                 <p className="text-sm font-bold text-[#5b371f] md:text-base">{merchant?.name || "Merchant"}</p>
               </div>
             </div>
@@ -161,7 +164,7 @@ export default function MerchantPortalShell({
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="hidden md:block">
                   <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/40">
-                    {isSalesUser ? "Sales Workspace" : "Management Modules"}
+                    {isAccountAdmin ? "Management Modules" : "Sales Workspace"}
                   </p>
                 </div>
 

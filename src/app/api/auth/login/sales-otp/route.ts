@@ -98,6 +98,7 @@ export async function POST(request: Request) {
 
     // Virtual user ID — not a real User row.
     const virtualUserId = `sales-${phone}`
+    const teamRole = String(selectedMember.role).toLowerCase()
 
     const accessToken = await signAccessToken(
       {
@@ -106,7 +107,10 @@ export async function POST(request: Request) {
         role: "SALES",
         merchantId: selectedMember.merchantId,
         assignedMerchantIds,
+        assignedMerchants,
         permissions: [],
+        teamRole,
+        teamMemberId: selectedMember.id,
       },
       SALES_SESSION_TTL_SECONDS
     )
@@ -133,6 +137,7 @@ export async function POST(request: Request) {
         email: selectedMember.email,
         name: selectedMember.name,
         role: "SALES",
+        teamRole,
         merchantId: selectedMember.merchantId,
         teamMemberId: selectedMember.id,
         assignedMerchantIds,

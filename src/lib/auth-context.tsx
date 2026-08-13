@@ -25,6 +25,7 @@ export type AuthUser = {
   assignedMerchantIds?: string[]
   assignedMerchants?: { id: string; name: string }[]
   teamMemberId?: string
+  teamRole?: string
 }
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated"

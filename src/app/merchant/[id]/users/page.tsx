@@ -141,8 +141,12 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
       if (emailError) errors.email = emailError
     }
     
-    const phoneError = memberForm.phone.trim() ? validateField('phone', memberForm.phone) : null
-    if (phoneError) errors.phone = phoneError
+    if (!memberForm.phone.trim()) {
+      errors.phone = 'Phone number is required to log in with OTP'
+    } else {
+      const phoneError = validateField('phone', memberForm.phone)
+      if (phoneError) errors.phone = phoneError
+    }
 
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -575,6 +579,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 type="tel"
                 placeholder="0912345678"
                 className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
+                required
                 maxLength={15}
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
@@ -679,6 +684,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 type="tel"
                 placeholder="+251934567890"
                 className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
+                required
                 maxLength={15}
                 value={memberForm.phone}
                 onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}

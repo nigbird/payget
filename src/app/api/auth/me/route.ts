@@ -72,6 +72,9 @@ export async function GET(request: Request) {
       teamMemberId: typeof (payload as any).teamMemberId === "string"
         ? (payload as any).teamMemberId
         : undefined,
+      teamRole: typeof (payload as any).teamRole === "string"
+        ? (payload as any).teamRole
+        : undefined,
     })
   } catch (e) {
     console.error("[/api/auth/me]", e)

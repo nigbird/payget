@@ -105,7 +105,7 @@ export default function MerchantLogin() {
     setSalesPhoneError(null)
     setSalesOtpError(null)
     if (!salesPhone.trim()) {
-      setSalesPhoneError("Enter the phone number registered for sales access.")
+      setSalesPhoneError("Enter the phone number registered for OTP login.")
       return
     }
 
@@ -312,7 +312,7 @@ export default function MerchantLogin() {
                         onClick={() => { resetSalesState(); setLoginMode("sales") }}
                         className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors"
                       >
-                        Sales Login
+                        Login with OTP
                       </button>
                     </div>
                     <Link
@@ -326,7 +326,7 @@ export default function MerchantLogin() {
               ) : (
                 <>
                   <div className="flex justify-between items-center">
-                    <Label className="text-sm font-semibold text-[#374151]">Sales OTP Login</Label>
+                    <Label className="text-sm font-semibold text-[#374151]">Login with OTP</Label>
                     <button
                       type="button"
                       onClick={() => { setLoginMode("email"); resetSalesState() }}

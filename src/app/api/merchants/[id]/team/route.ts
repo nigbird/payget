@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { prisma } from '@/lib/prisma'
-import { requireAuthUser, canAccessMerchant } from '@/lib/request-auth'
+import { requireAuthUser, canAccessMerchant, isMerchantAccountAdmin } from '@/lib/request-auth'
 import { writeAuditLog } from '@/lib/audit-log'
 import { requireCsrf } from '@/lib/request-security';
 
@@ -74,6 +74,18 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    if (!isMerchantAccountAdmin(user) && !['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE'].includes(user.role || '')) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: 'MERCHANT_TEAM_MEMBER_CREATE',
+        entityType: 'MERCHANT_TEAM_MEMBER',
+        entityId: null,
+        newValue: { result: 'failed', reason: 'FORBIDDEN_ROLE', merchantId: id },
+      })
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await request.json()
     const member = await db.addMerchantTeamMember({
       ...body,
@@ -140,6 +152,18 @@ export async function PATCH(
         entityType: 'MERCHANT_TEAM_MEMBER',
         entityId: null,
         newValue: { result: 'failed', reason: 'FORBIDDEN', merchantId: id },
+      })
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (!isMerchantAccountAdmin(user) && !['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE'].includes(user.role || '')) {
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: 'MERCHANT_TEAM_MEMBER_UPDATE',
+        entityType: 'MERCHANT_TEAM_MEMBER',
+        entityId: null,
+        newValue: { result: 'failed', reason: 'FORBIDDEN_ROLE', merchantId: id },
       })
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
