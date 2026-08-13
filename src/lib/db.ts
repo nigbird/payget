@@ -1,10 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { 
-  MerchantStatus as PrismaMerchantStatus, 
+import {
+  MerchantStatus as PrismaMerchantStatus,
   TransactionStatus as PrismaTransactionStatus,
   TeamRole,
   Merchant as PrismaMerchant,
   Transaction as PrismaTransaction,
+  TransactionItem as PrismaTransactionItem,
   MerchantDocument as PrismaMerchantDocument,
   User as PrismaUser,
   UserRole
@@ -71,6 +72,23 @@ export interface Merchant {
   };
 }
 
+/** Snapshot of a catalog item as it was at checkout time; see the TransactionItem Prisma model. */
+export interface TransactionItemLine {
+  id: string;
+  itemId: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+/** Item line to persist when creating a transaction; passed separately to db.addTransaction. */
+export interface TransactionItemInput {
+  itemId?: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface Transaction {
   id: string;
   merchantId: string;
@@ -86,6 +104,8 @@ export interface Transaction {
   transactionTimestamp: string;
   /** Core-banking FT / receipt number, once the payment has been resolved. */
   cbsreference?: string | null;
+  /** Only populated when explicitly included (e.g. getTransactionsByMerchant). */
+  items?: TransactionItemLine[];
   userCredentials: {
     phone: string;
     authToken: string;
@@ -156,7 +176,7 @@ function mapMerchant(
   } as any;
 }
 
-function mapTransaction(tx: PrismaTransaction): Transaction {
+function mapTransaction(tx: PrismaTransaction & { items?: PrismaTransactionItem[] }): Transaction {
   return {
     ...tx,
     payerPhone: tx.payerPhone ?? undefined,
@@ -178,7 +198,8 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
         usedAt?: string;
       };
     },
-    paymentMethod: tx.paymentMethod as PaymentMethod
+    paymentMethod: tx.paymentMethod as PaymentMethod,
+    items: tx.items?.map((i) => ({ id: i.id, itemId: i.itemId, name: i.name, price: i.price, quantity: i.quantity })),
   };
 }
 
@@ -558,7 +579,8 @@ export const db = {
   getTransactionsByMerchant: async (merchantId: string) => {
     const txs = await prisma.transaction.findMany({
       where: { merchantId },
-      orderBy: { timestamp: 'desc' }
+      orderBy: { timestamp: 'desc' },
+      include: { items: true }
     });
     return txs.map(mapTransaction);
   },
@@ -624,14 +646,28 @@ export const db = {
     return prisma.systemConfig.findFirst();
   },
 
-  addTransaction: async (tx: Transaction) => {
+  addTransaction: async (tx: Transaction, items?: TransactionItemInput[]) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { items: _readOnlyItems, ...rest } = tx;
     return prisma.transaction.create({
       data: {
-        ...tx,
-        status: mapToPrismaTransactionStatus(tx.status),
-        timestamp: new Date(tx.timestamp),
-        transactionTimestamp: new Date(tx.transactionTimestamp),
-        userCredentials: tx.userCredentials as any
+        ...rest,
+        status: mapToPrismaTransactionStatus(rest.status),
+        timestamp: new Date(rest.timestamp),
+        transactionTimestamp: new Date(rest.transactionTimestamp),
+        userCredentials: rest.userCredentials as any,
+        ...(items && items.length > 0
+          ? {
+              items: {
+                create: items.map((i) => ({
+                  itemId: i.itemId ?? null,
+                  name: i.name,
+                  price: i.price,
+                  quantity: i.quantity,
+                })),
+              },
+            }
+          : {}),
       }
     });
   },

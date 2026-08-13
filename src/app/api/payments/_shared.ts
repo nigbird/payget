@@ -20,6 +20,17 @@ export const PaymentInitiateSchema = z.object({
   payerAccount: z.string().optional(),
   // Optional hint from merchant; gateway overwrites the final reference.
   transactionReferenceHint: z.string().optional(),
+  // Optional cart snapshot from the merchant's item catalog, for the transactions item filter.
+  items: z
+    .array(
+      z.object({
+        itemId: z.string().optional(),
+        name: z.string().min(1),
+        price: z.number().finite().nonnegative(),
+        quantity: z.number().int().positive(),
+      })
+    )
+    .optional(),
 })
 
 export type PaymentInitiate = z.infer<typeof PaymentInitiateSchema>
@@ -107,7 +118,10 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     paymentMethod: input.method || "BANK",
   }
 
-  await db.addTransaction(tx)
+  await db.addTransaction(
+    tx,
+    input.items?.map((i) => ({ itemId: i.itemId ?? null, name: i.name, price: i.price, quantity: i.quantity }))
+  )
 
   const payload: PaymentPayload = PaymentPayloadSchema.parse({
     merchantId: input.merchantId,

@@ -64,6 +64,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [salesUserFilter, setSalesUserFilter] = useState<string>("all")
+  const [itemFilter, setItemFilter] = useState<string>("all")
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
 
@@ -144,6 +145,27 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     [teamMembers, transactions, isRestrictedSalesUser, selfTeamMember]
   )
 
+  /**
+   * Built from the transactions themselves (not the live item catalog) so a filter still
+   * works for renamed or deleted items — each option's value keys on itemId when the line
+   * still points at a catalog item, falling back to the snapshotted name otherwise.
+   */
+  const itemFilterOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    transactions.forEach((tx) => {
+      tx.items?.forEach((line) => {
+        const key = line.itemId ?? `name:${line.name.toLowerCase()}`
+        if (!options.has(key)) options.set(key, line.name)
+      })
+    })
+    return Array.from(options.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [transactions])
+
+  const itemLineKey = (line: { itemId: string | null; name: string }) =>
+    line.itemId ?? `name:${line.name.toLowerCase()}`
+
   const filtered = useMemo(() => {
     const from = dateRange.from
     const to = dateRange.to
@@ -158,6 +180,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       if (statusFilter === "failed" && tx.status !== "failed") return false
       if (statusFilter === "initiated" && !nonTerminalStatuses.includes(tx.status)) return false
       if (!transactionMatchesSalesUserFilter(tx, salesUserFilter, teamMembers)) return false
+      if (itemFilter !== "all" && !tx.items?.some((line) => itemLineKey(line) === itemFilter)) return false
 
       const txMs = new Date(tx.timestamp).getTime()
       if (fromMs !== undefined && txMs < fromMs) return false
@@ -171,7 +194,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       return true
     })
-  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, teamMembers])
+  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, itemFilter, teamMembers])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
 
@@ -188,13 +211,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const hasActiveFilters =
     statusFilter !== "all" ||
     salesUserFilter !== "all" ||
+    itemFilter !== "all" ||
     !!dateRange.from ||
     !!dateRange.to ||
     search.trim().length > 0
 
   useEffect(() => {
     setPageIndex(0)
-  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, pageSize])
+  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, itemFilter, pageSize])
 
   const pageItems = useMemo(() => {
     const safePageIndex = Math.min(Math.max(0, pageIndex), pageCount - 1)
@@ -294,6 +318,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     setStatusFilter("all")
     setSearch("")
     setSalesUserFilter("all")
+    setItemFilter("all")
     setDateRange({})
     setPageIndex(0)
     toast({ title: "Filters cleared", description: "Showing all transactions." })
@@ -427,6 +452,25 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       </Select>
                     </div>
                   </div>
+
+                  {itemFilterOptions.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item</Label>
+                      <Select value={itemFilter} onValueChange={setItemFilter}>
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Items</SelectItem>
+                          {itemFilterOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
 
                 {/* Sales Summary Report Section */}

@@ -283,6 +283,10 @@ export function RequestPaymentModal({
         serviceDescription,
         timestamp,
         method: requestForm.method,
+        items:
+          cart.length > 0
+            ? cart.map((line) => ({ itemId: line.itemId, name: line.name, price: line.price, quantity: line.qty }))
+            : undefined,
       }
 
       const endpoint = mode === "push" ? "/api/payments/push" : "/api/payments/link"
