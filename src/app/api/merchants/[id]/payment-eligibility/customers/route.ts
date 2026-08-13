@@ -15,13 +15,27 @@ export async function GET(
 
     const url = new URL(request.url)
     const search = url.searchParams.get("search")?.trim() ?? ""
-    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("pageSize")) || 50))
-    const requestedPage = Math.max(1, Number(url.searchParams.get("page")) || 1)
+    const download = url.searchParams.get("download") === "true"
 
     const where = {
       merchantId: id,
       ...(search ? { phone: { contains: search } } : {}),
     }
+
+    if (download) {
+      // Bypass pagination entirely so the client can export the full list in one request.
+      const customers = await prisma.paymentEligibleCustomer.findMany({
+        where,
+        orderBy: { phone: "asc" },
+      })
+      return NextResponse.json({
+        customers: customers.map((c) => ({ id: c.id, phone: c.phone, approvedAt: c.approvedAt.toISOString() })),
+        total: customers.length,
+      })
+    }
+
+    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("pageSize")) || 50))
+    const requestedPage = Math.max(1, Number(url.searchParams.get("page")) || 1)
 
     const total = await prisma.paymentEligibleCustomer.count({ where })
     const totalPages = Math.ceil(total / limit)

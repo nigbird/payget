@@ -32,16 +32,29 @@ export async function GET(
 
     const url = new URL(request.url)
     const search = url.searchParams.get("search")?.trim() ?? ""
-    const pageSize = Math.min(
-      100,
-      Math.max(1, Number(url.searchParams.get("pageSize")) || ELIGIBILITY_ROWS_PAGE_SIZE)
-    )
-    const requestedPage = Math.max(1, Number(url.searchParams.get("page")) || 1)
+    const download = url.searchParams.get("download") === "true"
 
     const where = {
       importId: active.id,
       ...(search ? { phone: { contains: search } } : {}),
     }
+
+    if (download) {
+      // Bypass pagination entirely so the client can export the full list in one request.
+      const rows = await prisma.paymentEligibilityImportRow.findMany({
+        where,
+        select: { id: true, phone: true },
+        orderBy: { phone: "asc" },
+        take: CASHBACK_LIMITS.importMaxRows,
+      })
+      return NextResponse.json({ rows, total: rows.length })
+    }
+
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Number(url.searchParams.get("pageSize")) || ELIGIBILITY_ROWS_PAGE_SIZE)
+    )
+    const requestedPage = Math.max(1, Number(url.searchParams.get("page")) || 1)
 
     const total = await prisma.paymentEligibilityImportRow.count({ where })
     const totalPages = Math.ceil(total / pageSize)

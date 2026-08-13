@@ -34,6 +34,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const merchantId = searchParams.get('merchantId');
     const search = searchParams.get('search');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
     const offset = (page - 1) * limit;
@@ -42,6 +44,16 @@ export async function GET(request: Request) {
 
     if (merchantId) {
       where.merchantId = merchantId;
+    }
+
+    if (dateFrom || dateTo) {
+      where.timestamp = {};
+      if (dateFrom) where.timestamp.gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        where.timestamp.lte = end;
+      }
     }
 
     if (search) {

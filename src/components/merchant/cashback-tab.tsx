@@ -1374,9 +1374,12 @@ export function CashbackTab({ merchantId }: Props) {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <StatusBadge status={tx.status} />
-                            <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={tx.status} />
+                              <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
+                            </div>
+                            <p className="text-xs text-slate-400">{new Date(tx.createdAt).toLocaleString()}</p>
                           </div>
                         </div>
 

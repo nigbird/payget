@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { downloadCsv } from "@/lib/export-csv"
 
 type Props = { merchantId: string }
 
@@ -170,6 +171,8 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editingPhone, setEditingPhone] = useState("")
   const [savingRowId, setSavingRowId] = useState<string | null>(null)
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
+  const [downloadingRows, setDownloadingRows] = useState(false)
 
   const [isApprovedOpen, setIsApprovedOpen] = useState(false)
   const [approvedSearch, setApprovedSearch] = useState("")
@@ -183,6 +186,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   const [approvedLoadedOnce, setApprovedLoadedOnce] = useState(false)
   const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set())
   const [submittingRemoval, setSubmittingRemoval] = useState(false)
+  const [downloadingApproved, setDownloadingApproved] = useState(false)
 
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false)
   const [addInput, setAddInput] = useState("")
@@ -284,6 +288,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       })
       setRowsPage(1)
       setRowsSearch("")
+      setSelectedRowIds(new Set())
       await refreshAll()
     } catch (e: unknown) {
       toast({
@@ -367,6 +372,12 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       )
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to remove phone number")
+      setSelectedRowIds((prev) => {
+        if (!prev.has(rowId)) return prev
+        const next = new Set(prev)
+        next.delete(rowId)
+        return next
+      })
       await refreshAll()
     } catch (e: unknown) {
       toast({
@@ -388,6 +399,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to submit")
       toast({ title: "Submitted for admin approval" })
+      setSelectedRowIds(new Set())
       await refreshAll()
     } catch (e: unknown) {
       toast({
@@ -411,6 +423,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       toast({ title: "List discarded" })
       setRowsPage(1)
       setRowsSearch("")
+      setSelectedRowIds(new Set())
       await loadStatus({ silent: true })
     } catch (e: unknown) {
       toast({
@@ -481,6 +494,55 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       else next.add(phone)
       return next
     })
+  }
+
+  const toggleSelectAllApproved = () => {
+    setSelectedPhones((prev) => {
+      const allSelected =
+        approvedCustomers.length > 0 && approvedCustomers.every((c) => prev.has(c.phone))
+      if (allSelected) {
+        const next = new Set(prev)
+        approvedCustomers.forEach((c) => next.delete(c.phone))
+        return next
+      }
+      const next = new Set(prev)
+      approvedCustomers.forEach((c) => next.add(c.phone))
+      return next
+    })
+  }
+
+  const handleDownloadApproved = async () => {
+    setDownloadingApproved(true)
+    try {
+      const params = new URLSearchParams({ download: "true" })
+      if (approvedSearchTerm) params.set("search", approvedSearchTerm)
+      const res = await fetch(
+        `/api/merchants/${merchantId}/payment-eligibility/customers?${params.toString()}`
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to download the list")
+      let exportCustomers: ApprovedCustomer[] = data.customers ?? []
+      if (selectedPhones.size > 0) {
+        exportCustomers = exportCustomers.filter((c) => selectedPhones.has(c.phone))
+      }
+      if (exportCustomers.length === 0) {
+        toast({ title: "No phone numbers to download" })
+        return
+      }
+      downloadCsv(
+        "approved_eligible_customers",
+        ["Phone", "Approved At"],
+        exportCustomers.map((c) => [c.phone, new Date(c.approvedAt).toLocaleString()])
+      )
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Download failed",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setDownloadingApproved(false)
+    }
   }
 
   const handleRequestRemoval = async () => {
@@ -573,6 +635,63 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       })
     } finally {
       setSubmittingAdd(false)
+    }
+  }
+
+  const toggleRowSelection = (rowId: string) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(rowId)) next.delete(rowId)
+      else next.add(rowId)
+      return next
+    })
+  }
+
+  const toggleSelectAllRows = () => {
+    setSelectedRowIds((prev) => {
+      const allSelected = rows.length > 0 && rows.every((row) => prev.has(row.id))
+      if (allSelected) {
+        const next = new Set(prev)
+        rows.forEach((row) => next.delete(row.id))
+        return next
+      }
+      const next = new Set(prev)
+      rows.forEach((row) => next.add(row.id))
+      return next
+    })
+  }
+
+  const handleDownloadRows = async () => {
+    setDownloadingRows(true)
+    try {
+      const params = new URLSearchParams({ download: "true" })
+      if (rowsSearchTerm) params.set("search", rowsSearchTerm)
+      const res = await fetch(
+        `/api/merchants/${merchantId}/payment-eligibility/pending/rows?${params.toString()}`
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to download the list")
+      let exportRows: PendingRow[] = data.rows ?? []
+      if (selectedRowIds.size > 0) {
+        exportRows = exportRows.filter((row) => selectedRowIds.has(row.id))
+      }
+      if (exportRows.length === 0) {
+        toast({ title: "No phone numbers to download" })
+        return
+      }
+      downloadCsv(
+        "eligible_customers_import",
+        ["Phone"],
+        exportRows.map((row) => [row.phone])
+      )
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Download failed",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setDownloadingRows(false)
     }
   }
 
@@ -690,6 +809,32 @@ export function EligibleCustomersTab({ merchantId }: Props) {
                 )}
               </div>
 
+              <div className="px-4 py-2 border-b border-black/5 flex items-center justify-between gap-2">
+                <label className="flex items-center gap-2 text-xs text-slate-600 select-none">
+                  <Checkbox
+                    checked={rows.length > 0 && rows.every((row) => selectedRowIds.has(row.id))}
+                    onCheckedChange={toggleSelectAllRows}
+                    disabled={rows.length === 0}
+                    aria-label="Select all phone numbers on this page"
+                  />
+                  {selectedRowIds.size > 0 ? `${selectedRowIds.size} selected` : "Select all"}
+                </label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-lg text-xs"
+                  onClick={handleDownloadRows}
+                  disabled={downloadingRows || rowsTotal === 0}
+                >
+                  {downloadingRows ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Download{selectedRowIds.size > 0 ? ` (${selectedRowIds.size})` : ""}
+                </Button>
+              </div>
+
               {(activeRequest.totalRows > 10 || rowsSearch) && (
                 <div className="px-3 pt-3">
                   <div className="relative">
@@ -731,7 +876,14 @@ export function EligibleCustomersTab({ merchantId }: Props) {
                   </div>
                 ) : (
                   rows.map((row) => (
-                    <div key={row.id} className="px-4 py-2 flex items-center justify-between gap-2 text-sm">
+                    <div key={row.id} className="px-4 py-2 flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={selectedRowIds.has(row.id)}
+                        onCheckedChange={() => toggleRowSelection(row.id)}
+                        aria-label={`Select ${row.phone}`}
+                        className="shrink-0"
+                      />
+                      <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
                       {editingRowId === row.id ? (
                         <>
                           <Input
@@ -798,6 +950,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
                           )}
                         </>
                       )}
+                      </div>
                     </div>
                   ))
                 )}
@@ -1005,6 +1158,35 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               placeholder="Search phone number..."
               className="h-10 rounded-2xl pl-9"
             />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <label className="flex items-center gap-2 text-xs text-slate-600 select-none">
+              <Checkbox
+                checked={
+                  approvedCustomers.length > 0 &&
+                  approvedCustomers.every((c) => selectedPhones.has(c.phone))
+                }
+                onCheckedChange={toggleSelectAllApproved}
+                disabled={approvedCustomers.length === 0 || hasActiveRequest}
+                aria-label="Select all approved phone numbers on this page"
+              />
+              {selectedPhones.size > 0 ? `${selectedPhones.size} selected` : "Select all"}
+            </label>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-lg text-xs"
+              onClick={handleDownloadApproved}
+              disabled={downloadingApproved || approvedTotal === 0}
+            >
+              {downloadingApproved ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Download{selectedPhones.size > 0 ? ` (${selectedPhones.size})` : ""}
+            </Button>
           </div>
 
           <div className="relative" aria-busy={approvedLoading}>

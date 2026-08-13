@@ -21,6 +21,8 @@ export async function GET(request: Request) {
     const merchantName = searchParams.get('merchantName');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
     const offset = (page - 1) * limit;
@@ -28,20 +30,30 @@ export async function GET(request: Request) {
     const where: any = {
       NOT: { status: 'SKIPPED' }, // Never show skipped transactions
     };
-    
+
     if (merchantId) {
       where.merchantId = merchantId;
     }
-    
+
     if (merchantName) {
       where.merchant = { name: merchantName };
     }
-    
+
     if (status && status !== 'ALL') {
       where.status = status;
       delete where.NOT; // Remove the NOT clause if status is explicitly set
     }
-    
+
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
+
     if (search) {
       where.OR = [
         { transactionReference: { contains: search, mode: 'insensitive' } },

@@ -101,6 +101,8 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
 
   const [search, setSearch] = useState('')
   const [merchantId, setMerchantId] = useState('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -120,6 +122,8 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
       const params = new URLSearchParams({ page: String(page), limit: '20' })
       if (search.trim()) params.set('search', search.trim())
       if (merchantId !== 'ALL') params.set('merchantId', merchantId)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
 
       const res = await fetch(`/api/admin/payment-reconciliation?${params}`)
       if (!res.ok) {
@@ -139,7 +143,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, merchantId, toast])
+  }, [page, search, merchantId, dateFrom, dateTo, toast])
 
   useEffect(() => {
     if (canView) fetchData()
@@ -317,6 +321,42 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                className="w-[160px]"
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(e) => {
+                  setDateFrom(e.target.value)
+                  setPage(1)
+                }}
+              />
+              <span className="text-sm text-muted-foreground">to</span>
+              <Input
+                type="date"
+                className="w-[160px]"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => {
+                  setDateTo(e.target.value)
+                  setPage(1)
+                }}
+              />
+              {(dateFrom || dateTo) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDateFrom('')
+                    setDateTo('')
+                    setPage(1)
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
           <Card>

@@ -215,6 +215,8 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [merchantFilter, setMerchantFilter] = useState<string>('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const hadSearchFocusRef = useRef(false)
   const [selectedItem, setSelectedItem] = useState<CashbackReconciliationItem | null>(null)
@@ -260,7 +262,9 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
       if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
       if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
       if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
-      
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+
       const res = await fetch(`/api/admin/cashback-reconciliation?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
@@ -314,11 +318,11 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchQuery, statusFilter, merchantFilter, itemsPerPage])
+  }, [debouncedSearchQuery, statusFilter, merchantFilter, dateFrom, dateTo, itemsPerPage])
 
   useEffect(() => {
     fetchData()
-  }, [currentPage, debouncedSearchQuery, statusFilter, merchantFilter, itemsPerPage])
+  }, [currentPage, debouncedSearchQuery, statusFilter, merchantFilter, dateFrom, dateTo, itemsPerPage])
 
   // Restore focus to search input after load if it had it before
   useEffect(() => {
@@ -633,8 +637,38 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                         <SelectItem value='RECONCILED'>Reconciled</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select 
-                      value={String(itemsPerPage)} 
+                    <div className='flex items-center gap-2'>
+                      <Input
+                        type='date'
+                        className='h-10 w-[150px] rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
+                        value={dateFrom}
+                        max={dateTo || undefined}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                      />
+                      <span className='text-sm text-[#6B7280]'>to</span>
+                      <Input
+                        type='date'
+                        className='h-10 w-[150px] rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
+                        value={dateTo}
+                        min={dateFrom || undefined}
+                        onChange={(e) => setDateTo(e.target.value)}
+                      />
+                      {(dateFrom || dateTo) && (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          className='h-10 rounded-[18px]'
+                          onClick={() => {
+                            setDateFrom('')
+                            setDateTo('')
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <Select
+                      value={String(itemsPerPage)}
                       onValueChange={(val) => {
                         setItemsPerPage(Number(val))
                       }}
