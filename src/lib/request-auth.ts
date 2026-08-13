@@ -139,20 +139,17 @@ export async function requireAuthUserFromContext(): Promise<ResolvedAuthUser | n
 
 export function userHasPermission(user: ResolvedAuthUser | null, permission: string) {
   if (!user) return false
-  if (user.role === "ADMIN") return true
   return (user.permissions ?? []).includes(permission)
 }
 
 export function userHasAnyPermission(user: ResolvedAuthUser | null, permissions: string[]) {
   if (!user) return false
-  if (user.role === "ADMIN") return true
   const perms = user.permissions ?? []
   return permissions.some((p) => perms.includes(p))
 }
 
 export function userCanAssignPermissions(user: ResolvedAuthUser | null, targetPermissions: string[]) {
   if (!user) return false
-  if (user.role === "ADMIN") return true
   const perms = user.permissions ?? []
   return targetPermissions.every((p) => perms.includes(p))
 }

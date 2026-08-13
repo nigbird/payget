@@ -217,12 +217,10 @@ export default function RoleManagementPage() {
     }
   }
 
-  const userRole = user?.role
   const userPermissions = user?.permissions || []
-  const isSuperAdmin = userRole === 'ADMIN'
-  const canCreateRole = isSuperAdmin || userPermissions.includes('ROLE_CREATE')
-  const canEditRole = isSuperAdmin || userPermissions.includes('ROLE_EDIT')
-  const canDeleteRole = isSuperAdmin || userPermissions.includes('ROLE_DELETE')
+  const canCreateRole = userPermissions.includes('ROLE_CREATE')
+  const canEditRole = userPermissions.includes('ROLE_EDIT')
+  const canDeleteRole = userPermissions.includes('ROLE_DELETE')
 
   const filteredRoles = roles.filter(role => 
     role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -303,7 +301,7 @@ export default function RoleManagementPage() {
                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-700/70">{category}</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                             {perms.map((perm) => {
-                              const hasThisPerm = isSuperAdmin || userPermissions.includes(perm.name)
+                              const hasThisPerm = userPermissions.includes(perm.name)
                               return (
                                 <div key={perm.id} className="flex items-start space-x-3 group/perm">
                                   <Checkbox 
@@ -617,7 +615,7 @@ export default function RoleManagementPage() {
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-700/70">{category}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                       {perms.map((perm) => {
-                        const hasThisPerm = isSuperAdmin || userPermissions.includes(perm.name)
+                        const hasThisPerm = userPermissions.includes(perm.name)
                         return (
                           <div key={perm.id} className="flex items-start space-x-3 group/perm">
                             <Checkbox 

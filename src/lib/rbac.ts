@@ -21,14 +21,12 @@ export async function isSuperAdmin(): Promise<boolean> {
 export async function hasPermission(permission: PermissionName): Promise<boolean> {
   const user = await requireAuthUserFromContext();
   if (!user) return false;
-  if (user.role === 'ADMIN') return true;
   return (user.permissions ?? []).includes(permission);
 }
 
 export async function hasAllPermissions(perms: PermissionName[]): Promise<boolean> {
   const user = await requireAuthUserFromContext();
   if (!user) return false;
-  if (user.role === 'ADMIN') return true;
   const userPermissions = user.permissions ?? [];
   return perms.every(p => userPermissions.includes(p));
 }
@@ -36,7 +34,6 @@ export async function hasAllPermissions(perms: PermissionName[]): Promise<boolea
 export async function hasAnyPermission(perms: PermissionName[]): Promise<boolean> {
   const user = await requireAuthUserFromContext();
   if (!user) return false;
-  if (user.role === 'ADMIN') return true;
   const userPermissions = user.permissions ?? [];
   return perms.some(p => userPermissions.includes(p));
 }
@@ -44,7 +41,6 @@ export async function hasAnyPermission(perms: PermissionName[]): Promise<boolean
 export async function canAssignPermissions(targetPermissions: string[]): Promise<boolean> {
   const user = await requireAuthUserFromContext();
   if (!user) return false;
-  if (user.role === 'ADMIN') return true;
   const userPermissions = user.permissions ?? [];
   return targetPermissions.every(p => userPermissions.includes(p));
 }

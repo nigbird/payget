@@ -23,13 +23,12 @@ import { ApprovalsQueue } from '@/components/reconciliation/approvals-queue'
 export default function ReconciliationPage() {
   const { user } = useAuth()
 
-  const isAdmin = user?.role === 'ADMIN'
   const permissions = useMemo(() => user?.permissions || [], [user])
 
-  const canViewPayments = isAdmin || permissions.includes('payment.reconciliation.view')
-  const canViewCashback = isAdmin || permissions.includes('cashback.reconciliation.view')
-  const canManagePayments = isAdmin || permissions.includes('payment.reconciliation.manage')
-  const canManageCashback = isAdmin || permissions.includes('cashback.reconciliation.manage')
+  const canViewPayments = permissions.includes('payment.reconciliation.view')
+  const canViewCashback = permissions.includes('cashback.reconciliation.view')
+  const canManagePayments = permissions.includes('payment.reconciliation.manage')
+  const canManageCashback = permissions.includes('cashback.reconciliation.manage')
 
   const canApproveAnything = canManagePayments || canManageCashback
 

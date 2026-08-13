@@ -291,10 +291,8 @@ export default function UserManagementPage() {
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
-  const userRole = user?.role
   const userPermissions = user?.permissions || []
-  const isSuperAdmin = userRole === 'ADMIN'
-  const canCreateUser = isSuperAdmin || userPermissions.includes('USER_CREATE')
+  const canCreateUser = userPermissions.includes('USER_CREATE')
 
   const handleExport = () => {
     downloadCsv(`users-${currentTab}`, [
@@ -420,7 +418,7 @@ export default function UserManagementPage() {
                       <SelectContent className="rounded-xl border-slate-200 bg-white">
                         {roles.filter(role => role.name.toLowerCase() !== 'merchant').map((role) => {
                           const rolePerms = role.permissions.map(p => p.permission.name)
-                          const hasEscalation = !isSuperAdmin && rolePerms.some(p => !userPermissions.includes(p))
+                          const hasEscalation = rolePerms.some(p => !userPermissions.includes(p))
                           
                           return (
                             <SelectItem 
