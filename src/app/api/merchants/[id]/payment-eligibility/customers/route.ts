@@ -23,10 +23,12 @@ export async function GET(
     }
 
     if (download) {
-      // Bypass pagination entirely so the client can export the full list in one request.
+      // Bypass pagination entirely so the client can export or bulk-select the full list in
+      // one request. Capped well above any realistic approved list so this stays a single query.
       const customers = await prisma.paymentEligibleCustomer.findMany({
         where,
         orderBy: { phone: "asc" },
+        take: 20_000,
       })
       return NextResponse.json({
         customers: customers.map((c) => ({ id: c.id, phone: c.phone, approvedAt: c.approvedAt.toISOString() })),

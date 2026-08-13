@@ -187,6 +187,9 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set())
   const [submittingRemoval, setSubmittingRemoval] = useState(false)
   const [downloadingApproved, setDownloadingApproved] = useState(false)
+  const [selectingAllApproved, setSelectingAllApproved] = useState(false)
+  /** True once "select all N matching" has run — lets the banner read as a completed action. */
+  const [allApprovedSelected, setAllApprovedSelected] = useState(false)
 
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false)
   const [addInput, setAddInput] = useState("")
@@ -464,6 +467,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
 
   const openApprovedList = () => {
     setSelectedPhones(new Set())
+    setAllApprovedSelected(false)
     setApprovedSearch("")
     setApprovedSearchTerm("")
     setApprovedPage(1)
@@ -487,7 +491,15 @@ export function EligibleCustomersTab({ merchantId }: Props) {
     loadApprovedCustomers(approvedSearchTerm, approvedPage, approvedPageSize)
   }, [approvedSearchTerm, approvedPage, approvedPageSize, isApprovedOpen, loadApprovedCustomers])
 
+  // The matching set changes under a "select all" once the search term changes, so drop the
+  // selection rather than let it silently carry over customers outside the new filter.
+  useEffect(() => {
+    setSelectedPhones(new Set())
+    setAllApprovedSelected(false)
+  }, [approvedSearchTerm])
+
   const togglePhone = (phone: string) => {
+    setAllApprovedSelected(false)
     setSelectedPhones((prev) => {
       const next = new Set(prev)
       if (next.has(phone)) next.delete(phone)
@@ -497,6 +509,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
   }
 
   const toggleSelectAllApproved = () => {
+    setAllApprovedSelected(false)
     setSelectedPhones((prev) => {
       const allSelected =
         approvedCustomers.length > 0 && approvedCustomers.every((c) => prev.has(c.phone))
@@ -509,6 +522,36 @@ export function EligibleCustomersTab({ merchantId }: Props) {
       approvedCustomers.forEach((c) => next.add(c.phone))
       return next
     })
+  }
+
+  /** Selects every approved customer matching the current search, not just the loaded page. */
+  const selectAllApprovedMatching = async () => {
+    setSelectingAllApproved(true)
+    try {
+      const params = new URLSearchParams({ download: "true" })
+      if (approvedSearchTerm) params.set("search", approvedSearchTerm)
+      const res = await fetch(
+        `/api/merchants/${merchantId}/payment-eligibility/customers?${params.toString()}`
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to select all customers")
+      const phones: string[] = (data.customers ?? []).map((c: ApprovedCustomer) => c.phone)
+      setSelectedPhones(new Set(phones))
+      setAllApprovedSelected(true)
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Could not select all",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setSelectingAllApproved(false)
+    }
+  }
+
+  const clearApprovedSelection = () => {
+    setSelectedPhones(new Set())
+    setAllApprovedSelected(false)
   }
 
   const handleDownloadApproved = async () => {
@@ -1057,10 +1100,6 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               <ListChecks className="w-5 h-5 text-primary" />
               Approved Eligible Customers
             </DialogTitle>
-            <DialogDescription>
-              Add new numbers, or select customers to request their removal. A different admin must approve
-              either change before it takes effect.
-            </DialogDescription>
           </DialogHeader>
 
           {!isAddPanelOpen ? (
@@ -1188,6 +1227,39 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               Download{selectedPhones.size > 0 ? ` (${selectedPhones.size})` : ""}
             </Button>
           </div>
+
+          {!hasActiveRequest &&
+            approvedCustomers.length > 0 &&
+            approvedTotal > approvedCustomers.length &&
+            approvedCustomers.every((c) => selectedPhones.has(c.phone)) &&
+            !allApprovedSelected && (
+              <div className="rounded-xl bg-amber-50/70 border border-amber-100 px-3 py-2 text-xs text-amber-900 flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  All {approvedCustomers.length} on this page are selected.
+                </span>
+                <button
+                  onClick={selectAllApprovedMatching}
+                  disabled={selectingAllApproved}
+                  className="font-semibold text-[#754319] hover:underline disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {selectingAllApproved && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Select all {approvedTotal.toLocaleString()}
+                  {approvedSearchTerm ? " matching" : ""} customers
+                </button>
+              </div>
+            )}
+
+          {allApprovedSelected && (
+            <div className="rounded-xl bg-amber-50/70 border border-amber-100 px-3 py-2 text-xs text-amber-900 flex flex-wrap items-center justify-between gap-2">
+              <span>All {selectedPhones.size.toLocaleString()} customers are selected.</span>
+              <button
+                onClick={clearApprovedSelection}
+                className="font-semibold text-[#754319] hover:underline"
+              >
+                Clear selection
+              </button>
+            </div>
+          )}
 
           <div className="relative" aria-busy={approvedLoading}>
             {approvedLoading && approvedLoadedOnce && (
