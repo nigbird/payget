@@ -502,17 +502,14 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                     <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                   ) : (
                     <>
-                      <Lock className="w-5 h-5 opacity-80" />
+                      
                       <span>{amount ? `Pay ETB ${parseFloat(amount).toFixed(2)}` : "Pay Now"}</span>
-                      <ArrowRight className="w-5 h-5" />
+                      
                     </>
                   )}
                 </button>
 
-                <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5 pt-1">
-                  <Lock className="w-3 h-3" />
-                  Secured by Nib Bank
-                </p>
+      
               </form>
             </div>
           )}
