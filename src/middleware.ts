@@ -171,6 +171,12 @@ export async function middleware(req: NextRequest) {
       if (userPermissions.includes("ROLE_CREATE")) return "/admin/roles"
       if (userPermissions.includes("CONFIGURATION_MANAGE")) return "/admin/configuration"
       if (userPermissions.includes("AUDIT_LOG_VIEW")) return "/admin/audit-logs"
+      if (
+        userPermissions.includes("payment.reconciliation.view") ||
+        userPermissions.includes("payment.reconciliation.manage") ||
+        userPermissions.includes("cashback.reconciliation.view") ||
+        userPermissions.includes("cashback.reconciliation.manage")
+      ) return "/admin/reconciliation"
       return null
     }
 
