@@ -366,33 +366,30 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
               {/* Amount entry — centered, visually balanced */}
-              <div className="text-center py-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Amount</p>
+              <div className="text-center py-2">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mx-auto w-full max-w-[240px] px-4 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Amount</p>
 
-                {/* Number perfectly centered, no inline prefix to throw off balance */}
-                <input
-                  autoFocus
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
-                  }}
-                  className="text-6xl font-black text-amber-500 text-center bg-transparent border-none outline-none w-full max-w-[260px] placeholder:text-slate-400/25 caret-amber-500"
-                />
+                  {/* Number perfectly centered, no inline prefix to throw off balance */}
+                  <input
+                    autoFocus
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
+                    }}
+                    className="text-5xl font-black text-amber-500 text-center bg-transparent border-none outline-none w-full placeholder:text-slate-400/25 caret-amber-500"
+                  />
 
-                {/* Underline centered directly under the number */}
-                <div className="w-28 h-0.5 bg-amber-300/70 rounded-full mx-auto mt-1" />
+                  {/* Underline centered directly under the number */}
+                  <div className="w-28 h-0.5 bg-amber-300/70 rounded-full mx-auto mt-1" />
 
-                {/* Currency label below underline — clean and balanced */}
-                <p className="text-sm font-semibold text-slate-400/60 mt-1.5">ETB</p>
-
-                {/* "Tap to enter" hint — fades away when typing */}
-                {!amount && (
-                  <p className="text-[10px] text-slate-400/40 mt-1">Tap to enter amount</p>
-                )}
+                  {/* Currency label below underline — clean and balanced */}
+                  <p className="text-sm font-semibold text-slate-400/60 mt-1.5">ETB</p>
+                </div>
 
                 {/* Merchant context — text only, no redundant logo fetch */}
                 <p className="text-xs text-slate-400 mt-3">
