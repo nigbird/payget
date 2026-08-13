@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { Loader2, Plus, Trash2, Pencil, Check, X, Package, FolderPlus, Tag } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Loader2, Plus, Trash2, Pencil, Check, X, Package, FolderPlus, Tag, Upload, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -48,6 +48,9 @@ export function ItemsTab({ merchantId }: Props) {
   const [editItemForm, setEditItemForm] = useState({ name: "", price: "", categoryId: UNCATEGORIZED })
   const [savingItemId, setSavingItemId] = useState<string | null>(null)
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null)
+
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     try {
@@ -110,6 +113,47 @@ export function ItemsTab({ merchantId }: Props) {
     } finally {
       setDeletingCategoryId(null)
     }
+  }
+
+  const handleImport = async (file: File) => {
+    setImporting(true)
+    const fd = new FormData()
+    fd.append("file", file)
+    try {
+      const res = await fetch(`/api/merchants/${merchantId}/items/import`, {
+        method: "POST",
+        body: fd,
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Import failed")
+      const parts = [`${data.created} added`, `${data.updated} updated`]
+      if (data.parseErrors?.length) parts.push(`${data.parseErrors.length} skipped`)
+      toast({ title: "Import complete", description: parts.join(", ") })
+      await load()
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Import failed",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  const downloadTemplate = () => {
+    const csv = "Item Name,Price,Category\nEspresso,70,Drinks\nBurger,250,Main Course\n"
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.setAttribute("hidden", "")
+    a.setAttribute("href", url)
+    a.setAttribute("download", "items_import_template.csv")
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
   }
 
   const handleAddItem = async () => {
@@ -224,10 +268,47 @@ export function ItemsTab({ merchantId }: Props) {
     <div className="space-y-6">
       <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
-            <Package className="h-5 w-5 text-[#754319]" />
-            Items & Categories
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
+              <Package className="h-5 w-5 text-[#754319]" />
+              Items & Categories
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.txt,.xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handleImport(f)
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-xl text-xs"
+                onClick={downloadTemplate}
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Template
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-xl text-xs"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {importing ? "Importing..." : "Import"}
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
 
