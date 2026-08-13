@@ -385,7 +385,7 @@ export async function executeTransferForTransaction(cashbackTransactionId: strin
     if (cashbackTx.customerPhone) {
       sendSms(
         cashbackTx.customerPhone,
-        `Your cashback of ${cashbackTx.cashbackAmount.toFixed(2)} has been credited to your account. Thank you!`
+        `Dear Customer, Your cashback of ${cashbackTx.cashbackAmount.toFixed(2)} has been successfully credited to your account. Thank you!`
       ).catch((err) => {
         console.error("[cashback] SMS notification failed", { error: String(err?.message ?? err) })
       })
