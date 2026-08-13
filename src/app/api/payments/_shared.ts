@@ -118,10 +118,11 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     paymentMethod: input.method || "BANK",
   }
 
-  await db.addTransaction(
+  const created = await db.addTransaction(
     tx,
     input.items?.map((i) => ({ itemId: i.itemId ?? null, name: i.name, price: i.price, quantity: i.quantity }))
   )
+  const itemsPersisted = (created as { items?: unknown[] }).items?.length ?? 0
 
   const payload: PaymentPayload = PaymentPayloadSchema.parse({
     merchantId: input.merchantId,
@@ -148,6 +149,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     token,
     customerPinToken: token,
     createdAt,
+    itemsPersisted,
   }
 }
 

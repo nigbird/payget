@@ -649,7 +649,7 @@ export const db = {
   addTransaction: async (tx: Transaction, items?: TransactionItemInput[]) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { items: _readOnlyItems, ...rest } = tx;
-    return prisma.transaction.create({
+    const created = await prisma.transaction.create({
       data: {
         ...rest,
         status: mapToPrismaTransactionStatus(rest.status),
@@ -668,8 +668,16 @@ export const db = {
               },
             }
           : {}),
-      }
+      },
+      include: { items: true },
     });
+    if (items && items.length > 0 && created.items.length !== items.length) {
+      // Should be impossible given the nested create above — logged so a mismatch is never silent.
+      console.error(
+        `addTransaction: sent ${items.length} item line(s) for tx ${created.id} but only ${created.items.length} persisted`
+      );
+    }
+    return created;
   },
 
   // Merchant Update Token Methods

@@ -212,6 +212,8 @@ export async function POST(request: Request) {
         transactionId: result.tx.id,
         transactionReference: result.transactionReference,
         amount: result.tx.amount,
+        itemsReceived: paymentInput.items ?? null,
+        itemsPersisted: result.itemsPersisted,
       },
     })
 

@@ -453,9 +453,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     </div>
                   </div>
 
-                  {itemFilterOptions.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item</Label>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item</Label>
+                    {itemFilterOptions.length > 0 ? (
                       <Select value={itemFilter} onValueChange={setItemFilter}>
                         <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
                           <SelectValue />
@@ -469,8 +469,17 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  )}
+                    ) : (
+                      <Select disabled value="none">
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold text-slate-400">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No items used yet</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </div>
 
                 {/* Sales Summary Report Section */}
