@@ -1,7 +1,8 @@
 import crypto from "crypto"
 import { NextResponse } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
+import { createGatewayTransactionAndToken } from "@/app/api/payments/_shared"
 import { db } from "@/lib/db"
 import {
   sendProviderPushPayment,
@@ -11,7 +12,12 @@ import {
 import { writeAuditLog } from "@/lib/audit-log"
 import { QR_CUSTOMER_INITIATOR_ID } from "@/lib/transaction-initiator"
 
-const CartItemSchema = PaymentInitiateSchema.shape.items.value.element.optional()
+const CartItemSchema = z.object({
+  itemId: z.string().optional(),
+  name: z.string().min(1),
+  price: z.number().finite().nonnegative(),
+  quantity: z.number().int().positive(),
+})
 
 export async function GET(
   request: Request,
