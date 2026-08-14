@@ -16,7 +16,11 @@ import {
   Building,
   FileText,
   Receipt,
-  Lock
+  Lock,
+  Tag,
+  Plus,
+  Minus,
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -50,6 +54,52 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
 
+  type CatalogItem = { id: string; name: string; price: number; categoryId: string | null }
+  type CartLine = { itemId: string; name: string; price: number; qty: number }
+
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([])
+  const [cart, setCart] = useState<CartLine[]>([])
+  const [itemQuery, setItemQuery] = useState("")
+  const [showItemSuggestions, setShowItemSuggestions] = useState(false)
+
+  const filteredCatalogItems = (() => {
+    const q = itemQuery.trim().toLowerCase()
+    if (!q) return catalogItems
+    return catalogItems.filter((i) => i.name.toLowerCase().includes(q))
+  })()
+
+  /** Recomputes Amount + Description from the cart. Fields stay freely editable afterwards. */
+  const applyCartToForm = (nextCart: CartLine[]) => {
+    if (nextCart.length === 0) return
+    const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
+    const desc = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ").slice(0, 50)
+    setAmount(String(Math.round(total * 100) / 100))
+    setDescription(desc)
+  }
+
+  const addItemToCart = (item: CatalogItem) => {
+    setCart((prev) => {
+      const idx = prev.findIndex((c) => c.itemId === item.id)
+      const next =
+        idx >= 0
+          ? prev.map((c, i) => (i === idx ? { ...c, qty: c.qty + 1 } : c))
+          : [...prev, { itemId: item.id, name: item.name, price: item.price, qty: 1 }]
+      applyCartToForm(next)
+      return next
+    })
+    setItemQuery("")
+    setShowItemSuggestions(false)
+  }
+
+  const updateCartQty = (itemId: string, qty: number) => {
+    setCart((prev) => {
+      const next =
+        qty <= 0 ? prev.filter((c) => c.itemId !== itemId) : prev.map((c) => (c.itemId === itemId ? { ...c, qty } : c))
+      applyCartToForm(next)
+      return next
+    })
+  }
+
   const handleDownloadReceipt = async () => {
     const id = transaction?.id
     if (!id) return
@@ -78,7 +128,9 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       try {
         const response = await fetch(`/api/pay/qr/${token}`)
         if (response.ok) {
-          setMerchant(await response.json())
+          const data = await response.json()
+          setMerchant(data)
+          setCatalogItems(data.items ?? [])
         } else {
           setView("failed")
         }
@@ -307,7 +359,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
             <Button
               variant="outline"
               className="w-full h-14 rounded-3xl border border-amber-200 text-amber-500 font-bold text-base bg-white hover:bg-amber-50"
-              onClick={() => { setView("input"); setAmount(""); setPhone(""); setDescription("") }}
+              onClick={() => { setView("input"); setAmount(""); setPhone(""); setDescription(""); setCart([]) }}
             >
               Done
             </Button>
@@ -470,6 +522,101 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                       >
                         {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Add Items */}
+                {catalogItems.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Quick Add Items (optional)</p>
+                    <div className="px-3 pb-3 pt-2 space-y-2">
+                      <div className="relative">
+                        <Tag className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-amber-500" />
+                        <input
+                          type="text"
+                          placeholder="Search merchant items..."
+                          value={itemQuery}
+                          onChange={(e) => {
+                            setItemQuery(e.target.value)
+                            setShowItemSuggestions(true)
+                          }}
+                          onFocus={() => setShowItemSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowItemSuggestions(false), 150)}
+                          className="w-full h-9 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-medium text-slate-800 outline-none placeholder:text-slate-400/60"
+                        />
+                        {showItemSuggestions && filteredCatalogItems.length > 0 && (
+                          <div className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                            {filteredCatalogItems.map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => addItemToCart(item)}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-amber-50"
+                              >
+                                <span className="truncate text-slate-700">{item.name}</span>
+                                <span className="shrink-0 font-semibold text-amber-600">
+                                  ETB {item.price.toLocaleString()}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {cart.length > 0 && (
+                        <div className="space-y-1.5">
+                          {cart.map((line) => (
+                            <div
+                              key={line.itemId}
+                              className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5"
+                            >
+                              <span className="flex-1 truncate text-xs text-slate-700">{line.name}</span>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateCartQty(line.itemId, line.qty - 1)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
+                                  aria-label={`Decrease ${line.name} quantity`}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={line.qty}
+                                  onChange={(e) => {
+                                    const digits = e.target.value.replace(/\D/g, "")
+                                    if (digits === "") return
+                                    updateCartQty(line.itemId, Math.max(1, Math.min(999, Number(digits))))
+                                  }}
+                                  className="h-5 w-8 rounded border border-slate-200 text-center text-xs"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => updateCartQty(line.itemId, line.qty + 1)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
+                                  aria-label={`Increase ${line.name} quantity`}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
+                              <span className="w-16 shrink-0 text-right text-xs font-semibold text-amber-600">
+                                ETB {(line.price * line.qty).toLocaleString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateCartQty(line.itemId, 0)}
+                                className="text-slate-300 hover:text-rose-600"
+                                aria-label={`Remove ${line.name}`}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -682,6 +829,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                     setAmount("")
                     setPhone("")
                     setDescription("")
+                    setCart([])
                   }}
                 >
                   Back to Payment

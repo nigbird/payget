@@ -42,7 +42,13 @@ export async function GET(
       return NextResponse.json({ error: "Payments are currently disabled for this merchant" }, { status: 403 })
     }
 
-    return NextResponse.json(qrCode.merchant)
+    const items = await prisma.merchantItem.findMany({
+      where: { merchantId: qrCode.merchant.id, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, price: true, categoryId: true },
+    })
+
+    return NextResponse.json({ ...qrCode.merchant, items })
   } catch (error) {
     console.error("Failed to validate QR token:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
