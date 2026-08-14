@@ -489,45 +489,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
           {view === "input" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-              {/* Amount entry — centered, visually balanced */}
-              <div className="text-center py-2">
-                <div className={`rounded-2xl border shadow-sm mx-auto w-full max-w-[240px] px-4 py-4 transition-colors ${cart.length > 0 ? "bg-slate-50 border-slate-200" : "bg-white border-slate-100"}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</p>
-                    {cart.length > 0 && (
-                      <span className="text-[9px] font-semibold text-amber-700/70 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200/60">Calculated</span>
-                    )}
-                  </div>
-
-                  {/* Number perfectly centered, no inline prefix to throw off balance */}
-                  <input
-                    autoFocus={cart.length === 0}
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={amount}
-                    readOnly={cart.length > 0}
-                    onChange={(e) => {
-                      if (cart.length > 0) return
-                      const val = e.target.value
-                      if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
-                    }}
-                    className={`text-5xl font-black text-center bg-transparent border-none outline-none w-full caret-amber-500 ${cart.length > 0 ? "text-slate-500 placeholder:text-slate-400/25 cursor-not-allowed caret-transparent" : "text-amber-500 placeholder:text-slate-400/25"}`}
-                  />
-
-                  {/* Underline centered directly under the number */}
-                  <div className={`w-28 h-0.5 bg-amber-300/70 rounded-full mx-auto mt-1 ${cart.length > 0 ? "opacity-50" : ""}`} />
-
-                  {/* Currency label below underline — clean and balanced */}
-                  <p className="text-sm font-semibold text-slate-400/60 mt-1.5">ETB</p>
-                </div>
-
-                {/* Merchant context — text only, no redundant logo fetch */}
-                <p className="text-xs text-slate-400 mt-3">
-                  Paying <span className="font-bold text-slate-700">{merchant?.name}</span>
-                </p>
-              </div>
-
               <form onSubmit={handlePayment} className="space-y-3">
 
                 {/* Phone Number */}
@@ -789,6 +750,34 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                       />
                     </div>
                   )}
+                </div>
+
+                {/* Amount — matched to description sizing, readonly when items configured */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</p>
+                    {catalogItems.length > 0 && (
+                      <span className="text-[9px] font-medium text-slate-400">Calculated from items</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                    <Wallet className="w-4 h-4 text-amber-500 shrink-0" />
+                    <input
+                      autoFocus={catalogItems.length === 0}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={amount}
+                      readOnly={catalogItems.length > 0}
+                      onChange={(e) => {
+                        if (catalogItems.length > 0) return
+                        const val = e.target.value
+                        if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
+                      }}
+                      className={`flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/60 ${catalogItems.length > 0 ? "text-slate-500 cursor-not-allowed" : ""}`}
+                    />
+                    <span className="text-xs font-semibold text-slate-400/80 shrink-0">ETB</span>
+                  </div>
                 </div>
 
                 {/* Pay Button */}
