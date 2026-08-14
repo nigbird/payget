@@ -628,7 +628,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                             <span className="max-w-[90px] truncate font-medium">{line.name}</span>
                             <button
                               type="button"
-                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, line.qty - 1)}
+                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price, categoryId: null }, line.qty - 1)}
                               className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 transition-colors"
                               aria-label={`Decrease ${line.name} quantity`}
                             >
@@ -637,7 +637,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                             <span className="min-w-[10px] text-center font-semibold">{line.qty}</span>
                             <button
                               type="button"
-                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, line.qty + 1)}
+                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price, categoryId: null }, line.qty + 1)}
                               className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 transition-colors"
                               aria-label={`Increase ${line.name} quantity`}
                             >
@@ -645,7 +645,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                             </button>
                             <button
                               type="button"
-                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, 0)}
+                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price, categoryId: null }, 0)}
                               className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-rose-100 hover:text-rose-600 transition-colors"
                               aria-label={`Remove ${line.name}`}
                             >
@@ -981,7 +981,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                     setAmount("")
                     setPhone("")
                     setDescription("")
-                    setSelectedItemId(null)
+                    setCart([])
+                    setItemQuery("")
                   }}
                 >
                   Back to Payment

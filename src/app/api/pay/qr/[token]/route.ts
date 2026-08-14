@@ -45,7 +45,7 @@ export async function GET(
     const items = await prisma.merchantItem.findMany({
       where: { merchantId: qrCode.merchant.id, isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, price: true, categoryId: true },
+      select: { id: true, name: true, price: true, categoryId: true, isActive: true },
     })
 
     return NextResponse.json({ ...qrCode.merchant, items })
