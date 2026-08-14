@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use, useRef, useCallback } from "react"
+import { useState, useEffect, use, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import {
@@ -67,11 +67,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   const itemPickerDropdownRef = useRef<HTMLDivElement>(null)
   const itemSearchInputRef = useRef<HTMLInputElement>(null)
 
-  const filteredCatalogItems = (() => {
+  const filteredCatalogItems = useMemo(() => {
     const q = itemQuery.trim().toLowerCase()
     if (!q) return catalogItems
     return catalogItems.filter((i) => i.name.toLowerCase().includes(q))
-  })()
+  }, [catalogItems, itemQuery])
 
   const DESCRIPTION_MAX_LENGTH = 50
 

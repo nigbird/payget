@@ -297,13 +297,13 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return "Failed"
   }
 
-  const dateRangeLabel = (() => {
+  const dateRangeLabel = useMemo(() => {
     const { from, to } = dateRange
     if (!from && !to) return "Any time"
     if (from && !to) return `From ${from.toLocaleDateString()}`
     if (!from && to) return `Until ${to.toLocaleDateString()}`
     return `${from?.toLocaleDateString()} - ${to?.toLocaleDateString()}`
-  })()
+  }, [dateRange.from, dateRange.to])
 
   const handleToday = () => {
     const today = new Date()
