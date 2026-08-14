@@ -616,11 +616,13 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                     <>
                       <div
                         ref={descriptionFieldRef}
-                        className="flex min-h-[46px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-sm"
+                        onClick={() => itemSearchInputRef.current?.focus()}
+                        className="flex min-h-[46px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-sm cursor-text"
                       >
                         {cart.map((line) => (
                           <div
                             key={line.itemId}
+                            onClick={(e) => e.stopPropagation()}
                             className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 py-0.5 pl-2 pr-1 text-[11px] text-amber-900 shadow-sm"
                           >
                             <span className="max-w-[90px] truncate font-medium">{line.name}</span>
@@ -665,7 +667,10 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                               setShowItemSuggestions(true)
                               applyCartToForm(cart, val)
                             }}
-                            onFocus={() => setShowItemSuggestions(true)}
+                            onFocus={() => {
+                              updateItemPickerPosition()
+                              setShowItemSuggestions(true)
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === "Backspace" && itemQuery === "" && cart.length > 0) {
                                 removeLastCartItem()
@@ -675,7 +680,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                           {itemQuery && (
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setItemQuery("")
                                 applyCartToForm(cart, "")
                                 itemSearchInputRef.current?.focus()
