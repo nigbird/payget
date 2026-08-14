@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { createPortal } from "react-dom"
 import {
   Loader2,
   CheckCircle2,
@@ -17,7 +18,6 @@ import {
   FileText,
   Receipt,
   Lock,
-  Tag,
   Plus,
   Minus,
   X
@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -61,6 +62,10 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   const [cart, setCart] = useState<CartLine[]>([])
   const [itemQuery, setItemQuery] = useState("")
   const [showItemSuggestions, setShowItemSuggestions] = useState(false)
+  const [itemPickerStyle, setItemPickerStyle] = useState<React.CSSProperties | null>(null)
+  const descriptionFieldRef = useRef<HTMLDivElement>(null)
+  const itemPickerDropdownRef = useRef<HTMLDivElement>(null)
+  const itemSearchInputRef = useRef<HTMLInputElement>(null)
 
   const filteredCatalogItems = (() => {
     const q = itemQuery.trim().toLowerCase()
@@ -68,37 +73,93 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
     return catalogItems.filter((i) => i.name.toLowerCase().includes(q))
   })()
 
-  /** Recomputes Amount + Description from the cart. Fields stay freely editable afterwards. */
-  const applyCartToForm = (nextCart: CartLine[]) => {
-    if (nextCart.length === 0) return
+  const DESCRIPTION_MAX_LENGTH = 50
+
+  const composeDescription = (nextCart: CartLine[], note: string) => {
+    const itemsText = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ")
+    return [itemsText, note.trim()].filter(Boolean).join(", ").slice(0, DESCRIPTION_MAX_LENGTH)
+  }
+
+  const applyCartToForm = useCallback((nextCart: CartLine[], note: string) => {
     const total = nextCart.reduce((sum, line) => sum + line.price * line.qty, 0)
-    const desc = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ").slice(0, 50)
-    setAmount(String(Math.round(total * 100) / 100))
-    setDescription(desc)
-  }
+    setAmount(nextCart.length > 0 ? String(Math.round(total * 100) / 100) : "")
+    setDescription(composeDescription(nextCart, note))
+  }, [])
 
-  const addItemToCart = (item: CatalogItem) => {
+  const updateCartQty = (item: CatalogItem, qty: number) => {
     setCart((prev) => {
-      const idx = prev.findIndex((c) => c.itemId === item.id)
+      const exists = prev.some((c) => c.itemId === item.id)
       const next =
-        idx >= 0
-          ? prev.map((c, i) => (i === idx ? { ...c, qty: c.qty + 1 } : c))
-          : [...prev, { itemId: item.id, name: item.name, price: item.price, qty: 1 }]
-      applyCartToForm(next)
-      return next
-    })
-    setItemQuery("")
-    setShowItemSuggestions(false)
-  }
-
-  const updateCartQty = (itemId: string, qty: number) => {
-    setCart((prev) => {
-      const next =
-        qty <= 0 ? prev.filter((c) => c.itemId !== itemId) : prev.map((c) => (c.itemId === itemId ? { ...c, qty } : c))
-      applyCartToForm(next)
+        qty <= 0
+          ? prev.filter((c) => c.itemId !== item.id)
+          : exists
+            ? prev.map((c) => (c.itemId === item.id ? { ...c, qty } : c))
+            : [...prev, { itemId: item.id, name: item.name, price: item.price, qty }]
+      const isNewSelection = !exists && qty > 0
+      applyCartToForm(next, isNewSelection ? "" : itemQuery)
+      if (isNewSelection) setItemQuery("")
       return next
     })
   }
+
+  const removeLastCartItem = () => {
+    setCart((prev) => {
+      if (prev.length === 0) return prev
+      const next = prev.slice(0, -1)
+      applyCartToForm(next, itemQuery)
+      return next
+    })
+  }
+
+  const updateItemPickerPosition = useCallback(() => {
+    const el = descriptionFieldRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const openAbove = spaceBelow < 260 && rect.top > 260
+    setItemPickerStyle(
+      openAbove
+        ? {
+            position: "fixed",
+            bottom: window.innerHeight - rect.top + 4,
+            left: rect.left,
+            width: rect.width,
+            zIndex: 50,
+            pointerEvents: "auto",
+          }
+        : {
+            position: "fixed",
+            top: rect.bottom + 4,
+            left: rect.left,
+            width: rect.width,
+            zIndex: 50,
+            pointerEvents: "auto",
+          }
+    )
+  }, [])
+
+  useEffect(() => {
+    if (!showItemSuggestions) return
+    updateItemPickerPosition()
+    window.addEventListener("resize", updateItemPickerPosition)
+    window.addEventListener("scroll", updateItemPickerPosition, true)
+    return () => {
+      window.removeEventListener("resize", updateItemPickerPosition)
+      window.removeEventListener("scroll", updateItemPickerPosition, true)
+    }
+  }, [showItemSuggestions, updateItemPickerPosition])
+
+  useEffect(() => {
+    if (!showItemSuggestions) return
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (descriptionFieldRef.current?.contains(target)) return
+      if (itemPickerDropdownRef.current?.contains(target)) return
+      setShowItemSuggestions(false)
+    }
+    document.addEventListener("mousedown", onDocMouseDown)
+    return () => document.removeEventListener("mousedown", onDocMouseDown)
+  }, [showItemSuggestions])
 
   const handleDownloadReceipt = async () => {
     const id = transaction?.id
@@ -130,7 +191,10 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
         if (response.ok) {
           const data = await response.json()
           setMerchant(data)
-          setCatalogItems(data.items ?? [])
+          const items: CatalogItem[] = (data.items ?? [])
+            .filter((i: any) => i.isActive)
+            .map((i: any) => ({ id: i.id, name: i.name, price: i.price, categoryId: i.categoryId }))
+          setCatalogItems(items)
         } else {
           setView("failed")
         }
@@ -187,7 +251,15 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       const response = await fetch(`/api/pay/qr/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: trimmedPhone, amount: amountNum, description: description })
+        body: JSON.stringify({
+          phone: trimmedPhone,
+          amount: amountNum,
+          description: description,
+          items:
+            cart.length > 0
+              ? cart.map((line) => ({ itemId: line.itemId, name: line.name, price: line.price, quantity: line.qty }))
+              : undefined,
+        })
       })
       if (response.ok) {
         const data = await response.json()
@@ -359,7 +431,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
             <Button
               variant="outline"
               className="w-full h-14 rounded-3xl border border-amber-200 text-amber-500 font-bold text-base bg-white hover:bg-amber-50"
-              onClick={() => { setView("input"); setAmount(""); setPhone(""); setDescription(""); setCart([]) }}
+              onClick={() => { setView("input"); setAmount(""); setPhone(""); setDescription(""); setCart([]); setItemQuery("") }}
             >
               Done
             </Button>
@@ -419,25 +491,32 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
               {/* Amount entry — centered, visually balanced */}
               <div className="text-center py-2">
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mx-auto w-full max-w-[240px] px-4 py-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Amount</p>
+                <div className={`rounded-2xl border shadow-sm mx-auto w-full max-w-[240px] px-4 py-4 transition-colors ${cart.length > 0 ? "bg-slate-50 border-slate-200" : "bg-white border-slate-100"}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</p>
+                    {cart.length > 0 && (
+                      <span className="text-[9px] font-semibold text-amber-700/70 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200/60">Calculated</span>
+                    )}
+                  </div>
 
                   {/* Number perfectly centered, no inline prefix to throw off balance */}
                   <input
-                    autoFocus
+                    autoFocus={cart.length === 0}
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
                     value={amount}
+                    readOnly={cart.length > 0}
                     onChange={(e) => {
+                      if (cart.length > 0) return
                       const val = e.target.value
                       if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
                     }}
-                    className="text-5xl font-black text-amber-500 text-center bg-transparent border-none outline-none w-full placeholder:text-slate-400/25 caret-amber-500"
+                    className={`text-5xl font-black text-center bg-transparent border-none outline-none w-full caret-amber-500 ${cart.length > 0 ? "text-slate-500 placeholder:text-slate-400/25 cursor-not-allowed caret-transparent" : "text-amber-500 placeholder:text-slate-400/25"}`}
                   />
 
                   {/* Underline centered directly under the number */}
-                  <div className="w-28 h-0.5 bg-amber-300/70 rounded-full mx-auto mt-1" />
+                  <div className={`w-28 h-0.5 bg-amber-300/70 rounded-full mx-auto mt-1 ${cart.length > 0 ? "opacity-50" : ""}`} />
 
                   {/* Currency label below underline — clean and balanced */}
                   <p className="text-sm font-semibold text-slate-400/60 mt-1.5">ETB</p>
@@ -526,117 +605,184 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                   </div>
                 )}
 
-                {/* Quick Add Items */}
-                {catalogItems.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Quick Add Items (optional)</p>
-                    <div className="px-3 pb-3 pt-2 space-y-2">
-                      <div className="relative">
-                        <Tag className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-amber-500" />
-                        <input
-                          type="text"
-                          placeholder="Search merchant items..."
-                          value={itemQuery}
-                          onChange={(e) => {
-                            setItemQuery(e.target.value)
-                            setShowItemSuggestions(true)
-                          }}
-                          onFocus={() => setShowItemSuggestions(true)}
-                          onBlur={() => setTimeout(() => setShowItemSuggestions(false), 150)}
-                          className="w-full h-9 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-medium text-slate-800 outline-none placeholder:text-slate-400/60"
-                        />
-                        {showItemSuggestions && filteredCatalogItems.length > 0 && (
-                          <div className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                            {filteredCatalogItems.map((item) => (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => addItemToCart(item)}
-                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-amber-50"
-                              >
-                                <span className="truncate text-slate-700">{item.name}</span>
-                                <span className="shrink-0 font-semibold text-amber-600">
-                                  ETB {item.price.toLocaleString()}
-                                </span>
-                              </button>
-                            ))}
+                {/* Description — pill-based cart + note + item search (matching dashboard modal) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Description</p>
+                    <span className="text-[10px] font-medium text-slate-400">{description.length}/50</span>
+                  </div>
+
+                  {catalogItems.length > 0 ? (
+                    <>
+                      <div
+                        ref={descriptionFieldRef}
+                        className="flex min-h-[46px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-sm"
+                      >
+                        {cart.map((line) => (
+                          <div
+                            key={line.itemId}
+                            className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 py-0.5 pl-2 pr-1 text-[11px] text-amber-900 shadow-sm"
+                          >
+                            <span className="max-w-[90px] truncate font-medium">{line.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, line.qty - 1)}
+                              className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 transition-colors"
+                              aria-label={`Decrease ${line.name} quantity`}
+                            >
+                              <Minus className="h-2.5 w-2.5" />
+                            </button>
+                            <span className="min-w-[10px] text-center font-semibold">{line.qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, line.qty + 1)}
+                              className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 transition-colors"
+                              aria-label={`Increase ${line.name} quantity`}
+                            >
+                              <Plus className="h-2.5 w-2.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateCartQty({ id: line.itemId, name: line.name, price: line.price }, 0)}
+                              className="flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-rose-100 hover:text-rose-600 transition-colors"
+                              aria-label={`Remove ${line.name}`}
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
                           </div>
-                        )}
+                        ))}
+                        <div className="flex min-w-[100px] flex-1 items-center gap-1.5">
+                          {cart.length === 0 && <FileText className="h-4 w-4 shrink-0 text-amber-500 ml-1" />}
+                          <input
+                            ref={itemSearchInputRef}
+                            type="text"
+                            placeholder={cart.length === 0 ? "Order #1022, or search your items…" : "Add more…"}
+                            className="h-6 min-w-0 flex-1 border-0 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+                            value={itemQuery}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              setItemQuery(val)
+                              setShowItemSuggestions(true)
+                              applyCartToForm(cart, val)
+                            }}
+                            onFocus={() => setShowItemSuggestions(true)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Backspace" && itemQuery === "" && cart.length > 0) {
+                                removeLastCartItem()
+                              }
+                            }}
+                          />
+                          {itemQuery && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setItemQuery("")
+                                applyCartToForm(cart, "")
+                                itemSearchInputRef.current?.focus()
+                              }}
+                              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-slate-300 hover:text-slate-600 transition-colors mr-1"
+                              aria-label="Clear search"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      {cart.length > 0 && (
-                        <div className="space-y-1.5">
-                          {cart.map((line) => (
-                            <div
-                              key={line.itemId}
-                              className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5"
-                            >
-                              <span className="flex-1 truncate text-xs text-slate-700">{line.name}</span>
-                              <div className="flex shrink-0 items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => updateCartQty(line.itemId, line.qty - 1)}
-                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
-                                  aria-label={`Decrease ${line.name} quantity`}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={line.qty}
-                                  onChange={(e) => {
-                                    const digits = e.target.value.replace(/\D/g, "")
-                                    if (digits === "") return
-                                    updateCartQty(line.itemId, Math.max(1, Math.min(999, Number(digits))))
-                                  }}
-                                  className="h-5 w-8 rounded border border-slate-200 text-center text-xs"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => updateCartQty(line.itemId, line.qty + 1)}
-                                  className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white"
-                                  aria-label={`Increase ${line.name} quantity`}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
-                              <span className="w-16 shrink-0 text-right text-xs font-semibold text-amber-600">
-                                ETB {(line.price * line.qty).toLocaleString()}
-                              </span>
+                      {catalogItems.length > 0 &&
+                        showItemSuggestions &&
+                        itemPickerStyle &&
+                        typeof document !== "undefined" &&
+                        createPortal(
+                          <div
+                            ref={itemPickerDropdownRef}
+                            style={itemPickerStyle}
+                            className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
+                          >
+                            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-3 py-1.5">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Select items</span>
                               <button
                                 type="button"
-                                onClick={() => updateCartQty(line.itemId, 0)}
-                                className="text-slate-300 hover:text-rose-600"
-                                aria-label={`Remove ${line.name}`}
+                                onClick={() => setShowItemSuggestions(false)}
+                                className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                aria-label="Close item list"
                               >
                                 <X className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                          ))}
-                        </div>
-                      )}
+                            <div className="max-h-56 overflow-y-auto">
+                              {filteredCatalogItems.length === 0 ? (
+                                <p className="px-3 py-2 text-xs text-slate-400">No matching items.</p>
+                              ) : (
+                                filteredCatalogItems.map((item) => {
+                                  const line = cart.find((c) => c.itemId === item.id)
+                                  return (
+                                    <div
+                                      key={item.id}
+                                      className="flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-amber-50/60 transition-colors"
+                                    >
+                                      <label className="flex flex-1 min-w-0 items-center gap-2 cursor-pointer">
+                                        <Checkbox
+                                          checked={!!line}
+                                          onCheckedChange={(checked) => updateCartQty(item, checked ? 1 : 0)}
+                                        />
+                                        <span className="truncate text-slate-700">
+                                          {item.name}{" "}
+                                          <span className="font-semibold text-[#754319]">ETB {item.price.toLocaleString()}</span>
+                                        </span>
+                                      </label>
+                                      {line && (
+                                        <div className="flex shrink-0 items-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => updateCartQty(item, line.qty - 1)}
+                                            className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white transition-colors"
+                                            aria-label={`Decrease ${item.name} quantity`}
+                                          >
+                                            <Minus className="h-3 w-3" />
+                                          </button>
+                                          <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={line.qty}
+                                            onChange={(e) => {
+                                              const digits = e.target.value.replace(/\D/g, "")
+                                              if (digits === "") return
+                                              updateCartQty(item, Math.max(1, Math.min(999, Number(digits))))
+                                            }}
+                                            className="h-5 w-8 rounded border border-slate-200 text-center text-xs"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => updateCartQty(item, line.qty + 1)}
+                                            className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-white transition-colors"
+                                            aria-label={`Increase ${item.name} quantity`}
+                                          >
+                                            <Plus className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })
+                              )}
+                            </div>
+                          </div>,
+                          document.body
+                        )}
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                      <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Order #1022"
+                        value={description}
+                        onChange={(e) => { if (e.target.value.length <= DESCRIPTION_MAX_LENGTH) setDescription(e.target.value) }}
+                        className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/60"
+                      />
                     </div>
-                  </div>
-                )}
-
-                {/* Payment Description */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-4 pt-3.5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Payment Description (Optional)</p>
-                    <span className="text-[10px] font-medium text-slate-400">{description.length}/50</span>
-                  </div>
-                  <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
-                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
-                    <input
-                      type="text"
-                      placeholder="Add a note"
-                      value={description}
-                      onChange={(e) => { if (e.target.value.length <= 50) setDescription(e.target.value) }}
-                      className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/30"
-                    />
-                  </div>
+                  )}
                 </div>
 
                 {/* Pay Button */}
@@ -829,7 +975,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                     setAmount("")
                     setPhone("")
                     setDescription("")
-                    setCart([])
+                    setSelectedItemId(null)
                   }}
                 >
                   Back to Payment
