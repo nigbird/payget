@@ -73,7 +73,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
     return catalogItems.filter((i) => i.name.toLowerCase().includes(q))
   }, [catalogItems, itemQuery])
 
-  const DESCRIPTION_MAX_LENGTH = 50
+  const DESCRIPTION_MAX_LENGTH = 500
 
   const composeDescription = (nextCart: CartLine[], note: string) => {
     const itemsText = nextCart.map((line) => `${line.name} x${line.qty}`).join(", ")
@@ -239,11 +239,6 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       toast({ variant: "destructive", title: "Invalid Phone", description: "Please enter a valid Ethiopian phone number (e.g., 0912345678)." })
       return
     }
-    if (description && description.length > 50) {
-      toast({ variant: "destructive", title: "Description Too Long", description: "Payment description cannot exceed 50 characters." })
-      return
-    }
-
     setIsProcessing(true)
     setView("processing")
 
@@ -568,10 +563,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
                 {/* Description — pill-based cart + note + item search (matching dashboard modal) */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Description</p>
-                    <span className="text-[10px] font-medium text-slate-400">{description.length}/50</span>
-                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Description</p>
 
                   {catalogItems.length > 0 ? (
                     <>
