@@ -114,6 +114,7 @@ export async function POST(
       serviceDescription: description || `QR Payment to ${qrCode.merchant.name}`,
       timestamp: new Date().toISOString(),
       method: "BANK" as const,
+      payerPhone: phone,
       items: validatedItems,
     }
 

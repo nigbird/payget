@@ -283,6 +283,7 @@ export function RequestPaymentModal({
         serviceDescription,
         timestamp,
         method: requestForm.method,
+        payerPhone: requestForm.payerPhone,
         items:
           cart.length > 0
             ? cart.map((line) => ({ itemId: line.itemId, name: line.name, price: line.price, quantity: line.qty }))

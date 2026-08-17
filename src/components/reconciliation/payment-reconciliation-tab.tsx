@@ -35,6 +35,7 @@ type UnresolvedTransaction = {
   cbsreference: string | null
   payerPhone: string | null
   payerAccount: string | null
+  userCredentials?: { phone?: string | null } | null
   timestamp: string
   reconciliationRequests: ReconciliationRequest[]
 }
@@ -395,7 +396,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                           <TableCell>{tx.merchant?.name}</TableCell>
                           <TableCell>{formatCurrency(tx.amount)}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {tx.payerPhone || tx.payerAccount || '—'}
+                            {tx.payerPhone || tx.payerAccount || tx.userCredentials?.phone || '—'}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={STATUS_STYLES[tx.status] || ''}>
