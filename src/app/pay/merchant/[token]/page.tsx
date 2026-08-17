@@ -776,16 +776,12 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 <button
                   type="submit"
                   disabled={isProcessing || !phone || !amount}
-                  className="w-full h-14 mt-1 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white font-bold text-base shadow-xl shadow-amber-950/20 hover:shadow-2xl hover:shadow-amber-950/30 transition-all duration-300 flex items-center justify-between px-5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-14 mt-1 rounded-2xl bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white font-bold text-base shadow-xl shadow-amber-950/20 hover:shadow-2xl hover:shadow-amber-950/30 transition-all duration-300 flex items-center justify-center px-5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isProcessing ? (
                     <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                   ) : (
-                    <>
-                      
-                      <span>{amount ? `Pay ETB ${parseFloat(amount).toFixed(2)}` : "Pay Now"}</span>
-                      
-                    </>
+                    <span>Pay</span>
                   )}
                 </button>
 
