@@ -40,8 +40,10 @@ type InitiatedBy = {
   name?: string | null
 }
 
-function getTodayDateKey(d: Date) {
-  return d.toDateString()
+function getStartOfDay(d: Date) {
+  const start = new Date(d)
+  start.setHours(0, 0, 0, 0)
+  return start
 }
 
 function extractKidFromJwe(token: string): string | null {
@@ -69,17 +71,16 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     return { ok: false as const, error: "Transaction amount exceeds per-transaction limit", limit: merchant.transactionLimit }
   }
 
-  const todayKey = getTodayDateKey(new Date())
-  const merchantTxs = await db.getTransactionsByMerchant(input.merchantId)
-  const todaysSuccess = merchantTxs
-    .filter((tx) => getTodayDateKey(new Date(tx.timestamp)) === todayKey && tx.status === "success")
+  const { totalAmount: totalTodayAmount, count: todaysSuccessCount } = await db.getMerchantSuccessStatsSince(
+    input.merchantId,
+    getStartOfDay(new Date())
+  )
 
-  const totalTodayAmount = todaysSuccess.reduce((acc, tx) => acc + tx.amount, 0)
   if (totalTodayAmount + input.amount > merchant.dailyLimit) {
     return { ok: false as const, error: "Daily processing amount limit reached", limit: merchant.dailyLimit }
   }
 
-  if (todaysSuccess.length >= merchant.dailyCountLimit) {
+  if (todaysSuccessCount >= merchant.dailyCountLimit) {
     return { ok: false as const, error: "Daily transaction count limit reached", limit: merchant.dailyCountLimit }
   }
 

@@ -581,6 +581,8 @@ model Transaction {
   cbsreference         String?           @unique
   reconciliationRequests PaymentReconciliationRequest[]
   items                TransactionItem[]
+
+  @@index([merchantId, status, timestamp])
 }
 
 enum PaymentReconciliationRequestStatus {

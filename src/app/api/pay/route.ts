@@ -87,14 +87,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const merchantTxs = await db.getTransactionsByMerchant(merchantId);
-    const todayTxs = merchantTxs.filter((tx) => {
-      const txDate = new Date(tx.timestamp).toDateString();
-      const todayDate = new Date().toDateString();
-      return txDate === todayDate && tx.status === "success";
-    });
-
-    const totalTodayAmount = todayTxs.reduce((acc, tx) => acc + tx.amount, 0);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const { totalAmount: totalTodayAmount, count: todayTxCount } = await db.getMerchantSuccessStatsSince(
+      merchantId,
+      startOfDay
+    );
     if (totalTodayAmount + amount > merchant.dailyLimit) {
       await writeAuditLog({
         request,
@@ -122,7 +120,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Limit Checks (Count)
-    if (todayTxs.length >= merchant.dailyCountLimit) {
+    if (todayTxCount >= merchant.dailyCountLimit) {
       await writeAuditLog({
         request,
         userId: actorUserId,
@@ -133,7 +131,7 @@ export async function POST(request: Request) {
           result: "failed",
           reason: "DAILY_TRANSACTION_COUNT_LIMIT_REACHED",
           merchantId,
-          count: todayTxs.length,
+          count: todayTxCount,
           limit: merchant.dailyCountLimit,
         },
       });

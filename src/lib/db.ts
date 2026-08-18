@@ -585,6 +585,16 @@ export const db = {
     return txs.map(mapTransaction);
   },
 
+  /** Sum/count of a merchant's successful transactions since `since`, for daily-limit checks. */
+  getMerchantSuccessStatsSince: async (merchantId: string, since: Date) => {
+    const result = await prisma.transaction.aggregate({
+      where: { merchantId, status: 'SUCCESS', timestamp: { gte: since } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    });
+    return { totalAmount: result._sum.amount ?? 0, count: result._count._all };
+  },
+
   getTransactionById: async (id: string) => {
     const tx = await prisma.transaction.findUnique({
       where: { id }
