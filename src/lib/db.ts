@@ -445,13 +445,20 @@ export const db = {
   getMerchantById: async (id: string, options?: { includeSecret?: boolean }) => {
     const m = await prisma.merchant.findUnique({
       where: { id },
-      include: { 
+      include: {
         documents: true,
         _count: {
           select: { transactions: true }
         }
       }
     });
+    if (!m) return null;
+    return mapMerchant(m, options);
+  },
+
+  /** Same as getMerchantById but skips the documents/transaction-count joins — for hot paths (e.g. payment initiation) that never read those fields. */
+  getMerchantByIdLean: async (id: string, options?: { includeSecret?: boolean }) => {
+    const m = await prisma.merchant.findUnique({ where: { id } });
     if (!m) return null;
     return mapMerchant(m, options);
   },

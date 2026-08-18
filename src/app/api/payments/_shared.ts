@@ -59,7 +59,7 @@ function extractKidFromJwe(token: string): string | null {
 }
 
 export async function createGatewayTransactionAndToken(input: PaymentInitiate, options?: { initiatedBy?: InitiatedBy }) {
-  const merchant = await db.getMerchantById(input.merchantId, { includeSecret: true })
+  const merchant = await db.getMerchantByIdLean(input.merchantId, { includeSecret: true })
   if (!merchant) return { ok: false as const, error: "Merchant not found" }
   if (merchant.status !== "approved" && merchant.status !== "active") return { ok: false as const, error: "Merchant account is not active" }
 

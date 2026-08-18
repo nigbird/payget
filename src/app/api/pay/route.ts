@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Merchant Status Check
-    const merchant = await db.getMerchantById(merchantId);
+    const merchant = await db.getMerchantByIdLean(merchantId);
     if (!merchant) {
       await writeAuditLog({
         request,

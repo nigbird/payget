@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       if (merchantIdHeader && signatureHeader && timestampHeader && nonceHeader && encryptedPayload) {
         await enforceReplayProtection(merchantIdHeader, nonceHeader, timestampHeader)
 
-        const merchant = await db.getMerchantById(merchantIdHeader, { includeSecret: true })
+        const merchant = await db.getMerchantByIdLean(merchantIdHeader, { includeSecret: true })
         if (!merchant) {
           return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
         }
