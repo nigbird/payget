@@ -227,11 +227,35 @@ async function getCachedServerPublicKey(
   password?: string
 ): Promise<string> {
   if (cachedPublicKey && Date.now() - cachedPublicKey.fetchedAt < PUBLIC_KEY_CACHE_TTL_MS) {
+    console.log(
+      `[provider-key-cache] hit, fetchedAt=${new Date(cachedPublicKey.fetchedAt).toISOString()}, ageMs=${Date.now() - cachedPublicKey.fetchedAt}`
+    )
     return cachedPublicKey.key
   }
+  console.log("[provider-key-cache] miss, refetching from provider")
   const key = await fetchServerPublicKey(baseUrl, username, password)
   cachedPublicKey = { key, fetchedAt: Date.now() }
   return key
+}
+
+export function getPublicKeyCacheDebugInfo(): {
+  cached: boolean
+  fetchedAt: string | null
+  ageMs: number | null
+  ttlMs: number
+  expiresInMs: number | null
+} {
+  if (!cachedPublicKey) {
+    return { cached: false, fetchedAt: null, ageMs: null, ttlMs: PUBLIC_KEY_CACHE_TTL_MS, expiresInMs: null }
+  }
+  const ageMs = Date.now() - cachedPublicKey.fetchedAt
+  return {
+    cached: true,
+    fetchedAt: new Date(cachedPublicKey.fetchedAt).toISOString(),
+    ageMs,
+    ttlMs: PUBLIC_KEY_CACHE_TTL_MS,
+    expiresInMs: PUBLIC_KEY_CACHE_TTL_MS - ageMs,
+  }
 }
 
 export async function prepareEncryptedPushRequest(
