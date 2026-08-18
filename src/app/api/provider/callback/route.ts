@@ -373,7 +373,7 @@ export async function POST(request: Request) {
       });
     }
     
-    const merchant = await db.getMerchantById(tx.merchantId);
+    const merchant = await db.getMerchantByIdLean(tx.merchantId);
     await writeAuditLog({
       request,
       userId: null,
