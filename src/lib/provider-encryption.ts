@@ -209,13 +209,38 @@ export function encryptPayloadForProvider(
   }
 }
 
+// The provider's ECDH public key is static between rotations, so refetching it
+// on every push wastes a full HTTPS round-trip. Cache it in memory for the TTL
+// below; invalidateCachedProviderPublicKey() drops it early if the provider
+// signals the key is no longer valid (e.g. an auth rejection on push).
+const PUBLIC_KEY_CACHE_TTL_MS = 12 * 60 * 60_000
+
+let cachedPublicKey: { key: string; fetchedAt: number } | null = null
+
+export function invalidateCachedProviderPublicKey(): void {
+  cachedPublicKey = null
+}
+
+async function getCachedServerPublicKey(
+  baseUrl: string,
+  username?: string,
+  password?: string
+): Promise<string> {
+  if (cachedPublicKey && Date.now() - cachedPublicKey.fetchedAt < PUBLIC_KEY_CACHE_TTL_MS) {
+    return cachedPublicKey.key
+  }
+  const key = await fetchServerPublicKey(baseUrl, username, password)
+  cachedPublicKey = { key, fetchedAt: Date.now() }
+  return key
+}
+
 export async function prepareEncryptedPushRequest(
   payload: ProviderPushPayload,
   baseUrl: string,
   username?: string,
   password?: string
 ): Promise<{ request: EncryptedPushRequest; clientPublicKey: string; sharedSecret: Buffer }> {
-  const serverPublicKey = await fetchServerPublicKey(baseUrl, username, password)
+  const serverPublicKey = await getCachedServerPublicKey(baseUrl, username, password)
   const { publicKey: clientPublicKey, privateKey } = generateECDHKeyPair()
   const sharedSecret = deriveSharedSecret(serverPublicKey, privateKey)
   const encryptedRequest = encryptPayloadForProvider(payload, sharedSecret)
@@ -412,6 +437,11 @@ export async function sendProviderPushPayment(
     const response = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
 
     if (!isProviderPushSuccess(response)) {
+      if (response.statusCode === 401) {
+        // Auth/key rejection, not a normal business decline — the cached public
+        // key may be stale (provider rotated it). Force a refetch next attempt.
+        invalidateCachedProviderPublicKey()
+      }
       return response
     }
 
