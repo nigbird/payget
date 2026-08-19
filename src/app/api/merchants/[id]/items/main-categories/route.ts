@@ -23,57 +23,44 @@ export async function POST(
     const body = await request.json()
     const name = typeof body.name === "string" ? body.name.trim() : ""
     if (!name) {
-      return NextResponse.json({ error: "Validation failed", errors: { name: "Category name is required." } }, { status: 400 })
+      return NextResponse.json({ error: "Validation failed", errors: { name: "Main category name is required." } }, { status: 400 })
     }
     if (name.length > MAX_NAME_LENGTH) {
       return NextResponse.json(
-        { error: "Validation failed", errors: { name: `Category name must be ${MAX_NAME_LENGTH} characters or fewer.` } },
+        { error: "Validation failed", errors: { name: `Main category name must be ${MAX_NAME_LENGTH} characters or fewer.` } },
         { status: 400 }
       )
     }
 
-    let mainCategoryId: string | null = null
-    if (body.mainCategoryId !== undefined && body.mainCategoryId !== null && body.mainCategoryId !== "") {
-      const mainCategory = await prisma.merchantItemMainCategory.findFirst({
-        where: { id: String(body.mainCategoryId), merchantId },
-      })
-      if (!mainCategory) {
-        return NextResponse.json({ error: "Validation failed", errors: { mainCategoryId: "Main category not found." } }, { status: 400 })
-      }
-      mainCategoryId = mainCategory.id
-    }
-
-    const category = await prisma.merchantItemCategory.create({
+    const mainCategory = await prisma.merchantItemMainCategory.create({
       data: {
         merchantId,
         name,
         sortOrder: Number(body.sortOrder) || 0,
         isActive: body.isActive !== false,
-        mainCategoryId,
       },
     })
 
     await writeAuditLog({
       request,
       userId: user.id,
-      action: "MERCHANT_ITEM_CATEGORY_CREATE",
-      entityType: "MERCHANT_ITEM_CATEGORY",
-      entityId: category.id,
-      newValue: { name, mainCategoryId },
+      action: "MERCHANT_ITEM_MAIN_CATEGORY_CREATE",
+      entityType: "MERCHANT_ITEM_MAIN_CATEGORY",
+      entityId: mainCategory.id,
+      newValue: { name },
     })
 
     return NextResponse.json({
-      id: category.id,
-      name: category.name,
-      sortOrder: category.sortOrder,
-      isActive: category.isActive,
-      mainCategoryId: category.mainCategoryId,
+      id: mainCategory.id,
+      name: mainCategory.name,
+      sortOrder: mainCategory.sortOrder,
+      isActive: mainCategory.isActive,
     })
   } catch (e: unknown) {
     if (isUniqueViolation(e)) {
-      return NextResponse.json({ error: "A category with this name already exists." }, { status: 409 })
+      return NextResponse.json({ error: "A main category with this name already exists." }, { status: 409 })
     }
-    console.error("Failed to create item category:", e)
+    console.error("Failed to create item main category:", e)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

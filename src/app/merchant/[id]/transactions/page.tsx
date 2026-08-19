@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
+import { PrintOrderButton } from "@/components/merchant/print-order-button"
 import type { Merchant, Transaction, MerchantTeamMember } from "@/lib/db"
 import {
   buildSalesUserFilterOptions,
@@ -572,6 +573,16 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       </p>
                     </div>
 
+                    <div className="hidden sm:block">
+                      <PrintOrderButton
+                        transaction={tx}
+                        merchantName={merchant.name}
+                        onSaved={(printInfo) =>
+                          setTransactions((prev) => prev.map((t) => (t.id === tx.id ? { ...t, printInfo } : t)))
+                        }
+                      />
+                    </div>
+
                     <Button
                       variant="ghost"
                       size="icon"
@@ -583,16 +594,27 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   </div>
 
                   {expandedId === tx.id && (
-                    <div className="sm:hidden mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <UserIcon className="w-3 h-3 text-slate-300" />
-                        <span className="text-[11px] font-bold text-slate-500">{tx.userCredentials.initiatedByName || "System"}</span>
+                    <div className="sm:hidden mt-3 pt-3 border-t border-slate-100 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <UserIcon className="w-3 h-3 text-slate-300" />
+                          <span className="text-[11px] font-bold text-slate-500">{tx.userCredentials.initiatedByName || "System"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3 h-3 text-slate-300" />
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3 text-slate-300" />
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                      <div className="flex justify-end">
+                        <PrintOrderButton
+                          transaction={tx}
+                          merchantName={merchant.name}
+                          onSaved={(printInfo) =>
+                            setTransactions((prev) => prev.map((t) => (t.id === tx.id ? { ...t, printInfo } : t)))
+                          }
+                        />
                       </div>
                     </div>
                   )}

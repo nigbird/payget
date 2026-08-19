@@ -28,7 +28,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const [categories, items] = await Promise.all([
+    const [mainCategories, categories, items] = await Promise.all([
+      prisma.merchantItemMainCategory.findMany({
+        where: { merchantId },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      }),
       prisma.merchantItemCategory.findMany({
         where: { merchantId },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -40,11 +44,18 @@ export async function GET(
     ])
 
     return NextResponse.json({
+      mainCategories: mainCategories.map((mc) => ({
+        id: mc.id,
+        name: mc.name,
+        sortOrder: mc.sortOrder,
+        isActive: mc.isActive,
+      })),
       categories: categories.map((c) => ({
         id: c.id,
         name: c.name,
         sortOrder: c.sortOrder,
         isActive: c.isActive,
+        mainCategoryId: c.mainCategoryId,
       })),
       items: items.map((i) => ({
         id: i.id,

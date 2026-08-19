@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { db, type Merchant, type Transaction } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPayload } from "@/lib/jwe"
 import { withMerchantSecret, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
 import { auditSecurityEvent } from "@/lib/request-security"
@@ -119,9 +120,34 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     paymentMethod: input.method || "BANK",
   }
 
+  // Resolve each line's category/main-category from the live catalog and snapshot the names
+  // onto the transaction item — see TransactionItem.categoryName in schema.prisma for why.
+  const itemIds = (input.items ?? [])
+    .map((i) => i.itemId)
+    .filter((v): v is string => !!v)
+  type CatalogItemCategory = { name: string; mainCategory: { name: string } | null } | null
+  const categoryByItemId = new Map<string, CatalogItemCategory>()
+  if (itemIds.length > 0) {
+    const catalogItems = await prisma.merchantItem.findMany({
+      where: { id: { in: itemIds }, merchantId: input.merchantId },
+      select: { id: true, category: { select: { name: true, mainCategory: { select: { name: true } } } } },
+    })
+    for (const item of catalogItems) categoryByItemId.set(item.id, item.category)
+  }
+
   const created = await db.addTransaction(
     tx,
-    input.items?.map((i) => ({ itemId: i.itemId ?? null, name: i.name, price: i.price, quantity: i.quantity }))
+    input.items?.map((i) => {
+      const category = i.itemId ? categoryByItemId.get(i.itemId) : undefined
+      return {
+        itemId: i.itemId ?? null,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        categoryName: category?.name ?? null,
+        mainCategoryName: category?.mainCategory?.name ?? null,
+      }
+    })
   )
   const itemsPersisted = (created as { items?: unknown[] }).items?.length ?? 0
 

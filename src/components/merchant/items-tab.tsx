@@ -18,7 +18,14 @@ import { useToast } from "@/hooks/use-toast"
 
 type Props = { merchantId: string }
 
-export type MerchantItemCategoryDto = { id: string; name: string; sortOrder: number; isActive: boolean }
+export type MerchantItemMainCategoryDto = { id: string; name: string; sortOrder: number; isActive: boolean }
+export type MerchantItemCategoryDto = {
+  id: string
+  name: string
+  sortOrder: number
+  isActive: boolean
+  mainCategoryId: string | null
+}
 export type MerchantItemDto = {
   id: string
   name: string
@@ -29,15 +36,23 @@ export type MerchantItemDto = {
 }
 
 const UNCATEGORIZED = "__uncategorized__"
+const NO_MAIN_CATEGORY = "__no_main_category__"
 const PRICE_PATTERN = /^\d{0,7}(\.\d{0,2})?$/
 
 export function ItemsTab({ merchantId }: Props) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
+  const [mainCategories, setMainCategories] = useState<MerchantItemMainCategoryDto[]>([])
   const [categories, setCategories] = useState<MerchantItemCategoryDto[]>([])
   const [items, setItems] = useState<MerchantItemDto[]>([])
 
+  const [newMainCategoryName, setNewMainCategoryName] = useState("")
+  const [addingMainCategory, setAddingMainCategory] = useState(false)
+  const [deletingMainCategoryId, setDeletingMainCategoryId] = useState<string | null>(null)
+  const [updatingCategoryMainId, setUpdatingCategoryMainId] = useState<string | null>(null)
+
   const [newCategoryName, setNewCategoryName] = useState("")
+  const [newCategoryMainCategoryId, setNewCategoryMainCategoryId] = useState(NO_MAIN_CATEGORY)
   const [addingCategory, setAddingCategory] = useState(false)
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
 
@@ -57,6 +72,7 @@ export function ItemsTab({ merchantId }: Props) {
       const res = await fetch(`/api/merchants/${merchantId}/items`)
       if (res.ok) {
         const data = await res.json()
+        setMainCategories(data.mainCategories ?? [])
         setCategories(data.categories ?? [])
         setItems(data.items ?? [])
       }
@@ -78,7 +94,10 @@ export function ItemsTab({ merchantId }: Props) {
       const res = await fetch(`/api/merchants/${merchantId}/items/categories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCategoryName.trim() }),
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          mainCategoryId: newCategoryMainCategoryId === NO_MAIN_CATEGORY ? null : newCategoryMainCategoryId,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to add category")
@@ -112,6 +131,72 @@ export function ItemsTab({ merchantId }: Props) {
       })
     } finally {
       setDeletingCategoryId(null)
+    }
+  }
+
+  const handleAddMainCategory = async () => {
+    if (!newMainCategoryName.trim()) return
+    setAddingMainCategory(true)
+    try {
+      const res = await fetch(`/api/merchants/${merchantId}/items/main-categories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newMainCategoryName.trim() }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to add main category")
+      setNewMainCategoryName("")
+      await load()
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Failed to add main category",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setAddingMainCategory(false)
+    }
+  }
+
+  const handleDeleteMainCategory = async (mainCategoryId: string) => {
+    setDeletingMainCategoryId(mainCategoryId)
+    try {
+      const res = await fetch(`/api/merchants/${merchantId}/items/main-categories/${mainCategoryId}`, {
+        method: "DELETE",
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to delete main category")
+      await load()
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete main category",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setDeletingMainCategoryId(null)
+    }
+  }
+
+  const handleSetCategoryMainCategory = async (categoryId: string, mainCategoryId: string) => {
+    setUpdatingCategoryMainId(categoryId)
+    try {
+      const res = await fetch(`/api/merchants/${merchantId}/items/categories/${categoryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mainCategoryId: mainCategoryId === NO_MAIN_CATEGORY ? null : mainCategoryId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to update category")
+      await load()
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Failed to update category",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setUpdatingCategoryMainId(null)
     }
   }
 
@@ -312,6 +397,62 @@ export function ItemsTab({ merchantId }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
 
+          <div className="space-y-2 rounded-xl border border-black/5 bg-slate-50/60 p-3">
+            <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Main categories (optional) — e.g. Foods, Soft Drinks. Groups your categories together; each one becomes its own printed order ticket.
+            </Label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {mainCategories.map((mc) => (
+                <span
+                  key={mc.id}
+                  className="flex items-center gap-1.5 rounded-full border border-black/5 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+                >
+                  {mc.name}
+                  <button
+                    onClick={() => handleDeleteMainCategory(mc.id)}
+                    disabled={deletingMainCategoryId === mc.id}
+                    className="text-slate-300 transition-colors hover:text-rose-600"
+                    aria-label={`Delete main category ${mc.name}`}
+                  >
+                    {deletingMainCategoryId === mc.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <X className="h-3 w-3" />
+                    )}
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex items-end gap-2">
+              <Input
+                value={newMainCategoryName}
+                onChange={(e) => setNewMainCategoryName(e.target.value)}
+                placeholder="e.g. Foods, Soft Drinks"
+                className="h-9 max-w-[220px] rounded-xl bg-white"
+                maxLength={40}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleAddMainCategory()
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                className="h-9 rounded-xl"
+                onClick={handleAddMainCategory}
+                disabled={addingMainCategory || !newMainCategoryName.trim()}
+              >
+                {addingMainCategory ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Add Main Category
+              </Button>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-black/5 bg-slate-50/60 p-3">
             <div className="min-w-[180px] flex-1 space-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -331,6 +472,24 @@ export function ItemsTab({ merchantId }: Props) {
                 }}
               />
             </div>
+            {mainCategories.length > 0 && (
+              <div className="min-w-[160px] space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Main category</Label>
+                <Select value={newCategoryMainCategoryId} onValueChange={setNewCategoryMainCategoryId}>
+                  <SelectTrigger className="h-9 rounded-xl bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_MAIN_CATEGORY}>No main category</SelectItem>
+                    {mainCategories.map((mc) => (
+                      <SelectItem key={mc.id} value={mc.id}>
+                        {mc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button
               variant="outline"
               className="h-9 rounded-xl"
@@ -415,7 +574,27 @@ export function ItemsTab({ merchantId }: Props) {
                         <Tag className="h-3.5 w-3.5" />
                         {category ? category.name : "Uncategorized"} ({groupItems.length})
                       </p>
-                      {category && (
+                      <div className="flex items-center gap-2">
+                        {category && mainCategories.length > 0 && (
+                          <Select
+                            value={category.mainCategoryId ?? NO_MAIN_CATEGORY}
+                            onValueChange={(v) => handleSetCategoryMainCategory(category.id, v)}
+                            disabled={updatingCategoryMainId === category.id}
+                          >
+                            <SelectTrigger className="h-7 w-36 rounded-lg border-none bg-transparent text-[10px] font-semibold text-slate-500">
+                              <SelectValue placeholder="Main category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NO_MAIN_CATEGORY}>No main category</SelectItem>
+                              {mainCategories.map((mc) => (
+                                <SelectItem key={mc.id} value={mc.id}>
+                                  {mc.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {category && (
                         <button
                           onClick={() => handleDeleteCategory(category.id)}
                           disabled={deletingCategoryId === category.id}
@@ -428,7 +607,8 @@ export function ItemsTab({ merchantId }: Props) {
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
                         </button>
-                      )}
+                        )}
+                      </div>
                     </div>
                     {groupItems.length === 0 ? (
                       <div className="px-4 py-4 text-center text-xs text-muted-foreground">

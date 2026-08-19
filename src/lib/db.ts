@@ -6,6 +6,7 @@ import {
   Merchant as PrismaMerchant,
   Transaction as PrismaTransaction,
   TransactionItem as PrismaTransactionItem,
+  OrderPrintInfo as PrismaOrderPrintInfo,
   MerchantDocument as PrismaMerchantDocument,
   User as PrismaUser,
   UserRole
@@ -79,6 +80,8 @@ export interface TransactionItemLine {
   name: string;
   price: number;
   quantity: number;
+  categoryName: string | null;
+  mainCategoryName: string | null;
 }
 
 /** Item line to persist when creating a transaction; passed separately to db.addTransaction. */
@@ -87,6 +90,14 @@ export interface TransactionItemInput {
   name: string;
   price: number;
   quantity: number;
+  categoryName?: string | null;
+  mainCategoryName?: string | null;
+}
+
+/** Print-specific metadata for an order's kitchen/bar tickets; see the OrderPrintInfo Prisma model. */
+export interface OrderPrintInfo {
+  tableNo: string | null;
+  shift: string | null;
 }
 
 export interface Transaction {
@@ -106,6 +117,8 @@ export interface Transaction {
   cbsreference?: string | null;
   /** Only populated when explicitly included (e.g. getTransactionsByMerchant). */
   items?: TransactionItemLine[];
+  /** Only populated when explicitly included (e.g. getTransactionsByMerchant). Null until a merchant edits table/shift for this order's print ticket. */
+  printInfo?: OrderPrintInfo | null;
   userCredentials: {
     phone: string;
     authToken: string;
@@ -176,7 +189,9 @@ function mapMerchant(
   } as any;
 }
 
-function mapTransaction(tx: PrismaTransaction & { items?: PrismaTransactionItem[] }): Transaction {
+function mapTransaction(
+  tx: PrismaTransaction & { items?: PrismaTransactionItem[]; printInfo?: PrismaOrderPrintInfo | null }
+): Transaction {
   return {
     ...tx,
     payerPhone: tx.payerPhone ?? undefined,
@@ -199,7 +214,20 @@ function mapTransaction(tx: PrismaTransaction & { items?: PrismaTransactionItem[
       };
     },
     paymentMethod: tx.paymentMethod as PaymentMethod,
-    items: tx.items?.map((i) => ({ id: i.id, itemId: i.itemId, name: i.name, price: i.price, quantity: i.quantity })),
+    items: tx.items?.map((i) => ({
+      id: i.id,
+      itemId: i.itemId,
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+      categoryName: i.categoryName,
+      mainCategoryName: i.mainCategoryName,
+    })),
+    printInfo: tx.printInfo === undefined
+      ? undefined
+      : tx.printInfo
+        ? { tableNo: tx.printInfo.tableNo, shift: tx.printInfo.shift }
+        : null,
   };
 }
 
@@ -587,7 +615,7 @@ export const db = {
     const txs = await prisma.transaction.findMany({
       where: { merchantId },
       orderBy: { timestamp: 'desc' },
-      include: { items: true }
+      include: { items: true, printInfo: true }
     });
     return txs.map(mapTransaction);
   },
@@ -665,7 +693,7 @@ export const db = {
 
   addTransaction: async (tx: Transaction, items?: TransactionItemInput[]) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { items: _readOnlyItems, ...rest } = tx;
+    const { items: _readOnlyItems, printInfo: _readOnlyPrintInfo, ...rest } = tx;
     const created = await prisma.transaction.create({
       data: {
         ...rest,
@@ -681,6 +709,8 @@ export const db = {
                   name: i.name,
                   price: i.price,
                   quantity: i.quantity,
+                  categoryName: i.categoryName ?? null,
+                  mainCategoryName: i.mainCategoryName ?? null,
                 })),
               },
             }
@@ -695,6 +725,19 @@ export const db = {
       );
     }
     return created;
+  },
+
+  /** Creates or updates the table/shift shown on an order's printed kitchen/bar tickets. */
+  upsertOrderPrintInfo: async (transactionId: string, data: { tableNo?: string | null; shift?: string | null }) => {
+    const printInfo = await prisma.orderPrintInfo.upsert({
+      where: { transactionId },
+      create: { transactionId, tableNo: data.tableNo ?? null, shift: data.shift ?? null },
+      update: {
+        ...(data.tableNo !== undefined ? { tableNo: data.tableNo } : {}),
+        ...(data.shift !== undefined ? { shift: data.shift } : {}),
+      },
+    });
+    return { tableNo: printInfo.tableNo, shift: printInfo.shift };
   },
 
   // Merchant Update Token Methods

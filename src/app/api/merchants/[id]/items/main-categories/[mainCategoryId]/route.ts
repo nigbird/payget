@@ -8,21 +8,21 @@ const MAX_NAME_LENGTH = 40
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string; categoryId: string }> }
+  { params }: { params: Promise<{ id: string; mainCategoryId: string }> }
 ) {
   try {
     const csrfError = await requireCsrf(request)
     if (csrfError) return csrfError
 
-    const { id: merchantId, categoryId } = await params
+    const { id: merchantId, mainCategoryId } = await params
     const user = await requireAuthUser(request)
     if (!user || !canAccessMerchant(user, merchantId)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const existing = await prisma.merchantItemCategory.findFirst({ where: { id: categoryId, merchantId } })
+    const existing = await prisma.merchantItemMainCategory.findFirst({ where: { id: mainCategoryId, merchantId } })
     if (!existing) {
-      return NextResponse.json({ error: "Category not found" }, { status: 404 })
+      return NextResponse.json({ error: "Main category not found" }, { status: 404 })
     }
 
     const body = await request.json()
@@ -30,47 +30,31 @@ export async function PATCH(
     if (body.name !== undefined) {
       name = String(body.name).trim()
       if (!name) {
-        return NextResponse.json({ error: "Validation failed", errors: { name: "Category name is required." } }, { status: 400 })
+        return NextResponse.json({ error: "Validation failed", errors: { name: "Main category name is required." } }, { status: 400 })
       }
       if (name.length > MAX_NAME_LENGTH) {
         return NextResponse.json(
-          { error: "Validation failed", errors: { name: `Category name must be ${MAX_NAME_LENGTH} characters or fewer.` } },
+          { error: "Validation failed", errors: { name: `Main category name must be ${MAX_NAME_LENGTH} characters or fewer.` } },
           { status: 400 }
         )
       }
     }
 
-    let mainCategoryId: string | null | undefined
-    if (body.mainCategoryId !== undefined) {
-      if (body.mainCategoryId === null || body.mainCategoryId === "") {
-        mainCategoryId = null
-      } else {
-        const mainCategory = await prisma.merchantItemMainCategory.findFirst({
-          where: { id: String(body.mainCategoryId), merchantId },
-        })
-        if (!mainCategory) {
-          return NextResponse.json({ error: "Validation failed", errors: { mainCategoryId: "Main category not found." } }, { status: 400 })
-        }
-        mainCategoryId = mainCategory.id
-      }
-    }
-
-    const updated = await prisma.merchantItemCategory.update({
-      where: { id: categoryId },
+    const updated = await prisma.merchantItemMainCategory.update({
+      where: { id: mainCategoryId },
       data: {
         name,
         sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : undefined,
         isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
-        mainCategoryId,
       },
     })
 
     await writeAuditLog({
       request,
       userId: user.id,
-      action: "MERCHANT_ITEM_CATEGORY_UPDATE",
-      entityType: "MERCHANT_ITEM_CATEGORY",
-      entityId: categoryId,
+      action: "MERCHANT_ITEM_MAIN_CATEGORY_UPDATE",
+      entityType: "MERCHANT_ITEM_MAIN_CATEGORY",
+      entityId: mainCategoryId,
       oldValue: { name: existing.name, isActive: existing.isActive },
       newValue: body,
     })
@@ -80,51 +64,50 @@ export async function PATCH(
       name: updated.name,
       sortOrder: updated.sortOrder,
       isActive: updated.isActive,
-      mainCategoryId: updated.mainCategoryId,
     })
   } catch (e: unknown) {
     if (isUniqueViolation(e)) {
-      return NextResponse.json({ error: "A category with this name already exists." }, { status: 409 })
+      return NextResponse.json({ error: "A main category with this name already exists." }, { status: 409 })
     }
-    console.error("Failed to update item category:", e)
+    console.error("Failed to update item main category:", e)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string; categoryId: string }> }
+  { params }: { params: Promise<{ id: string; mainCategoryId: string }> }
 ) {
   try {
     const csrfError = await requireCsrf(request)
     if (csrfError) return csrfError
 
-    const { id: merchantId, categoryId } = await params
+    const { id: merchantId, mainCategoryId } = await params
     const user = await requireAuthUser(request)
     if (!user || !canAccessMerchant(user, merchantId)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const existing = await prisma.merchantItemCategory.findFirst({ where: { id: categoryId, merchantId } })
+    const existing = await prisma.merchantItemMainCategory.findFirst({ where: { id: mainCategoryId, merchantId } })
     if (!existing) {
-      return NextResponse.json({ error: "Category not found" }, { status: 404 })
+      return NextResponse.json({ error: "Main category not found" }, { status: 404 })
     }
 
-    // Items in this category are kept — they just become uncategorized (categoryId set to null).
-    await prisma.merchantItemCategory.delete({ where: { id: categoryId } })
+    // Categories under this main category are kept — they just become unassigned (mainCategoryId set to null).
+    await prisma.merchantItemMainCategory.delete({ where: { id: mainCategoryId } })
 
     await writeAuditLog({
       request,
       userId: user.id,
-      action: "MERCHANT_ITEM_CATEGORY_DELETE",
-      entityType: "MERCHANT_ITEM_CATEGORY",
-      entityId: categoryId,
+      action: "MERCHANT_ITEM_MAIN_CATEGORY_DELETE",
+      entityType: "MERCHANT_ITEM_MAIN_CATEGORY",
+      entityId: mainCategoryId,
       oldValue: { name: existing.name },
     })
 
     return NextResponse.json({ success: true })
   } catch (e) {
-    console.error("Failed to delete item category:", e)
+    console.error("Failed to delete item main category:", e)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
