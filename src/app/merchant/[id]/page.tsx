@@ -8,6 +8,18 @@ import type { TransactionStatus } from "@/lib/db"
 
 const nonTerminalStatuses: TransactionStatus[] = ["pending", "initiated", "awaiting_pin", "processing"]
 
+const RECENT_ACTIVITY_PAGE_SIZE = 4
+
+function filterByRange(date: Date, range: "today" | "week" | "month" | "year", referenceDate: Date) {
+  switch (range) {
+    case "today": return isSameDay(date, referenceDate)
+    case "week": return isSameWeek(date, referenceDate, { weekStartsOn: 0 })
+    case "month": return isSameMonth(date, referenceDate)
+    case "year": return isSameYear(date, referenceDate)
+    default: return false
+  }
+}
+
 import { 
   isSameDay, 
   isSameWeek, 
@@ -54,6 +66,7 @@ import {
   CheckCircle2,
   ArrowUpRight,
   ChevronRight,
+  ChevronLeft,
   Loader2,
   ShieldAlert,
   Info,
@@ -69,6 +82,7 @@ type CatalogItem = { id: string; name: string; price: number; categoryId: string
 type CartLine = { itemId: string; name: string; price: number; qty: number }
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { PrintOrderButton } from "@/components/merchant/print-order-button"
 
 export default function MerchantDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -241,20 +255,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   }
 
   const [timeRange, setTimeRange] = useState<"today" | "week" | "month" | "year">("today")
+  const [recentActivityPage, setRecentActivityPage] = useState(0)
 
   const stats = useMemo(() => {
     const now = new Date()
     const successfulTxs = transactions.filter(tx => tx.status === "success")
-
-    const filterByRange = (date: Date, range: string, referenceDate: Date) => {
-      switch (range) {
-        case "today": return isSameDay(date, referenceDate)
-        case "week": return isSameWeek(date, referenceDate, { weekStartsOn: 0 })
-        case "month": return isSameMonth(date, referenceDate)
-        case "year": return isSameYear(date, referenceDate)
-        default: return false
-      }
-    }
 
     const getPreviousReferenceDate = (range: string, referenceDate: Date) => {
       switch (range) {
@@ -309,6 +314,33 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       formattedDateRange
     }
   }, [transactions, timeRange])
+
+  /** The just-created push transaction shown in the success modal, sourced from `transactions`
+   * (refreshed with items/printInfo right before the success toast fires) rather than the
+   * lightweight status-polling response, so Print Order has everything it needs. */
+  const successTransaction = useMemo(
+    () => transactions.find((t) => t.transactionReference === generatedResult?.transactionReference) ?? null,
+    [transactions, generatedResult?.transactionReference]
+  )
+
+  // Every transaction within the selected time range, newest first — Print Order now lives only
+  // here and on the success screen, so this list needs to reach every transaction in-range, not
+  // just the latest few.
+  const recentActivityTransactions = useMemo(() => {
+    const now = new Date()
+    return transactions.filter((tx) => filterByRange(new Date(tx.timestamp), timeRange, now))
+  }, [transactions, timeRange])
+
+  const recentActivityPageCount = Math.max(1, Math.ceil(recentActivityTransactions.length / RECENT_ACTIVITY_PAGE_SIZE))
+  const safeRecentActivityPage = Math.min(recentActivityPage, recentActivityPageCount - 1)
+  const recentTransactions = recentActivityTransactions.slice(
+    safeRecentActivityPage * RECENT_ACTIVITY_PAGE_SIZE,
+    safeRecentActivityPage * RECENT_ACTIVITY_PAGE_SIZE + RECENT_ACTIVITY_PAGE_SIZE
+  )
+
+  useEffect(() => {
+    setRecentActivityPage(0)
+  }, [timeRange])
 
   useEffect(() => {
     async function fetchData() {
@@ -1008,8 +1040,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     </div>
   )
 
-  const recentTransactions = transactions.slice(0, 4)
-
   const copyText = async (value: string, key: string) => {
     await navigator.clipboard.writeText(value)
     setCopied(key)
@@ -1199,7 +1229,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <div>
                 <h2 className="font-semibold text-[#5b371f] text-lg">Recent Activity</h2>
                 <p className="text-xs text-amber-800/60 leading-5">
-                  {stats.count} successful payments {timeRange === 'today' ? 'today' : `this ${timeRange}`}
+                  {recentActivityTransactions.length} transaction{recentActivityTransactions.length === 1 ? "" : "s"}{" "}
+                  {timeRange === 'today' ? 'today' : `this ${timeRange}`}
                 </p>
               </div>
               <Link href={`/merchant/${id}/transactions`} className="inline-flex min-h-11 items-center text-sm font-medium text-amber-700">
@@ -1229,11 +1260,47 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                         {tx.status === "success" ? "Success" : nonTerminalStatuses.includes(tx.status) ? "Initiated" : "Failed"}
                       </Badge>
                     </div>
+                    <PrintOrderButton
+                      transaction={tx}
+                      merchantName={merchant.name}
+                      onSaved={(printInfo) =>
+                        setTransactions((prev) => prev.map((t) => (t.id === tx.id ? { ...t, printInfo } : t)))
+                      }
+                    />
                   </div>
                 </div>
               ))}
-              {transactions.length === 0 && <p className="text-sm text-muted-foreground">No transactions yet.</p>}
+              {recentActivityTransactions.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No transactions {timeRange === 'today' ? 'today' : `this ${timeRange}`}.
+                </p>
+              )}
             </div>
+            {recentActivityPageCount > 1 && (
+              <div className="mt-3 flex items-center justify-between pt-3 border-t border-amber-100/50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-lg font-semibold text-amber-800/70 gap-1 px-2"
+                  onClick={() => setRecentActivityPage((p) => Math.max(0, p - 1))}
+                  disabled={safeRecentActivityPage === 0}
+                >
+                  <ChevronLeft className="w-4 h-4" /> Previous
+                </Button>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800/50">
+                  Page {safeRecentActivityPage + 1} of {recentActivityPageCount}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-lg font-semibold text-amber-800/70 gap-1 px-2"
+                  onClick={() => setRecentActivityPage((p) => Math.min(recentActivityPageCount - 1, p + 1))}
+                  disabled={safeRecentActivityPage >= recentActivityPageCount - 1}
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1403,7 +1470,25 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     <span className="text-[10px] font-bold text-slate-600">{lastRequestDetails?.phone}</span>
                   </div>
                 </div>
-                
+
+                {currentTxStatus === 'success' && successTransaction && (
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+                    <div>
+                      <p className="text-xs font-bold text-emerald-900">Kitchen / bar order</p>
+                      <p className="text-[10px] text-emerald-700/70">Print the order ticket now</p>
+                    </div>
+                    <PrintOrderButton
+                      transaction={successTransaction}
+                      merchantName={merchant.name}
+                      onSaved={(printInfo) =>
+                        setTransactions((prev) =>
+                          prev.map((t) => (t.id === successTransaction.id ? { ...t, printInfo } : t))
+                        )
+                      }
+                    />
+                  </div>
+                )}
+
                 {currentTxStatus === 'failed' && (
                   <Button 
                     disabled={paymentFlowPhase === "push_submitting"}

@@ -399,7 +399,7 @@ export function ItemsTab({ merchantId }: Props) {
 
           <div className="space-y-2 rounded-xl border border-black/5 bg-slate-50/60 p-3">
             <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Main categories (optional) — e.g. Foods, Soft Drinks. Groups your categories together; each one becomes its own printed order ticket.
+              Main categories (optional)
             </Label>
             <div className="flex flex-wrap items-center gap-1.5">
               {mainCategories.map((mc) => (
