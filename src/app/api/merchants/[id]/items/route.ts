@@ -140,6 +140,46 @@ export async function POST(
   }
 }
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const csrfError = await requireCsrf(request)
+    if (csrfError) return csrfError
+
+    const { id: merchantId } = await params
+    const user = await requireAuthUser(request)
+    if (!user || !canAccessMerchant(user, merchantId)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const ids: string[] = Array.isArray(body.ids) ? body.ids.filter((v: unknown) => typeof v === "string") : []
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "No items selected." }, { status: 400 })
+    }
+
+    const result = await prisma.merchantItem.deleteMany({
+      where: { id: { in: ids }, merchantId },
+    })
+
+    await writeAuditLog({
+      request,
+      userId: user.id,
+      action: "MERCHANT_ITEM_BULK_DELETE",
+      entityType: "MERCHANT_ITEM",
+      entityId: merchantId,
+      newValue: { requestedCount: ids.length, deletedCount: result.count },
+    })
+
+    return NextResponse.json({ success: true, deletedCount: result.count })
+  } catch (e) {
+    console.error("Failed to bulk delete merchant items:", e)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
 function isUniqueViolation(e: unknown): boolean {
   return typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002"
 }

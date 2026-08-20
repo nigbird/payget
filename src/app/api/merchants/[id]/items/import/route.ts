@@ -60,6 +60,9 @@ export async function POST(
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const existingMainCategories = await tx.merchantItemMainCategory.findMany({ where: { merchantId } })
+      const mainCategoryByName = new Map(existingMainCategories.map((mc) => [mc.name.toLowerCase(), mc.id]))
+
       const existingCategories = await tx.merchantItemCategory.findMany({ where: { merchantId } })
       const categoryByName = new Map(existingCategories.map((c) => [c.name.toLowerCase(), c.id]))
 
@@ -67,6 +70,21 @@ export async function POST(
       let updated = 0
 
       for (const row of parsed.rows) {
+        let mainCategoryId: string | null = null
+        if (row.mainCategoryName) {
+          const key = row.mainCategoryName.toLowerCase()
+          const existingId = mainCategoryByName.get(key)
+          if (existingId) {
+            mainCategoryId = existingId
+          } else {
+            const mainCategory = await tx.merchantItemMainCategory.create({
+              data: { merchantId, name: row.mainCategoryName },
+            })
+            mainCategoryByName.set(key, mainCategory.id)
+            mainCategoryId = mainCategory.id
+          }
+        }
+
         let categoryId: string | null = null
         if (row.categoryName) {
           const key = row.categoryName.toLowerCase()
@@ -75,7 +93,7 @@ export async function POST(
             categoryId = existingId
           } else {
             const category = await tx.merchantItemCategory.create({
-              data: { merchantId, name: row.categoryName },
+              data: { merchantId, name: row.categoryName, mainCategoryId },
             })
             categoryByName.set(key, category.id)
             categoryId = category.id

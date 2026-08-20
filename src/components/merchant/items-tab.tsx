@@ -1,12 +1,22 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Loader2, Plus, Trash2, Pencil, Check, X, Package, FolderPlus, Tag, Upload, Download } from "lucide-react"
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react"
+import { Loader2, Plus, Trash2, Pencil, Check, X, Package, FolderPlus, Tag, Upload, Download, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Select,
   SelectContent,
@@ -15,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+
+const ITEMS_PAGE_SIZE = 10
 
 type Props = { merchantId: string }
 
@@ -38,6 +50,7 @@ export type MerchantItemDto = {
 const UNCATEGORIZED = "__uncategorized__"
 const NO_MAIN_CATEGORY = "__no_main_category__"
 const PRICE_PATTERN = /^\d{0,7}(\.\d{0,2})?$/
+const GROUPS_PAGE_SIZE = 5
 
 export function ItemsTab({ merchantId }: Props) {
   const { toast } = useToast()
@@ -66,6 +79,41 @@ export function ItemsTab({ merchantId }: Props) {
 
   const [importing, setImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [groupsPage, setGroupsPage] = useState(0)
+
+  const [bulkDeleteTargetIds, setBulkDeleteTargetIds] = useState<string[] | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
+  const requestBulkDelete = (ids: string[]) => {
+    if (ids.length === 0) return
+    setBulkDeleteTargetIds(ids)
+  }
+
+  const confirmBulkDelete = async () => {
+    if (!bulkDeleteTargetIds || bulkDeleteTargetIds.length === 0) return
+    setBulkDeleting(true)
+    try {
+      const res = await fetch(`/api/merchants/${merchantId}/items`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: bulkDeleteTargetIds }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Failed to delete items")
+      toast({ title: "Items deleted", description: `${data.deletedCount ?? bulkDeleteTargetIds.length} item(s) removed.` })
+      setBulkDeleteTargetIds(null)
+      await load()
+    } catch (e: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete items",
+        description: e instanceof Error ? e.message : "Try again",
+      })
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -228,7 +276,8 @@ export function ItemsTab({ merchantId }: Props) {
   }
 
   const downloadTemplate = () => {
-    const csv = "Item Name,Price,Category\nEspresso,70,Drinks\nBurger,250,Main Course\n"
+    const csv =
+      "Item Name,Price,Category,Main Category\nEspresso,70,Drinks,Bar\nBurger,250,Main Course,Kitchen\n"
     const blob = new Blob([csv], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -347,10 +396,40 @@ export function ItemsTab({ merchantId }: Props) {
   const groups = [
     ...categories.map((c) => ({ category: c as MerchantItemCategoryDto | null, items: items.filter((i) => i.categoryId === c.id) })),
     { category: null, items: items.filter((i) => i.categoryId === null) },
-  ]
+  ].filter((g) => g.category || g.items.length > 0)
+
+  const groupsPageCount = Math.max(1, Math.ceil(groups.length / GROUPS_PAGE_SIZE))
+  const safeGroupsPage = Math.min(groupsPage, groupsPageCount - 1)
+  const pagedGroups = groups.slice(safeGroupsPage * GROUPS_PAGE_SIZE, safeGroupsPage * GROUPS_PAGE_SIZE + GROUPS_PAGE_SIZE)
 
   return (
     <div className="space-y-6">
+      <AlertDialog
+        open={bulkDeleteTargetIds !== null}
+        onOpenChange={(open) => {
+          if (!open && !bulkDeleting) setBulkDeleteTargetIds(null)
+        }}
+      >
+        <AlertDialogContent className="max-w-md rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete selected items?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkDeleteTargetIds?.length ?? 0} item(s) will be permanently removed. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <Button
+              disabled={bulkDeleting}
+              onClick={confirmBulkDelete}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -565,8 +644,7 @@ export function ItemsTab({ merchantId }: Props) {
             </div>
           ) : (
             <div className="space-y-4">
-              {groups.map(({ category, items: groupItems }) => {
-                if (!category && groupItems.length === 0) return null
+              {pagedGroups.map(({ category, items: groupItems }) => {
                 return (
                   <div key={category?.id ?? "uncategorized"} className="overflow-hidden rounded-xl border border-black/5">
                     <div className="flex items-center justify-between gap-2 border-b border-black/5 bg-slate-50 px-4 py-2">
@@ -610,118 +688,278 @@ export function ItemsTab({ merchantId }: Props) {
                         )}
                       </div>
                     </div>
-                    {groupItems.length === 0 ? (
-                      <div className="px-4 py-4 text-center text-xs text-muted-foreground">
-                        No items in this category yet.
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-black/5">
-                        {groupItems.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
-                            {editingItemId === item.id ? (
-                              <>
-                                <div className="flex flex-1 flex-wrap items-center gap-2">
-                                  <Input
-                                    value={editItemForm.name}
-                                    onChange={(e) => setEditItemForm((p) => ({ ...p, name: e.target.value }))}
-                                    className="h-8 min-w-[120px] flex-1 rounded-lg text-sm"
-                                    autoFocus
-                                    maxLength={60}
-                                  />
-                                  <Input
-                                    value={editItemForm.price}
-                                    onChange={(e) => {
-                                      const val = e.target.value
-                                      if (val === "" || PRICE_PATTERN.test(val)) {
-                                        setEditItemForm((p) => ({ ...p, price: val }))
-                                      }
-                                    }}
-                                    className="h-8 w-24 rounded-lg text-sm"
-                                    inputMode="decimal"
-                                  />
-                                  <Select
-                                    value={editItemForm.categoryId}
-                                    onValueChange={(v) => setEditItemForm((p) => ({ ...p, categoryId: v }))}
-                                  >
-                                    <SelectTrigger className="h-8 w-36 rounded-lg text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value={UNCATEGORIZED}>No category</SelectItem>
-                                      {categories.map((c) => (
-                                        <SelectItem key={c.id} value={c.id}>
-                                          {c.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-1">
-                                  <button
-                                    onClick={() => handleSaveItem(item.id)}
-                                    disabled={savingItemId === item.id || !editItemForm.name.trim() || !editItemForm.price}
-                                    className="text-emerald-600 hover:text-emerald-700 disabled:opacity-40"
-                                    aria-label="Save item"
-                                  >
-                                    {savingItemId === item.id ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Check className="h-4 w-4" />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={cancelEditItem}
-                                    disabled={savingItemId === item.id}
-                                    className="text-slate-400 hover:text-slate-600"
-                                    aria-label="Cancel edit"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center gap-2">
-                                  <span className={item.isActive ? "" : "text-slate-400 line-through"}>{item.name}</span>
-                                  <span className="text-xs font-semibold text-[#754319]">
-                                    ETB {item.price.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-3">
-                                  <Switch checked={item.isActive} onCheckedChange={() => handleToggleItemActive(item)} />
-                                  <button
-                                    onClick={() => startEditItem(item)}
-                                    className="text-slate-300 transition-colors hover:text-[#754319]"
-                                    aria-label="Edit item"
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteItem(item.id)}
-                                    disabled={deletingItemId === item.id}
-                                    className="text-slate-300 transition-colors hover:text-rose-600"
-                                    aria-label="Delete item"
-                                  >
-                                    {deletingItemId === item.id ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    )}
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <CategoryItemsList
+                      items={groupItems}
+                      categories={categories}
+                      editingItemId={editingItemId}
+                      editItemForm={editItemForm}
+                      setEditItemForm={setEditItemForm}
+                      savingItemId={savingItemId}
+                      deletingItemId={deletingItemId}
+                      onStartEdit={startEditItem}
+                      onCancelEdit={cancelEditItem}
+                      onSaveItem={handleSaveItem}
+                      onToggleActive={handleToggleItemActive}
+                      onDeleteItem={handleDeleteItem}
+                      onBulkDeleteRequest={requestBulkDelete}
+                    />
                   </div>
                 )
               })}
+              {groupsPageCount > 1 && (
+                <div className="flex items-center justify-between pt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs font-semibold text-slate-500 gap-1 px-2"
+                    onClick={() => setGroupsPage((p) => Math.max(0, p - 1))}
+                    disabled={safeGroupsPage === 0}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                  </Button>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Page {safeGroupsPage + 1} of {groupsPageCount}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs font-semibold text-slate-500 gap-1 px-2"
+                    onClick={() => setGroupsPage((p) => Math.min(groupsPageCount - 1, p + 1))}
+                    disabled={safeGroupsPage >= groupsPageCount - 1}
+                  >
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+type EditItemForm = { name: string; price: string; categoryId: string }
+
+function CategoryItemsList({
+  items,
+  categories,
+  editingItemId,
+  editItemForm,
+  setEditItemForm,
+  savingItemId,
+  deletingItemId,
+  onStartEdit,
+  onCancelEdit,
+  onSaveItem,
+  onToggleActive,
+  onDeleteItem,
+  onBulkDeleteRequest,
+}: {
+  items: MerchantItemDto[]
+  categories: MerchantItemCategoryDto[]
+  editingItemId: string | null
+  editItemForm: EditItemForm
+  setEditItemForm: Dispatch<SetStateAction<EditItemForm>>
+  savingItemId: string | null
+  deletingItemId: string | null
+  onStartEdit: (item: MerchantItemDto) => void
+  onCancelEdit: () => void
+  onSaveItem: (itemId: string) => void
+  onToggleActive: (item: MerchantItemDto) => void
+  onDeleteItem: (itemId: string) => void
+  onBulkDeleteRequest: (ids: string[]) => void
+}) {
+  const [page, setPage] = useState(0)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  // Deleting/adding items in this group shifts the underlying list — drop any selection that
+  // no longer makes sense rather than risk a stale bulk-delete target.
+  useEffect(() => {
+    setSelected(new Set())
+  }, [items.length])
+
+  if (items.length === 0) {
+    return (
+      <div className="px-4 py-4 text-center text-xs text-muted-foreground">
+        No items in this category yet.
+      </div>
+    )
+  }
+
+  const pageCount = Math.max(1, Math.ceil(items.length / ITEMS_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageItems = items.slice(safePage * ITEMS_PAGE_SIZE, safePage * ITEMS_PAGE_SIZE + ITEMS_PAGE_SIZE)
+  const allOnPageSelected = pageItems.length > 0 && pageItems.every((item) => selected.has(item.id))
+
+  const toggleSelectAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (allOnPageSelected) {
+        pageItems.forEach((item) => next.delete(item.id))
+      } else {
+        pageItems.forEach((item) => next.add(item.id))
+      }
+      return next
+    })
+  }
+
+  const toggleSelectOne = (itemId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(itemId)) next.delete(itemId)
+      else next.add(itemId)
+      return next
+    })
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 border-b border-black/5 bg-slate-50/50 px-4 py-1.5">
+        <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <Checkbox checked={allOnPageSelected} onCheckedChange={toggleSelectAll} />
+          Select all{pageItems.length < items.length ? " on this page" : ""}
+        </label>
+        {selected.size > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 rounded-lg text-[10px] font-bold text-rose-600 hover:bg-rose-50 gap-1 px-2"
+            onClick={() => onBulkDeleteRequest(Array.from(selected))}
+          >
+            <Trash2 className="h-3 w-3" /> Delete Selected ({selected.size})
+          </Button>
+        )}
+      </div>
+      <div className="divide-y divide-black/5">
+        {pageItems.map((item) => (
+          <div key={item.id} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
+            {editingItemId === item.id ? (
+              <>
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <Input
+                    value={editItemForm.name}
+                    onChange={(e) => setEditItemForm((p) => ({ ...p, name: e.target.value }))}
+                    className="h-8 min-w-[120px] flex-1 rounded-lg text-sm"
+                    autoFocus
+                    maxLength={60}
+                  />
+                  <Input
+                    value={editItemForm.price}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === "" || PRICE_PATTERN.test(val)) {
+                        setEditItemForm((p) => ({ ...p, price: val }))
+                      }
+                    }}
+                    className="h-8 w-24 rounded-lg text-sm"
+                    inputMode="decimal"
+                  />
+                  <Select
+                    value={editItemForm.categoryId}
+                    onValueChange={(v) => setEditItemForm((p) => ({ ...p, categoryId: v }))}
+                  >
+                    <SelectTrigger className="h-8 w-36 rounded-lg text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNCATEGORIZED}>No category</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => onSaveItem(item.id)}
+                    disabled={savingItemId === item.id || !editItemForm.name.trim() || !editItemForm.price}
+                    className="text-emerald-600 hover:text-emerald-700 disabled:opacity-40"
+                    aria-label="Save item"
+                  >
+                    {savingItemId === item.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={onCancelEdit}
+                    disabled={savingItemId === item.id}
+                    className="text-slate-400 hover:text-slate-600"
+                    aria-label="Cancel edit"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selected.has(item.id)}
+                    onCheckedChange={() => toggleSelectOne(item.id)}
+                    aria-label={`Select ${item.name}`}
+                  />
+                  <span className={item.isActive ? "" : "text-slate-400 line-through"}>{item.name}</span>
+                  <span className="text-xs font-semibold text-[#754319]">
+                    ETB {item.price.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <Switch checked={item.isActive} onCheckedChange={() => onToggleActive(item)} />
+                  <button
+                    onClick={() => onStartEdit(item)}
+                    className="text-slate-300 transition-colors hover:text-[#754319]"
+                    aria-label="Edit item"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => onDeleteItem(item.id)}
+                    disabled={deletingItemId === item.id}
+                    className="text-slate-300 transition-colors hover:text-rose-600"
+                    aria-label="Delete item"
+                  >
+                    {deletingItemId === item.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between gap-2 border-t border-black/5 px-4 py-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 rounded-lg text-[10px] font-semibold text-slate-500 gap-1 px-2"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={safePage === 0}
+          >
+            <ChevronLeft className="h-3 w-3" /> Prev
+          </Button>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Page {safePage + 1} of {pageCount}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 rounded-lg text-[10px] font-semibold text-slate-500 gap-1 px-2"
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={safePage >= pageCount - 1}
+          >
+            Next <ChevronRight className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -13,6 +13,7 @@ export type ParsedItemRow = {
   name: string
   price: number
   categoryName: string | null
+  mainCategoryName: string | null
   rowNumber: number
 }
 
@@ -33,6 +34,7 @@ function buildRow(
   rawName: string,
   rawPrice: string,
   rawCategory: string,
+  rawMainCategory: string,
   rowNumber: number,
   errors: ImportParseError[]
 ): ParsedItemRow | null {
@@ -58,7 +60,19 @@ function buildRow(
     return null
   }
 
-  return { name, price, categoryName: categoryName || null, rowNumber }
+  const mainCategoryName = rawMainCategory.trim()
+  if (mainCategoryName.length > ITEMS_IMPORT_LIMITS.categoryNameMax) {
+    errors.push({ rowNumber, message: `Main category name must be ${ITEMS_IMPORT_LIMITS.categoryNameMax} characters or fewer.` })
+    return null
+  }
+
+  return {
+    name,
+    price,
+    categoryName: categoryName || null,
+    mainCategoryName: mainCategoryName || null,
+    rowNumber,
+  }
 }
 
 export function parseCsvItemRows(content: string): {
@@ -81,6 +95,7 @@ export function parseCsvItemRows(content: string): {
   const nameIdx = headers.findIndex((h) => h === "name" || h === "item" || h === "item name" || h === "itemname")
   const priceIdx = headers.findIndex((h) => h === "price" || h === "price (etb)" || h === "amount")
   const categoryIdx = headers.findIndex((h) => h === "category" || h === "category name")
+  const mainCategoryIdx = headers.findIndex((h) => h === "main category" || h === "main category name" || h === "maincategory")
 
   if (nameIdx < 0 || priceIdx < 0) {
     return {
@@ -99,6 +114,7 @@ export function parseCsvItemRows(content: string): {
       cols[nameIdx] ?? "",
       cols[priceIdx] ?? "",
       categoryIdx >= 0 ? cols[categoryIdx] ?? "" : "",
+      mainCategoryIdx >= 0 ? cols[mainCategoryIdx] ?? "" : "",
       rowNumber,
       errors
     )
@@ -133,6 +149,7 @@ export async function parseExcelItemRows(buffer: ArrayBuffer): Promise<{
   const nameIdx = headers.findIndex((h) => h === "name" || h === "item" || h === "item name" || h === "itemname")
   const priceIdx = headers.findIndex((h) => h === "price" || h === "price (etb)" || h === "amount")
   const categoryIdx = headers.findIndex((h) => h === "category" || h === "category name")
+  const mainCategoryIdx = headers.findIndex((h) => h === "main category" || h === "main category name" || h === "maincategory")
 
   if (nameIdx < 0 || priceIdx < 0) {
     return {
@@ -149,7 +166,8 @@ export async function parseExcelItemRows(buffer: ArrayBuffer): Promise<{
     const rawName = String(row.getCell(nameIdx).value ?? "").trim()
     const rawPrice = String(row.getCell(priceIdx).value ?? "").trim()
     const rawCategory = categoryIdx >= 0 ? String(row.getCell(categoryIdx).value ?? "").trim() : ""
-    const parsedRow = buildRow(rawName, rawPrice, rawCategory, rowNumber, errors)
+    const rawMainCategory = mainCategoryIdx >= 0 ? String(row.getCell(mainCategoryIdx).value ?? "").trim() : ""
+    const parsedRow = buildRow(rawName, rawPrice, rawCategory, rawMainCategory, rowNumber, errors)
     if (parsedRow) rows.push(parsedRow)
   })
 
