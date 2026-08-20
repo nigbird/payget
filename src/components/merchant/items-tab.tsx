@@ -790,18 +790,10 @@ function CategoryItemsList({
   const pageCount = Math.max(1, Math.ceil(items.length / ITEMS_PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const pageItems = items.slice(safePage * ITEMS_PAGE_SIZE, safePage * ITEMS_PAGE_SIZE + ITEMS_PAGE_SIZE)
-  const allOnPageSelected = pageItems.length > 0 && pageItems.every((item) => selected.has(item.id))
+  const allSelected = items.length > 0 && items.every((item) => selected.has(item.id))
 
   const toggleSelectAll = () => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (allOnPageSelected) {
-        pageItems.forEach((item) => next.delete(item.id))
-      } else {
-        pageItems.forEach((item) => next.add(item.id))
-      }
-      return next
-    })
+    setSelected(allSelected ? new Set() : new Set(items.map((item) => item.id)))
   }
 
   const toggleSelectOne = (itemId: string) => {
@@ -817,8 +809,8 @@ function CategoryItemsList({
     <div>
       <div className="flex items-center justify-between gap-2 border-b border-black/5 bg-slate-50/50 px-4 py-1.5">
         <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-          <Checkbox checked={allOnPageSelected} onCheckedChange={toggleSelectAll} />
-          Select all{pageItems.length < items.length ? " on this page" : ""}
+          <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />
+          Select all ({items.length})
         </label>
         {selected.size > 0 && (
           <Button

@@ -1474,8 +1474,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 {currentTxStatus === 'success' && successTransaction && (
                   <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
                     <div>
-                      <p className="text-xs font-bold text-emerald-900">Kitchen / bar order</p>
-                      <p className="text-[10px] text-emerald-700/70">Print the order ticket now</p>
+                      <p className="text-xs font-bold text-emerald-900">Print order</p>
+                      <p className="text-[10px] text-emerald-700/70">Get your order ticket now</p>
                     </div>
                     <PrintOrderButton
                       transaction={successTransaction}
