@@ -59,7 +59,7 @@ function ticketHtml(params: {
   `
 }
 
-/** Opens a new window with one kitchen/bar ticket per main category and triggers the browser print dialog. */
+/** Prints one order ticket per main category from a hidden iframe, so no window is ever shown on screen. */
 export function printOrder(
   tx: Transaction,
   merchantName: string,
@@ -86,10 +86,29 @@ export function printOrder(
     )
     .join("")
 
-  const win = window.open("", "_blank", "width=400,height=600")
-  if (!win) return
+  const iframe = document.createElement("iframe")
+  iframe.style.position = "fixed"
+  iframe.style.width = "0"
+  iframe.style.height = "0"
+  iframe.style.border = "0"
+  iframe.style.visibility = "hidden"
+  document.body.appendChild(iframe)
 
-  win.document.write(`
+  const doc = iframe.contentWindow?.document
+  if (!doc) {
+    document.body.removeChild(iframe)
+    return
+  }
+
+  let cleaned = false
+  const cleanup = () => {
+    if (cleaned) return
+    cleaned = true
+    document.body.removeChild(iframe)
+  }
+
+  doc.open()
+  doc.write(`
     <!doctype html>
     <html>
       <head>
@@ -116,7 +135,11 @@ export function printOrder(
       </body>
     </html>
   `)
-  win.document.close()
-  win.focus()
-  win.print()
+  doc.close()
+
+  iframe.contentWindow?.addEventListener("afterprint", cleanup)
+  iframe.contentWindow?.focus()
+  iframe.contentWindow?.print()
+  // Fallback in case afterprint never fires (e.g. some kiosk-printing configurations).
+  setTimeout(cleanup, 5000)
 }
