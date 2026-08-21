@@ -113,13 +113,10 @@ export function printOrder(
       </head>
       <body>
         ${tickets}
-        <script>
-          window.onload = function () {
-            window.print();
-          };
-        </script>
       </body>
     </html>
   `)
   win.document.close()
+  win.focus()
+  win.print()
 }
