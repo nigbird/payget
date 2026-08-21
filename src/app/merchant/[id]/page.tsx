@@ -364,16 +364,21 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     }
     fetchData();
 
-    // Polling for updates every 5 seconds
+    // Polling for updates every 5 seconds, but only while a transaction is still in flight —
+    // otherwise an idle open dashboard tab re-fetches the merchant's whole transaction history
+    // forever for no reason.
     const interval = setInterval(async () => {
       try {
         const tRes = await fetch(`/api/merchants/${id}/transactions`);
         if (tRes.ok) {
           const newTransactions = await tRes.json();
           // Sort transactions by timestamp descending
-          setTransactions(newTransactions.sort((a: any, b: any) => 
+          const sorted = newTransactions.sort((a: any, b: any) =>
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          ));
+          );
+          setTransactions(sorted);
+          const live = sorted.some((tx: { status: TransactionStatus }) => nonTerminalStatuses.includes(tx.status));
+          if (!live) clearInterval(interval);
         }
       } catch (err) {
         console.error("Polling error:", err);

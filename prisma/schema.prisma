@@ -144,6 +144,10 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
 }
 
 model Merchant {

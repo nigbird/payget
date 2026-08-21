@@ -611,11 +611,15 @@ export const db = {
     return txs.map(mapTransaction);
   },
 
-  getTransactionsByMerchant: async (merchantId: string) => {
+  // Capped so a merchant's full history can't turn this into an unbounded fetch — it's polled
+  // every 2.5-5s from the dashboard and transactions pages, so an unbounded query here grows
+  // with every transaction the merchant ever makes and gets re-run several times a minute.
+  getTransactionsByMerchant: async (merchantId: string, take = 2000) => {
     const txs = await prisma.transaction.findMany({
       where: { merchantId },
       orderBy: { timestamp: 'desc' },
-      include: { items: true, printInfo: true }
+      include: { items: true, printInfo: true },
+      take
     });
     return txs.map(mapTransaction);
   },
