@@ -58,7 +58,11 @@ import {
   Share2,
   ExternalLink,
   FileText,
+  QrCode,
+  Mail,
+  Send,
 } from "lucide-react"
+import { QRCodeCanvas } from "qrcode.react"
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -89,14 +93,28 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     paymentUrl?: string
     customerPinToken?: string
     transactionReference?: string
+    method?: "BANK" | "TELEBIRR" | "MPGS"
   } | null>(null)
 
   const [requestForm, setRequestForm] = useState({
     amount: "",
     description: "",
     payerPhone: "",
-    method: "BANK" as "BANK" | "TELEBIRR",
+    customerEmail: "",
+    method: "BANK" as "BANK" | "TELEBIRR" | "MPGS",
   })
+
+  // The most recently generated MPGS link, kept so that "Generate QR Code" and
+  // "Send Payment Link" reuse one gateway link instead of creating two.
+  // `signature` invalidates the cache when the amount/description/email change.
+  const [mpgsLink, setMpgsLink] = useState<{
+    paymentUrl: string
+    transactionReference: string
+    signature: string
+  } | null>(null)
+  const [mpgsView, setMpgsView] = useState<"qr" | "sent" | null>(null)
+  const [mpgsSentTo, setMpgsSentTo] = useState<string | null>(null)
+  const [mpgsBusy, setMpgsBusy] = useState<"qr" | "send" | null>(null)
 
   const [timeRange, setTimeRange] = useState<"today" | "week" | "month" | "year">("today")
 
@@ -272,6 +290,72 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     [id, stopPushPolling, refreshTransactions, toast]
   )
 
+  const startMpgsStatusPolling = useCallback(
+    (transactionReference: string) => {
+      stopPushPolling()
+      pushPollRef.current.transactionReference = transactionReference
+      setCurrentTxStatus("pending")
+
+      // A verify call that keeps failing is indistinguishable from a customer
+      // who has not paid yet, so give up rather than spin silently forever.
+      let consecutiveFailures = 0
+
+      const checkOnce = async () => {
+        try {
+          const res = await fetch("/api/payments/mpgs/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ merchantId: id, transactionReference }),
+          })
+
+          if (!res.ok) {
+            consecutiveFailures += 1
+            console.error("MPGS verify failed:", res.status, await res.text())
+            if (consecutiveFailures >= 3) {
+              stopPushPolling()
+              toast({
+                variant: "destructive",
+                title: "Cannot Check Payment Status",
+                description: `Verification is failing (HTTP ${res.status}). The payment may still complete — check the transaction list.`,
+              })
+            }
+            return
+          }
+
+          consecutiveFailures = 0
+          const data = await res.json()
+          setCurrentTxStatus(data.status)
+
+          if (data.status === "success" || data.status === "failed") {
+            stopPushPolling()
+            pushPollRef.current.transactionReference = undefined
+            await refreshTransactions()
+            if (data.status === "success") {
+              toast({
+                title: "Payment Received",
+                description: "The customer completed the card payment.",
+              })
+            } else {
+              toast({
+                variant: "destructive",
+                title: "Payment Failed",
+                description: "The card payment did not complete.",
+              })
+            }
+          }
+        } catch (err) {
+          console.error("MPGS status polling error:", err)
+        }
+      }
+
+      pushPollRef.current.intervalId = setInterval(checkOnce, 5000)
+      // Stop the live view after 10 minutes; later payments are picked up by
+      // the admin MPGS reconciliation sweep.
+      pushPollRef.current.timeoutId = setTimeout(() => stopPushPolling(), 600_000)
+    },
+    [id, stopPushPolling, refreshTransactions, toast]
+  )
+
   useEffect(() => () => stopPushPolling(), [stopPushPolling])
 
   if (loading) {
@@ -334,6 +418,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const isFormLocked = paymentFlowPhase !== "idle"
   const isPushSubmitting = paymentFlowPhase === "push_submitting"
   const isLinkSubmitting = paymentFlowPhase === "link_submitting"
+  // MPGS is a hosted-checkout method: link only, no USSD push.
+  const isMpgs = requestForm.method === "MPGS"
 
   const handleRequestPanelOpenChange = (open: boolean) => {
     if (open) {
@@ -481,15 +567,23 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         return
       }
 
+      const linkTransactionReference = data?.transactionReference as string | undefined
       setGeneratedResult({
         paymentUrl: data?.paymentUrl as string | undefined,
         customerPinToken: data?.token as string | undefined,
-        transactionReference: data?.transactionReference as string | undefined,
+        transactionReference: linkTransactionReference,
+        method: requestForm.method,
       })
       setPaymentFlowPhase("idle")
       setIsRequestPanelOpen(false)
       setIsSuccessModalOpen(true)
       setRequestForm((prev) => ({ ...prev, amount: "", description: "" }))
+
+      if (requestForm.method === "MPGS" && linkTransactionReference) {
+        setCurrentTxStatus(null)
+        startMpgsStatusPolling(linkTransactionReference)
+      }
+
       toast({
         title: "Payment Link Generated",
         description: "Share the secure payment link with your customer.",
@@ -514,6 +608,190 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const isPending = merchant.status === "pending" || merchant.status === "branch_approved"
   const isApproved = merchant.status === "approved" || merchant.status === "active"
 
+  /** Identifies the form state a cached MPGS link was generated for. */
+  const mpgsFormSignature = () =>
+    `${requestForm.amount}|${requestForm.description}|${requestForm.customerEmail.trim().toLowerCase()}`
+
+  const handleMpgsAction = async (action: "qr" | "send") => {
+    if (isFormLocked || mpgsBusy) return
+
+    const amountNum = parseFloat(requestForm.amount)
+    if (isNaN(amountNum) || amountNum < 1) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Amount",
+        description: "Please enter a valid amount (minimum 1).",
+      })
+      return
+    }
+
+    const email = requestForm.customerEmail.trim()
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Email Required",
+        description: "Please provide the customer's email address.",
+      })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Please enter a valid email address (e.g. customer@example.com).",
+      })
+      return
+    }
+
+    if (!isApproved) {
+      toast({
+        variant: "destructive",
+        title: "Merchant not active",
+        description: "Payment requests unlock once your account is approved.",
+      })
+      return
+    }
+
+    const signature = mpgsFormSignature()
+    const cached = mpgsLink && mpgsLink.signature === signature ? mpgsLink : null
+
+    setMpgsBusy(action)
+    setLastMode("link")
+    setPaymentFlowPhase("link_submitting")
+
+    const controller = new AbortController()
+    const requestTimeoutId = setTimeout(() => controller.abort(), 90_000)
+
+    try {
+      if (cached) {
+        setGeneratedResult({ transactionReference: cached.transactionReference, method: "MPGS" })
+
+        if (action === "qr") {
+          setMpgsView("qr")
+          setIsRequestPanelOpen(false)
+          setIsSuccessModalOpen(true)
+          if (!pushPollRef.current.transactionReference) {
+            startMpgsStatusPolling(cached.transactionReference)
+          }
+          return
+        }
+
+        const res = await fetch("/api/payments/mpgs/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            merchantId: id,
+            transactionReference: cached.transactionReference,
+          }),
+          signal: controller.signal,
+        })
+        const data = await res.json().catch(() => ({}))
+
+        if (!res.ok) {
+          toast({
+            variant: "destructive",
+            title: "Could not send email",
+            description: data?.error || "Please try again.",
+          })
+          return
+        }
+
+        setMpgsSentTo(data?.sentTo ?? email)
+        setMpgsView("sent")
+        setIsRequestPanelOpen(false)
+        setIsSuccessModalOpen(true)
+        if (!pushPollRef.current.transactionReference) {
+          startMpgsStatusPolling(cached.transactionReference)
+        }
+        toast({
+          title: "Payment link sent",
+          description: "Payment link sent successfully to customer email.",
+        })
+        return
+      }
+
+      const transactionId = `tx_${Math.random().toString(36).slice(2, 10)}`
+      const payload = {
+        merchantId: id,
+        transactionId,
+        userCredentials: { authToken: `demo_auth_${Math.random().toString(36).slice(2, 10)}` },
+        amount: amountNum,
+        serviceDescription: requestForm.description || "Payment Request for Customer",
+        timestamp: new Date().toISOString(),
+        method: "MPGS",
+        customerEmail: email,
+        sendEmail: action === "send",
+      }
+
+      const res = await fetch("/api/payments/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: data?.linkCreated ? "Could not send email" : "Request Failed",
+          description: data?.error || "Please check the inputs and try again.",
+        })
+        return
+      }
+
+      const paymentUrl = data?.paymentUrl as string | undefined
+      const transactionReference = data?.transactionReference as string | undefined
+
+      if (!paymentUrl || !transactionReference) {
+        toast({
+          variant: "destructive",
+          title: "Unexpected Response",
+          description: "The gateway did not return a payment link.",
+        })
+        return
+      }
+
+      setMpgsLink({ paymentUrl, transactionReference, signature })
+      setGeneratedResult({ transactionReference, method: "MPGS" })
+      await refreshTransactions()
+
+      setCurrentTxStatus(null)
+      startMpgsStatusPolling(transactionReference)
+
+      if (action === "send") {
+        setMpgsSentTo(data?.sentTo ?? email)
+        setMpgsView("sent")
+        toast({
+          title: "Payment link sent",
+          description: "Payment link sent successfully to customer email.",
+        })
+      } else {
+        setMpgsView("qr")
+        toast({
+          title: "QR Code Ready",
+          description: "Ask the customer to scan the code to pay.",
+        })
+      }
+
+      setIsRequestPanelOpen(false)
+      setIsSuccessModalOpen(true)
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError"
+      toast({
+        variant: "destructive",
+        title: isAbort ? "Request Timed Out" : "Connection Error",
+        description: isAbort
+          ? "The payment gateway did not respond in time. Please try again."
+          : "Could not reach the payment gateway. Please check your connection.",
+      })
+    } finally {
+      clearTimeout(requestTimeoutId)
+      setMpgsBusy(null)
+      setPaymentFlowPhase("idle")
+    }
+  }
+
   const formContent = (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
@@ -524,8 +802,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               <RadioGroup
                 defaultValue="BANK"
                 value={requestForm.method}
-                onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" })}
-                className="grid grid-cols-2 gap-2"
+                onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" | "MPGS" })}
+                className="grid grid-cols-3 gap-2"
                 disabled={isFormLocked}
               >
                 <div className="relative">
@@ -574,30 +852,77 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     <span className="mt-1 text-[10px] font-medium text-slate-700">Telebirr</span>
                   </Label>
                 </div>
+                <div className="relative">
+                  <RadioGroupItem
+                    value="MPGS"
+                    id="mpgs"
+                    className="peer sr-only"
+                  />
+                  <Label
+                    htmlFor="mpgs"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
+                  >
+                    <div className="w-10 h-10 flex items-center justify-center">
+                      <img
+                        src="/mastercard.svg"
+                        alt="Mastercard"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <span className="mt-1 text-[10px] font-medium text-slate-700">Mastercard</span>
+                  </Label>
+                  <div className="absolute top-1.5 right-1.5 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+                  </div>
+                </div>
               </RadioGroup>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Phone</Label>
-              <div className="relative group transition-all duration-200">
-                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="0912345678"
-                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
-                  required
-                  disabled={isFormLocked}
-                  value={requestForm.payerPhone}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^\d+]/g, '');
-                    if (val.length <= 13) {
-                      setRequestForm({ ...requestForm, payerPhone: val });
-                    }
-                  }}
-                />
+            {isMpgs ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="customerEmail" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Email</Label>
+                <div className="relative group transition-all duration-200">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
+                  <Input
+                    id="customerEmail"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="customer@example.com"
+                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                    required
+                    disabled={isFormLocked}
+                    value={requestForm.customerEmail}
+                    onChange={(e) => setRequestForm({ ...requestForm, customerEmail: e.target.value })}
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 leading-tight">
+                  The payment link is emailed to this address.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="phone" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Phone</Label>
+                <div className="relative group transition-all duration-200">
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="0912345678"
+                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                    required
+                    disabled={isFormLocked}
+                    value={requestForm.payerPhone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^\d+]/g, '');
+                      if (val.length <= 13) {
+                        setRequestForm({ ...requestForm, payerPhone: val });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount</Label>
               <div className="relative group transition-all duration-200">
@@ -645,34 +970,65 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         </div>
       </div>
       <div className="shrink-0 p-5 border-t border-slate-50 bg-white rounded-b-2xl">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Button
-            type="button"
-            onClick={() => handleRequestPayment("push")}
-            className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
-            disabled={isFormLocked || !isApproved}
-          >
-            {isPushSubmitting ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            {isPushSubmitting ? "Sending…" : "Push Payment"}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => handleRequestPayment("link")}
-            className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-sm transition-all"
-            disabled={isFormLocked || !isApproved}
-          >
-            {isLinkSubmitting ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Copy className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Generate Link
-          </Button>
-        </div>
+        {isMpgs ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              onClick={() => handleMpgsAction("qr")}
+              className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-sm transition-all"
+              disabled={isFormLocked || !isApproved}
+            >
+              {mpgsBusy === "qr" ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <QrCode className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {mpgsBusy === "qr" ? "Generating…" : "Generate QR Code"}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handleMpgsAction("send")}
+              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
+              disabled={isFormLocked || !isApproved}
+            >
+              {mpgsBusy === "send" ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {mpgsBusy === "send" ? "Sending…" : "Send Payment Link"}
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              onClick={() => handleRequestPayment("push")}
+              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
+              disabled={isFormLocked || !isApproved}
+            >
+              {isPushSubmitting ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {isPushSubmitting ? "Sending…" : "Push Payment"}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handleRequestPayment("link")}
+              className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-sm transition-all"
+              disabled={isFormLocked || !isApproved}
+            >
+              {isLinkSubmitting ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Generate Link
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -949,10 +1305,26 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             {lastMode === "link" ? (
               <>
                 <div className="mx-auto w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  {generatedResult?.method === "MPGS" && mpgsView === "qr" ? (
+                    <QrCode className="w-5 h-5 text-emerald-600" />
+                  ) : (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  )}
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-none">Payment Link Ready</h3>
-                <p className="text-slate-500 mt-1.5 text-[11px]">Secure checkout link generated</p>
+                <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-none">
+                  {generatedResult?.method === "MPGS"
+                    ? mpgsView === "qr"
+                      ? "QR Code Ready"
+                      : "Payment Link Sent"
+                    : "Payment Link Ready"}
+                </h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">
+                  {generatedResult?.method === "MPGS"
+                    ? mpgsView === "qr"
+                      ? "Scan to pay securely by card"
+                      : "Delivered to the customer's email"
+                    : "Secure checkout link generated"}
+                </p>
               </>
             ) : paymentFlowPhase === "push_submitting" ? (
               <>
@@ -990,7 +1362,78 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           </div>
           
           <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
-            {lastMode === "link" ? (
+            {lastMode === "link" && generatedResult?.method === "MPGS" ? (
+              <>
+                {mpgsView === "qr" ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="p-4 bg-white rounded-2xl border border-amber-200/60 shadow-sm">
+                      <QRCodeCanvas
+                        value={mpgsLink?.paymentUrl ?? ""}
+                        size={180}
+                        level="H"
+                        includeMargin
+                        bgColor="#FFFFFF"
+                        fgColor="#000000"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 text-center leading-relaxed px-2">
+                      Ask the customer to scan this code with their phone camera to open the
+                      secure card payment page.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-emerald-50/50 border border-emerald-100">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <p className="text-xs font-bold text-emerald-800 text-center leading-snug">
+                      Payment link sent successfully to customer email.
+                    </p>
+                    {mpgsSentTo && (
+                      <p className="text-[11px] font-medium text-slate-600 break-all text-center">
+                        {mpgsSentTo}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border shadow-sm ${
+                    currentTxStatus === "success"
+                      ? "bg-emerald-50/50 border-emerald-100"
+                      : currentTxStatus === "failed"
+                      ? "bg-rose-50/50 border-rose-100"
+                      : "bg-slate-100/50 border-slate-200"
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shrink-0">
+                    {currentTxStatus === "success" ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : currentTxStatus === "failed" ? (
+                      <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                    ) : (
+                      <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                    )}
+                  </div>
+                  <div className="text-[10px] text-slate-700">
+                    <p className="font-bold text-slate-900 leading-tight">
+                      {currentTxStatus === "success"
+                        ? "Payment received"
+                        : currentTxStatus === "failed"
+                        ? "Payment failed"
+                        : "Waiting for customer payment"}
+                    </p>
+                    <p className="text-slate-500 mt-0.5 leading-tight">
+                      {currentTxStatus === "success"
+                        ? "Funds captured by the card gateway."
+                        : currentTxStatus === "failed"
+                        ? "The card payment did not complete."
+                        : "Status refreshes automatically while this dialog is open."}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : lastMode === "link" ? (
               <>
                 <div className="space-y-2">
                   <Label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Shareable Payment Link</Label>
@@ -1025,7 +1468,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     <Share2 className="w-3.5 h-3.5" />
                     Share Link
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
                     asChild
                     className="h-10 rounded-xl border-amber-200 bg-white hover:bg-amber-50 flex items-center justify-center gap-2 shadow-sm transition-all text-amber-900 text-xs font-bold"

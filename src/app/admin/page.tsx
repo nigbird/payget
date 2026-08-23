@@ -17,6 +17,8 @@ import {
   ArrowUpRight,
   Building2,
   ChevronRight,
+  Loader2,
+  RefreshCw,
   Clock,
   FileUp,
   Settings2,
@@ -123,6 +125,7 @@ export default function AdminDashboard() {
   const { data: session } = useSession()
 
   const [merchants, setMerchants] = useState<any[]>([])
+  const [reconciling, setReconciling] = useState(false)
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [config, setConfig] = useState<SystemConfigState>({
@@ -159,6 +162,8 @@ export default function AdminDashboard() {
 
   const userPermissions = (session?.user as any)?.permissions || []
   const canApprove = userPermissions.includes("MERCHANT_APPROVE")
+  // The reconcile endpoint is ADMIN-only; other admin roles would just get a 403.
+  const isAdmin = (session?.user as any)?.role === "ADMIN"
 
   const allowedTypesValidation = useMemo(() => {
     const types = (config.allowedFileTypes || "")
@@ -206,6 +211,51 @@ export default function AdminDashboard() {
     }, 0)
     return { active, queue, activeUsers }
   }, [merchants])
+
+  const handleReconcileMpgs = async () => {
+    setReconciling(true)
+    try {
+      const res = await fetch("/api/admin/reconcile-mpgs", { method: "POST" })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "Reconciliation failed",
+          description: data?.error || `Request failed (HTTP ${res.status}).`,
+        })
+        return
+      }
+
+      const {
+        checked = 0,
+        settled = 0,
+        expired = 0,
+        attemptsExhausted = 0,
+        gatewayFailed = 0,
+        errors = 0,
+      } = data
+      const closed = expired + attemptsExhausted + gatewayFailed
+
+      toast({
+        title: closed || settled ? "Reconciliation complete" : "Nothing to reconcile",
+        description:
+          checked === 0
+            ? "No open card transactions were found."
+            : `Checked ${checked}. Settled ${settled}, closed ${closed}${errors ? `, ${errors} errored` : ""}.`,
+        variant: errors ? "destructive" : undefined,
+      })
+    } catch (err) {
+      console.error("MPGS reconciliation error:", err)
+      toast({
+        variant: "destructive",
+        title: "Reconciliation failed",
+        description: "Could not reach the server. Check your connection and try again.",
+      })
+    } finally {
+      setReconciling(false)
+    }
+  }
 
   const handleSaveConfig = () => {
     toast({
@@ -257,6 +307,36 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {isAdmin && (
+        <Card className="card-soft-cream rounded-[20px]">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2 text-[#1F2937]">
+              <RefreshCw className="h-5 w-5 text-[#754319]" />
+              <CardTitle className="text-base tracking-tight">Card payment reconciliation</CardTitle>
+            </div>
+            <CardDescription className="text-[#6B7280]">
+              Mastercard checkout pages do not call back into this app. Run this to
+              ask the gateway about open card transactions and settle any that were
+              paid, or close out links that expired or ran out of attempts.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <Button
+              onClick={handleReconcileMpgs}
+              disabled={reconciling}
+              className="button-honey-solid w-full justify-between rounded-[18px] px-4 sm:w-auto sm:min-w-[260px]"
+            >
+              {reconciling ? "Checking with gateway…" : "Reconcile card transactions"}
+              {reconciling ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <MetricCard

@@ -4,22 +4,49 @@ import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPaylo
 import { withMerchantSecret, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
 import { auditSecurityEvent } from "@/lib/request-security"
 
-export const PaymentInitiateSchema = z.object({
-  merchantId: z.string().min(1),
-  transactionId: z.string().min(1),
-  userCredentials: z.object({
-    phone: z.string().min(1),
-    authToken: z.string().min(1),
-  }),
-  amount: z.number().finite().positive(),
-  serviceDescription: z.string().min(1),
-  timestamp: z.string().min(1),
-  method: z.enum(["BANK", "TELEBIRR"]).default("BANK"),
-  payerPhone: z.string().optional(),
-  payerAccount: z.string().optional(),
-  // Optional hint from merchant; gateway overwrites the final reference.
-  transactionReferenceHint: z.string().optional(),
-})
+export const PaymentInitiateSchema = z
+  .object({
+    merchantId: z.string().min(1),
+    transactionId: z.string().min(1),
+    userCredentials: z.object({
+      // Required for BANK/TELEBIRR, unused for MPGS — see superRefine below.
+      phone: z.string().optional(),
+      authToken: z.string().min(1),
+    }),
+    amount: z.number().finite().positive(),
+    serviceDescription: z.string().min(1),
+    timestamp: z.string().min(1),
+    method: z.enum(["BANK", "TELEBIRR", "MPGS"]).default("BANK"),
+    /** Where the MPGS payment link is emailed. Required for MPGS. */
+    customerEmail: z.string().email().optional(),
+    /** MPGS only: also email the generated link to customerEmail. */
+    sendEmail: z.boolean().optional(),
+    payerPhone: z.string().optional(),
+    payerAccount: z.string().optional(),
+    // Optional hint from merchant; gateway overwrites the final reference.
+    transactionReferenceHint: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // MPGS is a hosted card checkout: the customer is reached by email, not USSD.
+    if (data.method === "MPGS") {
+      if (!data.customerEmail?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["customerEmail"],
+          message: "Customer email is required for MPGS payments",
+        })
+      }
+      return
+    }
+
+    if (!data.userCredentials.phone?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["userCredentials", "phone"],
+        message: "Customer phone is required",
+      })
+    }
+  })
 
 export type PaymentInitiate = z.infer<typeof PaymentInitiateSchema>
 
@@ -91,8 +118,9 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     serviceDescription: input.serviceDescription,
     transactionTimestamp: input.timestamp,
     userCredentials: {
-      phone: input.userCredentials.phone,
+      phone: input.userCredentials.phone ?? "",
       authToken: input.userCredentials.authToken,
+      ...(input.customerEmail ? { customerEmail: input.customerEmail.trim() } : {}),
       initiatedById: options?.initiatedBy?.id,
       initiatedByName: options?.initiatedBy?.name ?? undefined,
       link: {

@@ -134,6 +134,10 @@ async function main() {
   // 5. Create Users for different portals
   const usersToSeed = [
     { email: 'admin@nibteramerchant', name: 'Super Admin', role: UserRole.ADMIN, customRoleName: 'Super Admin' },
+    // Merchant login for TechGear Solutions (m1). Log in at /login/merchant
+    // using the merchant's contactUsername ("0934567890") as the identifier,
+    // password "password123".
+    { email: 'merchant@techgear.io', name: 'TechGear Solutions', role: UserRole.MERCHANT, merchantId: 'm1' },
 ]
 
   for (const u of usersToSeed) {

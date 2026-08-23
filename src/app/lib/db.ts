@@ -12,7 +12,7 @@ import {
 
 export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected' | 'active' | 'rejected_with_update' | 'resubmitted';
 export type TransactionStatus = 'success' | 'failed' | 'initiated' | 'pending' | 'awaiting_pin' | 'processing';
-export type PaymentMethod = 'BANK' | 'TELEBIRR';
+export type PaymentMethod = 'BANK' | 'TELEBIRR' | 'MPGS';
 
 export interface MerchantDocument {
   id: string;
@@ -87,6 +87,8 @@ export interface Transaction {
   userCredentials: {
     phone: string;
     authToken: string;
+    /** Set for hosted-checkout methods (MPGS) where the customer is reached by email. */
+    customerEmail?: string;
     initiatedById?: string;
     initiatedByName?: string;
     providerSharedSecret?: string;
@@ -95,6 +97,14 @@ export interface Transaction {
       expiresAt: string;
       status: 'PENDING' | 'USED' | 'EXPIRED';
       usedAt?: string;
+    };
+    /** MPGS gateway order metadata, written when the payment link is created. */
+    mpgs?: {
+      orderId?: string;
+      paymentLinkId?: string | null;
+      paymentLinkUrl?: string;
+      expiresAt?: string;
+      [key: string]: unknown;
     };
   };
   paymentMethod: PaymentMethod;
@@ -164,10 +174,18 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
     userCredentials: tx.userCredentials as {
       phone: string;
       authToken: string;
+      customerEmail?: string;
       initiatedById?: string;
       initiatedByName?: string;
       providerSharedSecret?: string;
       previousTransactionReferences?: string[];
+      mpgs?: {
+        orderId?: string;
+        paymentLinkId?: string | null;
+        paymentLinkUrl?: string;
+        expiresAt?: string;
+        [key: string]: unknown;
+      };
       link?: {
         expiresAt: string;
         status: 'PENDING' | 'USED' | 'EXPIRED';

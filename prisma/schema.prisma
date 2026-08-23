@@ -401,6 +401,7 @@ model Transaction {
 enum PaymentMethod {
   BANK
   TELEBIRR
+  MPGS
 }
 
 enum TransactionStatus {
