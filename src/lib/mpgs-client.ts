@@ -289,11 +289,7 @@ export async function retrieveMpgsOrder(
         explanation,
       )
     ) {
-      console.log("[MPGS] Order not materialised yet:", {
-        orderId,
-        status: response.status,
-        explanation,
-      });
+      
       return { ok: true, outcome: "not_found", receipts: [], attempts: 0 };
     }
     const message =
