@@ -74,7 +74,14 @@ export async function POST(request: Request) {
     const { name, description, permissionIds } = await request.json();
 
     // Privilege escalation check
-    const canAssign = userCanAssignPermissions(user, permissionIds);
+    const targetPermissions = await prisma.permission.findMany({
+      where: { id: { in: permissionIds } },
+      select: { name: true },
+    });
+    const canAssign = userCanAssignPermissions(
+      user,
+      targetPermissions.map((p) => p.name)
+    );
     if (!canAssign) {
       await writeAuditLog({
         request,

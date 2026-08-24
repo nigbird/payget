@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Table, 
   TableBody, 
@@ -63,6 +64,8 @@ import {
   Search,
   SlidersHorizontal,
   Edit2,
+  Landmark,
+  ListChecks,
 } from "lucide-react"
 import { downloadCsv } from "@/lib/export-csv"
 import { 
@@ -73,13 +76,13 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import type { Merchant } from "@/app/lib/db"
-import { useSession } from "next-auth/react"
+import type { Merchant } from "@/lib/db"
+import { useAuth } from "@/lib/auth-context"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 
 function MerchantReviewContent() {
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -113,27 +116,234 @@ function MerchantReviewContent() {
   })
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = user?.permissions || []
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')
+  const canRequestSubsidiary = userPermissions.includes('SUBSIDIARY_ACCOUNT_REQUEST')
+  const canApproveSubsidiary = userPermissions.includes('SUBSIDIARY_ACCOUNT_APPROVE')
 
-  const validateLimit = (value: string, fieldName: string): string | null => {
-    if (!value || value.trim() === '') {
-      return 'This field is required'
+  type SubsidiaryAccountRequestItem = {
+    id: string
+    merchantId: string
+    requestedAccountNumber: string
+    previousAccountNumber: string | null
+    reason: string
+    makerId: string
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    merchant: { id: string; name: string }
+    maker: { id: string; name: string | null; email: string | null }
+    createdAt: string
+  }
+  const [subsidiaryRequests, setSubsidiaryRequests] = useState<SubsidiaryAccountRequestItem[]>([])
+  const [subsidiaryActionId, setSubsidiaryActionId] = useState<string | null>(null)
+  const [subsidiarySearch, setSubsidiarySearch] = useState('')
+
+  const fetchSubsidiaryRequests = async () => {
+    try {
+      const response = await fetch('/api/admin/subsidiary-account-requests')
+      if (response.ok) {
+        const data = await response.json()
+        setSubsidiaryRequests(data.requests || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch subsidiary account requests:', error)
     }
-    if (!/^\d+$/.test(value)) {
-      return 'Only numbers are allowed'
+  }
+
+  useEffect(() => {
+    if (canRequestSubsidiary || canApproveSubsidiary) {
+      fetchSubsidiaryRequests()
     }
-    if (value.length > 10) {
-      return 'Maximum 10 digits allowed'
+  }, [canRequestSubsidiary, canApproveSubsidiary])
+
+  const handleSubsidiaryDecision = async (request: SubsidiaryAccountRequestItem, decision: 'approve' | 'reject') => {
+    setSubsidiaryActionId(request.id)
+    try {
+      const response = await fetch(`/api/merchants/${request.merchantId}/subsidiary-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: decision === 'approve' ? 'approve_request' : 'reject_request',
+          requestId: request.id,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to submit decision')
+
+      toast({
+        title: decision === 'approve' ? 'Subsidiary account approved' : 'Request rejected',
+        description: decision === 'approve'
+          ? `${request.merchant.name}'s subsidiary account is now active.`
+          : `The request for ${request.merchant.name} was rejected.`,
+      })
+      await fetchSubsidiaryRequests()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Action failed', description: error.message })
+    } finally {
+      setSubsidiaryActionId(null)
     }
+  }
+
+  const canApproveEligibility = userPermissions.includes('PAYMENT_ELIGIBILITY_APPROVE')
+
+  type EligibilityRequestItem = {
+    id: string
+    type: 'IMPORT' | 'REMOVAL'
+    fileName: string | null
+    totalRows: number
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    createdAt: string
+    comments: string | null
+    reviewedAt: string | null
+    merchant: { id: string; name: string }
+    submitter: { id: string; name: string | null; email: string | null }
+  }
+  const ELIGIBILITY_PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
+  const [eligibilityRequests, setEligibilityRequests] = useState<EligibilityRequestItem[]>([])
+  const [eligibilityActionId, setEligibilityActionId] = useState<string | null>(null)
+  const [eligibilitySearch, setEligibilitySearch] = useState('')
+  const [viewListRequest, setViewListRequest] = useState<EligibilityRequestItem | null>(null)
+  const [viewListPhones, setViewListPhones] = useState<string[]>([])
+  const [viewListSearch, setViewListSearch] = useState('')
+  const [viewListSearchTerm, setViewListSearchTerm] = useState('')
+  const [viewListPage, setViewListPage] = useState(1)
+  const [viewListPageSize, setViewListPageSize] = useState(25)
+  const [viewListTotal, setViewListTotal] = useState(0)
+  const [viewListTotalPages, setViewListTotalPages] = useState(0)
+  const [isViewListOpen, setIsViewListOpen] = useState(false)
+  const [isViewListLoading, setIsViewListLoading] = useState(false)
+  const [viewListLoadedOnce, setViewListLoadedOnce] = useState(false)
+  const [rejectTarget, setRejectTarget] = useState<EligibilityRequestItem | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+
+  const fetchEligibilityRequests = async () => {
+    try {
+      const response = await fetch('/api/admin/payment-eligibility-requests')
+      if (response.ok) {
+        const data = await response.json()
+        setEligibilityRequests(data.requests || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment eligibility requests:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (canApproveEligibility) {
+      fetchEligibilityRequests()
+    }
+  }, [canApproveEligibility])
+
+  const fetchViewListPage = useCallback(
+    async (requestId: string, page: number, search: string, pageSize: number) => {
+      setIsViewListLoading(true)
+      try {
+        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+        if (search) params.set('search', search)
+        const response = await fetch(`/api/admin/payment-eligibility-requests/${requestId}?${params.toString()}`)
+        if (response.ok) {
+          const data = await response.json()
+          setViewListPhones(data.phones || [])
+          setViewListTotal(data.total ?? 0)
+          setViewListTotalPages(data.totalPages ?? 0)
+          if (data.page && data.page !== page) setViewListPage(data.page)
+        }
+      } catch (error) {
+        console.error('Failed to fetch eligibility request list:', error)
+      } finally {
+        setIsViewListLoading(false)
+        setViewListLoadedOnce(true)
+      }
+    },
+    []
+  )
+
+  const openViewList = (request: EligibilityRequestItem) => {
+    setViewListRequest(request)
+    setViewListSearch('')
+    setViewListSearchTerm('')
+    setViewListPage(1)
+    setViewListPhones([])
+    setViewListLoadedOnce(false)
+    setIsViewListOpen(true)
+  }
+
+  // Debounced mirror of the search box — page/pageSize changes fetch immediately.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setViewListSearchTerm(viewListSearch.trim())
+      setViewListPage(1)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [viewListSearch])
+
+  useEffect(() => {
+    if (!isViewListOpen || !viewListRequest) return
+    fetchViewListPage(viewListRequest.id, viewListPage, viewListSearchTerm, viewListPageSize)
+  }, [isViewListOpen, viewListRequest, viewListPage, viewListPageSize, viewListSearchTerm, fetchViewListPage])
+
+  const submitEligibilityDecision = async (
+    request: EligibilityRequestItem,
+    decision: 'approve' | 'reject',
+    reason?: string
+  ) => {
+    setEligibilityActionId(request.id)
+    try {
+      const response = await fetch(`/api/admin/payment-eligibility-requests/${request.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: decision, comments: reason }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to submit decision')
+
+      toast({
+        title: decision === 'approve' ? 'Eligible customers approved' : 'Request rejected',
+        description: decision === 'approve'
+          ? `${request.merchant.name}'s eligible customer list is now active.`
+          : `${request.merchant.name} can now correct the list and resubmit it.`,
+      })
+      setIsViewListOpen(false)
+      setRejectTarget(null)
+      setRejectReason('')
+      await fetchEligibilityRequests()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Action failed', description: error.message })
+    } finally {
+      setEligibilityActionId(null)
+    }
+  }
+
+  /** Rejection always goes through the reason dialog; approval is submitted directly. */
+  const handleEligibilityDecision = (request: EligibilityRequestItem, decision: 'approve' | 'reject') => {
+    if (decision === 'reject') {
+      setRejectReason('')
+      setRejectTarget(request)
+      return
+    }
+    submitEligibilityDecision(request, 'approve')
+  }
+
+  const sanitizeLimitInput = (value: string): string => {
+    const cleaned = value.replace(/[^\d.]/g, '')
+    const parts = cleaned.split('.')
+    if (parts.length === 1) return parts[0]
+    return `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`
+  }
+
+  const validateLimit = (value: string): string | null => {
+    if (!value || value.trim() === '') return 'This field is required'
+    if (!/^\d+(\.\d{0,2})?$/.test(value)) return 'Enter a valid number (up to 2 decimal places)'
+    const num = parseFloat(value)
+    if (isNaN(num) || num < 0) return 'Must be a positive number'
+    if (num > 999_999_999.99) return 'Value exceeds maximum allowed (999,999,999.99)'
     return null
   }
 
   const handleLimitChange = (field: keyof typeof limits, value: string) => {
-    setLimits(prev => ({ ...prev, [field]: value }))
-    const error = validateLimit(value, field)
-    setLimitErrors(prev => ({ ...prev, [field]: error || '' }))
+    const sanitized = sanitizeLimitInput(value)
+    setLimits(prev => ({ ...prev, [field]: sanitized }))
+    setLimitErrors(prev => ({ ...prev, [field]: validateLimit(sanitized) || '' }))
   }
 
   const fetchMerchantDetails = async (id: string) => {
@@ -352,6 +562,30 @@ function MerchantReviewContent() {
     }
   }
 
+  const getRequestStatusBadge = (status: 'PENDING' | 'APPROVED' | 'REJECTED') => {
+    switch (status) {
+      case 'APPROVED': return <Badge className="bg-emerald-500 gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</Badge>
+      case 'REJECTED': return <Badge className="bg-rose-500 gap-1"><XCircle className="w-3 h-3" /> Rejected</Badge>
+      default: return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 gap-1"><Clock className="w-3 h-3" /> Pending</Badge>
+    }
+  }
+
+  const filteredSubsidiaryRequests = subsidiaryRequests.filter((req) =>
+    req.merchant.name.toLowerCase().includes(subsidiarySearch.toLowerCase())
+  )
+  const filteredEligibilityRequests = eligibilityRequests.filter((req) =>
+    req.merchant.name.toLowerCase().includes(eligibilitySearch.toLowerCase()) ||
+    (req.fileName ?? '').toLowerCase().includes(eligibilitySearch.toLowerCase())
+  )
+
+  // Tab badges count only items still awaiting a decision — approved/rejected ones drop off.
+  const pendingOnboardingCount = pending.length
+  const pendingSubsidiaryCount = subsidiaryRequests.filter((req) => req.status === 'PENDING').length
+  const pendingEligibilityCount = eligibilityRequests.filter((req) => req.status === 'PENDING').length
+
+  const renderTabCount = (count: number) =>
+    count > 0 ? <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{count}</Badge> : null
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -359,6 +593,27 @@ function MerchantReviewContent() {
         <p className="text-sm text-amber-800/60 font-medium">Approve registrations, adjust limits, and perform final audits.</p>
       </div>
 
+      <Tabs defaultValue="onboarding" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="onboarding" className="gap-1.5">
+            Merchant Onboarding
+            {renderTabCount(pendingOnboardingCount)}
+          </TabsTrigger>
+          {(canRequestSubsidiary || canApproveSubsidiary) && (
+            <TabsTrigger value="subsidiary" className="gap-1.5">
+              Subsidiary Account Requests
+              {renderTabCount(pendingSubsidiaryCount)}
+            </TabsTrigger>
+          )}
+          {canApproveEligibility && (
+            <TabsTrigger value="eligibility" className="gap-1.5">
+              Eligible Customer Imports
+              {renderTabCount(pendingEligibilityCount)}
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="onboarding" className="space-y-4">
       <div className="rounded-2xl">
         <div className="relative overflow-hidden rounded-2xl">
           <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
@@ -652,7 +907,7 @@ function MerchantReviewContent() {
                             </div>
                             <div className="flex justify-between items-center text-xs">
                               <span className="text-slate-500 flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Webhook:</span>
-                              <span className="font-bold text-slate-900 truncate max-w-[120px]" title={selectedMerchant.callbackUrl}>
+                              <span className="font-bold text-slate-900 truncate max-w-[120px]" title={selectedMerchant.callbackUrl ?? undefined}>
                                 {selectedMerchant.callbackUrl?.replace(/^https?:\/\//, '') || "—"}
                               </span>
                             </div>
@@ -775,7 +1030,7 @@ function MerchantReviewContent() {
                                     value={limits.dailyLimit}
                                     onChange={(e) => handleLimitChange('dailyLimit', e.target.value)}
                                     disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
-                                    maxLength={10}
+                                    maxLength={13}
                                   />
                                   {limitErrors.dailyLimit && (
                                     <p className="text-[10px] text-red-500 font-medium">{limitErrors.dailyLimit}</p>
@@ -789,7 +1044,7 @@ function MerchantReviewContent() {
                                     value={limits.transactionLimit}
                                     onChange={(e) => handleLimitChange('transactionLimit', e.target.value)}
                                     disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
-                                    maxLength={10}
+                                    maxLength={13}
                                   />
                                   {limitErrors.transactionLimit && (
                                     <p className="text-[10px] text-red-500 font-medium">{limitErrors.transactionLimit}</p>
@@ -803,7 +1058,7 @@ function MerchantReviewContent() {
                                     value={limits.dailyCountLimit}
                                     onChange={(e) => handleLimitChange('dailyCountLimit', e.target.value)}
                                     disabled={!canSetLimits || selectedMerchant._permissions?.isCreator}
-                                    maxLength={10}
+                                    maxLength={13}
                                   />
                                   {limitErrors.dailyCountLimit && (
                                     <p className="text-[10px] text-red-500 font-medium">{limitErrors.dailyCountLimit}</p>
@@ -997,40 +1252,41 @@ function MerchantReviewContent() {
 
           {/* Preview Modal */}
           <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-            <DialogContent className="max-w-4xl bg-white border border-slate-100 p-0 overflow-hidden shadow-sm rounded-2xl">
-              <DialogHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
-                <DialogTitle className="text-slate-800 text-sm font-medium truncate pr-8">
-                  {previewFile?.name}
-                </DialogTitle>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-slate-500 hover:bg-slate-100 rounded-full" 
-                  onClick={() => setPreviewFile(null)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+            <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
+              <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
+                    {previewFile?.name}
+                  </DialogTitle>
+                  <button
+                    type="button"
+                    className="text-white hover:bg-white/20 bg-black/40 rounded-full p-1.5 backdrop-blur-md transition-colors"
+                    onClick={() => setPreviewFile(null)}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </DialogHeader>
-              <div className="flex items-center justify-center min-h-[60vh] p-8 bg-slate-50/50">
+              <div className="flex items-center justify-center min-h-[60vh] p-8">
                 {previewFile?.type.startsWith('image/') ? (
-                  <img 
-                    src={previewFile.url} 
-                    alt={previewFile.name} 
-                    className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-sm border border-slate-200 animate-in zoom-in-95 duration-300"
+                  <img
+                    src={previewFile.url}
+                    alt={previewFile.name}
+                    className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg"
                   />
                 ) : (
-                  <div className="flex flex-col items-center gap-6 text-slate-800 animate-in fade-in duration-300">
-                    <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center border border-slate-200 shadow-sm">
-                      <FileText className="w-10 h-10 text-slate-400" />
+                  <div className="flex flex-col items-center gap-6 text-white">
+                    <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
+                      <FileText className="w-12 h-12 text-white/60" />
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-medium">Preview not available</p>
-                      <p className="text-sm text-slate-500 mt-1">Please download file to view its content.</p>
+                      <p className="text-lg font-bold">Preview not available</p>
+                      <p className="text-sm text-white/60 mt-1">Download the file to view its content.</p>
                     </div>
-                    <a 
-                      href={previewFile?.url} 
+                    <a
+                      href={previewFile?.url}
                       download={previewFile?.name}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300"
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-2xl font-bold hover:bg-slate-200 transition-colors"
                     >
                       <Download className="w-4 h-4" /> Download File
                     </a>
@@ -1041,6 +1297,393 @@ function MerchantReviewContent() {
           </Dialog>
         </div>
       </div>
+        </TabsContent>
+
+        {(canRequestSubsidiary || canApproveSubsidiary) && (
+          <TabsContent value="subsidiary" className="space-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+              <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
+                <div className="flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-primary" />
+                  <CardTitle className="text-base tracking-tight">Subsidiary account requests</CardTitle>
+                </div>
+                <CardDescription className="text-slate-600">
+                  Maker-checker: a different admin than the requester must approve or reject each request.
+                </CardDescription>
+                <div className="relative w-full sm:w-72 pt-2">
+                  <Search className="absolute left-3 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    placeholder="Search by merchant name..."
+                    className="h-10 rounded-2xl border-black/10 bg-white pl-9"
+                    value={subsidiarySearch}
+                    onChange={(e) => setSubsidiarySearch(e.target.value)}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {filteredSubsidiaryRequests.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                    No subsidiary account requests found.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-black/5">
+                    {filteredSubsidiaryRequests.map((req) => {
+                      const isOwnRequest = req.makerId === user?.id
+                      const isActing = subsidiaryActionId === req.id
+                      return (
+                        <div key={req.id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
+                              {getRequestStatusBadge(req.status)}
+                            </div>
+                            <p className="text-xs font-mono text-slate-600">
+                              {req.previousAccountNumber ? `${req.previousAccountNumber} → ` : ""}
+                              <span className="font-bold text-slate-900">{req.requestedAccountNumber}</span>
+                            </p>
+                            <p className="text-xs text-slate-500">{req.reason || "No reason provided."}</p>
+                            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                              Requested by {req.maker.name || req.maker.email}
+                            </p>
+                          </div>
+
+                          {req.status === 'PENDING' && (
+                            isOwnRequest ? (
+                              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
+                                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                                Maker-Checker: you submitted this request and cannot approve it.
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-9 rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                                  disabled={!canApproveSubsidiary || isActing}
+                                  onClick={() => handleSubsidiaryDecision(req, 'reject')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Reject'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-9 rounded-2xl"
+                                  disabled={!canApproveSubsidiary || isActing}
+                                  onClick={() => handleSubsidiaryDecision(req, 'approve')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Approve'}
+                                </Button>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {canApproveEligibility && (
+          <TabsContent value="eligibility" className="space-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+              <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-primary" />
+                  <CardTitle className="text-base tracking-tight">Eligible customer imports</CardTitle>
+                </div>
+                <CardDescription className="text-slate-600">
+                  Merchants import a phone-number allowlist here; approving one restricts that merchant's
+                  Push, Payment Link, and QR payments to only these customers.
+                </CardDescription>
+                <div className="relative w-full sm:w-72 pt-2">
+                  <Search className="absolute left-3 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    placeholder="Search by merchant name..."
+                    className="h-10 rounded-2xl border-black/10 bg-white pl-9"
+                    value={eligibilitySearch}
+                    onChange={(e) => setEligibilitySearch(e.target.value)}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {filteredEligibilityRequests.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                    No eligible customer requests found.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-black/5">
+                    {filteredEligibilityRequests.map((req) => {
+                      const isActing = eligibilityActionId === req.id
+                      return (
+                        <div key={req.id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
+                              {getRequestStatusBadge(req.status)}
+                              <Badge
+                                variant="outline"
+                                className={req.type === 'REMOVAL'
+                                  ? 'text-rose-600 border-rose-200 bg-rose-50'
+                                  : 'text-blue-600 border-blue-200 bg-blue-50'}
+                              >
+                                {req.type === 'REMOVAL' ? 'Removal' : 'Import'}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-600">
+                              {req.fileName ?? 'Removal request'} —{' '}
+                              <span className="font-bold text-slate-900">{req.totalRows}</span> customer(s)
+                            </p>
+                            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                              Submitted by {req.submitter.name || req.submitter.email} on{" "}
+                              {new Date(req.createdAt).toLocaleDateString()}
+                            </p>
+                            {req.status === 'REJECTED' && (
+                              <p className="text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 whitespace-pre-wrap">
+                                <span className="font-semibold">Rejection reason: </span>
+                                {req.comments || 'No reason provided.'}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-9 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50"
+                              onClick={() => openViewList(req)}
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1.5" /> View List
+                            </Button>
+                            {req.status === 'PENDING' && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-9 rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                                  disabled={isActing}
+                                  onClick={() => handleEligibilityDecision(req, 'reject')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Reject'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-9 rounded-2xl"
+                                  disabled={isActing}
+                                  onClick={() => handleEligibilityDecision(req, 'approve')}
+                                >
+                                  {isActing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Approve'}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
+
+      <Dialog open={isViewListOpen} onOpenChange={setIsViewListOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              <ListChecks className="w-5 h-5 text-primary" />
+              {viewListRequest?.merchant.name} — Eligible Customers
+              {viewListRequest && getRequestStatusBadge(viewListRequest.status)}
+            </DialogTitle>
+            <DialogDescription>
+              {viewListRequest?.totalRows} phone number(s) {viewListRequest?.type === 'REMOVAL' ? 'requested for removal' : 'submitted for approval'}.
+            </DialogDescription>
+          </DialogHeader>
+          {viewListRequest?.status === 'REJECTED' && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 whitespace-pre-wrap">
+              <span className="font-semibold">Rejection reason: </span>
+              {viewListRequest.comments || 'No reason provided.'}
+            </div>
+          )}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              value={viewListSearch}
+              onChange={(e) => setViewListSearch(e.target.value)}
+              placeholder="Search phone number..."
+              className="h-10 rounded-2xl pl-9"
+            />
+          </div>
+          {/* Keeps the previous page mounted while the next loads so paging doesn't flicker. */}
+          <div className="relative" aria-busy={isViewListLoading}>
+            {isViewListLoading && viewListLoadedOnce && (
+              <div className="absolute inset-0 z-10 flex items-start justify-center bg-white/50 pt-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!viewListLoadedOnce ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div
+                className={`max-h-80 overflow-y-auto rounded-xl border border-black/5 divide-y divide-black/5 transition-opacity duration-150 ${
+                  isViewListLoading ? 'opacity-40' : 'opacity-100'
+                }`}
+              >
+                {viewListPhones.length === 0 && (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    {viewListSearchTerm ? 'No phone numbers match your search.' : 'No phone numbers in this list.'}
+                  </div>
+                )}
+                {viewListPhones.map((phone) => (
+                  <div key={phone} className="px-4 py-2 text-sm font-mono text-slate-800">
+                    {phone}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {viewListTotal === 0
+                ? '0 phone number(s)'
+                : `${(viewListPage - 1) * viewListPageSize + 1}–${Math.min(
+                    viewListPage * viewListPageSize,
+                    viewListTotal
+                  )} of ${viewListTotal} phone number(s)`}
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Show</span>
+                <Select
+                  value={String(viewListPageSize)}
+                  onValueChange={(v) => {
+                    setViewListPageSize(Number(v))
+                    setViewListPage(1)
+                  }}
+                >
+                  <SelectTrigger className="h-7 w-[68px] rounded-lg px-2 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ELIGIBILITY_PAGE_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={String(option)} className="text-xs">
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {viewListTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-lg p-0"
+                    disabled={isViewListLoading || viewListPage <= 1}
+                    onClick={() => setViewListPage((p) => p - 1)}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="px-1 text-xs tabular-nums text-slate-600">
+                    {viewListPage} / {viewListTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-lg p-0"
+                    disabled={isViewListLoading || viewListPage >= viewListTotalPages}
+                    onClick={() => setViewListPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+          {viewListRequest && viewListRequest.status === 'PENDING' && (
+            <DialogFooter>
+              <Button
+                variant="outline"
+                className="rounded-2xl border-black/10 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                disabled={eligibilityActionId === viewListRequest.id}
+                onClick={() => handleEligibilityDecision(viewListRequest, 'reject')}
+              >
+                Reject
+              </Button>
+              <Button
+                className="rounded-2xl"
+                disabled={eligibilityActionId === viewListRequest.id}
+                onClick={() => handleEligibilityDecision(viewListRequest, 'approve')}
+              >
+                Approve
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(rejectTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectTarget(null)
+            setRejectReason('')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-rose-500" />
+              Reject {rejectTarget?.type === 'REMOVAL' ? 'removal request' : 'eligible customer import'}
+            </DialogTitle>
+            <DialogDescription>
+              {rejectTarget?.merchant.name} will see this reason alongside the list and can correct the
+              entries and resubmit them for approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="eligibility-reject-reason">Rejection reason (required)</Label>
+            <Textarea
+              id="eligibility-reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Rows 4 and 9 are not valid Ethiopian mobile numbers — correct them and resubmit."
+              className="min-h-24 rounded-2xl"
+              maxLength={1000}
+            />
+            <p className="text-xs text-muted-foreground">{rejectReason.trim().length}/1000</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              onClick={() => setRejectTarget(null)}
+              disabled={eligibilityActionId === rejectTarget?.id}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-2xl"
+              disabled={!rejectReason.trim() || eligibilityActionId === rejectTarget?.id}
+              onClick={() => rejectTarget && submitEligibilityDecision(rejectTarget, 'reject', rejectReason.trim())}
+            >
+              {eligibilityActionId === rejectTarget?.id ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Confirm Rejection'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

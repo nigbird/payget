@@ -5,11 +5,11 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, History, Users, Settings2, LogOut } from "lucide-react"
-import { signOut, useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Merchant, MerchantTeamRole } from "@/app/lib/db"
+import type { Merchant, MerchantTeamRole } from "@/lib/db"
 import { cn } from "@/lib/utils"
 
 export type MerchantPortalModuleRole =
@@ -31,15 +31,18 @@ export default function MerchantPortalShell({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { user: sessionUser, status, logout } = useAuth()
 
   const [merchant, setMerchant] = React.useState<Merchant | null>(null)
   const [assignedMerchants, setAssignedMerchants] = React.useState<{ id: string; name: string }[]>([])
 
-  const isSalesUser = (session?.user as { role?: string } | undefined)?.role === "SALES"
-  const activeRole: MerchantTeamRole = isSalesUser ? "payment_initiator" : "account_admin"
+  const isSalesUser = sessionUser?.role === "SALES"
+  const activeRole: MerchantTeamRole = isSalesUser
+    ? ((sessionUser?.teamRole as MerchantTeamRole | undefined) ?? "payment_initiator")
+    : "account_admin"
+  const isAccountAdmin = activeRole === "account_admin"
 
-  const assignedMerchantsFromSession = (session?.user as any)?.assignedMerchants as { id: string; name: string }[] | undefined
+  const assignedMerchantsFromSession = sessionUser?.assignedMerchants
 
   React.useEffect(() => {
     if (!isSalesUser) return
@@ -82,7 +85,7 @@ export default function MerchantPortalShell({
     [merchantId]
   )
 
-  const isRestrictedSalesPath = isSalesUser && restrictedSalesPaths.some((path) => pathname.startsWith(path))
+  const isRestrictedSalesPath = !isAccountAdmin && restrictedSalesPaths.some((path) => pathname.startsWith(path))
 
   React.useEffect(() => {
     if (status === "authenticated" && isRestrictedSalesPath) {
@@ -123,7 +126,7 @@ export default function MerchantPortalShell({
 
   const visibleNavItems = navItems.filter((item) => {
     // During initial loading when no session exists, hide role-restricted items
-    if (status === "loading" && !session) return !("requiresRole" in item) || item.requiresRole === undefined
+    if (status === "loading" && !sessionUser) return !("requiresRole" in item) || item.requiresRole === undefined
     
     // Otherwise, show if no role is required or if user has the correct role
     if (!("requiresRole" in item) || item.requiresRole === undefined) return true
@@ -152,7 +155,7 @@ export default function MerchantPortalShell({
                 )}
               </div>
               <div className="leading-tight">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70 hidden md:block">{isSalesUser ? "Sales Portal" : "Merchant Portal"}</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[#754319]/70 hidden md:block">{isAccountAdmin ? "Merchant Portal" : "Sales Portal"}</p>
                 <p className="text-sm font-bold text-[#5b371f] md:text-base">{merchant?.name || "Merchant"}</p>
               </div>
             </div>
@@ -161,7 +164,7 @@ export default function MerchantPortalShell({
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="hidden md:block">
                   <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/40">
-                    {isSalesUser ? "Sales Workspace" : "Management Modules"}
+                    {isAccountAdmin ? "Management Modules" : "Sales Workspace"}
                   </p>
                 </div>
 
@@ -230,7 +233,7 @@ export default function MerchantPortalShell({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => signOut({ callbackUrl: "/login/merchant" })}
+                onClick={() => logout("/login/merchant")}
                 className="h-11 min-h-11 gap-2 rounded-xl px-2 text-[#754319] hover:bg-red-50 hover:text-red-600 md:px-3"
                 title="Log Out"
               >

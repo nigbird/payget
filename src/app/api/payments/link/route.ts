@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
 import { requireAuthUser } from "@/lib/request-auth"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { decryptPayload } from "@/lib/jwe"
 import { withMerchantSecret } from "@/lib/merchant-secret"
 import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
@@ -368,6 +368,8 @@ export async function POST(request: Request) {
         transactionId: result.tx.id,
         transactionReference: result.transactionReference,
         amount: result.tx.amount,
+        itemsReceived: paymentInput.items ?? null,
+        itemsPersisted: result.itemsPersisted,
       },
     })
 

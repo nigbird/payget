@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/db'; // Assuming you have a db utility
+import { db } from '@/lib/db'; // Assuming you have a db utility
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
 import { requireAuthUser } from "@/lib/request-auth"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import {
   sendProviderPushPayment,
   ProviderPushPayloadSchema,
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       if (merchantIdHeader && signatureHeader && timestampHeader && nonceHeader && encryptedPayload) {
         await enforceReplayProtection(merchantIdHeader, nonceHeader, timestampHeader)
 
-        const merchant = await db.getMerchantById(merchantIdHeader, { includeSecret: true })
+        const merchant = await db.getMerchantByIdLean(merchantIdHeader, { includeSecret: true })
         if (!merchant) {
           return NextResponse.json({ error: "Merchant not found" }, { status: 404 })
         }
@@ -212,6 +212,8 @@ export async function POST(request: Request) {
         transactionId: result.tx.id,
         transactionReference: result.transactionReference,
         amount: result.tx.amount,
+        itemsReceived: paymentInput.items ?? null,
+        itemsPersisted: result.itemsPersisted,
       },
     })
 

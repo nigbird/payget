@@ -1,4 +1,11 @@
-import type { MerchantTeamMember, Transaction } from "@/app/lib/db"
+import type { MerchantTeamMember, Transaction } from "@/lib/db"
+
+/** initiatedById used for payments made by a customer scanning a merchant's QR code (no logged-in team member). */
+export const QR_CUSTOMER_INITIATOR_ID = "QR_CUSTOMER"
+
+export function isQrCustomerTransaction(tx: Transaction): boolean {
+  return tx.userCredentials.initiatedById === QR_CUSTOMER_INITIATOR_ID
+}
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "")
@@ -72,19 +79,48 @@ export function transactionMatchesSalesUserFilter(
   return tx.userCredentials.initiatedById === filterValue
 }
 
+/**
+ * Resolves the merchant team member record that corresponds to the currently
+ * authenticated SALES user, matching by team member id first (when the JWT
+ * carries it) and falling back to phone matching against the virtual
+ * `sales-<phone>` user id.
+ */
+export function findSelfTeamMember(
+  teamMembers: MerchantTeamMember[],
+  currentUser: { id: string; teamMemberId?: string | null }
+): MerchantTeamMember | undefined {
+  if (currentUser.teamMemberId) {
+    const byId = teamMembers.find((m) => m.id === currentUser.teamMemberId)
+    if (byId) return byId
+  }
+  return teamMembers.find(
+    (m) =>
+      m.phone &&
+      (currentUser.id === `sales-${m.phone}` ||
+        phonesMatch(currentUser.id.replace(/^sales-/, ""), m.phone))
+  )
+}
+
 export type SalesUserFilterOption = { value: string; label: string }
 
 export function buildSalesUserFilterOptions(
   teamMembers: MerchantTeamMember[],
-  transactions: Transaction[]
+  transactions: Transaction[],
+  /** When set, restricts the listed team members to just this one (e.g. for a non-admin sales user who may only see their own transactions). */
+  options?: { onlyMemberId?: string }
 ): SalesUserFilterOption[] {
-  const options: SalesUserFilterOption[] = [{ value: "all", label: "All Users" }]
+  const opts: SalesUserFilterOption[] = [{ value: "all", label: "All Users" }]
 
-  const listableMembers = teamMembers.filter(
-    (m) => m.status === "active" && (m.role === "payment_initiator" || m.role === "account_admin")
-  )
+  const onlyMemberId = options?.onlyMemberId
+  const listableMembers = onlyMemberId
+    ? teamMembers.filter((m) => m.id === onlyMemberId)
+    : teamMembers.filter(
+        (m) =>
+          m.status === "active" &&
+          (m.role === "payment_initiator" || m.role === "account_admin" || m.role === "sales_admin")
+      )
   for (const member of listableMembers) {
-    options.push({ value: `member:${member.id}`, label: member.name })
+    opts.push({ value: `member:${member.id}`, label: onlyMemberId ? "My Transactions" : member.name })
   }
 
   const covered = (tx: Transaction) =>
@@ -103,10 +139,10 @@ export function buildSalesUserFilterOptions(
   }
 
   for (const [value, label] of extras) {
-    if (!options.some((o) => o.value === value)) {
-      options.push({ value, label })
+    if (!opts.some((o) => o.value === value)) {
+      opts.push({ value, label })
     }
   }
 
-  return options
+  return opts
 }

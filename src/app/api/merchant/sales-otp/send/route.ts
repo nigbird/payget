@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/app/lib/db'
+import { db } from '@/lib/db'
 import { generateSalesOtp } from '@/lib/otp'
 import { sendNotification } from '@/lib/notifications'
 import { writeAuditLog } from '@/lib/audit-log'
@@ -46,16 +46,16 @@ export async function POST(request: Request) {
       newValue: { result: "failed", reason: "NO_ACTIVE_SALES_USER", phone: maskPhone(phone) },
     })
 
-    return NextResponse.json({ error: 'No active sales user found for this phone number.' }, { status: 404 })
+    return NextResponse.json({ error: 'No active team member found for this phone number.' }, { status: 404 })
   }
 
-  const otp = generateSalesOtp(phone)
+  const otp = await generateSalesOtp(phone)
 
   console.info("[sales-otp] OTP generated and sent", { phone: maskPhone(phone) })
 
   await sendNotification({
     to: phone,
-    subject: 'Your Sales Login OTP',
+    subject: 'Your Login with OTP Code',
     message: `Your one-time login code is ${otp}. It expires in 5 minutes.`
   })
 

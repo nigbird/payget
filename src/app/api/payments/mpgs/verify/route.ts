@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { settleMpgsTransaction } from "@/lib/mpgs-settlement"
 

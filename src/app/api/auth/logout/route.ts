@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { clearAccessTokenCookie } from "@/lib/access-token-cookie"
 import { hashRefreshToken } from "@/lib/token-auth"
+import { revokeSession } from "@/lib/session-manager"
 import { writeAuditLog } from "@/lib/audit-log"
 import { requireAuthUser } from "@/lib/request-auth"
 import { requireCsrf } from '@/lib/request-security';
@@ -28,12 +29,26 @@ export async function POST(request: Request) {
       userId = user.id
     }
 
-    if (raw) {
+    // Prefer to revoke by sid (covers both active session and all its refresh tokens atomically).
+    const sid = user?.sid
+    if (sid) {
+      await revokeSession(sid)
+    } else if (raw) {
+      // Fallback: no sid available (expired access token). Look up the session via the refresh token.
       const tokenHash = hashRefreshToken(raw)
-      await prisma.refreshToken.updateMany({
-        where: { tokenHash, revokedAt: null },
-        data: { revokedAt: new Date() }
+      const rt = await prisma.refreshToken.findUnique({
+        where: { tokenHash },
+        select: { sessionId: true }
       })
+      if (rt?.sessionId) {
+        await revokeSession(rt.sessionId)
+      } else {
+        // Last resort: revoke just this refresh token by hash.
+        await prisma.refreshToken.updateMany({
+          where: { tokenHash, revokedAt: null },
+          data: { revokedAt: new Date() }
+        })
+      }
     }
 
     await writeAuditLog({
@@ -70,4 +85,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

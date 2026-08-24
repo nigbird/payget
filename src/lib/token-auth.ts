@@ -8,6 +8,7 @@ export const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60  // 7 days
 
 export type AccessTokenClaims = {
   sub: string
+  sid: string  // active session id — validated against ActiveSession table on every request
   role?: string
   merchantId?: string | null
   permissions?: string[]
@@ -15,7 +16,11 @@ export type AccessTokenClaims = {
   district?: string | null
   branch?: string | null
   assignedMerchantIds?: string[]
+  assignedMerchants?: { id: string; name: string }[]
   sessionVersion?: number
+  /** Actual MerchantTeamMember role (account_admin/sales_admin/payment_initiator) for OTP-based SALES sessions. */
+  teamRole?: string | null
+  teamMemberId?: string | null
 }
 
 function getEnvOrThrow(name: string) {
@@ -36,9 +41,10 @@ export function computeRefreshTokenExpiresAt(nowMs = Date.now()) {
   return new Date(nowMs + REFRESH_TOKEN_TTL_SECONDS * 1000)
 }
 
-export async function signAccessToken(claims: AccessTokenClaims) {
-  const ttl = accessTokenTtlSeconds()
+export async function signAccessToken(claims: AccessTokenClaims, ttlSeconds?: number) {
+  const ttl = ttlSeconds ?? accessTokenTtlSeconds()
   return new SignJWT({
+    sid: claims.sid,
     role: claims.role,
     merchantId: claims.merchantId ?? null,
     permissions: claims.permissions ?? [],
@@ -46,7 +52,10 @@ export async function signAccessToken(claims: AccessTokenClaims) {
     district: claims.district ?? null,
     branch: claims.branch ?? null,
     assignedMerchantIds: claims.assignedMerchantIds ?? [],
-    sessionVersion: claims.sessionVersion
+    assignedMerchants: claims.assignedMerchants ?? [],
+    sessionVersion: claims.sessionVersion,
+    teamRole: claims.teamRole ?? null,
+    teamMemberId: claims.teamMemberId ?? null
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(claims.sub)

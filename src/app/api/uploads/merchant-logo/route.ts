@@ -71,9 +71,7 @@ export async function POST(request: Request) {
       where: {
         action: "MERCHANT_LOGO_UPLOAD",
         createdAt: { gte: windowStart },
-        request: {
-          path: { contains: ip } // Audit log stores IP in request field usually, but let's check structure
-        }
+        ipAddress: ip
       }
     }).catch(() => 0)
 

@@ -9,14 +9,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Loader2, 
-  Sparkles, 
-  Store, 
-  Globe, 
-  Building2, 
-  User, 
-  Phone, 
+import {
+  Loader2,
+  Store,
+  Globe,
+  Building2,
+  User,
+  Phone,
   Link as LinkIcon,
   FileText,
   Upload,
@@ -27,10 +26,18 @@ import {
   Copy,
   CheckCircle2,
   Clock,
-  Mail
+  Mail,
+  Eye,
+  Download
 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import type { MerchantDocument } from "@/app/lib/db"
+import type { MerchantDocument } from "@/lib/db"
 import Link from "next/link"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 import { validateUrl } from "@/lib/url-validation"
@@ -48,7 +55,6 @@ export default function MerchantSelfRegistration() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   
   const [registrationId] = useState(() => crypto.randomUUID())
-  const [isAiLoading, setIsAiLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
@@ -78,6 +84,7 @@ export default function MerchantSelfRegistration() {
   const [documents, setDocuments] = useState<MerchantDocument[]>([])
   const [riskFactors, setRiskFactors] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -225,46 +232,6 @@ export default function MerchantSelfRegistration() {
     } finally {
       setIsLogoUploading(false)
       if (logoInputRef.current) logoInputRef.current.value = ""
-    }
-  }
-
-  const handleAiAssistant = async () => {
-    if (!formData.websiteUrl && !formData.businessDescription) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please provide a website URL or business description for AI analysis."
-      })
-      return
-    }
-
-    setIsAiLoading(true)
-    try {
-      const result = await aiMerchantOnboardingAssistant({
-        businessDescription: formData.businessDescription,
-        websiteUrl: formData.websiteUrl
-      })
-
-      setFormData(prev => ({
-        ...prev,
-        name: result.prefilledFields.companyName || prev.name,
-        businessType: result.prefilledFields.businessType || prev.businessType,
-        category: result.suggestedCategories[0] || prev.category
-      }))
-      setRiskFactors(result.riskFactors)
-
-      toast({
-        title: "AI Analysis Complete",
-        description: "Suggested details have been populated."
-      })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "AI Analysis Failed",
-        description: "Could not process information at this time."
-      })
-    } finally {
-      setIsAiLoading(false)
     }
   }
 
@@ -423,12 +390,12 @@ export default function MerchantSelfRegistration() {
     )
   }
 
-  return (
+  return (<>
     <div className="min-h-screen bg-white pb-20">
       <header className="sticky top-0 z-50 flex h-16 items-center border-b border-[#eadcc4]/70 bg-[#fffdf8]/90 px-4 backdrop-blur-md">
         <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <Link href="/login/merchant" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </Link>
             <div className="flex items-center gap-2">
@@ -834,17 +801,26 @@ export default function MerchantSelfRegistration() {
                             <p className="text-[10px] text-gray-400">{(doc.size / 1024).toFixed(1)} KB • {doc.type.split('/')[1].toUpperCase()}</p>
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            removeDoc(doc.id)
-                          }}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setPreviewFile({ url: doc.url, name: doc.name, type: doc.type }) }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            onClick={(e) => { e.stopPropagation(); removeDoc(doc.id) }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -871,5 +847,50 @@ export default function MerchantSelfRegistration() {
         </div>
       </main>
     </div>
-  )
+
+    <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+      <DialogContent className="max-w-4xl bg-transparent border-none p-0 overflow-hidden shadow-none">
+        <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-white text-sm font-bold truncate pr-8 bg-black/40 px-3 py-1 rounded-lg backdrop-blur-md">
+              {previewFile?.name}
+            </DialogTitle>
+            <button
+              type="button"
+              className="text-white hover:bg-white/20 bg-black/40 rounded-full p-1.5 backdrop-blur-md transition-colors"
+              onClick={() => setPreviewFile(null)}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </DialogHeader>
+        <div className="flex items-center justify-center min-h-[60vh] p-8">
+          {previewFile?.type.startsWith('image/') ? (
+            <img
+              src={previewFile.url}
+              alt={previewFile.name}
+              className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-6 text-white">
+              <div className="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20">
+                <FileText className="w-12 h-12 text-white/60" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold">Preview not available</p>
+                <p className="text-sm text-white/60 mt-1">Download the file to view its content.</p>
+              </div>
+              <a
+                href={previewFile?.url}
+                download={previewFile?.name}
+                className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-2xl font-bold hover:bg-slate-200 transition-colors"
+              >
+                <Download className="w-4 h-4" /> Download File
+              </a>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>)
 }

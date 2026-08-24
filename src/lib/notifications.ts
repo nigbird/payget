@@ -73,6 +73,9 @@ async function sendEmailNotification(
         user: process.env.SMTP_EMAIL_USER,
         pass: process.env.SMTP_EMAIL_PASS,
       },
+      tls: {
+        rejectUnauthorized: false,
+      },
     });
 
     const info = await transporter.sendMail({

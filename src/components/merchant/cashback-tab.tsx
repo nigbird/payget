@@ -57,9 +57,6 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import {
-  sanitizeSubsidiaryAccountNumberInput,
-  getSubsidiaryAccountNumberValidationError,
-  SUBSIDIARY_ACCOUNT_MAX_LENGTH,
   sanitizeAccountNumberInput,
   validateAccountNumber,
   ACCOUNT_NUMBER_MAX_LENGTH,
@@ -198,7 +195,11 @@ export function CashbackTab({ merchantId }: Props) {
       )
       if (txRes.ok) {
         const data = await txRes.json()
-        setTransactions(data.transactions ?? [])
+        const loadedTransactions: CashbackTransactionDto[] = data.transactions ?? []
+        loadedTransactions
+          .filter((tx) => tx.failureReason)
+          .forEach((tx) => console.error(`Cashback transaction ${tx.paymentTransactionId} failed:`, tx.failureReason))
+        setTransactions(loadedTransactions)
         setTransactionsTotal(data.total ?? 0)
       }
     } catch {
@@ -243,12 +244,10 @@ export function CashbackTab({ merchantId }: Props) {
   const saveConfig = async () => {
     const errors: Record<string, string> = {}
 
-    const subsidiaryError = form.subsidiaryAccountNumber
-      ? getSubsidiaryAccountNumberValidationError(form.subsidiaryAccountNumber)
-      : form.enabled
-        ? "Subsidiary account is required when cashback is enabled."
-        : undefined
-    if (subsidiaryError) errors.subsidiaryAccountNumber = subsidiaryError
+    if (form.enabled && !form.subsidiaryAccountNumber) {
+      errors.subsidiaryAccountNumber =
+        "A subsidiary account must be approved by an admin before cashback can be enabled."
+    }
 
     if (form.enabled && form.mode === "ALL_CUSTOMERS") {
       const pct = validatePercent(form.allCustomersPercent, true)
@@ -280,7 +279,6 @@ export function CashbackTab({ merchantId }: Props) {
         body: JSON.stringify({
           enabled: form.enabled,
           mode: form.mode,
-          subsidiaryAccountNumber: form.subsidiaryAccountNumber || null,
           allCustomersPercent: parseNum(form.allCustomersPercent),
           allCustomersMinAmount: parseNum(form.allCustomersMinAmount),
           allCustomersMaxAmount: parseNum(form.allCustomersMaxAmount),
@@ -927,26 +925,12 @@ export function CashbackTab({ merchantId }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="subsidiary" className="text-sm font-medium">Subsidiary funding account</Label>
-                      <Input
-                        id="subsidiary"
-                        maxLength={SUBSIDIARY_ACCOUNT_MAX_LENGTH}
-                        placeholder="ABC7000123456789"
-                        value={form.subsidiaryAccountNumber}
-                        onChange={(e) =>
-                          setForm((p) => ({
-                            ...p,
-                            subsidiaryAccountNumber: sanitizeSubsidiaryAccountNumberInput(e.target.value),
-                          }))
-                        }
-                        className={`h-11 rounded-xl font-mono focus:ring-amber-500/20 ${fieldErrors.subsidiaryAccountNumber ? "border-rose-500" : ""}`}
-                      />
-                      {fieldErrors.subsidiaryAccountNumber && (
-                        <p className="text-xs text-rose-600">{fieldErrors.subsidiaryAccountNumber}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        First 3 characters: letters or numbers; up to 13 digits after (16 total).
-                      </p>
+                      <Label className="text-sm font-medium">Subsidiary funding account</Label>
+                      <div className="h-11 rounded-xl border border-amber-200/80 bg-amber-50/40 flex items-center px-3 font-mono text-sm text-[#5b371f]">
+                        {form.subsidiaryAccountNumber || (
+                          <span className="text-muted-foreground font-sans">Not yet configured</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1390,20 +1374,18 @@ export function CashbackTab({ merchantId }: Props) {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <StatusBadge status={tx.status} />
-                            <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={tx.status} />
+                              <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
+                            </div>
+                            <p className="text-xs text-slate-400">{new Date(tx.createdAt).toLocaleString()}</p>
                           </div>
                         </div>
 
                         {tx.skipReason && (
                           <div className="mt-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100/50 flex items-center gap-2 text-xs text-amber-800">
                             <AlertCircle className="h-3.5 w-3.5" /> {tx.skipReason}
-                          </div>
-                        )}
-                        {tx.failureReason && (
-                          <div className="mt-3 p-2 rounded-lg bg-rose-50 border border-rose-100 flex items-center gap-2 text-xs text-rose-700">
-                            <AlertCircle className="h-3.5 w-3.5" /> {tx.failureReason}
                           </div>
                         )}
                       </div>

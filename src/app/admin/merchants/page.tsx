@@ -35,12 +35,12 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
-import type { Merchant } from "@/app/lib/db"
+import { useAuth } from "@/lib/auth-context"
+import type { Merchant } from "@/lib/db"
 
 export default function MerchantManagementPage() {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const [merchants, setMerchants] = useState<Merchant[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -49,8 +49,8 @@ export default function MerchantManagementPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
 
-  const userRole = (session?.user as any)?.role
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userRole = user?.role
+  const userPermissions = user?.permissions || []
   const canManage = userRole === 'ADMIN' || userPermissions.includes('qr.generation.manage')
 
   useEffect(() => {

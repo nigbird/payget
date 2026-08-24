@@ -1,4 +1,4 @@
-import { db, type Transaction, type TransactionStatus } from "@/app/lib/db"
+import { db, type Transaction, type TransactionStatus } from "@/lib/db"
 import {
   mpgsAllowedAttempts,
   mpgsLinkLifetimeMs,

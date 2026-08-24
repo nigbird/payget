@@ -1,6 +1,6 @@
 import crypto from 'crypto'
+import { db } from '@/lib/db'
 
-const otpStore = new Map<string, { code: string; expiresAt: number }>()
 const OTP_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 function generateSecureOtp(): string {
@@ -10,21 +10,13 @@ function generateSecureOtp(): string {
   return otp.toString()
 }
 
-export function generateSalesOtp(phone: string) {
+export async function generateSalesOtp(phone: string) {
   const code = generateSecureOtp()
-  otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS })
+  const expiresAt = new Date(Date.now() + OTP_TTL_MS)
+  await db.setMerchantTeamMemberOtpByPhone(phone, code, expiresAt)
   return code
 }
 
-export function verifySalesOtp(phone: string, code: string) {
-  const record = otpStore.get(phone)
-  if (!record) return false
-  if (record.expiresAt < Date.now()) {
-    otpStore.delete(phone)
-    return false
-  }
-
-  const isValid = record.code === code
-  if (isValid) otpStore.delete(phone)
-  return isValid
+export async function verifySalesOtp(phone: string, code: string) {
+  return db.verifyMerchantTeamMemberOtp(phone, code)
 }

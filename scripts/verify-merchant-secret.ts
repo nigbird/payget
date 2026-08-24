@@ -6,8 +6,8 @@
  * matches the one stored in the database.
  */
 
-import { db } from '@/app/lib/db';
-import { decryptMerchantSecretInMemory } from '@/lib/merchant-secret';
+import { db } from '@/lib/db';
+import { withMerchantSecret } from '@/lib/merchant-secret';
 
 async function main() {
   const merchantId = process.argv[2];
@@ -31,15 +31,16 @@ async function main() {
     console.log(`Merchant found: ${merchant.name} (${merchant.id})`);
     console.log(`Stored secret (encrypted): ${merchant.jweSecret.substring(0, 20)}...`);
 
-    const { plaintext } = decryptMerchantSecretInMemory(merchant.jweSecret);
-    
-    console.log('\n✅ DECRYPTED PLAINTEXT SECRET:');
-    console.log('--------------------------------------------------');
-    console.log(plaintext);
-    console.log('--------------------------------------------------');
-    console.log('\n💡 Use this EXACT secret in your external integration as PAYGET_JWE_SECRET!');
-    console.log('   (Do not include any quotes or spaces around it in your .env file)');
-    
+    withMerchantSecret(merchant.jweSecret, (plaintext) => {
+      console.log('\n✅ DECRYPTED PLAINTEXT SECRET:');
+      console.log('--------------------------------------------------');
+      console.log(plaintext);
+      console.log('--------------------------------------------------');
+      console.log('\n💡 Use this EXACT secret in your external integration as PAYGET_JWE_SECRET!');
+      console.log('   (Do not include any quotes or spaces around it in your .env file)');
+    });
+
+
   } catch (error) {
     console.error('Error:', error);
     process.exit(1);

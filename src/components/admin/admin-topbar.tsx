@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useMemo } from "react"
 import { usePathname } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { Bell, KeyRound, Search, Settings2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -32,7 +32,7 @@ const routeTitles: Array<{ href: string; title: string; subtitle?: string }> = [
 
 export function AdminTopbar({ className }: { className?: string }) {
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const { user: session, logout } = useAuth()
 
   const header = useMemo(() => {
     const exact = routeTitles.find((r) => r.href === pathname)
@@ -42,7 +42,7 @@ export function AdminTopbar({ className }: { className?: string }) {
   }, [pathname])
 
   const initials =
-    (session?.user?.name ?? "User")
+    (session?.name ?? "User")
       .split(" ")
       .filter(Boolean)
       .slice(0, 2)
@@ -123,10 +123,10 @@ export function AdminTopbar({ className }: { className?: string }) {
                 </Avatar>
                 <div className="hidden min-w-0 md:block">
                   <div className="max-w-[160px] truncate text-xs font-semibold text-slate-900">
-                    {session?.user?.name ?? "User"}
+                    {session?.name ?? "User"}
                   </div>
                   <div className="max-w-[160px] truncate text-[10px] text-slate-600">
-                    {(session?.user as any)?.role ?? "Staff"}
+                    {session?.role ?? "Staff"}
                   </div>
                 </div>
               </button>
@@ -142,7 +142,7 @@ export function AdminTopbar({ className }: { className?: string }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600 focus:text-red-700"
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={() => logout("/login")}
               >
                 Log out
               </DropdownMenuItem>

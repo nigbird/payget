@@ -1,14 +1,23 @@
 import crypto from "crypto"
 import { NextResponse } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { createGatewayTransactionAndToken } from "@/app/api/payments/_shared"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import {
   sendProviderPushPayment,
   ProviderPushPayloadSchema,
   isProviderPushSuccess,
 } from "@/lib/provider-encryption"
 import { writeAuditLog } from "@/lib/audit-log"
+import { QR_CUSTOMER_INITIATOR_ID } from "@/lib/transaction-initiator"
+
+const CartItemSchema = z.object({
+  itemId: z.string().optional(),
+  name: z.string().min(1),
+  price: z.number().finite().nonnegative(),
+  quantity: z.number().int().positive(),
+})
 
 export async function GET(
   request: Request,
@@ -41,7 +50,13 @@ export async function GET(
       return NextResponse.json({ error: "Payments are currently disabled for this merchant" }, { status: 403 })
     }
 
-    return NextResponse.json(qrCode.merchant)
+    const items = await prisma.merchantItem.findMany({
+      where: { merchantId: qrCode.merchant.id, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, price: true, categoryId: true, isActive: true },
+    })
+
+    return NextResponse.json({ ...qrCode.merchant, items })
   } catch (error) {
     console.error("Failed to validate QR token:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -56,9 +71,26 @@ export async function POST(
     const { token } = await params
     const body = await request.json()
     const { phone, amount, description } = body
+    const rawItems = body.items
 
     if (!phone || !amount) {
       return NextResponse.json({ error: "Phone and amount are required" }, { status: 400 })
+    }
+
+    let validatedItems: Array<{ itemId?: string; name: string; price: number; quantity: number }> | undefined
+    if (rawItems !== undefined && rawItems !== null) {
+      if (!Array.isArray(rawItems)) {
+        return NextResponse.json({ error: "Invalid items format" }, { status: 400 })
+      }
+      validatedItems = []
+      for (const raw of rawItems) {
+        const parsed = CartItemSchema.safeParse(raw)
+        if (!parsed.success) {
+          return NextResponse.json({ error: "Invalid item entry", details: parsed.error.flatten() }, { status: 400 })
+        }
+        if (parsed.data) validatedItems.push(parsed.data)
+      }
+      if (validatedItems.length === 0) validatedItems = undefined
     }
 
     const qrCode = await prisma.merchantQrCode.findUnique({
@@ -70,23 +102,24 @@ export async function POST(
       return NextResponse.json({ error: "Invalid QR code" }, { status: 404 })
     }
 
-    // Prepare payment input for the shared logic
     const transactionId = `qr_${crypto.randomUUID()}`
     const paymentInput = {
       merchantId: qrCode.merchantId,
       transactionId,
       userCredentials: {
         phone,
-        authToken: "QR_PAYMENT_BYPASS" // Since it's a public QR payment
+        authToken: "QR_PAYMENT_BYPASS"
       },
       amount: parseFloat(amount),
       serviceDescription: description || `QR Payment to ${qrCode.merchant.name}`,
       timestamp: new Date().toISOString(),
-      method: "BANK" as const
+      method: "BANK" as const,
+      payerPhone: phone,
+      items: validatedItems,
     }
 
-    const result = await createGatewayTransactionAndToken(paymentInput, { 
-      initiatedBy: { id: "QR_CUSTOMER", name: "QR Customer" } 
+    const result = await createGatewayTransactionAndToken(paymentInput, {
+      initiatedBy: { id: QR_CUSTOMER_INITIATOR_ID, name: "QR Customer" }
     })
 
     if (!result.ok) {
@@ -131,7 +164,9 @@ export async function POST(
         merchantId: qrCode.merchantId,
         amount: paymentInput.amount,
         phone,
-        description: paymentInput.serviceDescription
+        description: paymentInput.serviceDescription,
+        itemsReceived: validatedItems ?? null,
+        itemsPersisted: result.itemsPersisted,
       }
     })
 

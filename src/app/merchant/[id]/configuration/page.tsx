@@ -4,9 +4,11 @@ import { use, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { z } from "zod"
-import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download } from "lucide-react"
+import { Building2, CheckCircle2, ChevronLeft, Loader2, Save, User, Lock, Shield, Edit3, CheckCircle, AlertCircle, Eye, EyeOff, Gift, QrCode, RefreshCw, Download, RotateCw, ListChecks, Package } from "lucide-react"
 import { CashbackTab } from "@/components/merchant/cashback-tab"
-import { useSession } from "next-auth/react"
+import { EligibleCustomersTab } from "@/components/merchant/eligible-customers-tab"
+import { ItemsTab } from "@/components/merchant/items-tab"
+import { useAuth } from "@/lib/auth-context"
 import { QRCodeCanvas } from "qrcode.react"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -16,7 +18,7 @@ import {
 } from "@/lib/qr-download"
 import { resolveAbsoluteImageUrl, useQrLogoImageSettings } from "@/lib/qr-logo"
 
-import type { Merchant } from "@/app/lib/db"
+import type { Merchant } from "@/lib/db"
 import { useMerchantPortalRole } from "@/components/merchant/merchant-portal-shell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,9 +30,15 @@ import { useToast } from "@/hooks/use-toast"
 import { PasswordStrength } from "@/components/auth/password-strength"
 import { validatePassword } from "@/lib/password-policy"
 import {
-  sanitizeAccountNumberInput,
-  getAccountNumberValidationError,
-} from "@/lib/account-number"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const callbackUrlSchema = z
   .string()
@@ -50,7 +58,7 @@ type ProfileData = {
   confirmPassword: string
 }
 
-type TabValue = "system" | "profile" | "cashback"
+type TabValue = "system" | "profile" | "cashback" | "eligibility" | "items"
 
 const QR_DISPLAY_SIZE = 200
 const QR_DOWNLOAD_SIZE = 1024
@@ -59,7 +67,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const { id } = use(params)
   const role = useMerchantPortalRole()
   const { toast } = useToast()
-  const { update } = useSession()
+  const { refresh } = useAuth()
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
@@ -112,6 +120,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   })
   const [isQrLoading, setIsQrLoading] = useState(false)
   const [isDownloadingQr, setIsDownloadingQr] = useState(false)
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
 
   const qrUrl = useMemo(() => {
     if (!qrConfig?.activeQr?.token) return ""
@@ -207,11 +216,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
     if (!formData.companyName.trim()) nextErrors.companyName = "Company Name is required."
 
-    const accountNumberError = getAccountNumberValidationError(formData.accountNumber)
-    if (accountNumberError) {
-      nextErrors.accountNumber = accountNumberError
-    }
-
     // callbackUrl is optional for this page and not currently editable in the UI.
     if (formData.callbackUrl.trim()) {
       const parsed = callbackUrlSchema.safeParse(formData.callbackUrl.trim())
@@ -268,7 +272,6 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
       const updatePayload: any = {
         name: formData.companyName.trim(),
-        accountNumber: formData.accountNumber.trim(),
       }
 
       if (formData.callbackUrl.trim()) {
@@ -412,11 +415,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         const refreshed = await response.json()
         
         // Update session to reflect new email or name if changed
-        await update({
-          user: {
-            email: refreshed.email || undefined,
-          }
-        })
+        await refresh()
 
         setProfileData(prev => ({
           ...prev,
@@ -599,6 +598,34 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   <span className="hidden sm:inline">Cashback</span>
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab("eligibility")}
+                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
+                  activeTab === "eligibility"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
+                }`}
+                title="Eligible Customers"
+              >
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-4 w-4" />
+                  <span className="hidden sm:inline">Eligible Customers</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("items")}
+                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
+                  activeTab === "items"
+                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
+                }`}
+                title="Items"
+              >
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  <span className="hidden sm:inline">Items</span>
+                </div>
+              </button>
             </div>
           </div>
 
@@ -619,11 +646,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Daily Limit</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.daily.toLocaleString()}
+                            ETB {transactionLimits.daily.toLocaleString()}
                           </span>
                         </div>
-                        <Progress 
-                          value={(transactionLimits.daily / 10000) * 100} 
+                        <Progress
+                          value={(transactionLimits.daily / 10000) * 100}
                           className="h-2 bg-white/60"
                         />
                       </div>
@@ -632,11 +659,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Daily Max</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.daily.toLocaleString()}
+                            ETB {transactionLimits.daily.toLocaleString()}
                           </span>
                         </div>
-                        <Progress 
-                          value={(transactionLimits.daily / 10000) * 100} 
+                        <Progress
+                          value={(transactionLimits.daily / 10000) * 100}
                           className="h-2 bg-white/60"
                         />
                       </div>
@@ -645,7 +672,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Max Transaction</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
-                            ${transactionLimits.maxTransaction.toLocaleString()}
+                            ETB {transactionLimits.maxTransaction.toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -707,7 +734,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleQrAction("regenerate")}
+                              onClick={() => setShowRegenConfirm(true)}
                               disabled={isQrLoading}
                               className="h-8 text-[11px] font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1.5"
                             >
@@ -753,6 +780,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           <Input
                             id="companyName"
                             value={formData.companyName}
+                            maxLength={50}
                             onChange={(e) => setFormData((p) => ({ ...p, companyName: e.target.value }))}
                             placeholder="Acme Payments Ltd."
                             className="h-11 rounded-2xl border-white/60 bg-white/85"
@@ -768,17 +796,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             inputMode="numeric"
                             maxLength={13}
                             value={formData.accountNumber}
-                            onChange={(e) =>
-                              setFormData((p) => ({
-                                ...p,
-                                accountNumber: sanitizeAccountNumberInput(e.target.value),
-                              }))
-                            }
+                            readOnly
+                            disabled
                             placeholder="7000123456789"
-                            className="h-11 rounded-2xl border-white/60 bg-white/85"
+                            className="h-11 rounded-2xl border-white/60 bg-white/50 text-[#5b371f]/80 cursor-not-allowed"
                           />
-                          <p className="text-xs text-muted-foreground">Must start with 7000, digits only, exactly 13 characters.</p>
-                          {errors.accountNumber && <p className="text-xs text-rose-600">{errors.accountNumber}</p>}
+                          <p className="text-xs text-muted-foreground">Account number is fixed after onboarding and cannot be changed.</p>
                         </div>
                       </div>
                     </CardContent>
@@ -806,6 +829,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         <Input
                           id="username"
                           value={profileData.username}
+                          maxLength={50}
                           onChange={(e) => setProfileData((p) => ({ ...p, username: e.target.value }))}
                           placeholder="email@example.com or 0912345678"
                           className="h-11 rounded-2xl border-white/60 bg-white/85"
@@ -942,8 +966,16 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               <CashbackTab merchantId={id} />
             )}
 
+            {activeTab === "eligibility" && (
+              <EligibleCustomersTab merchantId={id} />
+            )}
+
+            {activeTab === "items" && (
+              <ItemsTab merchantId={id} />
+            )}
+
             {/* Action Buttons */}
-            {activeTab !== "cashback" && (
+            {activeTab !== "cashback" && activeTab !== "eligibility" && activeTab !== "items" && (
             <div className="mt-6 flex flex-col gap-3 border-t border-white/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 type="button"
@@ -973,6 +1005,30 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           </div>
         </CardContent>
       </Card>
+      <AlertDialog open={showRegenConfirm} onOpenChange={setShowRegenConfirm}>
+        <AlertDialogContent className="rounded-2xl border-none bg-white shadow-2xl">
+          <AlertDialogHeader className="items-center text-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center">
+              <RotateCw className="w-7 h-7 text-rose-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-slate-900">Regenerate QR Code?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This will permanently invalidate the existing QR code. All printed copies will stop working immediately and cannot be reversed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-row gap-3 pt-2">
+            <AlertDialogCancel className="flex-1 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleQrAction("regenerate")}
+              className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Yes, Regenerate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

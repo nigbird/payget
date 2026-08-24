@@ -10,8 +10,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Only allow admins or those with specific permission
-    const isAllowed = user.role === "ADMIN" || user.permissions?.includes("DASHBOARD_VIEW")
+    // Only allow users whose assigned role grants dashboard access
+    const isAllowed = user.permissions?.includes("DASHBOARD_VIEW")
     if (!isAllowed) {
       return NextResponse.json({ error: "Permission denied" }, { status: 403 })
     }

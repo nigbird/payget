@@ -23,24 +23,29 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog"
-import { 
-  Loader2, 
-  Sparkles, 
-  UserPlus, 
-  Globe, 
-  Building2, 
-  User, 
-  Phone, 
-  MapPin, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Loader2,
+  UserPlus,
+  Globe,
+  Building2,
+  User,
+  Phone,
+  MapPin,
   Link as LinkIcon,
   FileText,
   Upload,
@@ -69,28 +74,31 @@ import {
   CreditCard,
   Store,
   Download,
-  MessageSquare
+  MessageSquare,
+  MoreVertical,
+  Landmark,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import type { MerchantDocument, Merchant } from "@/app/lib/db"
-import { useSession } from "next-auth/react"
+import type { MerchantDocument, Merchant } from "@/lib/db"
+import { useAuth } from "@/lib/auth-context"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/utils"
 import {
   sanitizeAccountNumberInput,
   getAccountNumberValidationError,
+  sanitizeSubsidiaryAccountNumberInput,
+  getSubsidiaryAccountNumberValidationError,
 } from "@/lib/account-number"
 
 function MerchantOnboardingContent() {
-  const { data: session } = useSession()
+  const { user: session } = useAuth()
   const { toast } = useToast()
   const searchParams = useSearchParams()
   const editMerchantIdParam = searchParams.get("editMerchantId")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [registrationId] = useState(() => crypto.randomUUID())
-  const [isAiLoading, setIsAiLoading] = useState(false)
   const [systemConfig, setSystemConfig] = useState<any>({
     districts: [],
     branches: [],
@@ -108,6 +116,17 @@ function MerchantOnboardingContent() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [selectedForReview, setSelectedForReview] = useState<Merchant | null>(null)
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false)
+  const [selectedForSubsidiary, setSelectedForSubsidiary] = useState<Merchant | null>(null)
+  const [isSubsidiaryDialogOpen, setIsSubsidiaryDialogOpen] = useState(false)
+  const [subsidiaryLoading, setSubsidiaryLoading] = useState(false)
+  const [subsidiarySubmitting, setSubsidiarySubmitting] = useState(false)
+  const [subsidiaryCurrent, setSubsidiaryCurrent] = useState<string | null>(null)
+  const [subsidiaryPendingRequest, setSubsidiaryPendingRequest] = useState<{
+    requestedAccountNumber: string
+    maker: { name: string | null; email: string | null }
+  } | null>(null)
+  const [subsidiaryForm, setSubsidiaryForm] = useState({ accountNumber: "", reason: "" })
+  const [subsidiaryFieldErrors, setSubsidiaryFieldErrors] = useState<Record<string, string>>({})
   const [limits, setLimits] = useState({
     dailyLimit: "10000",
     transactionLimit: "1000",
@@ -124,29 +143,33 @@ function MerchantOnboardingContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const validateLimit = (value: string, fieldName: string): string | null => {
-    if (!value || value.trim() === '') {
-      return 'This field is required'
-    }
-    if (!/^\d+$/.test(value)) {
-      return 'Only numbers are allowed'
-    }
-    if (value.length > 10) {
-      return 'Maximum 10 digits allowed'
-    }
+  const sanitizeLimitInput = (value: string): string => {
+    // Strip non-numeric characters except a single decimal point
+    const cleaned = value.replace(/[^\d.]/g, '')
+    const parts = cleaned.split('.')
+    if (parts.length === 1) return parts[0]
+    return `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`
+  }
+
+  const validateLimit = (value: string): string | null => {
+    if (!value || value.trim() === '') return 'This field is required'
+    if (!/^\d+(\.\d{0,2})?$/.test(value)) return 'Enter a valid number (up to 2 decimal places)'
+    const num = parseFloat(value)
+    if (isNaN(num) || num < 0) return 'Must be a positive number'
+    if (num > 999_999_999.99) return 'Value exceeds maximum allowed (999,999,999.99)'
     return null
   }
 
   const handleLimitChange = (field: keyof typeof limits, value: string) => {
-    setLimits(prev => ({ ...prev, [field]: value }))
-    const error = validateLimit(value, field)
-    setLimitErrors(prev => ({ ...prev, [field]: error || '' }))
+    const sanitized = sanitizeLimitInput(value)
+    setLimits(prev => ({ ...prev, [field]: sanitized }))
+    setLimitErrors(prev => ({ ...prev, [field]: validateLimit(sanitized) || '' }))
   }
 
   const handleFormLimitChange = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    const error = validateLimit(value, field)
-    setErrors(prev => ({ ...prev, [field]: error || '' }))
+    const sanitized = sanitizeLimitInput(value)
+    setFormData(prev => ({ ...prev, [field]: sanitized }))
+    setErrors(prev => ({ ...prev, [field]: validateLimit(sanitized) || '' }))
   }
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
@@ -171,8 +194,8 @@ function MerchantOnboardingContent() {
 
   // Sync organization details from session when modal opens
   useEffect(() => {
-    if (isRegisterDialogOpen && session?.user) {
-      const user = session.user as any
+    if (isRegisterDialogOpen && session) {
+      const user = session as any
       setFormData(prev => ({
         ...prev,
         district: user.isHeadOffice ? "Head Office" : (user.district || ""),
@@ -212,10 +235,76 @@ function MerchantOnboardingContent() {
   }
 
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = session?.permissions || []
   const canRegister = userPermissions.includes('MERCHANT_REGISTER')
   const canSetLimits = userPermissions.includes('TRANSACTION_LIMIT_SET') || userPermissions.includes('TRANSACTION_LIMIT_OVERRIDE')
   const canApprove = userPermissions.includes('MERCHANT_APPROVE')
+  const canRequestSubsidiary = userPermissions.includes('SUBSIDIARY_ACCOUNT_REQUEST')
+
+  const openSubsidiaryDialog = async (merchant: Merchant) => {
+    setSelectedForSubsidiary(merchant)
+    setSubsidiaryForm({ accountNumber: "", reason: "" })
+    setSubsidiaryFieldErrors({})
+    setSubsidiaryCurrent(null)
+    setSubsidiaryPendingRequest(null)
+    setIsSubsidiaryDialogOpen(true)
+    setSubsidiaryLoading(true)
+    try {
+      const res = await fetch(`/api/merchants/${merchant.id}/subsidiary-account`)
+      if (res.ok) {
+        const data = await res.json()
+        setSubsidiaryCurrent(data.subsidiaryAccountNumber ?? null)
+        setSubsidiaryPendingRequest(data.pendingRequest ?? null)
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Failed to load subsidiary account status' })
+    } finally {
+      setSubsidiaryLoading(false)
+    }
+  }
+
+  const handleSubsidiaryAccountChange = (value: string) => {
+    const sanitized = sanitizeSubsidiaryAccountNumberInput(value)
+    setSubsidiaryForm(prev => ({ ...prev, accountNumber: sanitized }))
+    setSubsidiaryFieldErrors(prev => ({ ...prev, requestedAccountNumber: '' }))
+  }
+
+  const submitSubsidiaryRequest = async () => {
+    if (!selectedForSubsidiary) return
+    const errors: Record<string, string> = {}
+    const accountError = getSubsidiaryAccountNumberValidationError(subsidiaryForm.accountNumber)
+    if (accountError) errors.requestedAccountNumber = accountError
+
+    setSubsidiaryFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    setSubsidiarySubmitting(true)
+    try {
+      const res = await fetch(`/api/merchants/${selectedForSubsidiary.id}/subsidiary-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_request',
+          requestedAccountNumber: subsidiaryForm.accountNumber,
+          reason: subsidiaryForm.reason.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (data.errors) setSubsidiaryFieldErrors(data.errors)
+        throw new Error(data.error || 'Failed to submit request')
+      }
+      toast({
+        title: 'Request submitted',
+        description: 'A different admin must approve this before it takes effect.',
+      })
+      setIsSubsidiaryDialogOpen(false)
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Request failed', description: error.message })
+    } finally {
+      setSubsidiarySubmitting(false)
+    }
+  }
 
   const handleResendSetupLink = async (merchantId: string) => {
     setResendLoadingId(merchantId)
@@ -398,47 +487,6 @@ function MerchantOnboardingContent() {
       })
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  const handleAiAssist = async () => {
-    if (!formData.name && !formData.businessDescription) {
-      toast({
-        variant: "destructive",
-        title: "More Info Needed",
-        description: "Please provide at least a business name or description for AI assistance."
-      })
-      return
-    }
-
-    setIsAiLoading(true)
-    try {
-      const result = await aiMerchantOnboardingAssistant({
-        name: formData.name,
-        description: formData.businessDescription
-      })
-
-      if (result) {
-        setFormData(prev => ({
-          ...prev,
-          category: result.suggestedCategory || prev.category,
-          businessType: result.suggestedBusinessType || prev.businessType,
-          businessDescription: result.refinedDescription || prev.businessDescription
-        }))
-        setRiskFactors(result.potentialRiskFactors || [])
-        toast({
-          title: "AI Analysis Complete",
-          description: "Merchant profile has been refined based on industry patterns."
-        })
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "AI Assistant Error",
-        description: "Failed to analyze merchant data. Please continue manually."
-      })
-    } finally {
-      setIsAiLoading(false)
     }
   }
 
@@ -785,7 +833,7 @@ function MerchantOnboardingContent() {
                                   <Textarea
                                     id="businessDescription"
                                     placeholder="Describe the nature of business and products sold..."
-                                    className={`min-h-[120px] rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all pr-12 ${errors.businessDescription ? "border-red-500" : ""}`}
+                                    className={`min-h-[120px] rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.businessDescription ? "border-red-500" : ""}`}
                                     value={formData.businessDescription}
                                     maxLength={500}
                                     onChange={(e) => {
@@ -796,15 +844,6 @@ function MerchantOnboardingContent() {
                                       }
                                     }}
                                   />
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute right-3 top-3 text-primary hover:bg-[#fff8ea] rounded-lg h-8 w-8"
-                                    onClick={handleAiAssist}
-                                    disabled={isAiLoading}
-                                  >
-                                    {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                  </Button>
                                 </div>
                                 {errors.businessDescription && <p className="text-[10px] text-red-500 font-medium">{errors.businessDescription}</p>}
                               </div>
@@ -1043,21 +1082,37 @@ function MerchantOnboardingContent() {
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {documents.map(doc => (
                                   <div key={doc.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 text-xs shadow-sm hover:border-[#f8b513]/30 transition-all">
-                                    <div className="p-2 rounded-lg bg-emerald-50 shrink-0">
-                                      <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                    <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden border border-gray-100">
+                                      {doc.type?.startsWith('image/') && doc.url ? (
+                                        <img src={doc.url} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full bg-emerald-50 flex items-center justify-center">
+                                          <FileCheck className="w-4 h-4 text-emerald-600" />
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="truncate font-medium text-gray-700">{doc.name}</p>
                                       <p className="text-[10px] text-gray-400">{(doc.size / 1024 / 1024).toFixed(2)} MB</p>
                                     </div>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 transition-all" 
-                                      onClick={() => handleRemoveDoc(doc.id)}
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </Button>
+                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-all"
+                                        onClick={() => setPreviewFile({ url: doc.url, name: doc.name, type: doc.type })}
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-lg hover:bg-rose-50 hover:text-rose-600 transition-all"
+                                        onClick={() => handleRemoveDoc(doc.id)}
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -1224,17 +1279,40 @@ function MerchantOnboardingContent() {
                                 )}
                               </Button>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-9 rounded-2xl gap-2 hover:bg-amber-50/50 transition-colors"
-                              onClick={() => {
-                                setSelectedMerchant(s)
-                                setIsDetailsDialogOpen(true)
-                              }}
-                            >
-                              View Details <Eye className="w-3.5 h-3.5" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 rounded-2xl hover:bg-amber-50/50 transition-colors"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault()
+                                    setTimeout(() => {
+                                      setSelectedMerchant(s)
+                                      setIsDetailsDialogOpen(true)
+                                    }, 0)
+                                  }}
+                                >
+                                  <Eye className="w-3.5 h-3.5 mr-2" /> View Details
+                                </DropdownMenuItem>
+                                {canRequestSubsidiary && (
+                                  <DropdownMenuItem
+                                    onSelect={(e) => {
+                                      e.preventDefault()
+                                      setTimeout(() => openSubsidiaryDialog(s), 0)
+                                    }}
+                                  >
+                                    <Landmark className="w-3.5 h-3.5 mr-2" /> Add Subsidiary Account
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1451,7 +1529,7 @@ function MerchantOnboardingContent() {
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Webhook Callback</Label>
-                            <p className="text-sm font-mono text-slate-700 truncate" title={selectedMerchant?.callbackUrl}>
+                            <p className="text-sm font-mono text-slate-700 truncate" title={selectedMerchant?.callbackUrl ?? undefined}>
                               {selectedMerchant?.callbackUrl || "—"}
                             </p>
                           </div>
@@ -1626,7 +1704,7 @@ function MerchantOnboardingContent() {
                       placeholder="e.g. 10000" 
                       value={limits.dailyLimit}
                       onChange={(e) => handleLimitChange('dailyLimit', e.target.value)}
-                      maxLength={10}
+                      maxLength={13}
                       className={limitErrors.dailyLimit ? 'border-red-500' : ''}
                     />
                     {limitErrors.dailyLimit && (
@@ -1640,7 +1718,7 @@ function MerchantOnboardingContent() {
                       placeholder="e.g. 1000" 
                       value={limits.transactionLimit}
                       onChange={(e) => handleLimitChange('transactionLimit', e.target.value)}
-                      maxLength={10}
+                      maxLength={13}
                       className={limitErrors.transactionLimit ? 'border-red-500' : ''}
                     />
                     {limitErrors.transactionLimit && (
@@ -1654,7 +1732,7 @@ function MerchantOnboardingContent() {
                       placeholder="e.g. 100" 
                       value={limits.dailyCountLimit}
                       onChange={(e) => handleLimitChange('dailyCountLimit', e.target.value)}
-                      maxLength={10}
+                      maxLength={13}
                       className={limitErrors.dailyCountLimit ? 'border-red-500' : ''}
                     />
                     {limitErrors.dailyCountLimit && (
@@ -1682,6 +1760,97 @@ function MerchantOnboardingContent() {
                       'Confirm & Queue for Activation'
                     )}
                   </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Add Subsidiary Account (Maker) Dialog */}
+            <Dialog open={isSubsidiaryDialogOpen} onOpenChange={setIsSubsidiaryDialogOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Landmark className="w-5 h-5 text-primary" />
+                    Add Subsidiary Account
+                  </DialogTitle>
+                  <DialogDescription>
+                    Propose a subsidiary funding account for{" "}
+                    <span className="font-bold text-foreground">{selectedForSubsidiary?.name}</span>.
+                    A different admin must approve this before it takes effect.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {subsidiaryLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-4 py-2">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Current subsidiary account</p>
+                      <p className="text-sm font-mono font-semibold text-slate-900">
+                        {subsidiaryCurrent || "Not yet configured"}
+                      </p>
+                    </div>
+
+                    {subsidiaryPendingRequest ? (
+                      <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-3">
+                        <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                        <p className="text-xs text-amber-800 leading-relaxed">
+                          A request for <span className="font-mono font-bold">{subsidiaryPendingRequest.requestedAccountNumber}</span>{" "}
+                          submitted by {subsidiaryPendingRequest.maker.name || subsidiaryPendingRequest.maker.email} is already
+                          pending approval on the Review &amp; Approvals page.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label>New subsidiary account number</Label>
+                          <Input
+                            value={subsidiaryForm.accountNumber}
+                            onChange={(e) => handleSubsidiaryAccountChange(e.target.value)}
+                            placeholder="e.g. ABC1234567890"
+                            className={subsidiaryFieldErrors.requestedAccountNumber ? 'border-red-500' : ''}
+                          />
+                          {subsidiaryFieldErrors.requestedAccountNumber && (
+                            <p className="text-[10px] text-red-500 font-medium">{subsidiaryFieldErrors.requestedAccountNumber}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Reason <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                          <Textarea
+                            value={subsidiaryForm.reason}
+                            onChange={(e) => {
+                              setSubsidiaryForm(prev => ({ ...prev, reason: e.target.value }))
+                              setSubsidiaryFieldErrors(prev => ({ ...prev, reason: '' }))
+                            }}
+                            placeholder="Why is this subsidiary account being added? (optional)"
+                            className={subsidiaryFieldErrors.reason ? 'border-red-500' : ''}
+                          />
+                          {subsidiaryFieldErrors.reason && (
+                            <p className="text-[10px] text-red-500 font-medium">{subsidiaryFieldErrors.reason}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsSubsidiaryDialogOpen(false)} disabled={subsidiarySubmitting}>
+                    Cancel
+                  </Button>
+                  {!subsidiaryLoading && !subsidiaryPendingRequest && (
+                    <Button onClick={submitSubsidiaryRequest} disabled={subsidiarySubmitting}>
+                      {subsidiarySubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit for Approval'
+                      )}
+                    </Button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>

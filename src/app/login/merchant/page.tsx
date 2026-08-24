@@ -3,7 +3,8 @@
 import { useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { safeCredentialsSignIn } from "@/lib/safe-credentials-signin"
+import { loginWithCredentials, loginWithSalesOtp } from "@/lib/safe-credentials-signin"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,20 +22,18 @@ import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
 
 export default function MerchantLogin() {
   const router = useRouter()
-  const [loginMode, setLoginMode] = useState<'email' | 'sales'>('email')
+  const { refresh } = useAuth()
+  const [loginMode, setLoginMode] = useState<"email" | "sales">("email")
   const [isLoading, setIsLoading] = useState(false)
   const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [credentials, setCredentials] = useState({
-    email: "",
-    password: ""
-  })
+  const [credentials, setCredentials] = useState({ email: "", password: "" })
   const [salesPhone, setSalesPhone] = useState("")
   const [salesOtp, setSalesOtp] = useState("")
-  const [merchants, setMerchants] = useState<{ id: string, name: string }[]>([])
-  const [selectedMerchantId, setSelectedMerchantId] = useState<string>("")
+  const [merchants, setMerchants] = useState<{ id: string; name: string }[]>([])
+  const [selectedMerchantId, setSelectedMerchantId] = useState("")
   const [credentialError, setCredentialError] = useState<string | null>(null)
   const [salesPhoneError, setSalesPhoneError] = useState<string | null>(null)
   const [salesOtpBanner, setSalesOtpBanner] = useState<string | null>(null)
@@ -49,16 +48,12 @@ export default function MerchantLogin() {
     nextDigits[index] = digit
     const nextOtp = nextDigits.join("").trimEnd()
     setSalesOtp(nextOtp)
-
-    if (digit && index < 5) {
-      otpRefs.current[index + 1]?.focus()
-    }
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus()
   }
 
   const handleOtpKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Backspace" && !salesOtp[index] && index > 0) {
-      const prev = otpRefs.current[index - 1]
-      prev?.focus()
+      otpRefs.current[index - 1]?.focus()
     }
   }
 
@@ -74,50 +69,33 @@ export default function MerchantLogin() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (lockout.submitBlockedFor(credentials.email)) {
-      return
-    }
+    if (lockout.submitBlockedFor(credentials.email)) return
     setIsLoading(true)
     setCredentialError(null)
 
     let authenticated = false
     try {
-      const result = await safeCredentialsSignIn("credentials", {
-        email: credentials.email,
+      const result = await loginWithCredentials({
+        identifier: credentials.email,
         password: credentials.password,
-        loginType: "merchant",
-        redirect: false,
+        portal: "merchant",
       })
 
-      if (!result) {
-        setCredentialError(
-          "We could not reach the sign-in service. Check your connection and try again."
-        )
-        return
-      }
-
-      const authFailed = Boolean(result.error) || result.ok === false
       const lockoutActive = lockout.applyLockoutFromSignInResult(result, credentials.email)
 
-      if (authFailed) {
+      if (!result.ok) {
         if (!lockoutActive) {
-          let errorMessage = "Invalid username or password. Please try again."
-          if (result.error === "AccessDenied" || result.code === "AccessDenied") {
-            errorMessage = "Access Denied: Please use the correct login portal for your account."
-          }
-          setCredentialError(errorMessage)
+          setCredentialError(result.error ?? "Invalid username or password. Please try again.")
         }
         return
       }
 
       authenticated = true
       setSigningIn(true)
-      router.refresh()
+      await refresh()
       router.replace("/merchant")
     } catch {
-      setCredentialError(
-        "Something went wrong while signing in. Check your connection and try again."
-      )
+      setCredentialError("Something went wrong while signing in. Check your connection and try again.")
     } finally {
       if (!authenticated) setIsLoading(false)
     }
@@ -127,30 +105,26 @@ export default function MerchantLogin() {
     setSalesPhoneError(null)
     setSalesOtpError(null)
     if (!salesPhone.trim()) {
-      setSalesPhoneError("Enter the phone number registered for sales access.")
+      setSalesPhoneError("Enter the phone number registered for OTP login.")
       return
     }
 
     setIsSendingOtp(true)
     setSalesOtpBanner(null)
     try {
-      const response = await fetch('/api/merchant/sales-otp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: salesPhone })
+      const response = await fetch("/api/merchant/sales-otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: salesPhone }),
       })
-
       const result = await response.json()
       if (!response.ok) {
         setSalesOtpError(result.error || "Unable to send a code right now. Try again shortly.")
         return
       }
-
       setOtpSent(true)
       setMerchants(result.merchants || [])
-      if (result.merchants && result.merchants.length > 0) {
-        setSelectedMerchantId(result.merchants[0].id)
-      }
+      if (result.merchants?.length > 0) setSelectedMerchantId(result.merchants[0].id)
       setSalesOtpBanner(result.message || "A one-time code was sent to your phone.")
       setSalesOtpError(null)
     } catch {
@@ -178,27 +152,20 @@ export default function MerchantLogin() {
     setIsVerifyingOtp(true)
     let otpSuccess = false
     try {
-      const result = await safeCredentialsSignIn("sales-otp", {
+      const result = await loginWithSalesOtp({
         phone: salesPhone,
         otp: salesOtp,
         merchantId: selectedMerchantId,
-        redirect: false,
       })
 
-      if (!result) {
-        setSalesOtpError("Unable to verify the code right now. Try again.")
-        return
-      }
-
-      const failed = Boolean(result.error) || result.ok === false
-      if (failed) {
-        setSalesOtpError("That code is invalid or expired. Request a new code and try again.")
+      if (!result.ok) {
+        setSalesOtpError(result.error ?? "That code is invalid or expired. Request a new code and try again.")
         return
       }
 
       otpSuccess = true
       setSigningIn(true)
-      router.refresh()
+      await refresh()
       router.replace("/merchant")
     } catch {
       setSalesOtpError("Could not verify your code. Check your connection and try again.")
@@ -223,12 +190,10 @@ export default function MerchantLogin() {
       {signingIn ? (
         <SigningInOverlay message="Signing you in…" subMessage="Opening your merchant portal" />
       ) : null}
-      {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
         <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
-        
         <div className="absolute inset-0 opacity-5">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -248,11 +213,7 @@ export default function MerchantLogin() {
           <div className="backdrop-blur-md bg-white/70 rounded-2xl shadow-2xl px-5 py-6 sm:p-8 space-y-5 sm:space-y-8">
             <div className="flex justify-center">
               <div className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center">
-                <img 
-                  src="/niblogo.png" 
-                  alt="Nib Bank Logo" 
-                  className="max-w-full max-h-full object-contain"
-                />
+                <img src="/niblogo.png" alt="Nib Bank Logo" className="max-w-full max-h-full object-contain" />
               </div>
             </div>
 
@@ -261,17 +222,17 @@ export default function MerchantLogin() {
               <p className="text-sm sm:text-base text-[#6B7280] font-medium">Please login to your account</p>
             </div>
 
-            <form onSubmit={loginMode === 'email' ? handleLogin : handleSalesLogin} className="space-y-4 sm:space-y-6">
-              {loginMode === 'email' ? (
+            <form onSubmit={loginMode === "email" ? handleLogin : handleSalesLogin} className="space-y-4 sm:space-y-6">
+              {loginMode === "email" ? (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Email or Phone</Label>
                     <div className="relative group transition-all">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
-                      <Input 
-                        id="email" 
+                      <Input
+                        id="email"
                         type="text"
-                        placeholder="enter your email or phone number" 
+                        placeholder="enter your email or phone number"
                         className="h-11 sm:h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                         required
                         value={credentials.email}
@@ -289,16 +250,14 @@ export default function MerchantLogin() {
                       </p>
                     )}
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password" className="text-sm font-semibold text-[#374151]">Password</Label>
-                    </div>
+                    <Label htmlFor="password" className="text-sm font-semibold text-[#374151]">Password</Label>
                     <div className="relative group transition-all">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
-                      <Input 
-                        id="password" 
-                        type={showPassword ? "text" : "password"} 
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
                         className="h-11 sm:h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                         placeholder="Enter your password"
                         required
@@ -311,7 +270,7 @@ export default function MerchantLogin() {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword((visible) => !visible)}
+                        onClick={() => setShowPassword((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#6B7280] hover:text-[#f8b513] transition-colors"
                         aria-label={showPassword ? "Hide password" : "Show password"}
                       >
@@ -319,14 +278,12 @@ export default function MerchantLogin() {
                       </button>
                     </div>
                     {credentialError && (
-                      <p className="text-sm font-medium text-rose-600" role="alert">
-                        {credentialError}
-                      </p>
+                      <p className="text-sm font-medium text-rose-600" role="alert">{credentialError}</p>
                     )}
                   </div>
 
                   <div className="flex justify-end pt-0.5">
-                    <Link href="/forgot-password" className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors">
+                    <Link href="/forgot-password?portal=merchant" className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors">
                       Forgot Password?
                     </Link>
                   </div>
@@ -340,9 +297,9 @@ export default function MerchantLogin() {
                     </div>
                   )}
 
-                  <Button 
-                    type="submit" 
-                    className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
+                  <Button
+                    type="submit"
+                    className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300"
                     disabled={isLoading || lockout.submitBlockedFor(credentials.email)}
                   >
                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}
@@ -352,17 +309,14 @@ export default function MerchantLogin() {
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        onClick={() => {
-                          resetSalesState()
-                          setLoginMode('sales')
-                        }}
+                        onClick={() => { resetSalesState(); setLoginMode("sales") }}
                         className="text-sm font-semibold text-[#f8b513] hover:text-[#754319] transition-colors"
                       >
-                        Sales Login
+                        Login with OTP
                       </button>
                     </div>
-                    <Link 
-                      href="/register" 
+                    <Link
+                      href="/register"
                       className="w-full flex items-center justify-center h-11 sm:h-12 text-base font-bold rounded-2xl bg-[#f8b513]/10 text-[#754319] hover:bg-[#f8b513]/20 transition-all duration-300"
                     >
                       Register as New Merchant
@@ -372,18 +326,16 @@ export default function MerchantLogin() {
               ) : (
                 <>
                   <div className="flex justify-between items-center">
-                    <Label className="text-sm font-semibold text-[#374151]">Sales OTP Login</Label>
+                    <Label className="text-sm font-semibold text-[#374151]">Login with OTP</Label>
                     <button
                       type="button"
-                      onClick={() => {
-                        setLoginMode('email')
-                        resetSalesState()
-                      }}
+                      onClick={() => { setLoginMode("email"); resetSalesState() }}
                       className="text-xs font-semibold text-[#f8b513] hover:text-[#754319] transition-colors"
                     >
                       Username Login
                     </button>
                   </div>
+
                   <div className="space-y-2.5">
                     <Label htmlFor="sales-phone" className="text-sm font-semibold">Phone Number</Label>
                     <div className="relative group">
@@ -395,43 +347,28 @@ export default function MerchantLogin() {
                         className="h-11 sm:h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                         required
                         value={salesPhone}
-                        onChange={(e) => {
-                          setSalesPhoneError(null)
-                          setSalesOtpError(null)
-                          setSalesPhone(e.target.value)
-                        }}
+                        onChange={(e) => { setSalesPhoneError(null); setSalesOtpError(null); setSalesPhone(e.target.value) }}
                         aria-invalid={Boolean(salesPhoneError)}
                       />
                     </div>
                     {salesPhoneError && (
-                      <p className="text-sm font-medium text-rose-600" role="alert">
-                        {salesPhoneError}
-                      </p>
+                      <p className="text-sm font-medium text-rose-600" role="alert">{salesPhoneError}</p>
                     )}
                   </div>
+
                   {otpSent && merchants.length > 1 && (
                     <div className="space-y-2.5 animate-fade-in">
                       <Label htmlFor="merchant-select" className="text-sm font-semibold text-[#374151]">Select Merchant</Label>
                       <div className="relative group">
                         <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors z-10" />
-                        <Select
-                          value={selectedMerchantId}
-                          onValueChange={setSelectedMerchantId}
-                        >
-                          <SelectTrigger 
-                            id="merchant-select"
-                            className="h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
-                          >
+                        <Select value={selectedMerchantId} onValueChange={setSelectedMerchantId}>
+                          <SelectTrigger id="merchant-select" className="h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm">
                             <SelectValue placeholder="Select a merchant" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-[#E5E7EB] bg-white/95 backdrop-blur-md shadow-xl">
-                            {merchants.map((merchant) => (
-                              <SelectItem 
-                                key={merchant.id} 
-                                value={merchant.id}
-                                className="focus:bg-[#f8b513]/10 focus:text-[#754319] rounded-lg cursor-pointer"
-                              >
-                                {merchant.name}
+                            {merchants.map((m) => (
+                              <SelectItem key={m.id} value={m.id} className="focus:bg-[#f8b513]/10 focus:text-[#754319] rounded-lg cursor-pointer">
+                                {m.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -439,54 +376,46 @@ export default function MerchantLogin() {
                       </div>
                     </div>
                   )}
+
                   {otpSent && (
                     <div className="space-y-2.5">
                       <Label className="text-sm font-semibold">OTP Code</Label>
                       <div className="flex items-center justify-center gap-2">
-                        {Array.from({ length: 6 }).map((_, index) => {
-                          const digit = salesOtp[index] ?? ""
-                          return (
-                            <input
-                              key={index}
-                              ref={(el) => {
-                                otpRefs.current[index] = el
-                              }}
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={1}
-                              value={digit}
-                              onChange={(e) => {
-                                setSalesOtpError(null)
-                                handleOtpChange(index, e.target.value)
-                              }}
-                              onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                              onPaste={handleOtpPaste}
-                              className="w-12 h-14 rounded-2xl border border-[#E5E7EB] bg-white/80 text-center text-xl font-semibold tracking-[0.35em] focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/20 outline-none transition shadow-sm"
-                            />
-                          )
-                        })}
+                        {Array.from({ length: 6 }).map((_, index) => (
+                          <input
+                            key={index}
+                            ref={(el) => { otpRefs.current[index] = el }}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={1}
+                            value={salesOtp[index] ?? ""}
+                            onChange={(e) => { setSalesOtpError(null); handleOtpChange(index, e.target.value) }}
+                            onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                            onPaste={handleOtpPaste}
+                            className="w-12 h-14 rounded-2xl border border-[#E5E7EB] bg-white/80 text-center text-xl font-semibold tracking-[0.35em] focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/20 outline-none transition shadow-sm"
+                          />
+                        ))}
                       </div>
                       <p className="text-xs text-[#6B7280] font-medium text-center">Code expires in 5 minutes.</p>
                       {salesOtpBanner && !salesOtpError && (
-                        <p className="text-sm font-medium text-emerald-700 text-center" role="status">
-                          {salesOtpBanner}
-                        </p>
+                        <p className="text-sm font-medium text-emerald-700 text-center" role="status">{salesOtpBanner}</p>
                       )}
                     </div>
                   )}
+
                   {salesOtpError && (
-                    <p className="text-sm font-medium text-rose-600 text-center px-1" role="alert">
-                      {salesOtpError}
-                    </p>
+                    <p className="text-sm font-medium text-rose-600 text-center px-1" role="alert">{salesOtpError}</p>
                   )}
-                  <Button 
-                    type="submit" 
-                    className="w-full h-11 sm:h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 sm:h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
                     disabled={isSendingOtp || isVerifyingOtp}
                   >
-                    {(isSendingOtp || isVerifyingOtp) ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : otpSent ? 'Verify OTP' : 'Send OTP'}
+                    {(isSendingOtp || isVerifyingOtp) ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : otpSent ? "Verify OTP" : "Send OTP"}
                   </Button>
+
                   {otpSent && (
                     <button
                       type="button"

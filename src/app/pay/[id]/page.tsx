@@ -1,18 +1,16 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Wallet, CheckCircle2, XCircle, Loader2, Clock, Send, QrCode, ChevronRight } from "lucide-react"
-import type { Transaction, Merchant } from "@/app/lib/db"
+import type { Transaction, Merchant } from "@/lib/db"
 import { useToast } from "@/hooks/use-toast"
 
 export default function PayerRequestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const router = useRouter()
   const { toast } = useToast()
   
   const [transaction, setTransaction] = useState<Transaction | null>(null)
@@ -135,9 +133,6 @@ export default function PayerRequestPage({ params }: { params: Promise<{ id: str
         </div>
         <h1 className="text-xl font-medium text-slate-800 tracking-tight">Invalid Request</h1>
         <p className="text-sm text-slate-500 max-w-xs">This payment link is invalid or has expired.</p>
-        <div className="pt-4">
-          <Button variant="outline" className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => router.push('/')}>Return Home</Button>
-        </div>
       </div>
     )
   }

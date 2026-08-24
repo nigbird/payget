@@ -39,10 +39,12 @@ import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
-import type { Merchant, Transaction, MerchantTeamMember } from "@/app/lib/db"
+import { useAuth } from "@/lib/auth-context"
+import type { Merchant, Transaction, MerchantTeamMember } from "@/lib/db"
 import {
   buildSalesUserFilterOptions,
   transactionMatchesSalesUserFilter,
+  findSelfTeamMember,
 } from "@/lib/transaction-initiator"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
@@ -53,6 +55,7 @@ type Density = "comfortable" | "compact"
 export default function MerchantTransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { toast } = useToast()
+  const { user: sessionUser } = useAuth()
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -61,11 +64,13 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [salesUserFilter, setSalesUserFilter] = useState<string>("all")
+  const [itemFilter, setItemFilter] = useState<string>("all")
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
 
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(10)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchMerchant = async () => {
@@ -121,10 +126,45 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return () => clearInterval(interval)
   }, [id])
 
-  const salesUserOptions = useMemo(
-    () => buildSalesUserFilterOptions(teamMembers, transactions),
-    [teamMembers, transactions]
+  const isSalesUser = sessionUser?.role === "SALES"
+  const selfTeamMember = useMemo(
+    () => (isSalesUser && sessionUser ? findSelfTeamMember(teamMembers, sessionUser) : undefined),
+    [isSalesUser, sessionUser, teamMembers]
   )
+  // Plain sales users may only filter between their own transactions and QR customer
+  // transactions; sales admins (and account admins) can filter across the whole team.
+  const isRestrictedSalesUser = isSalesUser && selfTeamMember?.role !== "sales_admin"
+
+  const salesUserOptions = useMemo(
+    () =>
+      buildSalesUserFilterOptions(
+        teamMembers,
+        transactions,
+        isRestrictedSalesUser ? { onlyMemberId: selfTeamMember?.id } : undefined
+      ),
+    [teamMembers, transactions, isRestrictedSalesUser, selfTeamMember]
+  )
+
+  /**
+   * Built from the transactions themselves (not the live item catalog) so a filter still
+   * works for renamed or deleted items — each option's value keys on itemId when the line
+   * still points at a catalog item, falling back to the snapshotted name otherwise.
+   */
+  const itemFilterOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    transactions.forEach((tx) => {
+      tx.items?.forEach((line) => {
+        const key = line.itemId ?? `name:${line.name.toLowerCase()}`
+        if (!options.has(key)) options.set(key, line.name)
+      })
+    })
+    return Array.from(options.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [transactions])
+
+  const itemLineKey = (line: { itemId: string | null; name: string }) =>
+    line.itemId ?? `name:${line.name.toLowerCase()}`
 
   const filtered = useMemo(() => {
     const from = dateRange.from
@@ -140,6 +180,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       if (statusFilter === "failed" && tx.status !== "failed") return false
       if (statusFilter === "initiated" && !nonTerminalStatuses.includes(tx.status)) return false
       if (!transactionMatchesSalesUserFilter(tx, salesUserFilter, teamMembers)) return false
+      if (itemFilter !== "all" && !tx.items?.some((line) => itemLineKey(line) === itemFilter)) return false
 
       const txMs = new Date(tx.timestamp).getTime()
       if (fromMs !== undefined && txMs < fromMs) return false
@@ -153,7 +194,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       return true
     })
-  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, teamMembers])
+  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, itemFilter, teamMembers])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
 
@@ -170,13 +211,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const hasActiveFilters =
     statusFilter !== "all" ||
     salesUserFilter !== "all" ||
+    itemFilter !== "all" ||
     !!dateRange.from ||
     !!dateRange.to ||
     search.trim().length > 0
 
   useEffect(() => {
     setPageIndex(0)
-  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, pageSize])
+  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, itemFilter, pageSize])
 
   const pageItems = useMemo(() => {
     const safePageIndex = Math.min(Math.max(0, pageIndex), pageCount - 1)
@@ -255,13 +297,13 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return "Failed"
   }
 
-  const dateRangeLabel = (() => {
+  const dateRangeLabel = useMemo(() => {
     const { from, to } = dateRange
     if (!from && !to) return "Any time"
     if (from && !to) return `From ${from.toLocaleDateString()}`
     if (!from && to) return `Until ${to.toLocaleDateString()}`
     return `${from?.toLocaleDateString()} - ${to?.toLocaleDateString()}`
-  })()
+  }, [dateRange.from, dateRange.to])
 
   const handleToday = () => {
     const today = new Date()
@@ -276,6 +318,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     setStatusFilter("all")
     setSearch("")
     setSalesUserFilter("all")
+    setItemFilter("all")
     setDateRange({})
     setPageIndex(0)
     toast({ title: "Filters cleared", description: "Showing all transactions." })
@@ -409,6 +452,34 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       </Select>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item</Label>
+                    {itemFilterOptions.length > 0 ? (
+                      <Select value={itemFilter} onValueChange={setItemFilter}>
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Items</SelectItem>
+                          {itemFilterOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Select disabled value="none">
+                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold text-slate-400">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No items used yet</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </div>
 
                 {/* Sales Summary Report Section */}
@@ -476,7 +547,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                           </span>
                           <Badge className={cn(
                             "text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0",
-                            tx.status === 'success' ? "bg-emerald-100 text-emerald-700" : 
+                            tx.status === 'success' ? "bg-emerald-100 text-emerald-700" :
                             nonTerminalStatuses.includes(tx.status) ? "bg-amber-100 text-amber-700" :
                             "bg-rose-100 text-rose-700"
                           )}>
@@ -490,7 +561,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="hidden sm:flex flex-col items-end gap-1 text-right">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-bold text-slate-500">{tx.userCredentials.initiatedByName || "System"}</span>
@@ -501,10 +572,30 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       </p>
                     </div>
 
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-300 group-hover:text-slate-500 sm:hidden">
-                      <ChevronRight className="w-4 h-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-slate-300 group-hover:text-slate-500 sm:hidden shrink-0"
+                      onClick={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
+                    >
+                      <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", expandedId === tx.id && "rotate-180")} />
                     </Button>
                   </div>
+
+                  {expandedId === tx.id && (
+                    <div className="sm:hidden mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <UserIcon className="w-3 h-3 text-slate-300" />
+                        <span className="text-[11px] font-bold text-slate-500">{tx.userCredentials.initiatedByName || "System"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-slate-300" />
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

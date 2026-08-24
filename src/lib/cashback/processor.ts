@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { writeAuditLog } from "@/lib/audit-log"
 import { sendSms } from "@/lib/sms"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { normalizeCashbackPhone } from "./phone"
 import {
   calculateCashbackAmount,
@@ -329,11 +329,30 @@ export async function executeTransferForTransaction(cashbackTransactionId: strin
     return failed
   }
 
+  // Re-read the merchant's current subsidiary account rather than trusting the
+  // value snapshotted on the row at creation time — that snapshot goes stale if
+  // the merchant changes their funding account before a failed transfer is retried.
+  const config = await getOrCreateCashbackConfig(cashbackTx.merchantId)
+  const subsidiaryAccount = config.subsidiaryAccountNumber?.trim() || null
+
+  if (!subsidiaryAccount) {
+    const failed = await prisma.cashbackTransaction.update({
+      where: { id: cashbackTx.id },
+      data: {
+        status: "FAILED",
+        failureReason: "Subsidiary funding account is not configured.",
+        processedAt: new Date(),
+      },
+    })
+    await appendCashbackLog(cashbackTx.id, "ERROR", "Cashback transfer failed — no subsidiary account configured")
+    return failed
+  }
+
   try {
     const transfer = await getCashbackTransferProvider().executeTransfer({
       merchantId: cashbackTx.merchantId,
       paymentTransactionId: cashbackTx.paymentTransactionId,
-      subsidiaryAccountNumber: cashbackTx.subsidiaryAccount || "",
+      subsidiaryAccountNumber: subsidiaryAccount,
       customerAccount: cashbackTx.customerAccount,
       customerPhone: cashbackTx.customerPhone,
       cashbackAmount: cashbackTx.cashbackAmount,
@@ -345,6 +364,7 @@ export async function executeTransferForTransaction(cashbackTransactionId: strin
         data: {
           status: "FAILED",
           failureReason: transfer.error ?? "Transfer failed",
+          subsidiaryAccount,
           processedAt: new Date(),
         },
       })
@@ -368,6 +388,7 @@ export async function executeTransferForTransaction(cashbackTransactionId: strin
         status: "COMPLETED",
         providerDebitRef: transfer.debitRef ?? null,
         providerCreditRef: transfer.creditRef ?? null,
+        subsidiaryAccount,
         processedAt: new Date(),
       },
     })
@@ -380,7 +401,7 @@ export async function executeTransferForTransaction(cashbackTransactionId: strin
     if (cashbackTx.customerPhone) {
       sendSms(
         cashbackTx.customerPhone,
-        `Your cashback of ${cashbackTx.cashbackAmount.toFixed(2)} has been credited to your account. Thank you!`
+        `Dear Customer, Your cashback of ${cashbackTx.cashbackAmount.toFixed(2)} has been successfully credited to your account. Thank you!`
       ).catch((err) => {
         console.error("[cashback] SMS notification failed", { error: String(err?.message ?? err) })
       })

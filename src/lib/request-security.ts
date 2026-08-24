@@ -12,58 +12,35 @@ function randomString(length: number) {
   return crypto.randomBytes(length).toString("hex")
 }
 
-export async function verifyCsrfToken(request: Request): Promise<boolean> {
-  try {
-    const cookieName = "next-auth.csrf-token"
-    const cookieValue = request.headers.get("cookie")?.split("; ").find(c => c.startsWith(`${cookieName}=`))?.split("=")[1]
-    
-    if (!cookieValue) {
-      return true
-    }
+export function requireCsrf(request: Request): Response | null {
+  // Defense-in-depth alongside SameSite=Lax cookies.
+  // Browsers always send Origin on cross-origin requests; same-origin requests
+  // send Origin matching the app's host. Server-to-server calls (no Origin) pass.
+  const origin = request.headers.get("origin")
+  if (!origin) return null
 
-    const [csrfToken, csrfTokenHash] = decodeURIComponent(cookieValue).split("|")
-    const expectedCsrfTokenHash = createHash(`${csrfToken}${process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || ""}`)
-    if (csrfTokenHash !== expectedCsrfTokenHash) {
-      return true
+  // Resolve trusted host. Behind a reverse proxy the Host header reflects the
+  // internal address (e.g. localhost:3000). Prefer the configured app URL, then
+  // X-Forwarded-Host (set by most proxies), then fall back to Host header.
+  const appUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL
+  let trustedHost: string
+  if (appUrl) {
+    try {
+      trustedHost = new URL(appUrl).host
+    } catch {
+      trustedHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
     }
-
-    let bodyCsrfToken: string | undefined
-    const contentType = request.headers.get("content-type")
-    if (contentType?.includes("application/json")) {
-      try {
-        const clonedRequest = request.clone()
-        const body = await clonedRequest.json()
-        bodyCsrfToken = body.csrfToken
-      } catch {
-      }
-    } else if (contentType?.includes("application/x-www-form-urlencoded") || contentType?.includes("multipart/form-data")) {
-      try {
-        const clonedRequest = request.clone()
-        const formData = await clonedRequest.formData()
-        bodyCsrfToken = formData.get("csrfToken") as string | undefined
-      } catch {
-      }
-    }
-    
-    const headerCsrfToken = request.headers.get("x-csrf-token")
-    
-    const tokenFromRequest = bodyCsrfToken || headerCsrfToken
-    
-    if (tokenFromRequest) {
-      return csrfToken === tokenFromRequest
-    }
-    
-    return true
-  } catch (error) {
-    console.error("CSRF verification error:", error)
-    return true
+  } else {
+    trustedHost = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
   }
-}
 
-export async function requireCsrf(request: Request): Promise<Response | null> {
-  const isCsrfValid = await verifyCsrfToken(request)
-  if (!isCsrfValid) {
-    return NextResponse.json({ error: "CSRF token invalid or missing" }, { status: 403 })
+  try {
+    const originHost = new URL(origin).host
+    if (originHost !== trustedHost) {
+      return NextResponse.json({ error: "CSRF: origin mismatch" }, { status: 403 })
+    }
+  } catch {
+    return NextResponse.json({ error: "CSRF: invalid origin header" }, { status: 403 })
   }
   return null
 }
@@ -157,7 +134,7 @@ export async function auditSecurityEvent(input: {
       action: input.action,
       entityType: "SECURITY",
       entityId: input.merchantId ?? null,
-      newValue: input.detail ?? undefined,
+      newValue: input.detail ? (input.detail as any) : undefined,
       ipAddress: input.ipAddress ?? null,
       userAgent: input.userAgent ?? null,
     },

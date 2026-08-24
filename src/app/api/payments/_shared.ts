@@ -1,8 +1,19 @@
-import { z } from "zod"
-import { db, type Merchant, type Transaction } from "@/app/lib/db"
-import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPayload } from "@/lib/jwe"
-import { withMerchantSecret, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
-import { auditSecurityEvent } from "@/lib/request-security"
+import { z } from "zod";
+import { db, type Merchant, type Transaction } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
+import {
+  encryptPayload,
+  PaymentPayloadSchema,
+  type PaymentPayload,
+  decryptPayload,
+} from "@/lib/jwe";
+import {
+  withMerchantSecret,
+  encryptMerchantSecretAtRest,
+  requiresRewrap,
+} from "@/lib/merchant-secret";
+import { auditSecurityEvent } from "@/lib/request-security";
+import { checkPaymentEligibility } from "@/lib/payment-eligibility";
 
 export const PaymentInitiateSchema = z
   .object({
@@ -25,6 +36,17 @@ export const PaymentInitiateSchema = z
     payerAccount: z.string().optional(),
     // Optional hint from merchant; gateway overwrites the final reference.
     transactionReferenceHint: z.string().optional(),
+    // Optional cart snapshot from the merchant's item catalog, for the transactions item filter.
+    items: z
+      .array(
+        z.object({
+          itemId: z.string().optional(),
+          name: z.string().min(1),
+          price: z.number().finite().nonnegative(),
+          quantity: z.number().int().positive(),
+        }),
+      )
+      .optional(),
   })
   .superRefine((data, ctx) => {
     // MPGS is a hosted card checkout: the customer is reached by email, not USSD.
@@ -34,9 +56,9 @@ export const PaymentInitiateSchema = z
           code: z.ZodIssueCode.custom,
           path: ["customerEmail"],
           message: "Customer email is required for MPGS payments",
-        })
+        });
       }
-      return
+      return;
     }
 
     if (!data.userCredentials.phone?.trim()) {
@@ -44,72 +66,107 @@ export const PaymentInitiateSchema = z
         code: z.ZodIssueCode.custom,
         path: ["userCredentials", "phone"],
         message: "Customer phone is required",
-      })
+      });
     }
-  })
+  });
 
-export type PaymentInitiate = z.infer<typeof PaymentInitiateSchema>
+export type PaymentInitiate = z.infer<typeof PaymentInitiateSchema>;
 
 type InitiatedBy = {
-  id: string
-  name?: string | null
-}
+  id: string;
+  name?: string | null;
+};
 
-function getTodayDateKey(d: Date) {
-  return d.toDateString()
+function getStartOfDay(d: Date) {
+  const start = new Date(d);
+  start.setHours(0, 0, 0, 0);
+  return start;
 }
 
 function extractKidFromJwe(token: string): string | null {
-  const parts = token.split(".")
-  if (parts.length < 2) return null
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
   try {
-    const headerB64 = parts[0]
-    const headerJson = JSON.parse(Buffer.from(headerB64, "base64url").toString("utf8"))
-    return typeof headerJson.kid === "string" ? headerJson.kid : null
+    const headerB64 = parts[0];
+    const headerJson = JSON.parse(
+      Buffer.from(headerB64, "base64url").toString("utf8"),
+    );
+    return typeof headerJson.kid === "string" ? headerJson.kid : null;
   } catch {
-    return null
+    return null;
   }
 }
 
-export async function createGatewayTransactionAndToken(input: PaymentInitiate, options?: { initiatedBy?: InitiatedBy }) {
-  const merchant = await db.getMerchantById(input.merchantId, { includeSecret: true })
-  if (!merchant) return { ok: false as const, error: "Merchant not found" }
-  if (merchant.status !== "approved" && merchant.status !== "active") return { ok: false as const, error: "Merchant account is not active" }
+export async function createGatewayTransactionAndToken(
+  input: PaymentInitiate,
+  options?: { initiatedBy?: InitiatedBy },
+) {
+  const merchant = await db.getMerchantByIdLean(input.merchantId, {
+    includeSecret: true,
+  });
+  if (!merchant) return { ok: false as const, error: "Merchant not found" };
+  if (merchant.status !== "approved" && merchant.status !== "active")
+    return { ok: false as const, error: "Merchant account is not active" };
+
+  // The eligibility list is keyed by customer phone, which MPGS (hosted card
+  // checkout, reached by email) never collects — so the gate only applies to
+  // the phone-based methods.
+  if (input.method !== "MPGS") {
+    const eligibility = await checkPaymentEligibility(
+      input.merchantId,
+      input.userCredentials.phone ?? "",
+    );
+    if (!eligibility.eligible)
+      return { ok: false as const, error: eligibility.error };
+  }
 
   // Amount limit checks (mirrors legacy /api/pay route semantics).
   if (input.amount > merchant.transactionLimit) {
-    return { ok: false as const, error: "Transaction amount exceeds per-transaction limit", limit: merchant.transactionLimit }
+    return {
+      ok: false as const,
+      error: "Transaction amount exceeds per-transaction limit",
+      limit: merchant.transactionLimit,
+    };
   }
 
-  const todayKey = getTodayDateKey(new Date())
-  const merchantTxs = await db.getTransactionsByMerchant(input.merchantId)
-  const todaysSuccess = merchantTxs
-    .filter((tx) => getTodayDateKey(new Date(tx.timestamp)) === todayKey && tx.status === "success")
+  const { totalAmount: totalTodayAmount, count: todaysSuccessCount } =
+    await db.getMerchantSuccessStatsSince(
+      input.merchantId,
+      getStartOfDay(new Date()),
+    );
 
-  const totalTodayAmount = todaysSuccess.reduce((acc, tx) => acc + tx.amount, 0)
   if (totalTodayAmount + input.amount > merchant.dailyLimit) {
-    return { ok: false as const, error: "Daily processing amount limit reached", limit: merchant.dailyLimit }
+    return {
+      ok: false as const,
+      error: "Daily processing amount limit reached",
+      limit: merchant.dailyLimit,
+    };
   }
 
-  if (todaysSuccess.length >= merchant.dailyCountLimit) {
-    return { ok: false as const, error: "Daily transaction count limit reached", limit: merchant.dailyCountLimit }
+  if (todaysSuccessCount >= merchant.dailyCountLimit) {
+    return {
+      ok: false as const,
+      error: "Daily transaction count limit reached",
+      limit: merchant.dailyCountLimit,
+    };
   }
 
   // Create internal transaction record.
-  const exists = await db.getTransactionById(input.transactionId)
-  if (exists) return { ok: false as const, error: "Transaction ID already exists" }
+  const exists = await db.getTransactionById(input.transactionId);
+  if (exists)
+    return { ok: false as const, error: "Transaction ID already exists" };
 
-  const transactionReference = `ref${Math.random().toString(36).substr(2, 9)}`
-  const createdAt = new Date().toISOString()
-  const ttlMinutes = Number(process.env.PAYMENT_LINK_TTL_MINUTES ?? 10)
-  const expiresAt = new Date(Date.now() + ttlMinutes * 60_000).toISOString()
+  const transactionReference = `ref${Math.random().toString(36).substr(2, 9)}`;
+  const createdAt = new Date().toISOString();
+  const ttlMinutes = Number(process.env.PAYMENT_LINK_TTL_MINUTES ?? 10);
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60_000).toISOString();
 
   const tx: Transaction = {
     id: input.transactionId,
     merchantId: input.merchantId,
     amount: input.amount,
     status: "initiated",
-    callbackUrl: merchant.callbackUrl,
+    callbackUrl: merchant.callbackUrl ?? "",
     description: input.serviceDescription,
     timestamp: input.timestamp,
     payerPhone: input.payerPhone,
@@ -120,18 +177,58 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     userCredentials: {
       phone: input.userCredentials.phone ?? "",
       authToken: input.userCredentials.authToken,
-      ...(input.customerEmail ? { customerEmail: input.customerEmail.trim() } : {}),
+      ...(input.customerEmail
+        ? { customerEmail: input.customerEmail.trim() }
+        : {}),
       initiatedById: options?.initiatedBy?.id,
       initiatedByName: options?.initiatedBy?.name ?? undefined,
       link: {
         expiresAt,
-        status: "PENDING"
-      }
+        status: "PENDING",
+      },
     },
     paymentMethod: input.method || "BANK",
+  };
+
+  // Resolve each line's category/main-category from the live catalog and snapshot the names
+  // onto the transaction item — see TransactionItem.categoryName in schema.prisma for why.
+  const itemIds = (input.items ?? [])
+    .map((i) => i.itemId)
+    .filter((v): v is string => !!v);
+  type CatalogItemCategory = {
+    name: string;
+    mainCategory: { name: string } | null;
+  } | null;
+  const categoryByItemId = new Map<string, CatalogItemCategory>();
+  if (itemIds.length > 0) {
+    const catalogItems = await prisma.merchantItem.findMany({
+      where: { id: { in: itemIds }, merchantId: input.merchantId },
+      select: {
+        id: true,
+        category: {
+          select: { name: true, mainCategory: { select: { name: true } } },
+        },
+      },
+    });
+    for (const item of catalogItems)
+      categoryByItemId.set(item.id, item.category);
   }
 
-  await db.addTransaction(tx)
+  const created = await db.addTransaction(
+    tx,
+    input.items?.map((i) => {
+      const category = i.itemId ? categoryByItemId.get(i.itemId) : undefined;
+      return {
+        itemId: i.itemId ?? null,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        categoryName: category?.name ?? null,
+        mainCategoryName: category?.mainCategory?.name ?? null,
+      };
+    }),
+  );
+  const itemsPersisted = (created as { items?: unknown[] }).items?.length ?? 0;
 
   const payload: PaymentPayload = PaymentPayloadSchema.parse({
     merchantId: input.merchantId,
@@ -144,11 +241,11 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     status: "initiated",
     expiresAt,
     linkStatus: "PENDING",
-  })
+  });
 
-  const token = await withMerchantSecret(merchant.jweSecret, (merchantSecret) => 
-    encryptPayload(payload, merchantSecret, merchant.id)
-  )
+  const token = await withMerchantSecret(merchant.jweSecret, (merchantSecret) =>
+    encryptPayload(payload, merchantSecret, merchant.id),
+  );
 
   return {
     ok: true as const,
@@ -158,78 +255,105 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     token,
     customerPinToken: token,
     createdAt,
-  }
+    itemsPersisted,
+  };
 }
 
-export async function resolveEncryptedToken(token: string) {
-  const kid = extractKidFromJwe(token)
-  if (!kid) return { ok: false as const, error: "Invalid token (missing key id)" }
+export async function resolveEncryptedToken(
+  token: string,
+  options?: { allowTerminal?: boolean },
+) {
+  const kid = extractKidFromJwe(token);
+  if (!kid)
+    return { ok: false as const, error: "Invalid token (missing key id)" };
 
-  const merchant = await db.getMerchantById(kid, { includeSecret: true })
-  if (!merchant) return { ok: false as const, error: "Merchant not found for token" }
+  const merchant = await db.getMerchantById(kid, { includeSecret: true });
+  if (!merchant)
+    return { ok: false as const, error: "Merchant not found for token" };
 
-  const { payload, rewrappedSecret } = await withMerchantSecret(merchant.jweSecret, async (merchantSecret) => {
-    const p = await decryptPayload(token, merchantSecret)
-    let r = null
-    if (requiresRewrap(merchant.jweSecret)) {
-      try {
-        r = encryptMerchantSecretAtRest(merchantSecret).ciphertext
-      } catch {}
-    }
-    return { payload: p, rewrappedSecret: r }
-  })
+  const { payload, rewrappedSecret } = await withMerchantSecret(
+    merchant.jweSecret,
+    async (merchantSecret) => {
+      const p = await decryptPayload(token, merchantSecret);
+      let r = null;
+      if (requiresRewrap(merchant.jweSecret)) {
+        try {
+          r = encryptMerchantSecretAtRest(merchantSecret).ciphertext;
+        } catch {}
+      }
+      return { payload: p, rewrappedSecret: r };
+    },
+  );
 
   if (rewrappedSecret) {
     try {
       await db.updateMerchant(merchant.id, {
         jweSecret: rewrappedSecret,
-      })
+      });
       await auditSecurityEvent({
         action: "MERCHANT_SECRET_REWRAPPED",
         merchantId: merchant.id,
         detail: { reason: "encryption_format_upgrade" },
-      })
+      });
     } catch {}
   }
-  const tx = await db.getTransactionById(payload.transactionId)
+  const tx = await db.getTransactionById(payload.transactionId);
 
   if (!tx || tx.merchantId !== payload.merchantId) {
-    return { ok: false as const, error: "Transaction not found for token" }
+    return { ok: false as const, error: "Transaction not found for token" };
   }
 
   if (tx.transactionReference !== payload.transactionReference) {
-    return { ok: false as const, error: "Transaction reference mismatch" }
+    return { ok: false as const, error: "Transaction reference mismatch" };
   }
 
-  const linkMeta = (tx.userCredentials as any)?.link as { expiresAt?: string; status?: "PENDING" | "USED" | "EXPIRED" } | undefined
-  const effectiveExpiresAt = linkMeta?.expiresAt ?? (payload as any)?.expiresAt
-  const linkStatus = linkMeta?.status ?? (payload as any)?.linkStatus ?? "PENDING"
+  const linkMeta = (tx.userCredentials as any)?.link as
+    | { expiresAt?: string; status?: "PENDING" | "USED" | "EXPIRED" }
+    | undefined;
+  const effectiveExpiresAt = linkMeta?.expiresAt ?? (payload as any)?.expiresAt;
+  const linkStatus =
+    linkMeta?.status ?? (payload as any)?.linkStatus ?? "PENDING";
 
   if (tx.status === "success") {
-    return { ok: false as const, error: "Payment already completed" }
+    if (!options?.allowTerminal) {
+      return { ok: false as const, error: "Payment already completed" };
+    }
+    // Return immediately — skip USED and expiry checks.
+    // The payment is done; USED/expired status is irrelevant for display.
+    return { ok: true as const, merchant, payload, tx };
   }
 
   if (tx.status === "failed") {
-    return { ok: false as const, error: "Payment already failed and cannot be retried with this link" }
+    if (!options?.allowTerminal) {
+      return {
+        ok: false as const,
+        error: "Payment already failed and cannot be retried with this link",
+      };
+    }
+    return { ok: true as const, merchant, payload, tx };
   }
 
   if (linkStatus === "USED") {
-    return { ok: false as const, error: "Payment link already used" }
+    return { ok: false as const, error: "Payment link already used" };
   }
 
   if (effectiveExpiresAt) {
-    const now = Date.now()
-    const expMs = Date.parse(effectiveExpiresAt)
+    const now = Date.now();
+    const expMs = Date.parse(effectiveExpiresAt);
     if (!Number.isNaN(expMs) && now > expMs) {
       try {
         await db.updateTransaction(tx.id, {
           userCredentials: {
             ...tx.userCredentials,
-            link: { ...(linkMeta || {}), status: "EXPIRED", expiresAt: effectiveExpiresAt }
-          }
-        })
+            link: {
+              ...(linkMeta || {}),
+              status: "EXPIRED",
+              expiresAt: effectiveExpiresAt,
+            },
+          },
+        });
       } catch {}
-      return { ok: false as const, error: "Payment link expired" }
+      return { ok: false as const, error: "Payment link expired" };
     }
   }
 
@@ -238,5 +362,5 @@ export async function resolveEncryptedToken(token: string) {
     merchant,
     payload,
     tx,
-  }
+  };
 }

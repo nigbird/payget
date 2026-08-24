@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { db } from "@/app/lib/db"
+import { db } from "@/lib/db"
 import { requireAuthUser } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
 import { checkTransactionStatusAtProvider } from "@/lib/provider-encryption"
@@ -119,6 +119,18 @@ export async function POST(
     const TERMINAL = new Set(["success", "failed"])
     if (internalStatus && !TERMINAL.has(tx.status)) {
       await db.updateTransactionStatus(tx.id, internalStatus)
+
+      // Persist the FT number (cbsreference) into both the column (searchable,
+      // unique) and userCredentials so receipt generation can find it
+      if (statusResult.cbsreference) {
+        await db.updateTransaction(tx.id, {
+          cbsreference: statusResult.cbsreference,
+          userCredentials: {
+            ...tx.userCredentials,
+            cbsreference: statusResult.cbsreference,
+          },
+        })
+      }
 
       await writeAuditLog({
         request,

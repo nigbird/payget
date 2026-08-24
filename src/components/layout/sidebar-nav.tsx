@@ -15,6 +15,7 @@ import {
   User as UserIcon,
   FileText,
   RefreshCw,
+  ReceiptText,
   type LucideIcon,
 } from "lucide-react"
 import { 
@@ -30,13 +31,14 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent
 } from "@/components/ui/sidebar"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 
 const mainMenuItems = [
   { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_VIEW" },
   { name: "Merchant Onboarding", href: "/admin/onboarding", icon: UserPlus, permission: "MERCHANT_REGISTER" },
   { name: "Review & Approvals", href: "/admin/review", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
-  { name: "Cashback Reconciliation", href: "/admin/cashback-reconciliation", icon: RefreshCw, permission: "cashback.reconciliation.view" },
+  // Payments and cashback share one console; either view permission opens it.
+  { name: "Reconciliation", href: "/admin/reconciliation", icon: ReceiptText, anyPermission: ["payment.reconciliation.view", "cashback.reconciliation.view"] },
   { name: "QR Generation", href: "/admin/merchants", icon: Settings, permission: "qr.generation.manage" },
 ]
 
@@ -55,18 +57,21 @@ type MenuItem = {
 
 export function SidebarNav() {
   const pathname = usePathname()
-  const { data: session } = useSession()
-  const userPermissions = (session?.user as any)?.permissions || []
+  const { user, logout } = useAuth()
+  const userPermissions = user?.permissions || []
 
-  const filteredMenuItems = mainMenuItems.filter(item => 
-    !item.permission || userPermissions.includes(item.permission)
-  )
+  // An item is visible when it needs no permission, when the user holds its
+  // required one, or when it lists alternatives and the user holds any of them.
+  const isVisible = (item: { permission?: string; anyPermission?: string[] }) => {
+    if (item.anyPermission) return item.anyPermission.some(p => userPermissions.includes(p))
+    return !item.permission || userPermissions.includes(item.permission)
+  }
 
-  const filteredAdminItems = adminMenuItems.filter(item => 
-    !item.permission || userPermissions.includes(item.permission)
-  )
+  const filteredMenuItems = mainMenuItems.filter(isVisible)
 
-  const merchantId = (session?.user as any)?.merchantId
+  const filteredAdminItems = adminMenuItems.filter(isVisible)
+
+  const merchantId = user?.merchantId
 
   const renderSection = (items: MenuItem[]) =>
     items.map((item) => (
@@ -156,14 +161,14 @@ export function SidebarNav() {
         )}
       </SidebarContent>
       <SidebarFooter className="space-y-4 p-4">
-        {session?.user && (
+        {user && (
           <div className="sidebar-profile-chip sidebar-proportional flex items-center gap-2.5 px-2.5 py-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <div className="sidebar-hex-icon">
               <UserIcon className="text-[#4e2a12]" />
             </div>
             <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="truncate text-[13px] font-semibold text-[#754319]">{session.user.name || 'User'}</span>
-              <span className="truncate text-[9px] uppercase tracking-[0.15em] text-[#754319]/55">{(session.user as any).role || 'Staff'}</span>
+              <span className="truncate text-[13px] font-semibold text-[#754319]">{user.name || 'User'}</span>
+              <span className="truncate text-[9px] uppercase tracking-[0.15em] text-[#754319]/55">{user.role || 'Staff'}</span>
             </div>
           </div>
         )}
@@ -171,7 +176,7 @@ export function SidebarNav() {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium text-[#754319] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => logout("/login")}
             >
               <span className="sidebar-hex-icon">
                 <LogOut />

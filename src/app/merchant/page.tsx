@@ -1,9 +1,8 @@
-import { auth } from "@/auth"
+import { requireAuthUserFromContext } from "@/lib/request-auth"
 import { redirect } from "next/navigation"
 
 export default async function MerchantRoot() {
-  const session = await auth()
-  const user = session?.user as any
+  const user = await requireAuthUserFromContext()
 
   if (!user || (user.role !== "MERCHANT" && user.role !== "SALES")) {
     redirect("/")
@@ -17,6 +16,5 @@ export default async function MerchantRoot() {
     redirect(`/merchant/${user.assignedMerchantIds[0]}`)
   }
 
-  // Fallback if somehow no merchantId
   redirect("/")
 }

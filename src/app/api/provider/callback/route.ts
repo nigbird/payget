@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/db';
+import { db } from '@/lib/db';
 import { decryptProviderPayload, deriveSharedSecret } from '@/lib/crypto-provider';
 import crypto from 'crypto';
 import { writeAuditLog } from '@/lib/audit-log';
@@ -340,9 +340,30 @@ export async function POST(request: Request) {
     };
 
     // Persist payer account before cashback so customer credit account is available.
+    // cbsreference also goes into its own column so it is searchable and so the
+    // same receipt can never be used to settle a second transaction.
+    const cbsReferenceValue =
+      typeof providerCbsReference === "string" && providerCbsReference.trim()
+        ? providerCbsReference.trim()
+        : null;
+
+    // cbsreference is unique — if another transaction already claims this FT,
+    // keep it in userCredentials only rather than failing the whole callback.
+    let cbsReferenceForColumn: string | null = cbsReferenceValue;
+    if (cbsReferenceValue) {
+      const holder = await db.getTransactionByCbsReference(cbsReferenceValue);
+      if (holder && holder.id !== tx.id) {
+        console.error(
+          `[CALLBACK] FT ${cbsReferenceValue} already recorded on transaction ${holder.transactionReference}; not writing column for tx ${tx.id}`
+        );
+        cbsReferenceForColumn = null;
+      }
+    }
+
     await db.updateTransaction(tx.id, {
       payerAccount: payerAccount,
       userCredentials: updatedUserCredentials,
+      ...(cbsReferenceForColumn ? { cbsreference: cbsReferenceForColumn } : {}),
     });
 
     if (finalStatus === "success") {
@@ -352,7 +373,7 @@ export async function POST(request: Request) {
       });
     }
     
-    const merchant = await db.getMerchantById(tx.merchantId);
+    const merchant = await db.getMerchantByIdLean(tx.merchantId);
     await writeAuditLog({
       request,
       userId: null,

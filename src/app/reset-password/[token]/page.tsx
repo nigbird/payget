@@ -88,7 +88,7 @@ export default function ResetPassword({ params }: { params: Promise<{ token: str
         if (data.entityType === 'USER') {
           router.push("/login")
         } else {
-          router.push("/")
+          router.push("/login/merchant")
         }
       } else {
         const error = await response.json()

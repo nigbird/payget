@@ -1,10 +1,12 @@
 import { prisma } from '@/lib/prisma';
-import { 
-  MerchantStatus as PrismaMerchantStatus, 
+import {
+  MerchantStatus as PrismaMerchantStatus,
   TransactionStatus as PrismaTransactionStatus,
   TeamRole,
   Merchant as PrismaMerchant,
   Transaction as PrismaTransaction,
+  TransactionItem as PrismaTransactionItem,
+  OrderPrintInfo as PrismaOrderPrintInfo,
   MerchantDocument as PrismaMerchantDocument,
   User as PrismaUser,
   UserRole
@@ -71,6 +73,33 @@ export interface Merchant {
   };
 }
 
+/** Snapshot of a catalog item as it was at checkout time; see the TransactionItem Prisma model. */
+export interface TransactionItemLine {
+  id: string;
+  itemId: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+  categoryName: string | null;
+  mainCategoryName: string | null;
+}
+
+/** Item line to persist when creating a transaction; passed separately to db.addTransaction. */
+export interface TransactionItemInput {
+  itemId?: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+  categoryName?: string | null;
+  mainCategoryName?: string | null;
+}
+
+/** Print-specific metadata for an order's kitchen/bar tickets; see the OrderPrintInfo Prisma model. */
+export interface OrderPrintInfo {
+  tableNo: string | null;
+  shift: string | null;
+}
+
 export interface Transaction {
   id: string;
   merchantId: string;
@@ -84,6 +113,12 @@ export interface Transaction {
   transactionReference: string;
   serviceDescription: string;
   transactionTimestamp: string;
+  /** Core-banking FT / receipt number, once the payment has been resolved. */
+  cbsreference?: string | null;
+  /** Only populated when explicitly included (e.g. getTransactionsByMerchant). */
+  items?: TransactionItemLine[];
+  /** Only populated when explicitly included (e.g. getTransactionsByMerchant). Null until a merchant edits table/shift for this order's print ticket. */
+  printInfo?: OrderPrintInfo | null;
   userCredentials: {
     phone: string;
     authToken: string;
@@ -93,6 +128,7 @@ export interface Transaction {
     initiatedByName?: string;
     providerSharedSecret?: string;
     previousTransactionReferences?: string[];
+    cbsreference?: string;
     link?: {
       expiresAt: string;
       status: 'PENDING' | 'USED' | 'EXPIRED';
@@ -163,7 +199,9 @@ function mapMerchant(
   } as any;
 }
 
-function mapTransaction(tx: PrismaTransaction): Transaction {
+function mapTransaction(
+  tx: PrismaTransaction & { items?: PrismaTransactionItem[]; printInfo?: PrismaOrderPrintInfo | null }
+): Transaction {
   return {
     ...tx,
     payerPhone: tx.payerPhone ?? undefined,
@@ -186,13 +224,28 @@ function mapTransaction(tx: PrismaTransaction): Transaction {
         expiresAt?: string;
         [key: string]: unknown;
       };
+      cbsreference?: string;
       link?: {
         expiresAt: string;
         status: 'PENDING' | 'USED' | 'EXPIRED';
         usedAt?: string;
       };
     },
-    paymentMethod: tx.paymentMethod as PaymentMethod
+    paymentMethod: tx.paymentMethod as PaymentMethod,
+    items: tx.items?.map((i) => ({
+      id: i.id,
+      itemId: i.itemId,
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+      categoryName: i.categoryName,
+      mainCategoryName: i.mainCategoryName,
+    })),
+    printInfo: tx.printInfo === undefined
+      ? undefined
+      : tx.printInfo
+        ? { tableNo: tx.printInfo.tableNo, shift: tx.printInfo.shift }
+        : null,
   };
 }
 
@@ -202,7 +255,7 @@ export function sanitizeTransaction(tx: Transaction) {
   return { ...tx, userCredentials: safeCredentials };
 }
 
-export type MerchantTeamRole = 'payment_initiator' | 'account_admin';
+export type MerchantTeamRole = 'payment_initiator' | 'account_admin' | 'sales_admin';
 export type MerchantTeamMemberStatus = 'active' | 'deactivated';
 
 export interface MerchantTeamMember {
@@ -211,6 +264,8 @@ export interface MerchantTeamMember {
   name: string;
   email: string;
   phone?: string;
+  otp?: string | null;
+  otpExpires?: string | null;
   role: MerchantTeamRole;
   status: MerchantTeamMemberStatus;
   createdAt: string;
@@ -239,7 +294,9 @@ function mapTeamMember(tm: any): MerchantTeamMember {
     ...tm,
     role: mapTeamRole(tm.role),
     status: mapTeamMemberStatus(tm.status),
-    createdAt: tm.createdAt.toISOString()
+    createdAt: tm.createdAt.toISOString(),
+    otp: tm.otp ?? undefined,
+    otpExpires: tm.otpExpires ? tm.otpExpires.toISOString() : undefined
   };
 }
 
@@ -325,6 +382,50 @@ export const db = {
     return members.map(mapTeamMember);
   },
 
+  setMerchantTeamMemberOtpByPhone: async (phone: string, otp: string, expiresAt: Date) => {
+    return prisma.merchantTeamMember.updateMany({
+      where: {
+        phone,
+        status: 'ACTIVE',
+        merchant: {
+          status: 'ACTIVE'
+        }
+      },
+      data: { otp, otpExpires: expiresAt }
+    });
+  },
+
+  verifyMerchantTeamMemberOtp: async (phone: string, code: string) => {
+    const member = await prisma.merchantTeamMember.findFirst({
+      where: {
+        phone,
+        otp: code,
+        otpExpires: { gte: new Date() },
+        status: 'ACTIVE',
+        merchant: {
+          status: 'ACTIVE'
+        }
+      }
+    });
+
+    if (!member) {
+      return false;
+    }
+
+    await prisma.merchantTeamMember.updateMany({
+      where: {
+        phone,
+        otp: code,
+        merchant: {
+          status: 'ACTIVE'
+        }
+      },
+      data: { otp: null, otpExpires: null }
+    });
+
+    return true;
+  },
+
   addMerchantTeamMember: async (data: any) => {
     const { merchantId, email, phone } = data;
 
@@ -390,13 +491,20 @@ export const db = {
   getMerchantById: async (id: string, options?: { includeSecret?: boolean }) => {
     const m = await prisma.merchant.findUnique({
       where: { id },
-      include: { 
+      include: {
         documents: true,
         _count: {
           select: { transactions: true }
         }
       }
     });
+    if (!m) return null;
+    return mapMerchant(m, options);
+  },
+
+  /** Same as getMerchantById but skips the documents/transaction-count joins — for hot paths (e.g. payment initiation) that never read those fields. */
+  getMerchantByIdLean: async (id: string, options?: { includeSecret?: boolean }) => {
+    const m = await prisma.merchant.findUnique({ where: { id } });
     if (!m) return null;
     return mapMerchant(m, options);
   },
@@ -521,12 +629,27 @@ export const db = {
     return txs.map(mapTransaction);
   },
 
-  getTransactionsByMerchant: async (merchantId: string) => {
+  // Capped so a merchant's full history can't turn this into an unbounded fetch — it's polled
+  // every 2.5-5s from the dashboard and transactions pages, so an unbounded query here grows
+  // with every transaction the merchant ever makes and gets re-run several times a minute.
+  getTransactionsByMerchant: async (merchantId: string, take = 2000) => {
     const txs = await prisma.transaction.findMany({
       where: { merchantId },
-      orderBy: { timestamp: 'desc' }
+      orderBy: { timestamp: 'desc' },
+      include: { items: true, printInfo: true },
+      take
     });
     return txs.map(mapTransaction);
+  },
+
+  /** Sum/count of a merchant's successful transactions since `since`, for daily-limit checks. */
+  getMerchantSuccessStatsSince: async (merchantId: string, since: Date) => {
+    const result = await prisma.transaction.aggregate({
+      where: { merchantId, status: 'SUCCESS', timestamp: { gte: since } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    });
+    return { totalAmount: result._sum.amount ?? 0, count: result._count._all };
   },
 
   getTransactionById: async (id: string) => {
@@ -540,6 +663,15 @@ export const db = {
   getTransactionByReference: async (transactionReference: string) => {
     const tx = await prisma.transaction.findFirst({
       where: { transactionReference }
+    });
+    if (!tx) return null;
+    return mapTransaction(tx);
+  },
+
+  /** Resolve a transaction by its core-banking FT / receipt number. */
+  getTransactionByCbsReference: async (cbsreference: string) => {
+    const tx = await prisma.transaction.findUnique({
+      where: { cbsreference }
     });
     if (!tx) return null;
     return mapTransaction(tx);
@@ -571,26 +703,64 @@ export const db = {
   },
 
   updateTransactionStatus: async (id: string, status: TransactionStatus) => {
-    return prisma.transaction.update({
+    const tx = await prisma.transaction.update({
       where: { id },
       data: { status: mapToPrismaTransactionStatus(status) }
     });
+    return mapTransaction(tx);
   },
 
   getSystemConfig: async () => {
     return prisma.systemConfig.findFirst();
   },
 
-  addTransaction: async (tx: Transaction) => {
-    return prisma.transaction.create({
+  addTransaction: async (tx: Transaction, items?: TransactionItemInput[]) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { items: _readOnlyItems, printInfo: _readOnlyPrintInfo, ...rest } = tx;
+    const created = await prisma.transaction.create({
       data: {
-        ...tx,
-        status: mapToPrismaTransactionStatus(tx.status),
-        timestamp: new Date(tx.timestamp),
-        transactionTimestamp: new Date(tx.transactionTimestamp),
-        userCredentials: tx.userCredentials as any
-      }
+        ...rest,
+        status: mapToPrismaTransactionStatus(rest.status),
+        timestamp: new Date(rest.timestamp),
+        transactionTimestamp: new Date(rest.transactionTimestamp),
+        userCredentials: rest.userCredentials as any,
+        ...(items && items.length > 0
+          ? {
+              items: {
+                create: items.map((i) => ({
+                  itemId: i.itemId ?? null,
+                  name: i.name,
+                  price: i.price,
+                  quantity: i.quantity,
+                  categoryName: i.categoryName ?? null,
+                  mainCategoryName: i.mainCategoryName ?? null,
+                })),
+              },
+            }
+          : {}),
+      },
+      include: { items: true },
     });
+    if (items && items.length > 0 && created.items.length !== items.length) {
+      // Should be impossible given the nested create above — logged so a mismatch is never silent.
+      console.error(
+        `addTransaction: sent ${items.length} item line(s) for tx ${created.id} but only ${created.items.length} persisted`
+      );
+    }
+    return created;
+  },
+
+  /** Creates or updates the table/shift shown on an order's printed kitchen/bar tickets. */
+  upsertOrderPrintInfo: async (transactionId: string, data: { tableNo?: string | null; shift?: string | null }) => {
+    const printInfo = await prisma.orderPrintInfo.upsert({
+      where: { transactionId },
+      create: { transactionId, tableNo: data.tableNo ?? null, shift: data.shift ?? null },
+      update: {
+        ...(data.tableNo !== undefined ? { tableNo: data.tableNo } : {}),
+        ...(data.shift !== undefined ? { shift: data.shift } : {}),
+      },
+    });
+    return { tableNo: printInfo.tableNo, shift: printInfo.shift };
   },
 
   // Merchant Update Token Methods

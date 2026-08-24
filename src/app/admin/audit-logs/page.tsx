@@ -34,7 +34,7 @@ import {
   Code2,
   Download
 } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -56,8 +56,6 @@ interface AuditLog {
   entityId: string | null
   oldValue: any
   newValue: any
-  ipAddress: string | null
-  userAgent: string | null
   createdAt: string
 }
 
@@ -67,7 +65,7 @@ interface FilterOptions {
 }
 
 export default function AuditLogsPage() {
-  const { data: session } = useSession()
+  const { user } = useAuth()
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -180,7 +178,7 @@ export default function AuditLogsPage() {
     return "bg-slate-50 text-slate-700"
   }
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = user?.permissions || []
   const canViewAuditLogs = userPermissions.includes("AUDIT_LOG_VIEW")
 
   if (!canViewAuditLogs) {
@@ -312,7 +310,6 @@ export default function AuditLogsPage() {
                   <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">User</TableHead>
                   <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Action</TableHead>
                   <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Entity</TableHead>
-                  <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">IP Address</TableHead>
                   <TableHead className="text-right pr-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Details</TableHead>
                 </TableRow>
               </TableHeader>
@@ -356,9 +353,6 @@ export default function AuditLogsPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="py-5 align-middle">
-                      <span className="text-xs text-slate-500 font-mono">{log.ipAddress || "-"}</span>
-                    </TableCell>
                     <TableCell className="py-5 align-middle text-right pr-6">
                       <Button 
                         variant="ghost" 
@@ -373,7 +367,7 @@ export default function AuditLogsPage() {
                 ))}
                 {logs.length === 0 && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-64 text-center">
+                    <TableCell colSpan={5} className="h-64 text-center">
                       <div className="flex flex-col items-center justify-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
                           <FileText className="w-6 h-6 text-slate-300" />
@@ -522,25 +516,10 @@ export default function AuditLogsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-500">IP Address</Label>
-                    <div className="text-sm font-mono text-slate-600">{selectedLog.ipAddress || "-"}</div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-500">Log ID</Label>
-                    <div className="text-sm font-mono text-slate-600">{selectedLog.id}</div>
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500">Log ID</Label>
+                  <div className="text-sm font-mono text-slate-600">{selectedLog.id}</div>
                 </div>
-
-                {selectedLog.userAgent && (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-500">User Agent</Label>
-                    <div className="text-xs text-slate-600 font-mono bg-slate-50 p-3 rounded-xl">
-                      {selectedLog.userAgent}
-                    </div>
-                  </div>
-                )}
 
                 {selectedLog.oldValue && (
                   <div className="space-y-1">

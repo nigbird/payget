@@ -44,6 +44,7 @@ export async function sendSms(to: string, text: string) {
       to: maskPhone(to),
       formattedPhone: maskPhone(formattedPhone),
       error: String(err?.message ?? err),
+      cause: String(err?.cause ?? ""),
     });
     return { ok: false, error: String(err?.message ?? err) };
   }

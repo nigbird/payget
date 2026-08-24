@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import {
   Area,
   AreaChart,
@@ -122,7 +122,7 @@ function MetricCard({
 
 export default function AdminDashboard() {
   const { toast } = useToast()
-  const { data: session } = useSession()
+  const { user } = useAuth()
 
   const [merchants, setMerchants] = useState<any[]>([])
   const [reconciling, setReconciling] = useState(false)
@@ -160,10 +160,10 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
-  const userPermissions = (session?.user as any)?.permissions || []
+  const userPermissions = user?.permissions || []
   const canApprove = userPermissions.includes("MERCHANT_APPROVE")
   // The reconcile endpoint is ADMIN-only; other admin roles would just get a 403.
-  const isAdmin = (session?.user as any)?.role === "ADMIN"
+  const isAdmin = user?.role === "ADMIN"
 
   const allowedTypesValidation = useMemo(() => {
     const types = (config.allowedFileTypes || "")

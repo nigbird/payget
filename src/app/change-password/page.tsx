@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,15 +11,7 @@ import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
 import { PasswordStrength } from "@/components/auth/password-strength"
 import { validatePassword } from "@/lib/password-policy"
 
-type SessionUser = {
-  role?: string
-  firstLogin?: boolean
-  permissions?: string[]
-}
-
-const getAdminLandingPath = (user?: SessionUser) => {
-  const permissions = user?.permissions ?? []
-
+const getAdminLandingPath = (permissions: string[]) => {
   if (permissions.includes("DASHBOARD_VIEW")) return "/admin"
   if (permissions.includes("MERCHANT_REGISTER")) return "/admin/onboarding"
   if (permissions.includes("MERCHANT_APPROVE")) return "/admin/review"
@@ -27,22 +19,20 @@ const getAdminLandingPath = (user?: SessionUser) => {
   if (permissions.includes("ROLE_CREATE")) return "/admin/roles"
   if (permissions.includes("CONFIGURATION_MANAGE")) return "/admin/configuration"
   if (permissions.includes("AUDIT_LOG_VIEW")) return "/admin/audit-logs"
-
   return null
 }
 
-const getPostChangePasswordRedirect = (user?: SessionUser) => {
-  if (!user?.role) return "/login"
-  if (user.role === "MERCHANT" || user.role === "SALES") return "/merchant"
-  return getAdminLandingPath(user) ?? "/admin"
+const getPostChangePasswordRedirect = (role?: string | null, permissions?: string[]) => {
+  if (!role) return "/login"
+  if (role === "MERCHANT" || role === "SALES") return "/merchant"
+  return getAdminLandingPath(permissions ?? []) ?? "/admin"
 }
 
 export default function ChangePasswordPage() {
-  const { data: session, update } = useSession()
+  const { user, status, refresh, logout } = useAuth()
   const router = useRouter()
-  const sessionUser = session?.user as SessionUser | undefined
-  const isAdmin = !!sessionUser?.role && sessionUser.role !== "MERCHANT" && sessionUser.role !== "SALES"
-  const isFirstLogin = Boolean(sessionUser?.firstLogin)
+  const isAdmin = !!user?.role && user.role !== "MERCHANT" && user.role !== "SALES"
+  const isFirstLogin = Boolean(user?.firstLogin)
   const [isLoading, setIsLoading] = useState(false)
   const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false)
   const [newPasswordVisible, setNewPasswordVisible] = useState(false)
@@ -50,7 +40,7 @@ export default function ChangePasswordPage() {
   const [credentials, setCredentials] = useState({
     currentPassword: "",
     newPassword: "",
-    confirmPassword: ""
+    confirmPassword: "",
   })
   const [formError, setFormError] = useState<string | null>(null)
   const [redirecting, setRedirecting] = useState(false)
@@ -81,17 +71,18 @@ export default function ChangePasswordPage() {
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          currentPassword: credentials.currentPassword, 
-          newPassword: credentials.newPassword 
-        })
+        body: JSON.stringify({
+          currentPassword: credentials.currentPassword,
+          newPassword: credentials.newPassword,
+        }),
       })
 
       if (res.ok) {
         completed = true
         setRedirecting(true)
-        await update({ ...session, user: { ...session?.user, firstLogin: false } })
-        router.push(getPostChangePasswordRedirect(sessionUser))
+        // Re-fetch user — the server set a new access token with firstLogin: false.
+        await refresh()
+        router.push(getPostChangePasswordRedirect(user?.role, user?.permissions))
       } else {
         const error = await res.json()
         setFormError(error?.error || "Could not update your password. Try again.")
@@ -103,24 +94,20 @@ export default function ChangePasswordPage() {
     }
   }
 
-  const handleLogout = async () => {
-    await signOut({ callbackUrl: "/login" })
+  const handleLogout = () => {
+    const loginUrl = user?.role === "MERCHANT" || user?.role === "SALES" ? "/login/merchant" : "/login"
+    logout(loginUrl)
   }
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-white">
       {redirecting ? (
-        <SigningInOverlay
-          message="Saving your password…"
-          subMessage="Redirecting to your dashboard"
-        />
+        <SigningInOverlay message="Saving your password…" subMessage="Redirecting to your dashboard" />
       ) : null}
-      {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
         <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
-        
         <div className="absolute inset-0 opacity-5">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -140,11 +127,7 @@ export default function ChangePasswordPage() {
           <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
             <div className="flex justify-center">
               <div className="w-20 h-20 flex items-center justify-center">
-                <img 
-                  src="/niblogo.png" 
-                  alt="Nib Bank Logo" 
-                  className="max-w-full max-h-full object-contain"
-                />
+                <img src="/niblogo.png" alt="Nib Bank Logo" className="max-w-full max-h-full object-contain" />
               </div>
             </div>
 
@@ -154,8 +137,8 @@ export default function ChangePasswordPage() {
                 {isFirstLogin
                   ? "Please set a new password before continuing"
                   : isAdmin
-                    ? "Update your admin password to keep your account secure"
-                    : "Update your password to keep your account secure"}
+                  ? "Update your admin password to keep your account secure"
+                  : "Update your password to keep your account secure"}
               </p>
             </div>
 
@@ -164,22 +147,19 @@ export default function ChangePasswordPage() {
                 <Label htmlFor="currentPassword" className="text-sm font-semibold text-[#374151]">Current Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
-                  <Input 
-                    id="currentPassword" 
-                    type={currentPasswordVisible ? "text" : "password"} 
+                  <Input
+                    id="currentPassword"
+                    type={currentPasswordVisible ? "text" : "password"}
                     className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                     placeholder="Enter your current password"
                     required
                     value={credentials.currentPassword}
-                    onChange={(e) => {
-                      setFormError(null)
-                      setCredentials({ ...credentials, currentPassword: e.target.value })
-                    }}
+                    onChange={(e) => { setFormError(null); setCredentials({ ...credentials, currentPassword: e.target.value }) }}
                     disabled={isLoading}
                   />
                   <button
                     type="button"
-                    onClick={() => setCurrentPasswordVisible((visible) => !visible)}
+                    onClick={() => setCurrentPasswordVisible((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#6B7280] hover:text-[#f8b513] transition-colors"
                     aria-label={currentPasswordVisible ? "Hide password" : "Show password"}
                   >
@@ -187,27 +167,24 @@ export default function ChangePasswordPage() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="space-y-2.5">
                 <Label htmlFor="newPassword" className="text-sm font-semibold text-[#374151]">New Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
-                  <Input 
-                    id="newPassword" 
-                    type={newPasswordVisible ? "text" : "password"} 
+                  <Input
+                    id="newPassword"
+                    type={newPasswordVisible ? "text" : "password"}
                     className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                     placeholder="Enter your new password"
                     required
                     value={credentials.newPassword}
-                    onChange={(e) => {
-                      setFormError(null)
-                      setCredentials({ ...credentials, newPassword: e.target.value })
-                    }}
+                    onChange={(e) => { setFormError(null); setCredentials({ ...credentials, newPassword: e.target.value }) }}
                     disabled={isLoading}
                   />
                   <button
                     type="button"
-                    onClick={() => setNewPasswordVisible((visible) => !visible)}
+                    onClick={() => setNewPasswordVisible((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#6B7280] hover:text-[#f8b513] transition-colors"
                     aria-label={newPasswordVisible ? "Hide password" : "Show password"}
                   >
@@ -216,27 +193,24 @@ export default function ChangePasswordPage() {
                 </div>
                 <PasswordStrength password={credentials.newPassword} />
               </div>
-              
+
               <div className="space-y-2.5">
                 <Label htmlFor="confirmPassword" className="text-sm font-semibold text-[#374151]">Confirm New Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
-                  <Input 
-                    id="confirmPassword" 
-                    type={confirmPasswordVisible ? "text" : "password"} 
+                  <Input
+                    id="confirmPassword"
+                    type={confirmPasswordVisible ? "text" : "password"}
                     className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
                     placeholder="Confirm your new password"
                     required
                     value={credentials.confirmPassword}
-                    onChange={(e) => {
-                      setFormError(null)
-                      setCredentials({ ...credentials, confirmPassword: e.target.value })
-                    }}
+                    onChange={(e) => { setFormError(null); setCredentials({ ...credentials, confirmPassword: e.target.value }) }}
                     disabled={isLoading}
                   />
                   <button
                     type="button"
-                    onClick={() => setConfirmPasswordVisible((visible) => !visible)}
+                    onClick={() => setConfirmPasswordVisible((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#6B7280] hover:text-[#f8b513] transition-colors"
                     aria-label={confirmPasswordVisible ? "Hide password" : "Show password"}
                   >
@@ -250,7 +224,7 @@ export default function ChangePasswordPage() {
                   {!isFirstLogin ? (
                     <button
                       type="button"
-                      onClick={() => router.push(getPostChangePasswordRedirect(sessionUser))}
+                      onClick={() => router.push(getPostChangePasswordRedirect(user?.role, user?.permissions))}
                       className="text-sm font-semibold text-[#6B7280] hover:text-[#374151] transition-colors"
                       disabled={isLoading}
                     >
@@ -270,14 +244,12 @@ export default function ChangePasswordPage() {
               </div>
 
               {formError ? (
-                <p className="text-sm font-medium text-rose-600 text-center" role="alert">
-                  {formError}
-                </p>
+                <p className="text-sm font-medium text-rose-600 text-center" role="alert">{formError}</p>
               ) : null}
 
-              <Button 
-                type="submit" 
-                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -285,7 +257,9 @@ export default function ChangePasswordPage() {
                     <Loader2 className="w-5 h-5 animate-spin mr-2" />
                     Changing password...
                   </>
-                ) : "Change Password"}
+                ) : (
+                  "Change Password"
+                )}
               </Button>
             </form>
           </div>

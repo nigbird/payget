@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState, type FormEvent, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2, Mail, CheckCircle2 } from "lucide-react"
-export default function ForgotPassword() {
+function ForgotPasswordContent() {
+  const searchParams = useSearchParams()
+  const loginHref = searchParams.get("portal") === "merchant" ? "/login/merchant" : "/login"
   const [isLoading, setIsLoading] = useState(false)
   const [identifier, setIdentifier] = useState("")
   const [sentTo, setSentTo] = useState<string | null>(null)
@@ -63,7 +66,7 @@ export default function ForgotPassword() {
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
         <div className="w-full max-w-md animate-fade-in-up space-y-4">
-          <Link href="/login" className="inline-flex items-center text-sm text-[#6B7280] hover:text-[#1F2937]">
+          <Link href={loginHref} className="inline-flex items-center text-sm text-[#6B7280] hover:text-[#1F2937]">
             <ArrowLeft className="w-4 h-4 mr-1" /> Back to Login
           </Link>
           
@@ -132,5 +135,13 @@ export default function ForgotPassword() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ForgotPassword() {
+  return (
+    <Suspense>
+      <ForgotPasswordContent />
+    </Suspense>
   )
 }
