@@ -1254,7 +1254,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                       <p className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</p>
                       <Badge
                         variant="outline"
-                        className={`mt-1 text-[10px] capitalize ${
+                        className={`mt-1 whitespace-nowrap text-[10px] capitalize ${
                           tx.status === "success"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : nonTerminalStatuses.includes(tx.status)
@@ -1265,7 +1265,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                         {tx.status === "success"
                           ? "Success"
                           : tx.status === "processing"
-                            ? "Pending"
+                            ? "Pending for Review"
                             : nonTerminalStatuses.includes(tx.status)
                               ? "Initiated"
                               : "Failed"}

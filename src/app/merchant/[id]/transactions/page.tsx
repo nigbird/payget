@@ -297,7 +297,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     // was inconclusive, so it is queued for reconciliation. The customer has
     // already left the till — "Initiated" would wrongly suggest the merchant is
     // still waiting on them to enter a PIN.
-    if (status === "processing") return "Pending"
+    if (status === "processing") return "Pending for Review"
     if (nonTerminalStatuses.includes(status)) return "Initiated"
     return "Failed"
   }
@@ -551,7 +551,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                             {tx.amount.toFixed(2)} ETB
                           </span>
                           <Badge className={cn(
-                            "text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0",
+                            "text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0 whitespace-nowrap",
                             tx.status === 'success' ? "bg-emerald-100 text-emerald-700" :
                             nonTerminalStatuses.includes(tx.status) ? "bg-amber-100 text-amber-700" :
                             "bg-rose-100 text-rose-700"
