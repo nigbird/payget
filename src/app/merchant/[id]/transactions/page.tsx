@@ -19,6 +19,7 @@ import {
   CalendarDays,
   MoreVertical,
   ChevronDown,
+  Phone,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -48,6 +49,35 @@ import {
 } from "@/lib/transaction-initiator"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
+
+/**
+ * Customer phones reach us in whichever shape the payment entry point used —
+ * "+251912345678" from the till, "251912345678" from a callback, "0912345678"
+ * from a QR scan. Reducing both the stored number and the search query to the
+ * bare 9-digit national number lets a merchant find a customer by phone no
+ * matter which form they have it written down.
+ */
+const nationalPhoneDigits = (value: string | null | undefined) => {
+  let digits = (value ?? "").replace(/\D/g, "")
+  if (digits.startsWith("251")) digits = digits.slice(3)
+  if (digits.startsWith("0")) digits = digits.slice(1)
+  return digits
+}
+
+/**
+ * The customer's number for a transaction: the explicit payer phone when the
+ * payment carried one, otherwise the credentials phone the payment was raised
+ * against. Legacy gateway rows store the placeholder "unknown" there, so those
+ * are treated as having no customer phone at all.
+ */
+const customerPhone = (tx: Transaction) => {
+  const phone = tx.payerPhone?.trim() || tx.userCredentials.phone?.trim() || ""
+  if (!phone || phone.toLowerCase() === "unknown") return null
+  return phone
+}
+
+/** True when the query looks like a phone number rather than an order reference. */
+const isPhoneQuery = (value: string) => /^[+\d][\d\s()+-]*$/.test(value)
 
 type StatusFilter = "all" | "success" | "failed" | "initiated"
 type Density = "comfortable" | "compact"
@@ -171,6 +201,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     const to = dateRange.to
 
     const q = search.trim().toLowerCase()
+    const phoneQuery = isPhoneQuery(search.trim()) ? nationalPhoneDigits(search) : ""
 
     const fromMs = from ? new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime() : undefined
     const toMs = to ? new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999).getTime() : undefined
@@ -189,7 +220,13 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       if (q) {
         const orderText = `${tx.transactionReference} ${tx.description} ${tx.serviceDescription}`.toLowerCase()
         const customerText = `${tx.payerPhone ?? ""} ${tx.userCredentials.phone}`.toLowerCase()
-        if (!orderText.includes(q) && !customerText.includes(q)) return false
+        const matchesPhone =
+          phoneQuery.length >= 3 &&
+          [tx.payerPhone, tx.userCredentials.phone].some((phone) => {
+            const digits = nationalPhoneDigits(phone)
+            return digits.length > 0 && digits.includes(phoneQuery)
+          })
+        if (!orderText.includes(q) && !customerText.includes(q) && !matchesPhone) return false
       }
 
       return true
@@ -260,7 +297,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     const rows = filtered.map(tx => [
       new Date(tx.timestamp).toLocaleString(),
       tx.transactionReference,
-      tx.payerPhone || tx.userCredentials.phone,
+      customerPhone(tx) ?? "",
       tx.serviceDescription,
       tx.amount.toFixed(2),
       tx.status,
@@ -362,7 +399,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
+              placeholder="Search order ID or customer phone..."
               className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-amber-500/20"
             />
           </div>
@@ -559,10 +596,21 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                             {statusLabel(tx.status)}
                           </Badge>
                         </div>
-                        <p className="text-[11px] font-bold text-slate-400 truncate flex items-center gap-1.5">
-                          {tx.transactionReference}
-                          <span className="w-1 h-1 rounded-full bg-slate-200" />
-                          {new Date(tx.timestamp).toLocaleDateString()}
+                        {/* The reference is the only part allowed to ellipsize, so a narrow
+                            screen never eats the customer phone or the date. */}
+                        <p className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
+                          <span className="truncate">{tx.transactionReference}</span>
+                          {customerPhone(tx) && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0" />
+                              <span className="flex items-center gap-1 text-slate-500 shrink-0">
+                                <Phone className="w-3 h-3 text-slate-300 shrink-0" />
+                                {customerPhone(tx)}
+                              </span>
+                            </>
+                          )}
+                          <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0" />
+                          <span className="shrink-0">{new Date(tx.timestamp).toLocaleDateString()}</span>
                         </p>
                       </div>
                     </div>
