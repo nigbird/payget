@@ -293,6 +293,11 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
   const statusLabel = (status: Transaction["status"]) => {
     if (status === "success") return "Success"
+    // "processing" means the payment reached the bank but the provider's result
+    // was inconclusive, so it is queued for reconciliation. The customer has
+    // already left the till — "Initiated" would wrongly suggest the merchant is
+    // still waiting on them to enter a PIN.
+    if (status === "processing") return "Pending"
     if (nonTerminalStatuses.includes(status)) return "Initiated"
     return "Failed"
   }

@@ -1262,7 +1262,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                             : "border-rose-200 bg-rose-50 text-rose-700"
                         }`}
                       >
-                        {tx.status === "success" ? "Success" : nonTerminalStatuses.includes(tx.status) ? "Initiated" : "Failed"}
+                        {tx.status === "success"
+                          ? "Success"
+                          : tx.status === "processing"
+                            ? "Pending"
+                            : nonTerminalStatuses.includes(tx.status)
+                              ? "Initiated"
+                              : "Failed"}
                       </Badge>
                     </div>
                     <PrintOrderButton

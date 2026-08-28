@@ -33,6 +33,8 @@ type UnresolvedTransaction = {
   status: string
   transactionReference: string
   cbsreference: string | null
+  providerStatusCode: string | null
+  providerStatusDesc: string | null
   payerPhone: string | null
   payerAccount: string | null
   userCredentials?: { phone?: string | null } | null
@@ -402,6 +404,11 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                             <Badge variant="outline" className={STATUS_STYLES[tx.status] || ''}>
                               {tx.status}
                             </Badge>
+                            {tx.providerStatusDesc && (
+                              <div className="mt-1 max-w-[180px] whitespace-pre-line text-[11px] leading-tight text-muted-foreground">
+                                {tx.providerStatusDesc}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(tx.timestamp)}
@@ -556,6 +563,17 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                   <span className="text-muted-foreground">Current status</span>
                   <span>{selectedTx.status}</span>
                 </div>
+                {selectedTx.providerStatusDesc && (
+                  <div className="mt-2 border-t pt-2">
+                    <div className="text-muted-foreground">
+                      Provider response
+                      {selectedTx.providerStatusCode ? ` (code ${selectedTx.providerStatusCode})` : ''}
+                    </div>
+                    <div className="mt-1 whitespace-pre-line text-xs">
+                      {selectedTx.providerStatusDesc}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

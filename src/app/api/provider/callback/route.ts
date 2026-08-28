@@ -4,6 +4,7 @@ import { decryptProviderPayload, deriveSharedSecret } from '@/lib/crypto-provide
 import crypto from 'crypto';
 import { writeAuditLog } from '@/lib/audit-log';
 import { deliverMerchantCallback } from '@/lib/merchant-callback';
+import { classifyProviderOutcome } from '@/lib/provider-outcome';
 
 const TERMINAL_STATUSES = new Set(['success', 'failed']);
 
@@ -228,7 +229,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 5. Update transaction status (source of truth: provider statusCode)
+    // 5. Classify the provider outcome and update the transaction accordingly.
     const providerStatusDesc: unknown =
       decryptedData.statusDesc ?? decryptedData.status_desc ?? decryptedData.statusDescription;
 
@@ -238,36 +239,21 @@ export async function POST(request: Request) {
     const providerStatusString: unknown =
       decryptedData.status ?? decryptedData.state ?? decryptedData.result;
 
-    const providerStatusCode = (() => {
-      if (typeof providerStatusCodeRaw === "number") return providerStatusCodeRaw;
-      if (typeof providerStatusCodeRaw === "string") {
-        const n = Number(providerStatusCodeRaw);
-        return Number.isFinite(n) ? n : NaN;
-      }
-      return NaN;
-    })();
+    const providerCbsReference: unknown =
+      decryptedData.cbsreference ?? decryptedData.cbsReference ?? decryptedData.cbs_reference ?? "";
 
-    // statusCode is source of truth: 0 = success, 1 = failed
-    let finalStatus: "success" | "failed" | null = null;
-    if (Number.isFinite(providerStatusCode)) {
-      if (providerStatusCode === 0) {
-        finalStatus = "success";
-      } else if (providerStatusCode === 1) {
-        finalStatus = "failed";
-      }
-    }
+    // statusCode 0 = success, 1 = failed — except that the provider also reports
+    // code 1 when CBS already debited the customer and credited the merchant but
+    // the transfer failed at the switch. Those are held as indeterminate so they
+    // reach the reconciliation queue instead of being written off as failed.
+    const classification = classifyProviderOutcome({
+      statusCodeRaw: providerStatusCodeRaw,
+      statusDesc: providerStatusDesc,
+      statusString: providerStatusString,
+      cbsreference: providerCbsReference,
+    });
 
-    // Fallback to status string only if statusCode not available
-    if (!finalStatus && providerStatusString) {
-      const lowerStatus = String(providerStatusString).toLowerCase();
-      if (lowerStatus === "success") {
-        finalStatus = "success";
-      } else if (lowerStatus === "failed" || lowerStatus === "failure") {
-        finalStatus = "failed";
-      }
-    }
-
-    if (!finalStatus) {
+    if (classification.outcome === "ambiguous") {
       await writeAuditLog({
         request,
         userId: null,
@@ -285,8 +271,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ambiguous provider status' }, { status: 400 });
     }
 
-    const providerCbsReference: unknown =
-      decryptedData.cbsreference ?? decryptedData.cbsReference ?? decryptedData.cbs_reference ?? "";
+    // "processing" is deliberately non-terminal: the provider status poll, a
+    // later corrective callback, and manual FT reconciliation can all still
+    // resolve it, none of which is possible once a payment is marked failed.
+    const finalStatus: "success" | "failed" | "processing" =
+      classification.outcome === "indeterminate" ? "processing" : classification.outcome;
+
+    const indeterminateReason =
+      classification.outcome === "indeterminate" ? classification.reason : null;
 
     const payerAccount: string | null =
       (decryptedData.payerAccount ?? 
@@ -328,15 +320,14 @@ export async function POST(request: Request) {
         raw: decryptedData,
       },
       providerDetails: providerStatusDesc ?? decryptedData.details ?? decryptedData.message ?? decryptedData.error ?? null,
-      ...(finalStatus === "success" || finalStatus === "failed"
-        ? {
-            link: {
-              ...(((tx.userCredentials as any).link as any) || {}),
-              status: "USED",
-              usedAt: new Date().toISOString(),
-            },
-          }
-        : {}),
+      // The customer completed the PIN flow, so the link is spent regardless of
+      // outcome — including indeterminate, where money may already have moved
+      // and a replay would debit them a second time.
+      link: {
+        ...(((tx.userCredentials as any).link as any) || {}),
+        status: "USED",
+        usedAt: new Date().toISOString(),
+      },
     };
 
     // Persist payer account before cashback so customer credit account is available.
@@ -363,6 +354,14 @@ export async function POST(request: Request) {
     await db.updateTransaction(tx.id, {
       payerAccount: payerAccount,
       userCredentials: updatedUserCredentials,
+      providerStatusCode:
+        providerStatusCodeRaw === null || providerStatusCodeRaw === undefined
+          ? null
+          : String(providerStatusCodeRaw),
+      providerStatusDesc:
+        typeof providerStatusDesc === "string" && providerStatusDesc.trim()
+          ? providerStatusDesc
+          : null,
       ...(cbsReferenceForColumn ? { cbsreference: cbsReferenceForColumn } : {}),
     });
 
@@ -392,12 +391,24 @@ export async function POST(request: Request) {
         payerAccount: payerAccount,
         providerStatusCode: providerStatusCodeRaw,
         providerStatusDesc: providerStatusDesc,
+        ...(indeterminateReason
+          ? { reason: indeterminateReason, heldForReconciliation: true }
+          : {}),
       },
     });
 
     // 6. Notify the merchant (via their registered callback) with canonical status fields.
     // Uses immediate retries + persistent queue on total failure — see src/lib/merchant-callback.ts
-    if (merchant && merchant.callbackUrl) {
+    //
+    // An indeterminate payment is deliberately NOT reported yet. Telling the
+    // merchant "failed" for a transfer that may have posted would corrupt their
+    // books exactly the way it corrupts ours; they are notified once the payment
+    // reaches a terminal state via reconciliation or the status poll.
+    if (finalStatus === "processing") {
+      console.log(
+        `[CALLBACK] Holding merchant notification for ${tx.transactionReference} — awaiting reconciliation (${indeterminateReason})`
+      );
+    } else if (merchant && merchant.callbackUrl) {
       const callbackPayload = {
         statusCode: providerStatusCodeRaw ?? null,
         status: finalStatus,
@@ -421,7 +432,12 @@ export async function POST(request: Request) {
       void deliverMerchantCallback(tx.id, tx.merchantId, merchant.callbackUrl, callbackPayload)
     }
 
-    return NextResponse.json({ message: 'Callback processed successfully' });
+    return NextResponse.json({
+      message:
+        finalStatus === "processing"
+          ? 'Callback received; payment held for reconciliation'
+          : 'Callback processed successfully',
+    });
   } catch (error: any) {
     console.error('Error processing provider callback:', error);
     await writeAuditLog({

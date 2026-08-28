@@ -115,6 +115,10 @@ export interface Transaction {
   transactionTimestamp: string;
   /** Core-banking FT / receipt number, once the payment has been resolved. */
   cbsreference?: string | null;
+  /** Raw provider outcome, as reported on the callback. Kept so operators can
+   * see why a payment was held for reconciliation. */
+  providerStatusCode?: string | null;
+  providerStatusDesc?: string | null;
   /** Only populated when explicitly included (e.g. getTransactionsByMerchant). */
   items?: TransactionItemLine[];
   /** Only populated when explicitly included (e.g. getTransactionsByMerchant). Null until a merchant edits table/shift for this order's print ticket. */

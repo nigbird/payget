@@ -611,6 +611,12 @@ model Transaction {
   /// settle two transactions. Populated by the provider callback, the status
   /// poll, or manual FT reconciliation.
   cbsreference           String?                        @unique
+  /// Raw provider outcome for this payment, promoted out of the userCredentials
+  /// blob for the same reason as cbsreference: operators reconciling a payment
+  /// need to see *why* the provider reported what it did, and support needs to
+  /// be able to filter and report on it. Written by the provider callback.
+  providerStatusCode     String?
+  providerStatusDesc     String?
   reconciliationRequests PaymentReconciliationRequest[]
   items                  TransactionItem[]
   printInfo              OrderPrintInfo?
