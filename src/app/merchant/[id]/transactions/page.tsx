@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -82,6 +83,94 @@ const isPhoneQuery = (value: string) => /^[+\d][\d\s()+-]*$/.test(value)
 type StatusFilter = "all" | "success" | "failed" | "initiated"
 type Density = "comfortable" | "compact"
 
+/** Empty selection means "all" for every faceted filter below (item, category, main category). */
+function FilterMultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+  emptyLabel = "All",
+  disabledLabel = "None yet",
+}: {
+  label: string
+  options: { value: string; label: string }[]
+  selected: string[]
+  onChange: (next: string[]) => void
+  emptyLabel?: string
+  disabledLabel?: string
+}) {
+  const toggle = (value: string) => {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value])
+  }
+
+  const triggerText =
+    selected.length === 0
+      ? emptyLabel
+      : selected.length === 1
+      ? options.find((o) => o.value === selected[0])?.label ?? selected[0]
+      : `${selected.length} selected`
+
+  if (options.length === 0) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        disabled
+        className="h-9 w-full justify-between rounded-lg border-slate-100 text-xs font-semibold text-slate-400"
+      >
+        {disabledLabel}
+      </Button>
+    )
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            "h-9 w-full justify-between rounded-lg text-xs font-semibold",
+            selected.length > 0 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-100"
+          )}
+        >
+          <span className="truncate">{triggerText}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 rounded-xl p-2" align="start">
+        <div className="flex items-center justify-between px-1 pb-1.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="text-[10px] font-bold text-amber-600 hover:text-amber-700"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="max-h-[220px] space-y-0.5 overflow-auto">
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-slate-50"
+            >
+              <Checkbox
+                checked={selected.includes(option.value)}
+                onCheckedChange={() => toggle(option.value)}
+                className="rounded-[4px] data-[state=checked]:border-amber-600 data-[state=checked]:bg-amber-600"
+              />
+              <span className="truncate text-xs font-semibold text-slate-700">{option.label}</span>
+            </label>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export default function MerchantTransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { toast } = useToast()
@@ -94,7 +183,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [salesUserFilter, setSalesUserFilter] = useState<string>("all")
-  const [itemFilter, setItemFilter] = useState<string>("all")
+  const [itemFilters, setItemFilters] = useState<string[]>([])
+  const [mainCategoryFilters, setMainCategoryFilters] = useState<string[]>([])
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([])
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
 
@@ -196,6 +287,32 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const itemLineKey = (line: { itemId: string | null; name: string }) =>
     line.itemId ?? `name:${line.name.toLowerCase()}`
 
+  const mainCategoryFilterOptions = useMemo(() => {
+    const names = new Set<string>()
+    transactions.forEach((tx) => {
+      tx.items?.forEach((line) => {
+        if (line.mainCategoryName) names.add(line.mainCategoryName)
+      })
+    })
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [transactions])
+
+  /**
+   * Scoped to the selected main categories (when any are chosen) so the Category
+   * dropdown never offers a combination that can't match any transaction.
+   */
+  const categoryFilterOptions = useMemo(() => {
+    const names = new Set<string>()
+    transactions.forEach((tx) => {
+      tx.items?.forEach((line) => {
+        if (!line.categoryName) return
+        if (mainCategoryFilters.length > 0 && !mainCategoryFilters.includes(line.mainCategoryName ?? "")) return
+        names.add(line.categoryName)
+      })
+    })
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [transactions, mainCategoryFilters])
+
   const filtered = useMemo(() => {
     const from = dateRange.from
     const to = dateRange.to
@@ -211,7 +328,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       if (statusFilter === "failed" && tx.status !== "failed") return false
       if (statusFilter === "initiated" && !nonTerminalStatuses.includes(tx.status)) return false
       if (!transactionMatchesSalesUserFilter(tx, salesUserFilter, teamMembers)) return false
-      if (itemFilter !== "all" && !tx.items?.some((line) => itemLineKey(line) === itemFilter)) return false
+      if (itemFilters.length > 0 && !tx.items?.some((line) => itemFilters.includes(itemLineKey(line)))) return false
+      if (mainCategoryFilters.length > 0 && !tx.items?.some((line) => line.mainCategoryName && mainCategoryFilters.includes(line.mainCategoryName))) return false
+      if (categoryFilters.length > 0 && !tx.items?.some((line) => line.categoryName && categoryFilters.includes(line.categoryName))) return false
 
       const txMs = new Date(tx.timestamp).getTime()
       if (fromMs !== undefined && txMs < fromMs) return false
@@ -231,7 +350,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       return true
     })
-  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, itemFilter, teamMembers])
+  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, itemFilters, mainCategoryFilters, categoryFilters, teamMembers])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
 
@@ -248,14 +367,116 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const hasActiveFilters =
     statusFilter !== "all" ||
     salesUserFilter !== "all" ||
-    itemFilter !== "all" ||
+    itemFilters.length > 0 ||
+    mainCategoryFilters.length > 0 ||
+    categoryFilters.length > 0 ||
     !!dateRange.from ||
     !!dateRange.to ||
     search.trim().length > 0
 
+  const dateRangeLabel = useMemo(() => {
+    const { from, to } = dateRange
+    if (!from && !to) return "Any time"
+    if (from && !to) return `From ${from.toLocaleDateString()}`
+    if (!from && to) return `Until ${to.toLocaleDateString()}`
+    return `${from?.toLocaleDateString()} - ${to?.toLocaleDateString()}`
+  }, [dateRange.from, dateRange.to])
+
+  /** With nothing filtered, the summary cards default to today rather than every transaction ever recorded. */
+  const todayScope = useMemo(() => {
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = new Date()
+    end.setHours(23, 59, 59, 999)
+    const startMs = start.getTime()
+    const endMs = end.getTime()
+    return transactions.filter((tx) => {
+      const ms = new Date(tx.timestamp).getTime()
+      return ms >= startMs && ms <= endMs
+    })
+  }, [transactions])
+
+  const summaryCardsScope = hasActiveFilters ? filtered : todayScope
+
+  // Whichever of item/category/main category is chosen, the summary drills
+  // down to just the item lines matching all of them, so "Coffee" shows units
+  // and revenue for coffee specifically rather than the whole order it rode in on.
+  const isItemDrilldown = itemFilters.length > 0 || categoryFilters.length > 0 || mainCategoryFilters.length > 0
+  const lineMatchesItemFilters = (line: { itemId: string | null; name: string; categoryName: string | null; mainCategoryName: string | null }) => {
+    if (itemFilters.length > 0 && !itemFilters.includes(itemLineKey(line))) return false
+    if (categoryFilters.length > 0 && !(line.categoryName && categoryFilters.includes(line.categoryName))) return false
+    if (mainCategoryFilters.length > 0 && !(line.mainCategoryName && mainCategoryFilters.includes(line.mainCategoryName))) return false
+    return true
+  }
+
+  const statusFilterLabel: Record<StatusFilter, string> = {
+    all: "All Sales",
+    success: "Success",
+    failed: "Failed",
+    initiated: "Initiated",
+  }
+
+  /** "Coffee" for one pick, "Coffee +2" for several — used for every multi-select filter's summary label. */
+  const labelForSelection = (selected: string[], options: { value: string; label: string }[]) => {
+    if (selected.length === 0) return null
+    const first = options.find((o) => o.value === selected[0])?.label ?? selected[0]
+    return selected.length === 1 ? first : `${first} +${selected.length - 1}`
+  }
+
+  const mainCategoryOptions = useMemo(
+    () => mainCategoryFilterOptions.map((name) => ({ value: name, label: name })),
+    [mainCategoryFilterOptions]
+  )
+  const categoryOptions = useMemo(
+    () => categoryFilterOptions.map((name) => ({ value: name, label: name })),
+    [categoryFilterOptions]
+  )
+
+  const summaryLabel = useMemo(() => {
+    const itemLabel = labelForSelection(itemFilters, itemFilterOptions)
+    if (itemLabel) return itemLabel
+    const categoryLabel = labelForSelection(categoryFilters, categoryOptions)
+    if (categoryLabel) return categoryLabel
+    const mainCategoryLabel = labelForSelection(mainCategoryFilters, mainCategoryOptions)
+    if (mainCategoryLabel) return mainCategoryLabel
+    if (statusFilter !== "all") return statusFilterLabel[statusFilter]
+    if (salesUserFilter !== "all") return salesUserOptions.find((o) => o.value === salesUserFilter)?.label ?? "Sales User"
+    if (search.trim()) return `"${search.trim()}"`
+    if (dateRange.from || dateRange.to) return dateRangeLabel
+    return "All Sales"
+  }, [itemFilters, itemFilterOptions, categoryFilters, categoryOptions, mainCategoryFilters, mainCategoryOptions, statusFilter, salesUserFilter, salesUserOptions, search, dateRange.from, dateRange.to, dateRangeLabel])
+
+  const summaryCards = useMemo(() => {
+    if (isItemDrilldown) {
+      let count = 0
+      let total = 0
+      summaryCardsScope.forEach((tx) => {
+        if (tx.status !== "success") return
+        tx.items?.forEach((line) => {
+          if (!lineMatchesItemFilters(line)) return
+          count += line.quantity
+          total += line.price * line.quantity
+        })
+      })
+      return { count, total }
+    }
+    const sold = summaryCardsScope.filter((tx) => tx.status === "success")
+    return { count: sold.length, total: sold.reduce((acc, tx) => acc + tx.amount, 0) }
+  }, [summaryCardsScope, isItemDrilldown, itemFilters, categoryFilters, mainCategoryFilters])
+
   useEffect(() => {
     setPageIndex(0)
-  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, itemFilter, pageSize])
+  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, itemFilters, mainCategoryFilters, categoryFilters, pageSize])
+
+  // A category only applies within its own main category, so switching main
+  // category can leave stale, now-impossible category selections behind.
+  useEffect(() => {
+    if (mainCategoryFilters.length === 0 || categoryFilters.length === 0) return
+    setCategoryFilters((prev) => {
+      const next = prev.filter((c) => categoryFilterOptions.includes(c))
+      return next.length === prev.length ? prev : next
+    })
+  }, [mainCategoryFilters, categoryFilterOptions])
 
   const pageItems = useMemo(() => {
     const safePageIndex = Math.min(Math.max(0, pageIndex), pageCount - 1)
@@ -322,6 +543,83 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     toast({ title: "Export successful", description: `Exported ${filtered.length} transactions.` })
   }
 
+  /**
+   * Exports exactly what the summary cards show: a one-line recap of the active
+   * scope, then the rows behind it — item lines when drilled into an item or
+   * category, otherwise the successful transactions themselves.
+   */
+  const exportSummaryToCSV = () => {
+    if (summaryCards.count === 0) {
+      toast({ title: "No data to export", variant: "destructive" })
+      return
+    }
+
+    const summaryLine = [
+      `"Showing: ${summaryLabel}"`,
+      `"Sold: ${summaryCards.count}"`,
+      `"Total: ${summaryCards.total.toFixed(2)} ETB"`,
+    ].join(",")
+
+    let headers: string[]
+    let rows: (string | number)[][]
+
+    if (isItemDrilldown) {
+      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price (ETB)", "Line Total (ETB)", "Customer", "Sales User"]
+      rows = []
+      summaryCardsScope.forEach((tx) => {
+        if (tx.status !== "success") return
+        tx.items?.forEach((line) => {
+          if (!lineMatchesItemFilters(line)) return
+          rows.push([
+            new Date(tx.timestamp).toLocaleString(),
+            tx.transactionReference,
+            line.name,
+            line.mainCategoryName ?? "",
+            line.categoryName ?? "",
+            line.quantity,
+            line.price.toFixed(2),
+            (line.price * line.quantity).toFixed(2),
+            customerPhone(tx) ?? "",
+            tx.userCredentials.initiatedByName || "System",
+          ])
+        })
+      })
+    } else {
+      headers = ["Date", "Order ID", "Customer", "Description", "Amount (ETB)", "Sales User"]
+      rows = summaryCardsScope
+        .filter((tx) => tx.status === "success")
+        .map((tx) => [
+          new Date(tx.timestamp).toLocaleString(),
+          tx.transactionReference,
+          customerPhone(tx) ?? "",
+          tx.serviceDescription,
+          tx.amount.toFixed(2),
+          tx.userCredentials.initiatedByName || "System",
+        ])
+    }
+
+    const csvContent = [
+      summaryLine,
+      "",
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    const safeLabel = summaryLabel.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "summary"
+    link.setAttribute("href", url)
+    link.setAttribute("download", `sales_summary_${safeLabel}_${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast({ title: "Export successful", description: `Exported ${rows.length} row${rows.length === 1 ? "" : "s"}.` })
+  }
+
   const badgeFor = (status: Transaction["status"]) => {
     if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700"
     if (nonTerminalStatuses.includes(status)) return "border-amber-200 bg-amber-50 text-amber-700"
@@ -339,14 +637,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return "Failed"
   }
 
-  const dateRangeLabel = useMemo(() => {
-    const { from, to } = dateRange
-    if (!from && !to) return "Any time"
-    if (from && !to) return `From ${from.toLocaleDateString()}`
-    if (!from && to) return `Until ${to.toLocaleDateString()}`
-    return `${from?.toLocaleDateString()} - ${to?.toLocaleDateString()}`
-  }, [dateRange.from, dateRange.to])
-
   const handleToday = () => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -360,7 +650,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     setStatusFilter("all")
     setSearch("")
     setSalesUserFilter("all")
-    setItemFilter("all")
+    setItemFilters([])
+    setMainCategoryFilters([])
+    setCategoryFilters([])
     setDateRange({})
     setPageIndex(0)
     toast({ title: "Filters cleared", description: "Showing all transactions." })
@@ -403,6 +695,16 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
               className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-amber-500/20"
             />
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            title="Export current summary"
+            onClick={exportSummaryToCSV}
+            className="h-10 w-10 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-sm"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
 
           <Popover>
             <PopoverTrigger asChild>
@@ -497,30 +799,40 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item</Label>
-                    {itemFilterOptions.length > 0 ? (
-                      <Select value={itemFilter} onValueChange={setItemFilter}>
-                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Items</SelectItem>
-                          {itemFilterOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Select disabled value="none">
-                        <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold text-slate-400">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No items used yet</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
+                    <FilterMultiSelect
+                      label="Item"
+                      options={itemFilterOptions}
+                      selected={itemFilters}
+                      onChange={setItemFilters}
+                      emptyLabel="All Items"
+                      disabledLabel="No items used yet"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Main Category</Label>
+                      <FilterMultiSelect
+                        label="Main Category"
+                        options={mainCategoryOptions}
+                        selected={mainCategoryFilters}
+                        onChange={setMainCategoryFilters}
+                        emptyLabel="All Main Categories"
+                        disabledLabel="No categories yet"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</Label>
+                      <FilterMultiSelect
+                        label="Category"
+                        options={categoryOptions}
+                        selected={categoryFilters}
+                        onChange={setCategoryFilters}
+                        emptyLabel="All Categories"
+                        disabledLabel="No categories yet"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -564,6 +876,30 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           </Popover>
         </div>
       </header>
+
+      {/* Sales Summary Cards — first card names what's being summarized (an item,
+          a category, a status, or "All Sales" by default); the other two report
+          how many sold and how much that came to under the same scope. */}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+        <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-amber-700/70 mb-1">Showing</p>
+          <p className="truncate text-sm font-black leading-tight text-[#5b371f] sm:text-base" title={summaryLabel}>
+            {summaryLabel}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-1">Sold</p>
+          <p className="truncate text-lg font-black leading-tight text-slate-900 sm:text-xl">{summaryCards.count}</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-1">Total</p>
+          <p className="truncate text-lg font-black leading-tight text-[#5b371f] sm:text-xl">
+            {summaryCards.total.toFixed(2)} <span className="text-[10px] font-bold text-slate-400">ETB</span>
+          </p>
+        </div>
+      </div>
 
       {/* Transaction List */}
       <main className="space-y-3">
