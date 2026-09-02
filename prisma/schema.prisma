@@ -49,8 +49,14 @@ model User {
 model RefreshToken {
   id        String @id @default(cuid())
   tokenHash String @unique
-  userId    String
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Exactly one of userId / teamMemberId is set. Team members log in by OTP and
+  // are not User rows, so they cannot satisfy the User FK.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  teamMemberId String?
+  teamMember   MerchantTeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
 
   sessionId String?
   session   ActiveSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
@@ -68,15 +74,22 @@ model RefreshToken {
   ipAddress String?
 
   @@index([userId])
+  @@index([teamMemberId])
   @@index([familyId])
   @@index([expiresAt])
   @@index([sessionId])
 }
 
 model ActiveSession {
-  id             String         @id @default(cuid())
-  userId         String
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+
+  // Exactly one of userId / teamMemberId is set — see RefreshToken.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  teamMemberId String?
+  teamMember   MerchantTeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
   createdAt      DateTime       @default(now())
   expiresAt      DateTime
   lastActivityAt DateTime       @default(now())
@@ -86,8 +99,10 @@ model ActiveSession {
   refreshTokens  RefreshToken[]
 
   @@index([userId])
+  @@index([teamMemberId])
   @@index([expiresAt])
   @@index([userId, revokedAt, expiresAt])
+  @@index([teamMemberId, revokedAt, expiresAt])
 }
 
 enum UserRole {
@@ -574,6 +589,9 @@ model MerchantTeamMember {
   role       TeamRole         @default(PAYMENT_INITIATOR)
   status     TeamMemberStatus @default(ACTIVE)
   createdAt  DateTime         @default(now())
+
+  activeSessions ActiveSession[]
+  refreshTokens  RefreshToken[]
 
   @@unique([merchantId, email])
   @@unique([merchantId, phone])

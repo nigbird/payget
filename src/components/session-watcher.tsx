@@ -17,6 +17,11 @@ import { SESSION_EXPIRED_EVENT } from "@/lib/api-client"
 
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000
 const WARNING_THRESHOLD = 4 * 60 * 1000
+// Merchant team members sign in by OTP, so an idle logout costs them an SMS
+// round trip rather than a retyped password. Their window matches the 30-minute
+// SALES access token (see SALES_ACCESS_TOKEN_TTL_SECONDS in lib/token-auth).
+const SALES_INACTIVITY_TIMEOUT = 30 * 60 * 1000
+const SALES_WARNING_THRESHOLD = 29 * 60 * 1000
 const SESSION_CHECK_INTERVAL = 5 * 1000
 const SESSION_UPDATE_THROTTLE = 5 * 1000
 const ACTIVITY_STORAGE_KEY = "last_activity_timestamp"
@@ -28,6 +33,9 @@ export function SessionWatcher() {
   const [showTimeoutModal, setShowTimeoutModal] = useState(false)
   const [isExpiring, setIsExpiring] = useState(false)
   const [expiredReason, setExpiredReason] = useState<"inactivity" | "unauthorized" | null>(null)
+  const isSales = user?.role === "SALES"
+  const inactivityTimeout = isSales ? SALES_INACTIVITY_TIMEOUT : INACTIVITY_TIMEOUT
+  const warningThreshold = isSales ? SALES_WARNING_THRESHOLD : WARNING_THRESHOLD
   const lastActivityRef = useRef<number>(Date.now())
   const lastUpdateRef = useRef<number>(Date.now())
   const statusRef = useRef(status)
@@ -176,11 +184,11 @@ export function SessionWatcher() {
       const now = Date.now()
       const lastActivity = lastActivityRef.current
 
-      if (now - lastActivity > INACTIVITY_TIMEOUT) {
+      if (now - lastActivity > inactivityTimeout) {
         if (statusRef.current === "authenticated" && !isAuthPageRef.current) {
           handleSessionExpired("inactivity")
         }
-      } else if (now - lastActivity > WARNING_THRESHOLD && !isExpiring && expiredReasonRef.current === null) {
+      } else if (now - lastActivity > warningThreshold && !isExpiring && expiredReasonRef.current === null) {
         setIsExpiring(true)
         setShowTimeoutModal(true)
       }
@@ -191,7 +199,7 @@ export function SessionWatcher() {
     }, SESSION_CHECK_INTERVAL)
 
     return () => clearInterval(interval)
-  }, [handleSessionExpired, isAuthPage, isExpiring, showTimeoutModal, refresh])
+  }, [handleSessionExpired, isAuthPage, isExpiring, showTimeoutModal, refresh, inactivityTimeout, warningThreshold])
 
   useEffect(() => {
     const events = ["mousedown", "mousemove", "keydown", "scroll", "click", "touchstart", "wheel"]

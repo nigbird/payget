@@ -35,11 +35,13 @@ export async function requireAuthUser(request: Request): Promise<ResolvedAuthUse
     const sid = typeof (payload as any).sid === "string" ? (payload as any).sid as string : undefined
     const isSales = userId.startsWith("sales-")
 
-    if (!isSales && sid) {
+    if (sid) {
+      // SALES sessions are backed by an ActiveSession keyed by teamMemberId, so
+      // this check now applies to team members too.
       const valid = await validateSession(sid)
       if (!valid) return null
       touchSession(sid)
-    } else if (!isSales && !sid) {
+    } else if (!isSales) {
       // Backward compat: tokens without sid (pre-migration) — verify sessionVersion.
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -100,11 +102,11 @@ export async function requireAuthUserFromContext(): Promise<ResolvedAuthUser | n
     const sid = typeof (payload as any).sid === "string" ? (payload as any).sid as string : undefined
     const isSales = userId.startsWith("sales-")
 
-    if (!isSales && sid) {
+    if (sid) {
       const valid = await validateSession(sid)
       if (!valid) return null
       touchSession(sid)
-    } else if (!isSales && !sid) {
+    } else if (!isSales) {
       const user = await prisma.user.findUnique({ where: { id: userId }, select: { sessionVersion: true } })
       if (!user) return null
       if (payload.sessionVersion !== undefined && user.sessionVersion !== payload.sessionVersion) return null

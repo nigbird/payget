@@ -1,26 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { clearAccessTokenCookie } from "@/lib/access-token-cookie"
+import { refreshTokenCookieName, clearRefreshTokenCookie } from "@/lib/refresh-token-cookie"
 import { hashRefreshToken } from "@/lib/token-auth"
 import { revokeSession } from "@/lib/session-manager"
 import { writeAuditLog } from "@/lib/audit-log"
 import { requireAuthUser } from "@/lib/request-auth"
 import { requireCsrf } from '@/lib/request-security';
 
-function refreshCookieName() {
-  return process.env.REFRESH_TOKEN_COOKIE_NAME || "refresh_token"
-}
-
-function isProd() {
-  return process.env.NODE_ENV === "production"
-}
-
 export async function POST(request: Request) {
   try {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
-    const name = refreshCookieName()
+    const name = refreshTokenCookieName()
     const raw = (request as NextRequest).cookies.get(name)?.value || ""
     let userId: string | null = null
 
@@ -62,15 +55,7 @@ export async function POST(request: Request) {
 
     const res = NextResponse.json({ success: true })
     clearAccessTokenCookie(res)
-    res.cookies.set({
-      name,
-      value: "",
-      httpOnly: true,
-      secure: isProd(),
-      sameSite: "lax",
-      path: "/",
-      expires: new Date(0)
-    })
+    clearRefreshTokenCookie(res)
     return res
   } catch (e) {
     console.error("auth logout error", e)

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
 import { setAccessTokenCookie } from "@/lib/access-token-cookie"
+import { setRefreshTokenCookie } from "@/lib/refresh-token-cookie"
 import {
   generateRefreshTokenValue,
   hashRefreshToken,
@@ -13,7 +14,8 @@ import {
 import {
   enforceSessionLimitTx,
   createActiveSessionTx,
-  cleanupExpiredSessions
+  cleanupExpiredSessions,
+  userPrincipal
 } from "@/lib/session-manager"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
@@ -55,14 +57,6 @@ function firstLockoutResponse(ip: ActiveLockout, identifier: ActiveLockout) {
   if (ip.locked) return lockoutResponseIp(ip.retryAfterSeconds)
   if (identifier.locked) return lockoutResponseIdentifier(identifier.retryAfterSeconds)
   return null
-}
-
-function refreshCookieName() {
-  return process.env.REFRESH_TOKEN_COOKIE_NAME || "refresh_token"
-}
-
-function isProd() {
-  return process.env.NODE_ENV === "production"
 }
 
 export async function POST(request: Request) {
@@ -250,11 +244,11 @@ export async function POST(request: Request) {
     // Atomic transaction: enforce session limit → create ActiveSession → bind RefreshToken.
     const sid = await prisma.$transaction(async (tx) => {
       // Revoke oldest sessions if MAX_CONCURRENT_SESSIONS is reached.
-      await enforceSessionLimitTx(tx, user!.id)
+      await enforceSessionLimitTx(tx, userPrincipal(user!.id))
 
       // Create the new session record; its id becomes the sid embedded in both tokens.
       const sessionId = await createActiveSessionTx(tx, {
-        userId: user!.id,
+        principal: userPrincipal(user!.id),
         expiresAt,
         userAgent,
         ipAddress: ip
@@ -318,15 +312,7 @@ export async function POST(request: Request) {
 
     await setAccessTokenCookie(res, accessToken)
 
-    res.cookies.set({
-      name: refreshCookieName(),
-      value: refreshValue,
-      httpOnly: true,
-      secure: isProd(),
-      sameSite: "lax",
-      path: "/",
-      expires: expiresAt
-    })
+    setRefreshTokenCookie(res, refreshValue, expiresAt)
 
     return res
   } catch (e) {

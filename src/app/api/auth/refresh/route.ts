@@ -6,25 +6,22 @@ import {
   computeRefreshTokenExpiresAt,
   generateRefreshTokenValue,
   hashRefreshToken,
-  signAccessToken
+  signAccessToken,
+  SALES_ACCESS_TOKEN_TTL_SECONDS
 } from "@/lib/token-auth"
-import { touchSession } from "@/lib/session-manager"
+import { touchSession, revokeSession } from "@/lib/session-manager"
+import {
+  refreshTokenCookieName,
+  setRefreshTokenCookie
+} from "@/lib/refresh-token-cookie"
 import { requireCsrf } from '@/lib/request-security';
-
-function refreshCookieName() {
-  return process.env.REFRESH_TOKEN_COOKIE_NAME || "refresh_token"
-}
-
-function isProd() {
-  return process.env.NODE_ENV === "production"
-}
 
 export async function POST(request: Request) {
   try {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
-    const name = refreshCookieName()
+    const name = refreshTokenCookieName()
     const raw = (request as NextRequest).cookies.get(name)?.value || ""
 
     if (!raw) return NextResponse.json({ error: "Missing refresh token" }, { status: 401 })
@@ -35,6 +32,9 @@ export async function POST(request: Request) {
       include: {
         session: {
           select: { id: true, revokedAt: true, expiresAt: true }
+        },
+        teamMember: {
+          include: { merchant: { select: { id: true, name: true, status: true } } }
         },
         user: {
           include: {
@@ -90,33 +90,85 @@ export async function POST(request: Request) {
     }
 
     const user = existing.user
-    if (!user) return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 })
+    const teamMember = existing.teamMember
+    if (!user && !teamMember) {
+      return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 })
+    }
 
-    const permissions =
-      (user as any).customRole?.permissions?.map((p: any) => p.permission?.name).filter(Boolean) || []
+    const sid = existing.sessionId ?? ""
+    let accessToken: string
+    let expiresIn: number
+
+    if (teamMember) {
+      // Re-check membership on every refresh: deactivating a team member or their
+      // merchant now takes effect within one access-token lifetime instead of never.
+      if (teamMember.status !== "ACTIVE" || teamMember.merchant?.status !== "ACTIVE") {
+        if (sid) await revokeSession(sid)
+        return NextResponse.json({ error: "Membership is no longer active" }, { status: 401 })
+      }
+
+      // Recompute assignments so merchants added/removed since login are reflected.
+      const activeMemberships = teamMember.phone
+        ? await prisma.merchantTeamMember.findMany({
+            where: {
+              phone: teamMember.phone,
+              status: "ACTIVE",
+              merchant: { status: "ACTIVE" }
+            },
+            include: { merchant: { select: { id: true, name: true } } }
+          })
+        : [teamMember]
+
+      const assignedMerchantIds = Array.from(
+        new Set(activeMemberships.map((m) => m.merchantId))
+      )
+      const assignedMerchants = activeMemberships
+        .filter((m) => (m as any).merchant)
+        .map((m) => ({ id: m.merchantId, name: (m as any).merchant.name as string }))
+
+      expiresIn = SALES_ACCESS_TOKEN_TTL_SECONDS
+      accessToken = await signAccessToken(
+        {
+          sub: `sales-${teamMember.phone ?? teamMember.id}`,
+          sid,
+          role: "SALES",
+          merchantId: teamMember.merchantId,
+          assignedMerchantIds,
+          assignedMerchants,
+          permissions: [],
+          teamRole: String(teamMember.role).toLowerCase(),
+          teamMemberId: teamMember.id
+        },
+        SALES_ACCESS_TOKEN_TTL_SECONDS
+      )
+    } else {
+      const permissions =
+        (user as any).customRole?.permissions?.map((p: any) => p.permission?.name).filter(Boolean) || []
+
+      expiresIn = accessTokenTtlSeconds()
+      accessToken = await signAccessToken({
+        sub: user!.id,
+        sid,
+        role: (user as any).role,
+        merchantId: (user as any).merchantId,
+        permissions,
+        isHeadOffice: (user as any).isHeadOffice,
+        district: (user as any).district,
+        branch: (user as any).branch,
+        sessionVersion: user!.sessionVersion
+      })
+    }
 
     const newRefresh = generateRefreshTokenValue()
     const newHash = hashRefreshToken(newRefresh)
     const newExpiresAt = computeRefreshTokenExpiresAt()
-    const sid = existing.sessionId ?? ""
-
-    const accessToken = await signAccessToken({
-      sub: user.id,
-      sid,
-      role: (user as any).role,
-      merchantId: (user as any).merchantId,
-      permissions,
-      isHeadOffice: (user as any).isHeadOffice,
-      district: (user as any).district,
-      branch: (user as any).branch,
-      sessionVersion: user.sessionVersion
-    })
 
     const created = await prisma.$transaction(async (tx) => {
       const next = await tx.refreshToken.create({
         data: {
           tokenHash: newHash,
-          userId: user.id,
+          userId: existing.userId,
+          teamMemberId: existing.teamMemberId,
           sessionId: existing.sessionId,
           familyId: existing.familyId,
           expiresAt: newExpiresAt,
@@ -136,21 +188,10 @@ export async function POST(request: Request) {
     // Update session activity timestamp without blocking the response.
     if (sid) touchSession(sid)
 
-    const res = NextResponse.json({
-      expiresIn: accessTokenTtlSeconds()
-    })
+    const res = NextResponse.json({ expiresIn })
 
-    await setAccessTokenCookie(res, accessToken)
-
-    res.cookies.set({
-      name,
-      value: newRefresh,
-      httpOnly: true,
-      secure: isProd(),
-      sameSite: "lax",
-      path: "/",
-      expires: created.expiresAt
-    })
+    await setAccessTokenCookie(res, accessToken, expiresIn)
+    setRefreshTokenCookie(res, newRefresh, created.expiresAt)
 
     return res
   } catch (e) {

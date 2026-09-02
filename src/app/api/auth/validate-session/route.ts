@@ -14,13 +14,10 @@ export async function GET(request: Request) {
     const userId = typeof payload.sub === "string" ? payload.sub : null
     if (!userId) return NextResponse.json({ valid: false }, { status: 401 })
 
-    // SALES users have no ActiveSession — JWT alone is enough.
-    if (userId.startsWith("sales-")) return NextResponse.json({ valid: true })
-
     const sid = typeof (payload as any).sid === "string" ? (payload as any).sid as string : ""
     if (!sid) {
-      // Token without sid (pre-migration token) — treat as valid; session-version
-      // check happens in requireAuthUser on actual API calls.
+      // Token without sid (pre-migration token, including legacy SALES tokens) —
+      // treat as valid; session-version check happens in requireAuthUser on actual API calls.
       return NextResponse.json({ valid: true })
     }
 

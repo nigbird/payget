@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 import { verifySalesOtp } from "@/lib/otp"
 import { writeAuditLog } from "@/lib/audit-log"
-import { signAccessToken, accessTokenTtlSeconds } from "@/lib/token-auth"
+import {
+  signAccessToken,
+  generateRefreshTokenValue,
+  hashRefreshToken,
+  computeRefreshTokenExpiresAt,
+  SALES_ACCESS_TOKEN_TTL_SECONDS
+} from "@/lib/token-auth"
 import { setAccessTokenCookie } from "@/lib/access-token-cookie"
+import {
+  enforceSessionLimitTx,
+  createActiveSessionTx,
+  cleanupExpiredSessions,
+  teamMemberPrincipal
+} from "@/lib/session-manager"
+import { setRefreshTokenCookie } from "@/lib/refresh-token-cookie"
 import { requireCsrf } from "@/lib/request-security"
 import { checkIpLockout, recordFailedLoginAttempt, resetIpLockout } from "@/lib/rate-limit"
-
-// SALES sessions are purely JWT-based — no ActiveSession or RefreshToken because
-// MerchantTeamMember records are not User records and cannot satisfy the FK.
-const SALES_SESSION_TTL_SECONDS = 30 * 60 // 30 minutes, matching the old NextAuth maxAge
+import crypto from "crypto"
 
 export async function POST(request: Request) {
   try {
@@ -85,6 +96,9 @@ export async function POST(request: Request) {
 
     await resetIpLockout(ip)
 
+    // Passive cleanup of stale sessions (non-blocking; runs in background).
+    cleanupExpiredSessions().catch(() => {})
+
     let selectedMember = activeMembers[0]
     if (merchantId) {
       const found = activeMembers.find((m) => m.merchantId === merchantId)
@@ -96,14 +110,49 @@ export async function POST(request: Request) {
       .filter((m) => m.merchant)
       .map((m) => ({ id: m.merchantId as string, name: m.merchant.name as string }))
 
-    // Virtual user ID — not a real User row.
+    // Virtual user ID — not a real User row. The session itself is a real
+    // ActiveSession row keyed by teamMemberId, so it can be revoked and refreshed.
     const virtualUserId = `sales-${phone}`
     const teamRole = String(selectedMember.role).toLowerCase()
+
+    const familyId = crypto.randomUUID()
+    const refreshValue = generateRefreshTokenValue()
+    const refreshHash = hashRefreshToken(refreshValue)
+    const expiresAt = computeRefreshTokenExpiresAt()
+    const userAgent = request.headers.get("user-agent")
+
+    // Atomic transaction: enforce session limit -> create ActiveSession -> bind RefreshToken.
+    const sid = await prisma.$transaction(async (tx) => {
+      const principal = teamMemberPrincipal(selectedMember.id as string)
+
+      await enforceSessionLimitTx(tx, principal)
+
+      const sessionId = await createActiveSessionTx(tx, {
+        principal,
+        expiresAt,
+        userAgent,
+        ipAddress: ip
+      })
+
+      await tx.refreshToken.create({
+        data: {
+          tokenHash: refreshHash,
+          teamMemberId: selectedMember.id as string,
+          sessionId,
+          familyId,
+          expiresAt,
+          userAgent: userAgent ?? undefined,
+          ipAddress: ip
+        }
+      })
+
+      return sessionId
+    })
 
     const accessToken = await signAccessToken(
       {
         sub: virtualUserId,
-        sid: "", // No ActiveSession for SALES users
+        sid,
         role: "SALES",
         merchantId: selectedMember.merchantId,
         assignedMerchantIds,
@@ -112,7 +161,7 @@ export async function POST(request: Request) {
         teamRole,
         teamMemberId: selectedMember.id,
       },
-      SALES_SESSION_TTL_SECONDS
+      SALES_ACCESS_TOKEN_TTL_SECONDS
     )
 
     await writeAuditLog({
@@ -127,11 +176,12 @@ export async function POST(request: Request) {
         memberName: selectedMember.name,
         merchantId: selectedMember.merchantId,
         merchantName: selectedMember.merchant?.name,
+        sessionId: sid,
       },
     })
 
     const res = NextResponse.json({
-      expiresIn: SALES_SESSION_TTL_SECONDS,
+      expiresIn: SALES_ACCESS_TOKEN_TTL_SECONDS,
       user: {
         id: virtualUserId,
         email: selectedMember.email,
@@ -145,8 +195,8 @@ export async function POST(request: Request) {
       },
     })
 
-    await setAccessTokenCookie(res, accessToken, SALES_SESSION_TTL_SECONDS)
-    // No refresh token for SALES — session ends when the access token expires.
+    await setAccessTokenCookie(res, accessToken, SALES_ACCESS_TOKEN_TTL_SECONDS)
+    setRefreshTokenCookie(res, refreshValue, expiresAt)
     return res
   } catch (e) {
     console.error("[sales-otp login]", e)

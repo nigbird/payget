@@ -4,6 +4,10 @@ import crypto from "crypto"
 // Session lifetimes (hardcoded; not controlled by env).
 // Adjust these values in code if you want different behavior.
 export const ACCESS_TOKEN_TTL_SECONDS = 5 * 60 // 5 minutes
+// Merchant team members (SALES) sign in by OTP, so a silent refresh that fails
+// costs them a whole SMS round trip. They get a longer access token to make the
+// reactive-refresh path rarer, on top of the same rotating refresh token.
+export const SALES_ACCESS_TOKEN_TTL_SECONDS = 30 * 60 // 30 minutes
 export const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60  // 7 days
 
 export type AccessTokenClaims = {
@@ -35,6 +39,11 @@ function getAccessSecret() {
 
 export function accessTokenTtlSeconds() {
   return ACCESS_TOKEN_TTL_SECONDS
+}
+
+/** Access token lifetime for a given role. */
+export function accessTokenTtlSecondsForRole(role?: string | null) {
+  return role === "SALES" ? SALES_ACCESS_TOKEN_TTL_SECONDS : ACCESS_TOKEN_TTL_SECONDS
 }
 
 export function computeRefreshTokenExpiresAt(nowMs = Date.now()) {

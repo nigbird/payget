@@ -111,7 +111,7 @@ export async function middleware(req: NextRequest) {
   // Validate the ActiveSession in the DB for every protected page navigation.
   // This ensures that when a session is revoked (e.g. concurrent login limit reached),
   // the old device is blocked from navigating even before its JWT expires.
-  // SALES users have no ActiveSession; tokens without sid are legacy — both skip this check.
+  // Applies to SALES sessions too; only legacy tokens without a sid skip this check.
   if (isLoggedIn && userSid && !isAuthExemptRoute) {
     const sessionValid = await validateSessionFromMiddleware(req)
     if (!sessionValid) {

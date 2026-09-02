@@ -28,10 +28,11 @@ export async function GET(request: Request) {
 
     const sid = typeof (payload as any).sid === "string" ? (payload as any).sid as string : undefined
 
-    // SALES users (id = 'sales-${phone}') have no ActiveSession record — trust the JWT.
+    // SALES users (id = 'sales-${phone}') have an ActiveSession keyed by teamMemberId.
+    // Legacy SALES tokens predating that carry no sid and are trusted until they expire.
     const isSales = userId.startsWith("sales-")
 
-    if (!isSales && sid) {
+    if (sid) {
       const valid = await validateSession(sid)
       if (!valid) {
         return NextResponse.json({ error: "Session expired or revoked" }, { status: 401 })
