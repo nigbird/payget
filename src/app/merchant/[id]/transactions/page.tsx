@@ -543,6 +543,83 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     toast({ title: "Export successful", description: `Exported ${filtered.length} transactions.` })
   }
 
+  /**
+   * Exports exactly what the summary cards show: a one-line recap of the active
+   * scope, then the rows behind it — item lines when drilled into an item or
+   * category, otherwise the successful transactions themselves.
+   */
+  const exportSummaryToCSV = () => {
+    if (summaryCards.count === 0) {
+      toast({ title: "No data to export", variant: "destructive" })
+      return
+    }
+
+    const summaryLine = [
+      `"Showing: ${summaryLabel}"`,
+      `"Sold: ${summaryCards.count}"`,
+      `"Total: ${summaryCards.total.toFixed(2)} ETB"`,
+    ].join(",")
+
+    let headers: string[]
+    let rows: (string | number)[][]
+
+    if (isItemDrilldown) {
+      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price (ETB)", "Line Total (ETB)", "Customer", "Sales User"]
+      rows = []
+      summaryCardsScope.forEach((tx) => {
+        if (tx.status !== "success") return
+        tx.items?.forEach((line) => {
+          if (!lineMatchesItemFilters(line)) return
+          rows.push([
+            new Date(tx.timestamp).toLocaleString(),
+            tx.transactionReference,
+            line.name,
+            line.mainCategoryName ?? "",
+            line.categoryName ?? "",
+            line.quantity,
+            line.price.toFixed(2),
+            (line.price * line.quantity).toFixed(2),
+            customerPhone(tx) ?? "",
+            tx.userCredentials.initiatedByName || "System",
+          ])
+        })
+      })
+    } else {
+      headers = ["Date", "Order ID", "Customer", "Description", "Amount (ETB)", "Sales User"]
+      rows = summaryCardsScope
+        .filter((tx) => tx.status === "success")
+        .map((tx) => [
+          new Date(tx.timestamp).toLocaleString(),
+          tx.transactionReference,
+          customerPhone(tx) ?? "",
+          tx.serviceDescription,
+          tx.amount.toFixed(2),
+          tx.userCredentials.initiatedByName || "System",
+        ])
+    }
+
+    const csvContent = [
+      summaryLine,
+      "",
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    const safeLabel = summaryLabel.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "summary"
+    link.setAttribute("href", url)
+    link.setAttribute("download", `sales_summary_${safeLabel}_${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast({ title: "Export successful", description: `Exported ${rows.length} row${rows.length === 1 ? "" : "s"}.` })
+  }
+
   const badgeFor = (status: Transaction["status"]) => {
     if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700"
     if (nonTerminalStatuses.includes(status)) return "border-amber-200 bg-amber-50 text-amber-700"
@@ -618,6 +695,16 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
               className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-amber-500/20"
             />
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            title="Export current summary"
+            onClick={exportSummaryToCSV}
+            className="h-10 w-10 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-sm"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
 
           <Popover>
             <PopoverTrigger asChild>
