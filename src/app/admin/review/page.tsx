@@ -66,6 +66,8 @@ import {
   Edit2,
   Landmark,
   ListChecks,
+  Coins,
+  BadgePercent,
 } from "lucide-react"
 import { downloadCsv } from "@/lib/export-csv"
 import { 
@@ -185,6 +187,7 @@ function MerchantReviewContent() {
   }
 
   const canApproveEligibility = userPermissions.includes('PAYMENT_ELIGIBILITY_APPROVE')
+  const canViewCashbackEligible = userPermissions.includes('cashback.eligible.view')
 
   type EligibilityRequestItem = {
     id: string
@@ -215,6 +218,143 @@ function MerchantReviewContent() {
   const [viewListLoadedOnce, setViewListLoadedOnce] = useState(false)
   const [rejectTarget, setRejectTarget] = useState<EligibilityRequestItem | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+
+  // --- Cashback eligible list (read-only) -------------------------------------
+  // Merchants own this list; it is never approved here. Admins only need to look
+  // it up while reconciling cashback, so this tab is view + search only.
+  type CashbackEligibleMerchant = {
+    id: string
+    name: string
+    totalCustomers: number
+    cashbackEnabled: boolean
+    cashbackMode: string | null
+    lastImportedAt: string | null
+  }
+  type CashbackEligibleCustomerRow = {
+    id: string
+    phone: string
+    accountNumber: string | null
+    categoryId: string
+    categoryName: string
+    categoryPercent: number
+    importedAt: string
+  }
+  const [cashbackMerchants, setCashbackMerchants] = useState<CashbackEligibleMerchant[]>([])
+  const [isCashbackLoading, setIsCashbackLoading] = useState(false)
+  const [cashbackLoadedOnce, setCashbackLoadedOnce] = useState(false)
+  const [cashbackSearch, setCashbackSearch] = useState('')
+  const [cashbackSearchTerm, setCashbackSearchTerm] = useState('')
+  const [cashbackListMerchant, setCashbackListMerchant] = useState<CashbackEligibleMerchant | null>(null)
+  const [isCashbackListOpen, setIsCashbackListOpen] = useState(false)
+  const [cashbackRows, setCashbackRows] = useState<CashbackEligibleCustomerRow[]>([])
+  const [cashbackCategories, setCashbackCategories] = useState<{ id: string; name: string }[]>([])
+  const [cashbackCategoryFilter, setCashbackCategoryFilter] = useState('ALL')
+  const [cashbackRowSearch, setCashbackRowSearch] = useState('')
+  const [cashbackRowSearchTerm, setCashbackRowSearchTerm] = useState('')
+  const [cashbackRowPage, setCashbackRowPage] = useState(1)
+  const [cashbackRowPageSize, setCashbackRowPageSize] = useState(25)
+  const [cashbackRowTotal, setCashbackRowTotal] = useState(0)
+  const [cashbackRowTotalPages, setCashbackRowTotalPages] = useState(0)
+  const [isCashbackRowsLoading, setIsCashbackRowsLoading] = useState(false)
+  const [cashbackRowsLoadedOnce, setCashbackRowsLoadedOnce] = useState(false)
+
+  const fetchCashbackMerchants = useCallback(async (search: string) => {
+    setIsCashbackLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.set('search', search)
+      const query = params.toString()
+      const response = await fetch(`/api/admin/cashback-eligible${query ? `?${query}` : ''}`)
+      if (response.ok) {
+        const data = await response.json()
+        setCashbackMerchants(data.merchants || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch cashback eligible merchants:', error)
+    } finally {
+      setIsCashbackLoading(false)
+      setCashbackLoadedOnce(true)
+    }
+  }, [])
+
+  // Debounced mirror of the merchant search box. Searching server-side keeps
+  // results correct for banks with more merchants than one page holds.
+  useEffect(() => {
+    const timer = setTimeout(() => setCashbackSearchTerm(cashbackSearch.trim()), 250)
+    return () => clearTimeout(timer)
+  }, [cashbackSearch])
+
+  useEffect(() => {
+    if (canViewCashbackEligible) {
+      fetchCashbackMerchants(cashbackSearchTerm)
+    }
+  }, [canViewCashbackEligible, cashbackSearchTerm, fetchCashbackMerchants])
+
+  const fetchCashbackRows = useCallback(
+    async (merchantId: string, page: number, search: string, pageSize: number, categoryId: string) => {
+      setIsCashbackRowsLoading(true)
+      try {
+        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+        if (search) params.set('search', search)
+        if (categoryId && categoryId !== 'ALL') params.set('categoryId', categoryId)
+        const response = await fetch(`/api/admin/cashback-eligible/${merchantId}?${params.toString()}`)
+        if (response.ok) {
+          const data = await response.json()
+          setCashbackRows(data.customers || [])
+          setCashbackCategories(data.categories || [])
+          setCashbackRowTotal(data.total ?? 0)
+          setCashbackRowTotalPages(data.totalPages ?? 0)
+          if (data.page && data.page !== page) setCashbackRowPage(data.page)
+        }
+      } catch (error) {
+        console.error('Failed to fetch cashback eligible customers:', error)
+      } finally {
+        setIsCashbackRowsLoading(false)
+        setCashbackRowsLoadedOnce(true)
+      }
+    },
+    []
+  )
+
+  const openCashbackList = (merchant: CashbackEligibleMerchant) => {
+    setCashbackListMerchant(merchant)
+    setCashbackRowSearch('')
+    setCashbackRowSearchTerm('')
+    setCashbackCategoryFilter('ALL')
+    setCashbackRowPage(1)
+    setCashbackRows([])
+    setCashbackCategories([])
+    setCashbackRowsLoadedOnce(false)
+    setIsCashbackListOpen(true)
+  }
+
+  // Debounced mirror of the in-dialog search box; page/filter changes fetch immediately.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCashbackRowSearchTerm(cashbackRowSearch.trim())
+      setCashbackRowPage(1)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [cashbackRowSearch])
+
+  useEffect(() => {
+    if (!isCashbackListOpen || !cashbackListMerchant) return
+    fetchCashbackRows(
+      cashbackListMerchant.id,
+      cashbackRowPage,
+      cashbackRowSearchTerm,
+      cashbackRowPageSize,
+      cashbackCategoryFilter
+    )
+  }, [
+    isCashbackListOpen,
+    cashbackListMerchant,
+    cashbackRowPage,
+    cashbackRowPageSize,
+    cashbackRowSearchTerm,
+    cashbackCategoryFilter,
+    fetchCashbackRows,
+  ])
 
   const fetchEligibilityRequests = async () => {
     try {
@@ -609,6 +749,11 @@ function MerchantReviewContent() {
             <TabsTrigger value="eligibility" className="gap-1.5">
               Eligible Customer Imports
               {renderTabCount(pendingEligibilityCount)}
+            </TabsTrigger>
+          )}
+          {canViewCashbackEligible && (
+            <TabsTrigger value="cashback-eligible" className="gap-1.5">
+              Cashback Eligible List
             </TabsTrigger>
           )}
         </TabsList>
@@ -1487,7 +1632,256 @@ function MerchantReviewContent() {
             </Card>
           </TabsContent>
         )}
+
+        {canViewCashbackEligible && (
+          <TabsContent value="cashback-eligible" className="space-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+              <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-primary" />
+                  <CardTitle className="text-base tracking-tight">Cashback eligible list</CardTitle>
+                  <Badge variant="outline" className="text-slate-600 border-black/10 bg-white">View only</Badge>
+                </div>
+                <CardDescription className="text-slate-600">
+                  Merchants import and manage these lists themselves — nothing here needs approval.
+                  Look a merchant up to see which customers earn cashback while reconciling.
+                </CardDescription>
+                <div className="relative w-full sm:w-72 pt-2">
+                  <Search className="absolute left-3 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    placeholder="Search by merchant name..."
+                    className="h-10 rounded-2xl border-black/10 bg-white pl-9"
+                    value={cashbackSearch}
+                    onChange={(e) => setCashbackSearch(e.target.value)}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {!cashbackLoadedOnce && isCashbackLoading ? (
+                  <div className="h-40 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : cashbackMerchants.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                    {cashbackSearch.trim()
+                      ? 'No merchants match your search.'
+                      : 'No merchant has imported a cashback eligible list yet.'}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-black/5">
+                    {cashbackMerchants.map((merchant) => (
+                      <div
+                        key={merchant.id}
+                        className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6"
+                      >
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-slate-900">{merchant.name}</p>
+                            {merchant.cashbackEnabled ? (
+                              <Badge className="bg-emerald-500 gap-1">
+                                <BadgePercent className="w-3 h-3" /> Cashback on
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-slate-500 border-black/10 bg-white gap-1">
+                                <BadgePercent className="w-3 h-3" /> Cashback off
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            <span className="font-bold text-slate-900">{merchant.totalCustomers}</span> eligible customer(s)
+                          </p>
+                          <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                            {merchant.lastImportedAt
+                              ? `Last updated ${new Date(merchant.lastImportedAt).toLocaleDateString()}`
+                              : 'No import date recorded'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-2xl border-black/10 bg-white hover:bg-amber-50/50"
+                            onClick={() => openCashbackList(merchant)}
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1.5" /> View List
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
+
+      <Dialog open={isCashbackListOpen} onOpenChange={setIsCashbackListOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              <Coins className="w-5 h-5 text-primary" />
+              {cashbackListMerchant?.name} — Cashback Eligible Customers
+              <Badge variant="outline" className="text-slate-600 border-black/10 bg-white">View only</Badge>
+            </DialogTitle>
+            <DialogDescription>
+              {cashbackListMerchant?.totalCustomers} customer(s) on this merchant&apos;s cashback allowlist.
+              Maintained by the merchant — this view makes no changes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={cashbackRowSearch}
+                onChange={(e) => setCashbackRowSearch(e.target.value)}
+                placeholder="Search phone, account, or category..."
+                className="h-10 rounded-2xl pl-9"
+              />
+            </div>
+            {cashbackCategories.length > 0 && (
+              <Select
+                value={cashbackCategoryFilter}
+                onValueChange={(v) => {
+                  setCashbackCategoryFilter(v)
+                  setCashbackRowPage(1)
+                }}
+              >
+                <SelectTrigger className="h-10 w-full rounded-2xl sm:w-48">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All categories</SelectItem>
+                  {cashbackCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Keeps the previous page mounted while the next loads so paging doesn't flicker. */}
+          <div className="relative" aria-busy={isCashbackRowsLoading}>
+            {isCashbackRowsLoading && cashbackRowsLoadedOnce && (
+              <div className="absolute inset-0 z-10 flex items-start justify-center bg-white/50 pt-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!cashbackRowsLoadedOnce ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div
+                className={`max-h-80 overflow-y-auto rounded-xl border border-black/5 transition-opacity duration-150 ${
+                  isCashbackRowsLoading ? 'opacity-40' : 'opacity-100'
+                }`}
+              >
+                {cashbackRows.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    {cashbackRowSearchTerm || cashbackCategoryFilter !== 'ALL'
+                      ? 'No customers match your filters.'
+                      : 'No customers in this list.'}
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Account</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Imported</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cashbackRows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-mono text-sm text-slate-800">{row.phone}</TableCell>
+                          <TableCell className="font-mono text-xs text-slate-600">
+                            {row.accountNumber || '—'}
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-700">
+                            {row.categoryName}
+                            <span className="ml-1 text-slate-400">({row.categoryPercent}%)</span>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-slate-500 tabular-nums">
+                            {new Date(row.importedAt).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {cashbackRowTotal === 0
+                ? '0 customer(s)'
+                : `${(cashbackRowPage - 1) * cashbackRowPageSize + 1}–${Math.min(
+                    cashbackRowPage * cashbackRowPageSize,
+                    cashbackRowTotal
+                  )} of ${cashbackRowTotal} customer(s)`}
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Show</span>
+                <Select
+                  value={String(cashbackRowPageSize)}
+                  onValueChange={(v) => {
+                    setCashbackRowPageSize(Number(v))
+                    setCashbackRowPage(1)
+                  }}
+                >
+                  <SelectTrigger className="h-7 w-[68px] rounded-lg px-2 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ELIGIBILITY_PAGE_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={String(option)} className="text-xs">
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {cashbackRowTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-lg p-0"
+                    disabled={isCashbackRowsLoading || cashbackRowPage <= 1}
+                    onClick={() => setCashbackRowPage((p) => p - 1)}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="px-1 text-xs tabular-nums text-slate-600">
+                    {cashbackRowPage} / {cashbackRowTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-lg p-0"
+                    disabled={isCashbackRowsLoading || cashbackRowPage >= cashbackRowTotalPages}
+                    onClick={() => setCashbackRowPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isViewListOpen} onOpenChange={setIsViewListOpen}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">

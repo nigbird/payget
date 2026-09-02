@@ -25,6 +25,7 @@ const permissionsData = [
   { name: 'cashback.reconciliation.export', category: 'CASHBACK', description: 'Export cashback reconciliation reports' },
   { name: 'cashback.reconciliation.manual_review', category: 'CASHBACK', description: 'Move transactions to manual review' },
   { name: 'cashback.reconciliation.manage', category: 'CASHBACK', description: 'Manage cashback reconciliation operations' },
+  { name: 'cashback.eligible.view', category: 'CASHBACK', description: "View merchants' cashback eligible customer lists (read-only)" },
   { name: 'payment.reconciliation.view', category: 'TRANSACTION', description: 'View unresolved payments and reconciliation requests' },
   { name: 'payment.reconciliation.request', category: 'TRANSACTION', description: 'Submit an FT from a bank receipt to settle a payment (maker)' },
   { name: 'payment.reconciliation.manage', category: 'TRANSACTION', description: 'Approve or reject payment reconciliation requests (checker)' },
