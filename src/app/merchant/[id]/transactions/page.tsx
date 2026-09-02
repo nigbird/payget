@@ -416,12 +416,16 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     initiated: "Initiated",
   }
 
-  /** "Coffee" for one pick, "Coffee +2" for several — used for every multi-select filter's summary label. */
+  /** "Coffee" for one pick, "Coffee, Bread, Coca" for several — used for every multi-select filter's summary label. */
   const labelForSelection = (selected: string[], options: { value: string; label: string }[]) => {
     if (selected.length === 0) return null
-    const first = options.find((o) => o.value === selected[0])?.label ?? selected[0]
-    return selected.length === 1 ? first : `${first} +${selected.length - 1}`
+    return selected.map((value) => options.find((o) => o.value === value)?.label ?? value).join(", ")
   }
+
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }),
+    []
+  )
 
   const mainCategoryOptions = useMemo(
     () => mainCategoryFilterOptions.map((name) => ({ value: name, label: name })),
@@ -445,6 +449,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     if (dateRange.from || dateRange.to) return dateRangeLabel
     return "All Sales"
   }, [itemFilters, itemFilterOptions, categoryFilters, categoryOptions, mainCategoryFilters, mainCategoryOptions, statusFilter, salesUserFilter, salesUserOptions, search, dateRange.from, dateRange.to, dateRangeLabel])
+
+  /** Small corner date on the Showing card — the explicit range when one's picked, otherwise today (the cards' implicit default scope). */
+  const summaryDateLabel = dateRange.from || dateRange.to ? dateRangeLabel : todayLabel
 
   const summaryCards = useMemo(() => {
     if (isItemDrilldown) {
@@ -882,8 +889,11 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           how many sold and how much that came to under the same scope. */}
       <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
         <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-amber-700/70 mb-1">Showing</p>
-          <p className="truncate text-sm font-black leading-tight text-[#5b371f] sm:text-base" title={summaryLabel}>
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-amber-700/70">Showing</p>
+            <p className="shrink-0 text-[9px] font-bold text-amber-700/50">{summaryDateLabel}</p>
+          </div>
+          <p className="break-words text-sm font-black leading-tight text-[#5b371f] sm:text-base">
             {summaryLabel}
           </p>
         </div>
