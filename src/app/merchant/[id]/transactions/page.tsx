@@ -468,7 +468,15 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       return { count, total }
     }
     const sold = summaryCardsScope.filter((tx) => tx.status === "success")
-    return { count: sold.length, total: sold.reduce((acc, tx) => acc + tx.amount, 0) }
+    // Quantity sold, not order count — a single order for 3 coffees counts as 3 sold.
+    // Legacy transactions recorded without an item breakdown count as 1 unit.
+    const count = sold.reduce((acc, tx) => {
+      if (tx.items && tx.items.length > 0) {
+        return acc + tx.items.reduce((lineAcc, line) => lineAcc + line.quantity, 0)
+      }
+      return acc + 1
+    }, 0)
+    return { count, total: sold.reduce((acc, tx) => acc + tx.amount, 0) }
   }, [summaryCardsScope, isItemDrilldown, itemFilters, categoryFilters, mainCategoryFilters])
 
   useEffect(() => {
@@ -514,41 +522,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     
     return Object.entries(summary).sort((a, b) => b[1].total - a[1].total)
   }, [filtered])
-
-  const exportToCSV = () => {
-    if (filtered.length === 0) {
-      toast({ title: "No data to export", variant: "destructive" })
-      return
-    }
-
-    const headers = ["Date", "Order ID", "Customer", "Description", "Amount (ETB)", "Status", "Sales User"]
-    const rows = filtered.map(tx => [
-      new Date(tx.timestamp).toLocaleString(),
-      tx.transactionReference,
-      customerPhone(tx) ?? "",
-      tx.serviceDescription,
-      tx.amount.toFixed(2),
-      tx.status,
-      tx.userCredentials.initiatedByName || "System"
-    ])
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-    link.setAttribute("href", url)
-    link.setAttribute("download", `transactions_${merchant?.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    
-    toast({ title: "Export successful", description: `Exported ${filtered.length} transactions.` })
-  }
 
   /**
    * Exports exactly what the summary cards show: a one-line recap of the active
@@ -845,18 +818,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
                 {/* Sales Summary Report Section */}
                 <div className="pt-4 border-t border-slate-50 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sales Summary</Label>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-7 px-2 text-[10px] font-bold text-amber-600 gap-1.5"
-                      onClick={exportToCSV}
-                    >
-                      <Download className="w-3 h-3" /> Export
-                    </Button>
-                  </div>
-                  
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sales Summary</Label>
+
                   <div className="space-y-2 max-h-[160px] overflow-auto pr-1">
                     {salesSummary.length === 0 ? (
                       <p className="text-[11px] text-slate-400 italic text-center py-2">No data for this period</p>
@@ -894,7 +857,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             <p className="shrink-0 text-[9px] font-bold text-amber-700/50">{summaryDateLabel}</p>
           </div>
           <p className="break-words text-sm font-black leading-tight text-[#5b371f] sm:text-base">
-            {summaryLabel}
+            All Sales
           </p>
         </div>
 
