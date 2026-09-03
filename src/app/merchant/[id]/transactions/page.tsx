@@ -409,13 +409,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return true
   }
 
-  const statusFilterLabel: Record<StatusFilter, string> = {
-    all: "All Sales",
-    success: "Success",
-    failed: "Failed",
-    initiated: "Initiated",
-  }
-
   /** "Coffee" for one pick, "Coffee, Bread, Coca" for several — used for every multi-select filter's summary label. */
   const labelForSelection = (selected: string[], options: { value: string; label: string }[]) => {
     if (selected.length === 0) return null
@@ -436,6 +429,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     [categoryFilterOptions]
   )
 
+  // Only an item/category/main-category drilldown changes what's being counted, so only
+  // those change the label — status, sales user, search, and date narrow the same "All
+  // Sales" scope rather than switching to a different thing being summarized.
   const summaryLabel = useMemo(() => {
     const itemLabel = labelForSelection(itemFilters, itemFilterOptions)
     if (itemLabel) return itemLabel
@@ -443,12 +439,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     if (categoryLabel) return categoryLabel
     const mainCategoryLabel = labelForSelection(mainCategoryFilters, mainCategoryOptions)
     if (mainCategoryLabel) return mainCategoryLabel
-    if (statusFilter !== "all") return statusFilterLabel[statusFilter]
-    if (salesUserFilter !== "all") return salesUserOptions.find((o) => o.value === salesUserFilter)?.label ?? "Sales User"
-    if (search.trim()) return `"${search.trim()}"`
-    if (dateRange.from || dateRange.to) return dateRangeLabel
     return "All Sales"
-  }, [itemFilters, itemFilterOptions, categoryFilters, categoryOptions, mainCategoryFilters, mainCategoryOptions, statusFilter, salesUserFilter, salesUserOptions, search, dateRange.from, dateRange.to, dateRangeLabel])
+  }, [itemFilters, itemFilterOptions, categoryFilters, categoryOptions, mainCategoryFilters, mainCategoryOptions])
 
   /** Small corner date on the Showing card — the explicit range when one's picked, otherwise today (the cards' implicit default scope). */
   const summaryDateLabel = dateRange.from || dateRange.to ? dateRangeLabel : todayLabel
@@ -857,7 +849,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             <p className="shrink-0 text-[9px] font-bold text-amber-700/50">{summaryDateLabel}</p>
           </div>
           <p className="break-words text-sm font-black leading-tight text-[#5b371f] sm:text-base">
-            All Sales
+            {summaryLabel}
           </p>
         </div>
 
