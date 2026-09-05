@@ -496,12 +496,13 @@ export const db = {
   },
 
   findMerchantByIdentifier: async (identifier: string, options?: { includeSecret?: boolean }) => {
+    const trimmed = identifier.trim();
     const m = await prisma.merchant.findFirst({
       where: {
         OR: [
-          { id: identifier },
-          { email: identifier },
-          { contactUsername: identifier }
+          { id: trimmed },
+          { email: { equals: trimmed, mode: 'insensitive' } },
+          { contactUsername: trimmed }
         ]
       },
       include: { documents: true }

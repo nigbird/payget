@@ -231,6 +231,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
   const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null)
   const [isRequestDetailOpen, setIsRequestDetailOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<CashbackRequest | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -334,21 +335,42 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
     }
   }, [isLoading, searchQuery])
 
-  const handleExport = (tab: 'transactions' | 'requests') => {
+  const handleExport = async (tab: 'transactions' | 'requests') => {
     if (tab === 'transactions') {
-      downloadCsv('cashback-transactions', [
-        'Transaction Ref', 'Merchant', 'Merchant Account', 'Customer', 'Payment Amount (ETB)', 'Cashback Amount (ETB)', 'Category', 'Status', 'Created At'
-      ], items.map(i => [
-        i.transactionReference,
-        i.merchantName,
-        i.merchantAccountNumber || '',
-        i.customerPhone || i.customerAccount || '',
-        i.paymentAmount,
-        i.cashbackAmount,
-        i.categoryName || '',
-        i.status,
-        new Date(i.createdAt).toLocaleString()
-      ]))
+      setIsExporting(true)
+      try {
+        const params = new URLSearchParams()
+        params.set('download', 'true')
+        if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
+        if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+        if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
+        if (dateFrom) params.set('dateFrom', dateFrom)
+        if (dateTo) params.set('dateTo', dateTo)
+
+        const res = await fetch(`/api/admin/cashback-reconciliation?${params.toString()}`)
+        if (!res.ok) throw new Error('Failed to fetch export data')
+        const data = await res.json()
+
+        downloadCsv('cashback-transactions', [
+          'Transaction Ref', 'Merchant', 'Merchant Account', 'Customer', 'Payment Amount (ETB)', 'Cashback Amount (ETB)', 'Category', 'Status', 'Created At'
+        ], data.transactions.map((i: any) => [
+          i.transactionReference,
+          i.merchant?.name || 'Unknown Merchant',
+          i.merchant?.accountNumber || '',
+          i.customerPhone || i.customerAccount || '',
+          i.paymentAmount,
+          i.cashbackAmount,
+          i.category?.name || '',
+          i.status,
+          new Date(i.createdAt).toLocaleString()
+        ]))
+        toast({ title: 'Export Complete', description: `Exported ${data.transactions.length} transactions to CSV` })
+      } catch (error) {
+        console.error('Failed to export transactions:', error)
+        toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not export transactions' })
+      } finally {
+        setIsExporting(false)
+      }
     } else {
       downloadCsv('cashback-requests', [
         'Type', 'Transaction Ref', 'Merchant', 'Customer', 'Cashback Amount (ETB)', 'Reason', 'Created By', 'Status', 'Created At'
@@ -363,8 +385,8 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
         r.status,
         new Date(r.createdAt).toLocaleString()
       ]))
+      toast({ title: 'Export Complete', description: `Exported to CSV successfully` })
     }
-    toast({ title: 'Export Complete', description: `Exported to CSV successfully` })
   }
 
   const handleViewDetails = (item: CashbackReconciliationItem) => {
@@ -697,8 +719,13 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                         size='sm'
                         className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
                         onClick={() => handleExport('transactions')}
+                        disabled={isExporting}
                       >
-                        <Download className='h-4 w-4 mr-2' />
+                        {isExporting ? (
+                          <RefreshCw className='h-4 w-4 mr-2 animate-spin' />
+                        ) : (
+                          <Download className='h-4 w-4 mr-2' />
+                        )}
                         Export
                       </Button>
                     )}

@@ -23,23 +23,24 @@ export async function POST(request: Request) {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
-    const { identifier, action, token, password } = await request.json();
+    const { identifier: rawIdentifier, action, token, password } = await request.json();
+    const identifier = typeof rawIdentifier === 'string' ? rawIdentifier.trim() : rawIdentifier;
 
     if (action === 'request') {
       // First check if it's a merchant
       let entityType: 'MERCHANT' | 'USER' = 'MERCHANT';
       let entityId: string | null = null;
       let contactEmail: string | null = null;
-      
+
       let merchant = await db.findMerchantByIdentifier(identifier);
-      
+
       // If not a merchant, check if it's an admin user
       let user = null;
       if (!merchant) {
         user = await prisma.user.findFirst({
           where: {
             OR: [
-              { email: identifier },
+              { email: { equals: identifier, mode: 'insensitive' } },
               { name: identifier }
             ]
           }

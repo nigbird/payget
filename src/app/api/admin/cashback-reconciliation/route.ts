@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
+    const download = searchParams.get('download') === 'true';
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
     const offset = (page - 1) * limit;
@@ -65,6 +66,20 @@ export async function GET(request: Request) {
         { customerPhone: { contains: search } },
         { customerAccount: { contains: search } }
       ];
+    }
+
+    if (download) {
+      // Export needs every row matching the filters, not just the current page.
+      const transactions = await prisma.cashbackTransaction.findMany({
+        where,
+        include: {
+          merchant: { select: { id: true, name: true, accountNumber: true } },
+          category: { select: { id: true, name: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50000
+      });
+      return NextResponse.json({ transactions, total: transactions.length });
     }
 
     const [transactions, total] = await Promise.all([
