@@ -46,6 +46,12 @@ export interface Merchant {
   passwordResetToken?: string | null;
   passwordResetExpires?: string | null;
   jweSecret: string;
+  /** This merchant's own MPGS merchant id, if they have their own Mastercard gateway account. */
+  mpgsMerchantId?: string | null;
+  /** Encrypted at rest; only present when includeSecret is passed, like jweSecret. */
+  mpgsPassword?: string | null;
+  mpgsBaseUrl?: string | null;
+  mpgsCurrency?: string | null;
   accountNumber: string;
   dailyLimit: number;
   transactionLimit: number;
@@ -183,11 +189,12 @@ function mapMerchant(
   options?: { includeSecret?: boolean }
 ): Merchant {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, passwordResetToken, passwordResetExpires, jweSecret, ...safeMerchant } = m;
+  const { password, passwordResetToken, passwordResetExpires, jweSecret, mpgsPassword, ...safeMerchant } = m;
 
   return {
     ...safeMerchant,
     jweSecret: options?.includeSecret ? m.jweSecret : "",
+    mpgsPassword: options?.includeSecret ? (m as any).mpgsPassword ?? null : undefined,
     status: mapMerchantStatus(m.status),
     createdAt: m.createdAt.toISOString(),
     passwordResetExpires: (m as any).passwordResetExpires ? (m as any).passwordResetExpires.toISOString() : null,
@@ -511,6 +518,14 @@ export const db = {
     const m = await prisma.merchant.findUnique({ where: { id } });
     if (!m) return null;
     return mapMerchant(m, options);
+  },
+
+  /** Narrow select for resolving a merchant's own MPGS gateway credentials — never pulls jweSecret or other unrelated secrets. */
+  getMerchantMpgsCredentials: async (id: string) => {
+    return prisma.merchant.findUnique({
+      where: { id },
+      select: { mpgsMerchantId: true, mpgsPassword: true, mpgsBaseUrl: true, mpgsCurrency: true },
+    });
   },
 
   findMerchantByIdentifier: async (identifier: string, options?: { includeSecret?: boolean }) => {

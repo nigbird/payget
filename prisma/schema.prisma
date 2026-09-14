@@ -172,6 +172,15 @@ model Merchant {
   password                  String?
   logoUrl                   String?
   jweSecret                 String
+  /// This merchant's own Mastercard Payment Gateway Services merchant id (from their acquiring
+  /// bank), used instead of the platform-wide MPGS_MERCHANT_ID env credentials when set.
+  mpgsMerchantId            String?
+  /// Encrypted at rest the same way as jweSecret; see merchant-secret.ts.
+  mpgsPassword              String?
+  /// Optional per-merchant gateway host override; falls back to MPGS_BASE_URL / the gateway default.
+  mpgsBaseUrl               String?
+  /// Settlement currency for this merchant's MPGS account; falls back to MPGS_CURRENCY / "USD".
+  mpgsCurrency              String?
   accountNumber             String
   dailyLimit                Float                      @default(0)
   transactionLimit          Float                      @default(0)

@@ -85,6 +85,11 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Secrets are only ever written through their own encrypt-on-write endpoints
+    // (rotate-secret, mpgs-config) — never accepted as plaintext on this generic route.
+    delete body.jweSecret;
+    delete body.mpgsPassword;
+
     const currentMerchant = await db.getMerchantById(id);
     if (!currentMerchant) {
       return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });

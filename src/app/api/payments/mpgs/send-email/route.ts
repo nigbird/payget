@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       to: customerEmail,
       merchantName: merchant?.name ?? "Merchant",
       amount: transaction.amount,
-      currency: process.env.MPGS_CURRENCY?.trim() || "USD",
+      currency: merchant?.mpgsCurrency?.trim() || process.env.MPGS_CURRENCY?.trim() || "USD",
       description: transaction.serviceDescription,
       paymentUrl,
       expiresAt: transaction.userCredentials?.mpgs?.expiresAt,

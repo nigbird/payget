@@ -12,6 +12,7 @@ import {
   createMpgsPaymentLink,
   mpgsAllowedAttempts,
   mpgsLinkLifetimeMs,
+  resolveMpgsConfigForMerchant,
 } from "@/lib/mpgs-client"
 
 export async function POST(request: Request) {
@@ -215,11 +216,13 @@ export async function POST(request: Request) {
       )
 
       let mpgs: Awaited<ReturnType<typeof createMpgsPaymentLink>>
+      let mpgsConfig: Awaited<ReturnType<typeof resolveMpgsConfigForMerchant>>
       try {
-        mpgs = await createMpgsPaymentLink({
+        mpgsConfig = await resolveMpgsConfigForMerchant(paymentInput.merchantId)
+        mpgs = await createMpgsPaymentLink(mpgsConfig, {
           orderId,
           amount: result.tx.amount,
-          currency: process.env.MPGS_CURRENCY?.trim() || "USD",
+          currency: mpgsConfig.currency,
           description: result.tx.serviceDescription,
           merchantName: merchant?.name ?? "Merchant",
           merchantUrl: baseUrl,
@@ -293,7 +296,7 @@ export async function POST(request: Request) {
           to: paymentInput.customerEmail!,
           merchantName: merchant?.name ?? "Merchant",
           amount: result.tx.amount,
-          currency: process.env.MPGS_CURRENCY?.trim() || "USD",
+          currency: mpgsConfig.currency,
           description: result.tx.serviceDescription,
           paymentUrl: mpgs.paymentLinkUrl,
           expiresAt: linkExpiresAt,

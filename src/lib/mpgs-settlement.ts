@@ -4,6 +4,7 @@ import {
   mpgsLinkLifetimeMs,
   nonNegativeEnvNumber,
   positiveEnvNumber,
+  resolveMpgsConfigForMerchant,
   retrieveMpgsOrder,
 } from "@/lib/mpgs-client"
 import { writeAuditLog } from "@/lib/audit-log"
@@ -278,7 +279,8 @@ export async function settleMpgsTransaction(
 
   let order: Awaited<ReturnType<typeof retrieveMpgsOrder>>
   try {
-    order = await retrieveMpgsOrder(orderId)
+    const config = await resolveMpgsConfigForMerchant(tx.merchantId)
+    order = await retrieveMpgsOrder(config, orderId)
   } catch (configError) {
     return { ...base, action: "error", status: tx.status, reason: "MPGS_NOT_CONFIGURED" }
   }
@@ -428,7 +430,8 @@ export async function closeMpgsLinkError(
   // paid, this settles as success and the redirect is ignored.
   let order: Awaited<ReturnType<typeof retrieveMpgsOrder>>
   try {
-    order = await retrieveMpgsOrder(orderId)
+    const config = await resolveMpgsConfigForMerchant(tx.merchantId)
+    order = await retrieveMpgsOrder(config, orderId)
   } catch {
     return { ...base, action: "error", status: tx.status, reason: "MPGS_NOT_CONFIGURED" }
   }

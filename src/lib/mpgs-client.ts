@@ -1,15 +1,21 @@
 import { safeJsonParse } from "@/lib/json-utils";
+import { db } from "@/lib/db";
+import { withMerchantSecret } from "@/lib/merchant-secret";
 
 const DEFAULT_BASE_URL = "https://na-gateway.mastercard.com";
 const DEFAULT_API_VERSION = "100";
+const DEFAULT_CURRENCY = "USD";
 
 export type MpgsConfig = {
   baseUrl: string;
   apiVersion: string;
   merchantId: string;
   password: string;
+  /** Settlement currency for this gateway account. */
+  currency: string;
 };
 
+/** The platform-wide MPGS account, configured via env vars. Used for merchants that don't have their own. */
 export function resolveMpgsConfig(): MpgsConfig {
   const merchantId = process.env.MPGS_MERCHANT_ID?.trim();
   const password = process.env.MPGS_PASSWORD?.trim();
@@ -28,7 +34,36 @@ export function resolveMpgsConfig(): MpgsConfig {
     apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_API_VERSION,
     merchantId,
     password,
+    currency: process.env.MPGS_CURRENCY?.trim() || DEFAULT_CURRENCY,
   };
+}
+
+/**
+ * Resolves the MPGS gateway account to charge against for a given merchant: their own
+ * MPGS merchant profile if they've configured one (each business's card payments then
+ * settle to their own bank, via their own Mastercard merchant id), otherwise the
+ * platform-wide shared account from env vars.
+ */
+export async function resolveMpgsConfigForMerchant(
+  merchantId: string,
+): Promise<MpgsConfig> {
+  const stored = await db.getMerchantMpgsCredentials(merchantId);
+
+  if (stored?.mpgsMerchantId && stored?.mpgsPassword) {
+    const password = withMerchantSecret(stored.mpgsPassword, (plaintext) => plaintext);
+    return {
+      baseUrl: (stored.mpgsBaseUrl?.trim() || process.env.MPGS_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(
+        /\/$/,
+        "",
+      ),
+      apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_API_VERSION,
+      merchantId: stored.mpgsMerchantId.trim(),
+      password,
+      currency: stored.mpgsCurrency?.trim() || process.env.MPGS_CURRENCY?.trim() || DEFAULT_CURRENCY,
+    };
+  }
+
+  return resolveMpgsConfig();
 }
 
 /** Reads a positive number from the environment, ignoring blank/garbage values. */
@@ -97,10 +132,9 @@ function authHeader(config: MpgsConfig): string {
  * Creates a gateway-hosted payment link for a single order.
  */
 export async function createMpgsPaymentLink(
+  config: MpgsConfig,
   input: MpgsPaymentLinkRequest,
 ): Promise<MpgsPaymentLinkResult> {
-  const config = resolveMpgsConfig();
-
   const url = `${config.baseUrl}/api/rest/version/${config.apiVersion}/merchant/${config.merchantId}/session`;
 
   const body = {
@@ -239,9 +273,9 @@ const FAILED_ORDER_STATUSES = new Set([
 ]);
 
 export async function retrieveMpgsOrder(
+  config: MpgsConfig,
   orderId: string,
 ): Promise<MpgsOrderResult> {
-  const config = resolveMpgsConfig();
   const url = `${config.baseUrl}/api/rest/version/${config.apiVersion}/merchant/${config.merchantId}/order/${encodeURIComponent(orderId)}`;
 
   let response: Response;
