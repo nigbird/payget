@@ -2,25 +2,28 @@
 
 import { useState, useEffect, use, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { 
-  Building2, 
-  Settings2, 
-  QrCode, 
-  Save, 
-  RotateCw, 
-  Download, 
-  Upload, 
-  CheckCircle2, 
-  AlertCircle, 
-  Loader2, 
+import {
+  Building2,
+  Settings2,
+  QrCode,
+  Save,
+  RotateCw,
+  Download,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
   Store,
   ArrowLeft,
-  ImageIcon
+  ImageIcon,
+  CreditCard,
+  Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { QRCodeCanvas } from "qrcode.react"
@@ -66,6 +69,25 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [isDownloadingQr, setIsDownloadingQr] = useState(false)
   const [showRegenConfirm, setShowRegenConfirm] = useState(false)
 
+  // This business's own Mastercard (MPGS) merchant profile, issued by their bank —
+  // separate from their payget merchant record. Configuring it here routes their
+  // card payments to their own settlement account instead of the platform-wide one.
+  const [mpgsConfig, setMpgsConfig] = useState<{
+    configured: boolean
+    mpgsMerchantId: string | null
+    mpgsBaseUrl: string | null
+    mpgsCurrency: string | null
+  } | null>(null)
+  const [mpgsForm, setMpgsForm] = useState({
+    mpgsMerchantId: "",
+    mpgsPassword: "",
+    mpgsBaseUrl: "",
+    mpgsCurrency: "",
+  })
+  const [isSavingMpgs, setIsSavingMpgs] = useState(false)
+  const [isClearingMpgs, setIsClearingMpgs] = useState(false)
+  const [showClearMpgsConfirm, setShowClearMpgsConfirm] = useState(false)
+
   const qrUrl = useMemo(() => {
     if (!qrConfig?.activeQr?.token) return ""
     const origin = (
@@ -86,17 +108,99 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [mRes, qrRes] = await Promise.all([
+      const [mRes, qrRes, mpgsRes] = await Promise.all([
         fetch(`/api/merchants/${id}`),
-        fetch(`/api/merchants/${id}/qr`)
+        fetch(`/api/merchants/${id}/qr`),
+        fetch(`/api/admin/merchants/${id}/mpgs-config`)
       ])
 
       if (mRes.ok) setMerchant(await mRes.json())
       if (qrRes.ok) setQrConfig(await qrRes.json())
+      if (mpgsRes.ok) {
+        const data = await mpgsRes.json()
+        setMpgsConfig(data)
+        setMpgsForm({
+          mpgsMerchantId: data.mpgsMerchantId ?? "",
+          mpgsPassword: "",
+          mpgsBaseUrl: data.mpgsBaseUrl ?? "",
+          mpgsCurrency: data.mpgsCurrency ?? "",
+        })
+      }
     } catch (error) {
       console.error("Failed to fetch configuration data:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSaveMpgsConfig = async () => {
+    if (!mpgsForm.mpgsMerchantId.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Merchant ID required",
+        description: "Enter the Mastercard merchant id this business got from their bank.",
+      })
+      return
+    }
+
+    setIsSavingMpgs(true)
+    try {
+      const response = await fetch(`/api/admin/merchants/${id}/mpgs-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mpgsMerchantId: mpgsForm.mpgsMerchantId.trim(),
+          ...(mpgsForm.mpgsPassword.trim() ? { mpgsPassword: mpgsForm.mpgsPassword.trim() } : {}),
+          mpgsBaseUrl: mpgsForm.mpgsBaseUrl.trim(),
+          mpgsCurrency: mpgsForm.mpgsCurrency.trim(),
+        })
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Mastercard gateway saved",
+          description: "This business's card payments now settle to their own account.",
+        })
+        setMpgsForm((prev) => ({ ...prev, mpgsPassword: "" }))
+        fetchData()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data?.error || "Failed to save")
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.message || "Could not save the Mastercard gateway configuration.",
+      })
+    } finally {
+      setIsSavingMpgs(false)
+    }
+  }
+
+  const doClearMpgsConfig = async () => {
+    setIsClearingMpgs(true)
+    try {
+      const response = await fetch(`/api/admin/merchants/${id}/mpgs-config`, { method: 'DELETE' })
+      if (response.ok) {
+        toast({
+          title: "Mastercard gateway removed",
+          description: "This business now falls back to the platform's shared Mastercard account.",
+        })
+        setMpgsForm({ mpgsMerchantId: "", mpgsPassword: "", mpgsBaseUrl: "", mpgsCurrency: "" })
+        fetchData()
+      } else {
+        throw new Error("Failed to clear")
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not remove the Mastercard gateway configuration.",
+      })
+    } finally {
+      setIsClearingMpgs(false)
+      setShowClearMpgsConfirm(false)
     }
   }
 
@@ -392,6 +496,103 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               </div>
             </CardContent>
           </Card>
+
+          {/* Mastercard Gateway (MPGS) Configuration */}
+          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10 overflow-hidden">
+            <CardHeader className="bg-amber-50/30 border-b border-black/5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <CardTitle className="text-base">Mastercard Gateway (MPGS)</CardTitle>
+                </div>
+                {mpgsConfig?.configured && (
+                  <Badge className="bg-emerald-500">Configured</Badge>
+                )}
+              </div>
+              <CardDescription className="text-xs text-slate-500 pt-1">
+                This business&apos;s own Mastercard merchant profile, issued by their bank — separate
+                from their payget account. Set it once they have their own MPGS merchant id and
+                password. Leave unset and card payments settle through the platform&apos;s shared
+                Mastercard account instead.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">MPGS Merchant ID</Label>
+                  <Input
+                    placeholder="e.g. TESTNIB12345"
+                    value={mpgsForm.mpgsMerchantId}
+                    onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsMerchantId: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    MPGS Password
+                    {mpgsConfig?.configured && (
+                      <span className="normal-case font-normal text-slate-400"> (leave blank to keep current)</span>
+                    )}
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder={mpgsConfig?.configured ? "••••••••" : "Password"}
+                    value={mpgsForm.mpgsPassword}
+                    onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsPassword: e.target.value })}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Settlement Currency</Label>
+                  <Input
+                    placeholder="USD"
+                    maxLength={3}
+                    value={mpgsForm.mpgsCurrency}
+                    onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsCurrency: e.target.value.toUpperCase() })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Gateway Base URL (optional)</Label>
+                  <Input
+                    placeholder="https://na-gateway.mastercard.com"
+                    value={mpgsForm.mpgsBaseUrl}
+                    onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsBaseUrl: e.target.value })}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex items-center justify-between gap-3 border-t border-black/5 bg-amber-50/10 px-6 py-4">
+              {mpgsConfig?.configured ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                  onClick={() => setShowClearMpgsConfirm(true)}
+                  disabled={isClearingMpgs}
+                >
+                  {isClearingMpgs ? (
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                  )}
+                  Remove
+                </Button>
+              ) : <span />}
+              <Button
+                onClick={handleSaveMpgsConfig}
+                disabled={isSavingMpgs}
+                className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+              >
+                {isSavingMpgs ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
 
         <div className="space-y-6">
@@ -453,6 +654,32 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
             >
               Yes, Regenerate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showClearMpgsConfirm} onOpenChange={setShowClearMpgsConfirm}>
+        <AlertDialogContent className="rounded-2xl border-none bg-white shadow-2xl">
+          <AlertDialogHeader className="items-center text-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center">
+              <Trash2 className="w-7 h-7 text-rose-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-slate-900">Remove Mastercard gateway?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This business's card payments will go back to settling through the platform's shared
+              Mastercard account instead of their own.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-row gap-3 pt-2">
+            <AlertDialogCancel className="flex-1 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={doClearMpgsConfig}
+              className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Yes, Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
