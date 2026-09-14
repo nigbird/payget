@@ -9,7 +9,7 @@ export const PaymentPayloadSchema = z.object({
   merchantId: z.string().min(1),
   transactionId: z.string().min(1),
   userCredentials: z.object({
-    phone: z.string().min(1),
+    phone: z.string().optional(),
     authToken: z.string().min(1),
   }),
   amount: z.number().finite().positive(),

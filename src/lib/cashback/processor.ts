@@ -300,6 +300,22 @@ export async function executeTransferForTransaction(cashbackTransactionId: strin
     return cashbackTx
   }
 
+  // MPGS card payments are excluded from the cashback refund rail. This guards
+  // the admin retry path against rows created before that exclusion existed.
+  const payment = await db.getTransactionById(cashbackTx.paymentTransactionId)
+  if (payment?.paymentMethod === "MPGS") {
+    const skipped = await prisma.cashbackTransaction.update({
+      where: { id: cashbackTx.id },
+      data: {
+        status: "SKIPPED",
+        skipReason: "MPGS card payments are not eligible for cashback.",
+        processedAt: new Date(),
+      },
+    })
+    await appendCashbackLog(cashbackTx.id, "INFO", "Cashback skipped - MPGS payment")
+    return skipped
+  }
+
   if (!cashbackTx.customerAccount) {
     const failed = await prisma.cashbackTransaction.update({
       where: { id: cashbackTx.id },

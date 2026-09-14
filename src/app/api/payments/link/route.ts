@@ -7,6 +7,12 @@ import { withMerchantSecret } from "@/lib/merchant-secret"
 import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
+import { createOpaqueToken } from "@/lib/opaque-tokens"
+import {
+  createMpgsPaymentLink,
+  mpgsAllowedAttempts,
+  mpgsLinkLifetimeMs,
+} from "@/lib/mpgs-client"
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null
@@ -189,6 +195,156 @@ export async function POST(request: Request) {
         transactionReference: result.transactionReference,
         status: "pending"
       }, { status: 202 })
+    }
+
+    if (paymentInput.method === "MPGS") {
+      const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/$/, "")
+      const orderId = `ORDER-${result.transactionReference}`
+      const allowedAttempts = mpgsAllowedAttempts()
+
+      const linkExpiresAt = new Date(Date.now() + mpgsLinkLifetimeMs()).toISOString()
+
+      const linkErrorToken = await createOpaqueToken(
+        "PAYMENT",
+        {
+          purpose: "MPGS_LINK_ERROR",
+          transactionId: result.tx.id,
+          transactionReference: result.transactionReference,
+        },
+        new Date(linkExpiresAt)
+      )
+
+      let mpgs: Awaited<ReturnType<typeof createMpgsPaymentLink>>
+      try {
+        mpgs = await createMpgsPaymentLink({
+          orderId,
+          amount: result.tx.amount,
+          currency: process.env.MPGS_CURRENCY?.trim() || "USD",
+          description: result.tx.serviceDescription,
+          merchantName: merchant?.name ?? "Merchant",
+          merchantUrl: baseUrl,
+          errorUrl: `${baseUrl}/api/payments/mpgs/link-error?t=${linkErrorToken}`,
+          expiryDateTime: linkExpiresAt,
+          numberOfAllowedAttempts: allowedAttempts,
+        })
+      } catch (configError) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "PAYMENT_LINK_CREATE",
+          entityType: "TRANSACTION",
+          entityId: result.tx.id,
+          newValue: {
+            result: "failed",
+            reason: "MPGS_NOT_CONFIGURED",
+            merchantId: paymentInput.merchantId,
+            transactionReference: result.transactionReference,
+          },
+        })
+        return NextResponse.json({ error: "Mastercard gateway is not configured." }, { status: 503 })
+      }
+
+      if (!mpgs.ok) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "PAYMENT_LINK_CREATE",
+          entityType: "TRANSACTION",
+          entityId: result.tx.id,
+          newValue: {
+            result: "failed",
+            reason: "MPGS_LINK_FAILED",
+            error: mpgs.error,
+            merchantId: paymentInput.merchantId,
+            merchantName: merchant?.name,
+            transactionReference: result.transactionReference,
+            orderId,
+          },
+        })
+        return NextResponse.json({ error: mpgs.error }, { status: 502 })
+      }
+
+      // Record the gateway order so settlement (RETRIEVE_ORDER) can find it later,
+      // and correct the link expiry to the gateway's own window.
+      await db.updateTransaction(result.tx.id, {
+        userCredentials: {
+          ...result.tx.userCredentials,
+          mpgs: {
+            orderId,
+            paymentLinkId: mpgs.paymentLinkId ?? null,
+            paymentLinkUrl: mpgs.paymentLinkUrl,
+            successIndicator: mpgs.successIndicator ?? null,
+            expiresAt: linkExpiresAt,
+            createdAt: new Date().toISOString(),
+          },
+          link: {
+            ...((result.tx.userCredentials as Record<string, any>)?.link ?? {}),
+            expiresAt: linkExpiresAt,
+            status: "PENDING",
+          },
+        },
+      })
+
+      let emailSent = false
+      let emailError: string | null = null
+      if (paymentInput.sendEmail) {
+        const { sendPaymentLinkEmail } = await import("@/lib/notifications")
+        const delivery = await sendPaymentLinkEmail({
+          to: paymentInput.customerEmail!,
+          merchantName: merchant?.name ?? "Merchant",
+          amount: result.tx.amount,
+          currency: process.env.MPGS_CURRENCY?.trim() || "USD",
+          description: result.tx.serviceDescription,
+          paymentUrl: mpgs.paymentLinkUrl,
+          expiresAt: linkExpiresAt,
+        })
+        emailSent = delivery.ok
+        emailError = delivery.ok ? null : delivery.error
+      }
+
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: result.tx.id,
+        newValue: {
+          result: "success",
+          status: result.tx.status,
+          paymentMethod: "MPGS",
+          merchantId: paymentInput.merchantId,
+          merchantName: merchant?.name,
+          transactionId: result.tx.id,
+          transactionReference: result.transactionReference,
+          amount: result.tx.amount,
+          orderId,
+          mpgsSessionId: mpgs.sessionId,
+          emailRequested: Boolean(paymentInput.sendEmail),
+          emailSent,
+          emailError,
+        },
+      })
+
+      if (paymentInput.sendEmail && !emailSent) {
+        return NextResponse.json(
+          {
+            error: emailError ?? "Could not send the payment link email.",
+            transactionReference: result.transactionReference,
+            linkCreated: true,
+          },
+          { status: 502 }
+        )
+      }
+
+      return NextResponse.json({
+        transactionId: result.tx.id,
+        transactionReference: result.transactionReference,
+        status: result.tx.status,
+        paymentUrl: mpgs.paymentLinkUrl,
+        orderId,
+        emailSent,
+        sentTo: emailSent ? paymentInput.customerEmail : undefined,
+      })
     }
 
     const token = result.token

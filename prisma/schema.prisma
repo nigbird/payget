@@ -689,6 +689,7 @@ model PaymentReconciliationRequest {
 enum PaymentMethod {
   BANK
   TELEBIRR
+  MPGS
 }
 
 enum TransactionStatus {
