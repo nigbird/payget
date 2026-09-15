@@ -227,6 +227,7 @@ export async function middleware(req: NextRequest) {
         ["/admin/roles", "ROLE_CREATE"],
         ["/admin/configuration", "CONFIGURATION_MANAGE"],
         ["/admin/audit-logs", "AUDIT_LOG_VIEW"],
+        ["/admin/merchants", "qr.generation.manage"],
       ]
 
       for (const [prefix, perm] of permissionChecks) {
