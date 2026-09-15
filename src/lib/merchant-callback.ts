@@ -1,4 +1,6 @@
+import { fetch } from "undici"
 import { prisma } from "@/lib/prisma"
+import { ssrfSafeDispatcher } from "@/lib/ssrf-guard"
 
 // Max immediate attempts before giving up and writing to the queue
 const IMMEDIATE_ATTEMPTS = 3
@@ -159,6 +161,10 @@ async function attemptDelivery(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal: controller.signal,
+      dispatcher: await ssrfSafeDispatcher(),
+      // Don't follow redirects: a webhook target could otherwise 3xx the
+      // request on to an internal address after passing the SSRF check.
+      redirect: "manual",
     })
     if (!res.ok) {
       return { ok: false, error: `HTTP ${res.status} ${res.statusText}` }
