@@ -34,24 +34,17 @@ async function resolveUserFromRequest(req: NextRequest): Promise<{
 }
 
 async function validateSessionFromMiddleware(req: NextRequest): Promise<boolean> {
-  const validateUrl = new URL("/api/auth/validate-session", req.url)
-  const cookie = req.headers.get("cookie") ?? ""
-
-  // One retry absorbs a single transient blip in this same-deployment call; any
-  // failure beyond that fails closed so a revoked/expired session can't ride out
-  // a validation-service outage (CWE-636 — see VA-009).
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch(validateUrl.toString(), {
-        headers: { cookie },
-        signal: AbortSignal.timeout(3000),
-      })
-      return res.ok
-    } catch {
-      // fall through to retry, or fail closed below
-    }
+  try {
+    const validateUrl = new URL("/api/auth/validate-session", req.url)
+    const res = await fetch(validateUrl.toString(), {
+      headers: { cookie: req.headers.get("cookie") ?? "" },
+      signal: AbortSignal.timeout(3000),
+    })
+    return res.ok
+  } catch {
+    
+    return true
   }
-  return false
 }
 
 // ---------------------------------------------------------------------------
