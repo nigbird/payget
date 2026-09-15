@@ -33,18 +33,44 @@ async function resolveUserFromRequest(req: NextRequest): Promise<{
   }
 }
 
-async function validateSessionFromMiddleware(req: NextRequest): Promise<boolean> {
-  try {
-    const validateUrl = new URL("/api/auth/validate-session", req.url)
-    const res = await fetch(validateUrl.toString(), {
-      headers: { cookie: req.headers.get("cookie") ?? "" },
-      signal: AbortSignal.timeout(3000),
-    })
-    return res.ok
-  } catch {
-    
-    return true
+// Behind this deployment's reverse proxy, req.url's host resolves to the public
+// hostname, so a loopback fetch built from it forces the server to call back out
+// to itself through the proxy/WAF instead of hitting itself directly — a call
+// that can fail even though the app is perfectly healthy. request-security.ts's
+// requireCsrf hits the same problem and already prefers a configured app URL
+// over anything request-derived; reuse that here instead of req.url.
+function internalBaseUrl(req: NextRequest): string {
+  const configured =
+    process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL
+  if (configured) {
+    try {
+      return new URL(configured).toString()
+    } catch {
+      // fall through to req.url below
+    }
   }
+  return req.url
+}
+
+async function validateSessionFromMiddleware(req: NextRequest): Promise<boolean> {
+  const validateUrl = new URL("/api/auth/validate-session", internalBaseUrl(req))
+  const cookie = req.headers.get("cookie") ?? ""
+
+  // One retry absorbs a single transient blip in this same-deployment call; any
+  // failure beyond that fails closed so a revoked/expired session can't ride out
+  // a validation-service outage (CWE-636 — see VA-009).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(validateUrl.toString(), {
+        headers: { cookie },
+        signal: AbortSignal.timeout(3000),
+      })
+      return res.ok
+    } catch {
+      // fall through to retry, or fail closed below
+    }
+  }
+  return false
 }
 
 // ---------------------------------------------------------------------------
