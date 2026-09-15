@@ -2,7 +2,7 @@ import { safeJsonParse } from "@/lib/json-utils";
 import { db } from "@/lib/db";
 import { withMerchantSecret } from "@/lib/merchant-secret";
 
-const DEFAULT_BASE_URL = "https://natest-gateway.mastercard.com";
+const DEFAULT_BASE_URL = "https://test-gateway.mastercard.com";
 const DEFAULT_API_VERSION = "100";
 const DEFAULT_CURRENCY = "USD";
 
