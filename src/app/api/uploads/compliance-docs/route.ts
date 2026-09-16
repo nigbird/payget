@@ -328,8 +328,26 @@ export async function POST(request: Request) {
         name: file.name,
         type: file.type,
         size: file.size,
-        url: `/api/uploads/compliance-docs/${filename}`,
+        url: registrationId
+          ? `/api/uploads/compliance-docs/${filename}?regId=${registrationId}`
+          : `/api/uploads/compliance-docs/${filename}`,
         uploadedAt: new Date().toISOString()
+      })
+
+      // Records exactly who is entitled to fetch this specific file back before it is
+      // ever linked to a MerchantDocument row (e.g. mid-registration preview): either the
+      // guest registration session that uploaded it, or the authenticated user who did.
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "COMPLIANCE_DOC_UPLOAD_FILE",
+        entityType: "DOCUMENT",
+        entityId: filename,
+        newValue: {
+          result: "success",
+          registrationId: registrationId ?? null,
+          uploaderUserId: actorUserId,
+        },
       })
     }
 
