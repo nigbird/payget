@@ -1727,7 +1727,23 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           onEscapeKeyDown={preventSuccessModalDismiss}
         >
           <div className="p-5 text-center border-b border-slate-50">
-            {lastMode === "link" ? (
+            {lastMode === "link" && generatedResult?.method === "MPGS" && currentTxStatus === "success" ? (
+              <>
+                <div className="mx-auto w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-bold text-emerald-800 tracking-tight leading-none">Payment Received</h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">Funds captured by the card gateway.</p>
+              </>
+            ) : lastMode === "link" && generatedResult?.method === "MPGS" && currentTxStatus === "failed" ? (
+              <>
+                <div className="mx-auto w-10 h-10 bg-rose-50 rounded-full flex items-center justify-center mb-3">
+                  <ShieldAlert className="w-5 h-5 text-rose-600" />
+                </div>
+                <h3 className="text-lg font-bold text-rose-800 tracking-tight leading-none">Payment Failed</h3>
+                <p className="text-slate-500 mt-1.5 text-[11px]">The card payment did not complete.</p>
+              </>
+            ) : lastMode === "link" ? (
               <>
                 <div className="mx-auto w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
                   {generatedResult?.method === "MPGS" && mpgsView === "qr" ? (
@@ -1789,74 +1805,72 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
             {lastMode === "link" && generatedResult?.method === "MPGS" ? (
               <>
-                {mpgsView === "qr" ? (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="p-4 bg-white rounded-2xl border border-amber-200/60 shadow-sm">
-                      <QRCodeCanvas
-                        value={mpgsLink?.paymentUrl ?? ""}
-                        size={180}
-                        level="H"
-                        includeMargin
-                        bgColor="#FFFFFF"
-                        fgColor="#000000"
-                      />
+                {currentTxStatus === "success" ? (
+                  <div className="flex flex-col items-center gap-2 p-5 rounded-xl bg-emerald-50/50 border border-emerald-100">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                     </div>
-                    <p className="text-[11px] text-slate-500 text-center leading-relaxed px-2">
-                      Ask the customer to scan this code with their phone camera to open the
-                      secure card payment page.
+                    <p className="text-xs font-bold text-emerald-800 text-center leading-snug">
+                      Payment received. Funds captured by the card gateway.
+                    </p>
+                  </div>
+                ) : currentTxStatus === "failed" ? (
+                  <div className="flex flex-col items-center gap-2 p-5 rounded-xl bg-rose-50/50 border border-rose-100">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                      <ShieldAlert className="w-5 h-5 text-rose-600" />
+                    </div>
+                    <p className="text-xs font-bold text-rose-800 text-center leading-snug">
+                      Payment failed. The card payment did not complete.
                     </p>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-emerald-50/50 border border-emerald-100">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <p className="text-xs font-bold text-emerald-800 text-center leading-snug">
-                      Payment link sent successfully to customer email.
-                    </p>
-                    {mpgsSentTo && (
-                      <p className="text-[11px] font-medium text-slate-600 break-all text-center">
-                        {mpgsSentTo}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div
-                  className={`flex items-center gap-2.5 p-3 rounded-xl border shadow-sm ${
-                    currentTxStatus === "success"
-                      ? "bg-emerald-50/50 border-emerald-100"
-                      : currentTxStatus === "failed"
-                      ? "bg-rose-50/50 border-rose-100"
-                      : "bg-slate-100/50 border-slate-200"
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shrink-0">
-                    {currentTxStatus === "success" ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    ) : currentTxStatus === "failed" ? (
-                      <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                  <>
+                    {mpgsView === "qr" ? (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="p-4 bg-white rounded-2xl border border-amber-200/60 shadow-sm">
+                          <QRCodeCanvas
+                            value={mpgsLink?.paymentUrl ?? ""}
+                            size={180}
+                            level="H"
+                            includeMargin
+                            bgColor="#FFFFFF"
+                            fgColor="#000000"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-500 text-center leading-relaxed px-2">
+                          Ask the customer to scan this code with their phone camera to open the
+                          secure card payment page.
+                        </p>
+                      </div>
                     ) : (
-                      <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                      <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-emerald-50/50 border border-emerald-100">
+                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                          <Mail className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <p className="text-xs font-bold text-emerald-800 text-center leading-snug">
+                          Payment link sent successfully to customer email.
+                        </p>
+                        {mpgsSentTo && (
+                          <p className="text-[11px] font-medium text-slate-600 break-all text-center">
+                            {mpgsSentTo}
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                  <div className="text-[10px] text-slate-700">
-                    <p className="font-bold text-slate-900 leading-tight">
-                      {currentTxStatus === "success"
-                        ? "Payment received"
-                        : currentTxStatus === "failed"
-                        ? "Payment failed"
-                        : "Waiting for customer payment"}
-                    </p>
-                    <p className="text-slate-500 mt-0.5 leading-tight">
-                      {currentTxStatus === "success"
-                        ? "Funds captured by the card gateway."
-                        : currentTxStatus === "failed"
-                        ? "The card payment did not complete."
-                        : "Status refreshes automatically while this dialog is open."}
-                    </p>
-                  </div>
-                </div>
+
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl border shadow-sm bg-slate-100/50 border-slate-200">
+                      <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shrink-0">
+                        <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                      </div>
+                      <div className="text-[10px] text-slate-700">
+                        <p className="font-bold text-slate-900 leading-tight">Waiting for customer payment</p>
+                        <p className="text-slate-500 mt-0.5 leading-tight">
+                          Status refreshes automatically while this dialog is open.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             ) : lastMode === "link" ? (
               <>
