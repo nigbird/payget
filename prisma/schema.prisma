@@ -42,6 +42,8 @@ model User {
   reviewedPaymentEligibilityImports    PaymentEligibilityImport[]     @relation("PaymentEligibilityReviewer")
   madePaymentReconciliationRequests    PaymentReconciliationRequest[] @relation("PaymentReconciliationRequestMaker")
   checkedPaymentReconciliationRequests PaymentReconciliationRequest[] @relation("PaymentReconciliationRequestChecker")
+  madeMpgsReconciliationRequests       MpgsReconciliationRequest[]    @relation("MpgsReconciliationRequestMaker")
+  checkedMpgsReconciliationRequests    MpgsReconciliationRequest[]    @relation("MpgsReconciliationRequestChecker")
   createdAt                            DateTime                       @default(now())
   updatedAt                            DateTime                       @updatedAt
 }
@@ -645,6 +647,7 @@ model Transaction {
   providerStatusCode     String?
   providerStatusDesc     String?
   reconciliationRequests PaymentReconciliationRequest[]
+  mpgsReconciliationRequests MpgsReconciliationRequest[]
   items                  TransactionItem[]
   printInfo              OrderPrintInfo?
 
@@ -689,6 +692,40 @@ model PaymentReconciliationRequest {
   checkedAt      DateTime?
   createdAt      DateTime                           @default(now())
   updatedAt      DateTime                           @updatedAt
+
+  @@index([transactionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum MpgsReconciliationRequestStatus {
+  PENDING
+  REJECTED
+  EXECUTED
+}
+
+/// Maker/checker record for re-querying the MPGS gateway on a card transaction
+/// that never received a callback. Unlike PaymentReconciliationRequest, the
+/// maker supplies no evidence — the gateway itself is the evidence. Approval
+/// re-checks the gateway at that moment and settles, expires, or closes the
+/// transaction according to whatever it currently reports.
+model MpgsReconciliationRequest {
+  id             String                          @id @default(cuid())
+  transactionId  String
+  transaction    Transaction                     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  previousStatus String
+  reason         String
+  comments       String?
+  status         MpgsReconciliationRequestStatus @default(PENDING)
+  /// Outcome of settleMpgsTransaction() as run at approval time (e.g. "settled", "expired", "pending").
+  resultAction   String?
+  makerId        String
+  maker          User                            @relation("MpgsReconciliationRequestMaker", fields: [makerId], references: [id])
+  checkerId      String?
+  checker        User?                           @relation("MpgsReconciliationRequestChecker", fields: [checkerId], references: [id])
+  checkedAt      DateTime?
+  createdAt      DateTime                        @default(now())
+  updatedAt      DateTime                        @updatedAt
 
   @@index([transactionId])
   @@index([status])

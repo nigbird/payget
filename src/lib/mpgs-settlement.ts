@@ -484,6 +484,31 @@ export async function closeMpgsLinkError(
 }
 
 
+/** True if this transaction is still open at the gateway (or a recoverable attempt-failure). */
+export function isMpgsReconciliationCandidate(tx: Transaction): boolean {
+  return (
+    tx.paymentMethod === "MPGS" &&
+    (!TERMINAL_STATUSES.has(tx.status) || isRecoverableAttemptFailure(tx))
+  )
+}
+
+/**
+ * MPGS transactions that are open (or a recoverable attempt-failure) within
+ * the reconcile age window — the same pool `reconcileMpgsTransactions` works
+ * through, exposed for read-only display (e.g. the reconciliation console).
+ */
+export async function listMpgsReconciliationCandidates(options?: {
+  limit?: number
+}): Promise<Transaction[]> {
+  const { limit = 500 } = options ?? {}
+
+  const minTimestamp = new Date(Date.now() - MAX_RECONCILE_AGE_DAYS * 86_400_000)
+
+  return (await db.getTransactions({ minTimestamp, limit: 1000 }))
+    .filter(isMpgsReconciliationCandidate)
+    .slice(0, limit)
+}
+
 export async function reconcileMpgsTransactions(options?: {
   maxTransactions?: number
   request?: Request
@@ -491,17 +516,7 @@ export async function reconcileMpgsTransactions(options?: {
 }) {
   const { maxTransactions = 200 } = options ?? {}
 
-  const minTimestamp = new Date(Date.now() - MAX_RECONCILE_AGE_DAYS * 86_400_000)
-
-  const candidates = (
-    await db.getTransactions({ minTimestamp, limit: 1000 })
-  )
-    .filter(
-      (tx) =>
-        tx.paymentMethod === "MPGS" &&
-        (!TERMINAL_STATUSES.has(tx.status) || isRecoverableAttemptFailure(tx))
-    )
-    .slice(0, maxTransactions)
+  const candidates = await listMpgsReconciliationCandidates({ limit: maxTransactions })
 
   const results: MpgsSettlementResult[] = []
   for (const tx of candidates) {

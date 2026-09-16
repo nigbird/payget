@@ -37,9 +37,9 @@ const mainMenuItems = [
   { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_VIEW" },
   { name: "Merchant Onboarding", href: "/admin/onboarding", icon: UserPlus, permission: "MERCHANT_REGISTER" },
   { name: "Review & Approvals", href: "/admin/review", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
-  // Payments and cashback share one console; either view permission opens it.
-  { name: "Reconciliation", href: "/admin/reconciliation", icon: ReceiptText, anyPermission: ["payment.reconciliation.view", "cashback.reconciliation.view"] },
-  { name: "QR Generation", href: "/admin/merchants", icon: Settings, permission: "qr.generation.manage" },
+  // Payments, cashback, and card (MPGS) share one console; any view permission opens it.
+  { name: "Reconciliation", href: "/admin/reconciliation", icon: ReceiptText, anyPermission: ["payment.reconciliation.view", "cashback.reconciliation.view", "mpgs.reconciliation.view"] },
+  { name: "Merchant Configuration", href: "/admin/merchants", icon: Settings, permission: "qr.generation.manage" },
 ]
 
 const adminMenuItems = [

@@ -40,7 +40,10 @@ export async function GET(request: Request) {
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
     const offset = (page - 1) * limit;
 
-    const where: any = { status: { in: [...UNRESOLVED_STATUSES] } };
+    // Card transactions are reconciled by re-querying the gateway (see the
+    // Card/MPGS tab and /api/admin/mpgs-reconciliation) — this FT-based flow
+    // is for BANK/TELEBIRR receipts and has no way to verify a card payment.
+    const where: any = { status: { in: [...UNRESOLVED_STATUSES] }, paymentMethod: { not: 'MPGS' } };
 
     if (merchantId) {
       where.merchantId = merchantId;
@@ -98,7 +101,7 @@ export async function GET(request: Request) {
     });
 
     const [unresolved, settledByFt, pendingRequests] = await Promise.all([
-      prisma.transaction.count({ where: { status: { in: [...UNRESOLVED_STATUSES] } } }),
+      prisma.transaction.count({ where: { status: { in: [...UNRESOLVED_STATUSES] }, paymentMethod: { not: 'MPGS' } } }),
       prisma.paymentReconciliationRequest.count({ where: { status: 'EXECUTED' } }),
       prisma.paymentReconciliationRequest.count({ where: { status: 'PENDING' } }),
     ]);
@@ -174,6 +177,13 @@ export async function POST(request: Request) {
       const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
       if (!transaction) {
         return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+      }
+
+      if (transaction.paymentMethod === 'MPGS') {
+        return NextResponse.json(
+          { error: 'Card transactions are reconciled from the Card (MPGS) tab, not by FT.' },
+          { status: 400 }
+        );
       }
 
       if (transaction.status === 'SUCCESS' || transaction.status === 'FAILED') {

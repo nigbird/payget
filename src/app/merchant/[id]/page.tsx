@@ -1813,6 +1813,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     <p className="text-xs font-bold text-emerald-800 text-center leading-snug">
                       Payment received. Funds captured by the card gateway.
                     </p>
+                    {mpgsSentTo && (
+                      <p className="text-[11px] font-medium text-slate-600 break-all text-center">
+                        {mpgsSentTo}
+                      </p>
+                    )}
                   </div>
                 ) : currentTxStatus === "failed" ? (
                   <div className="flex flex-col items-center gap-2 p-5 rounded-xl bg-rose-50/50 border border-rose-100">
@@ -1822,6 +1827,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     <p className="text-xs font-bold text-rose-800 text-center leading-snug">
                       Payment failed. The card payment did not complete.
                     </p>
+                    {mpgsSentTo && (
+                      <p className="text-[11px] font-medium text-slate-600 break-all text-center">
+                        {mpgsSentTo}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <>

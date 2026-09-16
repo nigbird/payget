@@ -51,6 +51,10 @@ async function main() {
     { name: 'payment.reconciliation.view', category: 'TRANSACTION', description: 'View unresolved payments and reconciliation requests' },
     { name: 'payment.reconciliation.request', category: 'TRANSACTION', description: 'Submit an FT from a bank receipt to settle a payment (maker)' },
     { name: 'payment.reconciliation.manage', category: 'TRANSACTION', description: 'Approve or reject payment reconciliation requests (checker)' },
+    { name: 'mpgs.reconciliation.view', category: 'TRANSACTION', description: 'View open card (MPGS) transactions and their reconciliation requests' },
+    { name: 'mpgs.reconciliation.request', category: 'TRANSACTION', description: 'Request that a card transaction be re-checked with the gateway (maker)' },
+    { name: 'mpgs.reconciliation.manage', category: 'TRANSACTION', description: 'Approve or reject card reconciliation requests (checker)' },
+    { name: 'mpgs.reconciliation.export', category: 'TRANSACTION', description: 'Export card (MPGS) reconciliation reports' },
     { name: 'qr.generation.manage', category: 'MERCHANT', description: 'Manage QR code generation and merchant configuration' },
   ]
 
@@ -69,7 +73,7 @@ async function main() {
     {
       name: 'Super Admin',
       description: 'Full system access',
-      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_REQUEST', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW', 'cashback.reconciliation.view', 'cashback.reconciliation.retry', 'cashback.reconciliation.export', 'cashback.reconciliation.manual_review', 'cashback.reconciliation.manage', 'cashback.eligible.view', 'payment.reconciliation.view', 'payment.reconciliation.request', 'payment.reconciliation.manage', 'qr.generation.manage']
+      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_REQUEST', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW', 'cashback.reconciliation.view', 'cashback.reconciliation.retry', 'cashback.reconciliation.export', 'cashback.reconciliation.manual_review', 'cashback.reconciliation.manage', 'cashback.eligible.view', 'payment.reconciliation.view', 'payment.reconciliation.request', 'payment.reconciliation.manage', 'mpgs.reconciliation.view', 'mpgs.reconciliation.request', 'mpgs.reconciliation.manage', 'mpgs.reconciliation.export', 'qr.generation.manage']
     },
 
     {

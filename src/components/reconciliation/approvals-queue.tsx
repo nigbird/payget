@@ -13,13 +13,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 
 /**
- * One inbox for everything awaiting a checker, across both payment and cashback
- * reconciliation. A checker cares about what needs deciding, not which subsystem
- * it came from — so both request types are listed together and each row routes
- * its approve/reject to the endpoint that owns it.
+ * One inbox for everything awaiting a checker, across payment, cashback, and
+ * card (MPGS) reconciliation. A checker cares about what needs deciding, not
+ * which subsystem it came from — so all request types are listed together and
+ * each row routes its approve/reject to the endpoint that owns it.
  */
 
-type Kind = 'PAYMENT' | 'CASHBACK'
+type Kind = 'PAYMENT' | 'CASHBACK' | 'MPGS'
 
 type QueueRow = {
   kind: Kind
@@ -41,6 +41,7 @@ type QueueRow = {
 const ENDPOINTS: Record<Kind, string> = {
   PAYMENT: '/api/admin/payment-reconciliation',
   CASHBACK: '/api/admin/cashback-reconciliation',
+  MPGS: '/api/admin/mpgs-reconciliation',
 }
 
 const CASHBACK_ACTION_LABELS: Record<string, string> = {
@@ -52,13 +53,17 @@ const CASHBACK_ACTION_LABELS: Record<string, string> = {
 export function ApprovalsQueue({
   canManagePayments,
   canManageCashback,
+  canManageMpgs,
   canViewPayments,
   canViewCashback,
+  canViewMpgs,
 }: {
   canManagePayments: boolean
   canManageCashback: boolean
+  canManageMpgs: boolean
   canViewPayments: boolean
   canViewCashback: boolean
+  canViewMpgs: boolean
 }) {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -72,12 +77,15 @@ export function ApprovalsQueue({
   const fetchQueue = useCallback(async () => {
     setIsLoading(true)
     try {
-      const [paymentRes, cashbackRes] = await Promise.all([
+      const [paymentRes, cashbackRes, mpgsRes] = await Promise.all([
         canViewPayments
           ? fetch('/api/admin/payment-reconciliation?limit=1').then((r) => (r.ok ? r.json() : null))
           : Promise.resolve(null),
         canViewCashback
           ? fetch('/api/admin/cashback-reconciliation?limit=1').then((r) => (r.ok ? r.json() : null))
+          : Promise.resolve(null),
+        canViewMpgs
+          ? fetch('/api/admin/mpgs-reconciliation?limit=1').then((r) => (r.ok ? r.json() : null))
           : Promise.resolve(null),
       ])
 
@@ -109,8 +117,22 @@ export function ApprovalsQueue({
         createdAt: r.createdAt,
       }))
 
+      const mpgsRows: QueueRow[] = (mpgsRes?.requests ?? []).map((r: any) => ({
+        kind: 'MPGS' as const,
+        id: r.id,
+        reference: r.transaction?.transactionReference ?? '—',
+        merchantName: r.transaction?.merchant?.name ?? '—',
+        evidence: 'Gateway check',
+        action: 'Re-check with gateway',
+        amount: r.transaction?.amount ?? null,
+        reason: r.reason,
+        makerId: r.maker?.id,
+        makerName: r.maker?.name || r.maker?.email || '—',
+        createdAt: r.createdAt,
+      }))
+
       setRows(
-        [...paymentRows, ...cashbackRows].sort(
+        [...paymentRows, ...cashbackRows, ...mpgsRows].sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         )
       )
@@ -119,7 +141,7 @@ export function ApprovalsQueue({
     } finally {
       setIsLoading(false)
     }
-  }, [canViewPayments, canViewCashback, toast])
+  }, [canViewPayments, canViewCashback, canViewMpgs, toast])
 
   useEffect(() => {
     fetchQueue()
@@ -127,7 +149,9 @@ export function ApprovalsQueue({
 
   const canActOn = (row: QueueRow) => {
     if (row.makerId === user?.id) return false
-    return row.kind === 'PAYMENT' ? canManagePayments : canManageCashback
+    if (row.kind === 'PAYMENT') return canManagePayments
+    if (row.kind === 'CASHBACK') return canManageCashback
+    return canManageMpgs
   }
 
   const handleReview = async (row: QueueRow, approve: boolean) => {
@@ -150,7 +174,9 @@ export function ApprovalsQueue({
           description: approve
             ? row.kind === 'PAYMENT'
               ? `Payment settled against FT ${row.evidence}. Cashback processing triggered.`
-              : 'The cashback request has been executed.'
+              : row.kind === 'CASHBACK'
+                ? 'The cashback request has been executed.'
+                : 'The gateway has been re-checked.'
             : 'The request has been rejected.',
         })
         setSelected(null)
@@ -217,10 +243,12 @@ export function ApprovalsQueue({
                         className={
                           row.kind === 'PAYMENT'
                             ? 'border-blue-200 bg-blue-50 text-blue-700'
-                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : row.kind === 'CASHBACK'
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-purple-200 bg-purple-50 text-purple-700'
                         }
                       >
-                        {row.kind === 'PAYMENT' ? 'Payment' : 'Cashback'}
+                        {row.kind === 'PAYMENT' ? 'Payment' : row.kind === 'CASHBACK' ? 'Cashback' : 'Card'}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{row.reference}</TableCell>
@@ -261,7 +289,9 @@ export function ApprovalsQueue({
             <DialogDescription>
               {selected?.kind === 'PAYMENT'
                 ? 'Approving marks the payment successful against this FT and triggers cashback processing.'
-                : 'Approving executes this cashback request.'}
+                : selected?.kind === 'CASHBACK'
+                  ? 'Approving executes this cashback request.'
+                  : 'Approving re-checks this transaction with the gateway right now and settles, expires, or closes it based on what it reports.'}
             </DialogDescription>
           </DialogHeader>
 
