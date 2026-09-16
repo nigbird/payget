@@ -29,6 +29,10 @@ const permissionsData = [
   { name: 'payment.reconciliation.view', category: 'TRANSACTION', description: 'View unresolved payments and reconciliation requests' },
   { name: 'payment.reconciliation.request', category: 'TRANSACTION', description: 'Submit an FT from a bank receipt to settle a payment (maker)' },
   { name: 'payment.reconciliation.manage', category: 'TRANSACTION', description: 'Approve or reject payment reconciliation requests (checker)' },
+  { name: 'mpgs.reconciliation.view', category: 'TRANSACTION', description: 'View open card (MPGS) transactions and their reconciliation requests' },
+  { name: 'mpgs.reconciliation.request', category: 'TRANSACTION', description: 'Request that a card transaction be re-checked with the gateway (maker)' },
+  { name: 'mpgs.reconciliation.manage', category: 'TRANSACTION', description: 'Approve or reject card reconciliation requests (checker)' },
+  { name: 'mpgs.reconciliation.export', category: 'TRANSACTION', description: 'Export card (MPGS) reconciliation reports' },
   { name: 'qr.generation.manage', category: 'MERCHANT', description: 'Manage QR code generation and merchant configuration' },
 ]
 
