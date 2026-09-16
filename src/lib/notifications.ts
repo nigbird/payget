@@ -222,6 +222,9 @@ export async function sendPaymentLinkEmail(params: {
       port: parseInt(process.env.SMTP_PORT || '465'),
       secure: process.env.SMTP_SECURE === 'true',
       auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false,
+      },
     });
 
     const info = await transporter.sendMail({
