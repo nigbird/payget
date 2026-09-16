@@ -1027,29 +1027,6 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 </div>
                 <div className="relative">
                   <RadioGroupItem
-                    value="TELEBIRR"
-                    id="telebirr"
-                    className="peer sr-only"
-                    disabled
-                  />
-                  <Label
-                    htmlFor="telebirr"
-                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[80px]"
-                  >
-                    <span className="flex items-center justify-center w-10 h-10 mb-1 rounded-lg bg-white border border-slate-200">
-                      <img
-                        src="/telebirr.png"
-                        alt="Telebirr"
-                        width={32}
-                        height={32}
-                        className="object-contain"
-                      />
-                    </span>
-                    <span className="mt-1 text-[10px] font-medium text-slate-700">Telebirr</span>
-                  </Label>
-                </div>
-                <div className="relative">
-                  <RadioGroupItem
                     value="MPGS"
                     id="mpgs"
                     className="peer sr-only"
@@ -1070,6 +1047,29 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <div className="absolute top-1.5 right-1.5 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
                     <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
                   </div>
+                </div>
+                <div className="relative">
+                  <RadioGroupItem
+                    value="TELEBIRR"
+                    id="telebirr"
+                    className="peer sr-only"
+                    disabled
+                  />
+                  <Label
+                    htmlFor="telebirr"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[80px]"
+                  >
+                    <span className="flex items-center justify-center w-10 h-10 mb-1 rounded-lg bg-white border border-slate-200">
+                      <img
+                        src="/telebirr.png"
+                        alt="Telebirr"
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                      />
+                    </span>
+                    <span className="mt-1 text-[10px] font-medium text-slate-700">Telebirr</span>
+                  </Label>
                 </div>
               </RadioGroup>
             </div>
