@@ -596,7 +596,7 @@ export function ItemsTab({ merchantId }: Props) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price (ETB)</Label>
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price</Label>
               <Input
                 value={itemForm.price}
                 onChange={(e) => {

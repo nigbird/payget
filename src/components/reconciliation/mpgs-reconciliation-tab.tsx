@@ -101,7 +101,7 @@ function resultActionLabel(action: string | null) {
 }
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(amount)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
 
 function formatDate(value: string) {
@@ -230,7 +230,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
 
       downloadCsv(
         'mpgs-open-transactions',
-        ['Reference', 'Merchant', 'Amount (ETB)', 'Payer', 'Status', 'Gateway status', 'Initiated'],
+        ['Reference', 'Merchant', 'Amount (USD)', 'Payer', 'Status', 'Gateway status', 'Initiated'],
         rows.map((tx) => [
           tx.transactionReference,
           tx.merchant?.name || '',
