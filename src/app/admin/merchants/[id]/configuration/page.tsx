@@ -88,6 +88,23 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [isClearingMpgs, setIsClearingMpgs] = useState(false)
   const [showClearMpgsConfirm, setShowClearMpgsConfirm] = useState(false)
 
+  // This business's own YagoutPay account. Same idea as the MPGS block above:
+  // set it and their Yagout payments settle to their own account, leave it and
+  // they fall back to the platform's shared one.
+  const [yagoutConfig, setYagoutConfig] = useState<{
+    configured: boolean
+    yagoutMeId: string | null
+    yagoutPostUrl: string | null
+  } | null>(null)
+  const [yagoutForm, setYagoutForm] = useState({
+    yagoutMeId: "",
+    yagoutEncryptionKey: "",
+    yagoutPostUrl: "",
+  })
+  const [isSavingYagout, setIsSavingYagout] = useState(false)
+  const [isClearingYagout, setIsClearingYagout] = useState(false)
+  const [showClearYagoutConfirm, setShowClearYagoutConfirm] = useState(false)
+
   const qrUrl = useMemo(() => {
     if (!qrConfig?.activeQr?.token) return ""
     const origin = (
@@ -108,10 +125,11 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [mRes, qrRes, mpgsRes] = await Promise.all([
+      const [mRes, qrRes, mpgsRes, yagoutRes] = await Promise.all([
         fetch(`/api/merchants/${id}`),
         fetch(`/api/merchants/${id}/qr`),
-        fetch(`/api/admin/merchants/${id}/mpgs-config`)
+        fetch(`/api/admin/merchants/${id}/mpgs-config`),
+        fetch(`/api/admin/merchants/${id}/yagout-config`)
       ])
 
       if (mRes.ok) setMerchant(await mRes.json())
@@ -124,6 +142,16 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           mpgsPassword: "",
           mpgsBaseUrl: data.mpgsBaseUrl ?? "",
           mpgsCurrency: data.mpgsCurrency ?? "",
+        })
+      }
+      if (yagoutRes.ok) {
+        const data = await yagoutRes.json()
+        setYagoutConfig(data)
+        // The key is never returned by the API, so the field always starts blank.
+        setYagoutForm({
+          yagoutMeId: data.yagoutMeId ?? "",
+          yagoutEncryptionKey: "",
+          yagoutPostUrl: data.yagoutPostUrl ?? "",
         })
       }
     } catch (error) {
@@ -201,6 +229,81 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     } finally {
       setIsClearingMpgs(false)
       setShowClearMpgsConfirm(false)
+    }
+  }
+
+  const handleSaveYagoutConfig = async () => {
+    if (!yagoutForm.yagoutMeId.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Merchant ID required",
+        description: "Enter the me_id YagoutPay issued for this business.",
+      })
+      return
+    }
+
+    setIsSavingYagout(true)
+    try {
+      const response = await fetch(`/api/admin/merchants/${id}/yagout-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          yagoutMeId: yagoutForm.yagoutMeId.trim(),
+          ...(yagoutForm.yagoutEncryptionKey.trim()
+            ? { yagoutEncryptionKey: yagoutForm.yagoutEncryptionKey.trim() }
+            : {}),
+          yagoutPostUrl: yagoutForm.yagoutPostUrl.trim(),
+        })
+      })
+
+      if (response.ok) {
+        toast({
+          title: "YagoutPay saved",
+          description: "This business's Yagout payments now settle to their own account.",
+        })
+        setYagoutForm((prev) => ({ ...prev, yagoutEncryptionKey: "" }))
+        fetchData()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        // The API validates the key decodes to 32 bytes, so surface that reason
+        // rather than a generic failure — a mistyped key is the likely cause.
+        const detail = data?.details?.fieldErrors?.yagoutEncryptionKey?.[0]
+        throw new Error(detail || data?.error || "Failed to save")
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error?.message || "Could not save the YagoutPay configuration.",
+      })
+    } finally {
+      setIsSavingYagout(false)
+    }
+  }
+
+  const doClearYagoutConfig = async () => {
+    setIsClearingYagout(true)
+    try {
+      const response = await fetch(`/api/admin/merchants/${id}/yagout-config`, { method: 'DELETE' })
+      if (response.ok) {
+        toast({
+          title: "YagoutPay removed",
+          description: "This business now falls back to the platform's shared Yagout account.",
+        })
+        setYagoutForm({ yagoutMeId: "", yagoutEncryptionKey: "", yagoutPostUrl: "" })
+        fetchData()
+      } else {
+        throw new Error("Failed to clear")
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not remove the YagoutPay configuration.",
+      })
+    } finally {
+      setIsClearingYagout(false)
+      setShowClearYagoutConfirm(false)
     }
   }
 
@@ -593,6 +696,100 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               </Button>
             </CardFooter>
           </Card>
+
+          {/* YagoutPay Configuration */}
+          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10 overflow-hidden">
+            <CardHeader className="bg-amber-50/30 border-b border-black/5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <CardTitle className="text-base">YagoutPay</CardTitle>
+                </div>
+                {yagoutConfig?.configured && (
+                  <Badge className="bg-emerald-500">Configured</Badge>
+                )}
+              </div>
+              <CardDescription className="text-xs text-slate-500 pt-1">
+                This business&apos;s own YagoutPay account, issued by Yagout. Payments settle in
+                birr. Leave unset and Yagout payments go through the platform&apos;s shared account
+                instead.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Merchant ID (me_id)</Label>
+                  <Input
+                    placeholder="e.g. 202505060003"
+                    value={yagoutForm.yagoutMeId}
+                    onChange={(e) => setYagoutForm({ ...yagoutForm, yagoutMeId: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Encryption Key
+                    {yagoutConfig?.configured && (
+                      <span className="normal-case font-normal text-slate-400"> (leave blank to keep current)</span>
+                    )}
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder={yagoutConfig?.configured ? "••••••••" : "Base64 AES-256 key from Yagout"}
+                    value={yagoutForm.yagoutEncryptionKey}
+                    onChange={(e) => setYagoutForm({ ...yagoutForm, yagoutEncryptionKey: e.target.value })}
+                    autoComplete="new-password"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    Paste exactly as Yagout issued it, including any trailing &quot;=&quot;.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Post URL (optional)</Label>
+                  <Input
+                    placeholder="https://checkout.yagoutpay.com/..."
+                    value={yagoutForm.yagoutPostUrl}
+                    onChange={(e) => setYagoutForm({ ...yagoutForm, yagoutPostUrl: e.target.value })}
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    Yagout issues separate test and live endpoints. Leave blank to use the
+                    platform default.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex items-center justify-between gap-3 border-t border-black/5 bg-amber-50/10 px-6 py-4">
+              {yagoutConfig?.configured ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                  onClick={() => setShowClearYagoutConfirm(true)}
+                  disabled={isClearingYagout}
+                >
+                  {isClearingYagout ? (
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                  )}
+                  Remove
+                </Button>
+              ) : <span />}
+              <Button
+                onClick={handleSaveYagoutConfig}
+                disabled={isSavingYagout}
+                className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+              >
+                {isSavingYagout ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
 
         <div className="space-y-6">
@@ -677,6 +874,33 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={doClearMpgsConfig}
+              className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Yes, Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showClearYagoutConfirm} onOpenChange={setShowClearYagoutConfirm}>
+        <AlertDialogContent className="rounded-2xl border-none bg-white shadow-2xl">
+          <AlertDialogHeader className="items-center text-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center">
+              <Trash2 className="w-7 h-7 text-rose-600" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-slate-900">Remove YagoutPay account?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This business&apos;s Yagout payments will go back to settling through the platform&apos;s
+              shared account instead of their own. The stored encryption key is deleted and will
+              have to be entered again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-row gap-3 pt-2">
+            <AlertDialogCancel className="flex-1 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={doClearYagoutConfig}
               className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
             >
               Yes, Remove

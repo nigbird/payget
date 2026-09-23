@@ -218,7 +218,7 @@ function mapMerchant(
   options?: { includeSecret?: boolean }
 ): Merchant {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, passwordResetToken, passwordResetExpires, jweSecret, mpgsPassword, yagoutEncryptionKey, ...safeMerchant } = m as any;
+  const { password, passwordResetToken, passwordResetExpires, jweSecret, mpgsPassword, yagoutEncryptionKey, ...safeMerchant } = m;
 
   return {
     ...safeMerchant,
@@ -573,16 +573,30 @@ export const db = {
     });
   },
 
+  /**
+   * Finds the merchant configured with a given Yagout me_id. A Yagout return
+   * post identifies itself only by me_id, so this is how the decryption key is
+   * located before anything in the body can be read.
+   *
+   * findFirst rather than findUnique: me_id is not constrained unique, and two
+   * merchants sharing one would necessarily share its key, so either row
+   * resolves the same key.
+   */
+  findMerchantByYagoutMeId: async (meId: string) => {
+    const trimmed = meId.trim()
+    if (!trimmed) return null
+    return prisma.merchant.findFirst({
+      where: { yagoutMeId: trimmed },
+      select: { id: true, yagoutMeId: true, yagoutEncryptionKey: true, yagoutPostUrl: true },
+    });
+  },
+
   /** Narrow select for resolving a merchant's own YagoutPay credentials — never pulls jweSecret or other unrelated secrets. */
   getMerchantYagoutCredentials: async (id: string) => {
     return prisma.merchant.findUnique({
       where: { id },
-      select: { yagoutMeId: true, yagoutEncryptionKey: true, yagoutPostUrl: true } as any,
-    }) as Promise<{
-      yagoutMeId: string | null;
-      yagoutEncryptionKey: string | null;
-      yagoutPostUrl: string | null;
-    } | null>;
+      select: { yagoutMeId: true, yagoutEncryptionKey: true, yagoutPostUrl: true },
+    });
   },
 
   findMerchantByIdentifier: async (identifier: string, options?: { includeSecret?: boolean }) => {

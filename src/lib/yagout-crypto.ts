@@ -35,6 +35,23 @@ function cipherKey(encryptionKeyB64: string): Buffer {
   return key
 }
 
+/**
+ * Whether a key Yagout issued is usable before we try to pay with it.
+ *
+ * Worth checking at configuration time: a mistyped or truncated key is
+ * indistinguishable from a correct one until the first payment, where it
+ * surfaces as a rejected request from the gateway rather than as anything
+ * pointing back at the credential that caused it.
+ */
+export function isValidYagoutKey(encryptionKeyB64: string): boolean {
+  try {
+    cipherKey(encryptionKeyB64)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Encrypts to the base64 form Yagout expects in `merchant_request` and `hash`. */
 export function encryptYagout(plaintext: string, encryptionKeyB64: string): string {
   const cipher = crypto.createCipheriv(ALGORITHM, cipherKey(encryptionKeyB64), IV)

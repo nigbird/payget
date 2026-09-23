@@ -18,8 +18,8 @@ export const PaymentInitiateSchema = z
     amount: z.number().finite().positive(),
     serviceDescription: z.string().min(1),
     timestamp: z.string().min(1),
-    method: z.enum(["BANK", "TELEBIRR", "MPGS"]).default("BANK"),
-    /** Where the MPGS payment link is emailed. Required for MPGS. */
+    method: z.enum(["BANK", "TELEBIRR", "MPGS", "YAGOUT"]).default("BANK"),
+    /** Where the MPGS payment link is emailed. Required for MPGS and YAGOUT. */
     customerEmail: z.string().email().optional(),
     /** MPGS only: also email the generated link to customerEmail. */
     sendEmail: z.boolean().optional(),
@@ -47,6 +47,28 @@ export const PaymentInitiateSchema = z
           code: z.ZodIssueCode.custom,
           path: ["customerEmail"],
           message: "Customer email is required for MPGS payments",
+        })
+      }
+      return
+    }
+
+    // Yagout is also hosted, but its request format marks both email_id and
+    // mobile_no mandatory, so unlike MPGS it needs the pair. Rejecting here
+    // gives a named field back to the caller; the gateway would only say the
+    // whole request was malformed.
+    if (data.method === "YAGOUT") {
+      if (!data.customerEmail?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["customerEmail"],
+          message: "Customer email is required for YagoutPay payments",
+        })
+      }
+      if (!data.userCredentials.phone?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["userCredentials", "phone"],
+          message: "Customer phone is required for YagoutPay payments",
         })
       }
       return
@@ -93,7 +115,9 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
 
   // The eligibility list is keyed by customer phone, which MPGS (hosted card
   // checkout, reached by email) never collects — so the gate only applies to
-  // the phone-based methods.
+  // the phone-based methods. YAGOUT is hosted too but does collect a phone, and
+  // the gate is opt-in per merchant: skipping it would silently bypass a
+  // restriction a merchant had deliberately turned on, so it applies here.
   if (input.method !== "MPGS") {
     const eligibility = await checkPaymentEligibility(input.merchantId, input.userCredentials.phone ?? "")
     if (!eligibility.eligible) return { ok: false as const, error: eligibility.error }

@@ -12,8 +12,18 @@ import {
   createMpgsPaymentLink,
   mpgsAllowedAttempts,
   mpgsLinkLifetimeMs,
+  positiveEnvNumber,
   resolveMpgsConfigForMerchant,
 } from "@/lib/mpgs-client"
+import { resolveYagoutConfigForMerchant, yagoutReturnUrls } from "@/lib/yagout-client"
+import { encryptYagout, yagoutHash } from "@/lib/yagout-crypto"
+import {
+  buildHostedMerchantRequest,
+  YAGOUT_CHANNEL_WEB,
+  YAGOUT_COUNTRY,
+  YAGOUT_CURRENCY,
+  YAGOUT_TXN_TYPE,
+} from "@/lib/yagout-request"
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null
@@ -196,6 +206,153 @@ export async function POST(request: Request) {
         transactionReference: result.transactionReference,
         status: "pending"
       }, { status: 202 })
+    }
+
+    if (paymentInput.method === "YAGOUT") {
+      const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/$/, "")
+
+      // order_no is specified alphanumeric, and it is the only key correlating
+      // Yagout's response back to us, so the transaction reference is used
+      // as-is rather than given a prefix that could carry a hyphen.
+      const orderNo = result.transactionReference
+
+      // The same string is hashed and sent. Formatting it once and reusing it
+      // is the point: a hash over "1" against a request carrying "1.00" is
+      // rejected by the gateway with nothing to indicate why.
+      const amount = result.tx.amount.toFixed(2)
+
+      let config
+      try {
+        config = await resolveYagoutConfigForMerchant(paymentInput.merchantId)
+      } catch (configError) {
+        console.error("[YAGOUT] Configuration missing:", configError)
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "PAYMENT_LINK_CREATE",
+          entityType: "TRANSACTION",
+          entityId: result.tx.id,
+          newValue: {
+            result: "failed",
+            reason: "YAGOUT_NOT_CONFIGURED",
+            paymentMethod: "YAGOUT",
+            merchantId: paymentInput.merchantId,
+            transactionReference: result.transactionReference,
+          },
+        })
+        return NextResponse.json({ error: "YagoutPay is not configured." }, { status: 503 })
+      }
+
+      const { successUrl, failureUrl } = yagoutReturnUrls(baseUrl)
+
+      let merchantRequest: string
+      let hash: string
+      try {
+        const plaintext = buildHostedMerchantRequest({
+          txn: {
+            agId: config.aggregatorId,
+            meId: config.meId,
+            orderNo,
+            amount,
+            country: YAGOUT_COUNTRY,
+            currency: YAGOUT_CURRENCY,
+            txnType: YAGOUT_TXN_TYPE,
+            successUrl,
+            failureUrl,
+            channel: YAGOUT_CHANNEL_WEB,
+          },
+          cust: {
+            emailId: paymentInput.customerEmail ?? "",
+            mobileNo: paymentInput.userCredentials.phone ?? "",
+            isLoggedIn: "Y",
+          },
+        })
+
+        merchantRequest = encryptYagout(plaintext, config.encryptionKey)
+        hash = yagoutHash(
+          { meId: config.meId, orderNo, amount, country: YAGOUT_COUNTRY, currency: YAGOUT_CURRENCY },
+          config.encryptionKey
+        )
+      } catch (buildError: any) {
+        // A framing character in a free-text field, or a malformed key. Both
+        // would otherwise reach the gateway as an opaque rejection.
+        console.error("[YAGOUT] Could not build the request:", buildError)
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: "PAYMENT_LINK_CREATE",
+          entityType: "TRANSACTION",
+          entityId: result.tx.id,
+          newValue: {
+            result: "failed",
+            reason: "YAGOUT_REQUEST_INVALID",
+            detail: buildError?.message,
+            merchantId: paymentInput.merchantId,
+            transactionReference: result.transactionReference,
+          },
+        })
+        return NextResponse.json({ error: buildError?.message || "Could not build the Yagout request." }, { status: 400 })
+      }
+
+      // The form fields are stored rather than rebuilt when the customer opens
+      // the hand-off page: rebuilding could produce a different hash if any
+      // input changed in between, and the stored pair is what Yagout accepted.
+      const handoffExpiresAt = new Date(
+        Date.now() + positiveEnvNumber(process.env.YAGOUTPAY_LINK_EXPIRY_MINUTES, 60) * 60_000
+      ).toISOString()
+
+      await db.updateTransaction(result.tx.id, {
+        userCredentials: {
+          ...result.tx.userCredentials,
+          yagout: {
+            orderNo,
+            amount,
+            currency: YAGOUT_CURRENCY,
+            country: YAGOUT_COUNTRY,
+            meId: config.meId,
+            postUrl: config.postUrl,
+            merchantRequest,
+            hash,
+            createdAt: new Date().toISOString(),
+          },
+          link: {
+            ...(result.tx.userCredentials?.link ?? {}),
+            expiresAt: handoffExpiresAt,
+            status: "PENDING" as const,
+          },
+        },
+      })
+
+      await writeAuditLog({
+        request,
+        userId: actorUserId,
+        action: "PAYMENT_LINK_CREATE",
+        entityType: "TRANSACTION",
+        entityId: result.tx.id,
+        newValue: {
+          result: "success",
+          paymentMethod: "YAGOUT",
+          status: "initiated",
+          merchantId: paymentInput.merchantId,
+          merchantName: merchant?.name,
+          transactionId: result.tx.id,
+          transactionReference: result.transactionReference,
+          amount: result.tx.amount,
+          orderNo,
+          meId: config.meId,
+        },
+      })
+
+      return NextResponse.json({
+        transactionId: result.tx.id,
+        transactionReference: result.transactionReference,
+        status: "initiated",
+        // Our own hand-off page, not Yagout's: the gateway only accepts a
+        // browser form POST from a whitelisted domain, so there is no URL we
+        // could send the customer to directly.
+        paymentUrl: `${baseUrl}/pay/yagout/${result.token}`,
+        orderNo,
+      })
     }
 
     if (paymentInput.method === "MPGS") {

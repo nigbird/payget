@@ -116,7 +116,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     paymentUrl?: string
     customerPinToken?: string
     transactionReference?: string
-    method?: "BANK" | "TELEBIRR" | "MPGS"
+    method?: "BANK" | "TELEBIRR" | "MPGS" | "YAGOUT"
   } | null>(null)
 
   const [requestForm, setRequestForm] = useState({
@@ -124,7 +124,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     description: "",
     payerPhone: "",
     customerEmail: "",
-    method: "BANK" as "BANK" | "TELEBIRR" | "MPGS",
+    method: "BANK" as "BANK" | "TELEBIRR" | "MPGS" | "YAGOUT",
   })
 
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([])
@@ -606,6 +606,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const isLinkSubmitting = paymentFlowPhase === "link_submitting"
   // MPGS is a hosted-checkout method: link only, no USSD push.
   const isMpgs = requestForm.method === "MPGS"
+  // Hosted like MPGS, but Yagout marks both email and mobile mandatory, so this
+  // one collects the pair. Link-only: there is no USSD push to send.
+  const isYagout = requestForm.method === "YAGOUT"
 
   const handleRequestPanelOpenChange = (open: boolean) => {
     if (open) {
@@ -683,6 +686,18 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       return
     }
 
+    // Yagout marks email_id mandatory alongside mobile_no, so catch a missing
+    // or malformed address here rather than letting the gateway reject it.
+    const yagoutEmail = requestForm.customerEmail.trim()
+    if (requestForm.method === "YAGOUT" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(yagoutEmail)) {
+      toast({
+        variant: "destructive",
+        title: "Customer Email Required",
+        description: "YagoutPay needs a valid customer email address as well as a phone number.",
+      })
+      return
+    }
+
     setLastMode(mode)
     setGeneratedResult(null)
     if (mode === "push") {
@@ -712,6 +727,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         timestamp,
         method: requestForm.method,
         payerPhone: phone,
+        ...(requestForm.method === "YAGOUT" ? { customerEmail: yagoutEmail } : {}),
         items:
           cart.length > 0
             ? cart.map((line) => ({ itemId: line.itemId, name: line.name, price: line.price, quantity: line.qty }))
@@ -998,8 +1014,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               <RadioGroup
                 defaultValue="BANK"
                 value={requestForm.method}
-                onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" | "MPGS" })}
-                className="grid grid-cols-3 gap-2"
+                onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" | "MPGS" | "YAGOUT" })}
+                className="grid grid-cols-4 gap-2"
                 disabled={isFormLocked}
               >
                 <div className="relative">
@@ -1050,6 +1066,25 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 </div>
                 <div className="relative">
                   <RadioGroupItem
+                    value="YAGOUT"
+                    id="yagout"
+                    className="peer sr-only"
+                  />
+                  <Label
+                    htmlFor="yagout"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
+                  >
+                    <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-50 border border-slate-200">
+                      <Wallet className="h-5 w-5 text-slate-600" />
+                    </span>
+                    <span className="mt-1 text-[10px] font-medium text-slate-700">YagoutPay</span>
+                  </Label>
+                  <div className="absolute top-1.5 right-1.5 peer-data-[state=checked]:opacity-100 opacity-0 transition-opacity">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+                  </div>
+                </div>
+                <div className="relative">
+                  <RadioGroupItem
                     value="TELEBIRR"
                     id="telebirr"
                     className="peer sr-only"
@@ -1073,6 +1108,30 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 </div>
               </RadioGroup>
             </div>
+
+            {isYagout && (
+              <div className="space-y-1.5">
+                <Label htmlFor="yagoutEmail" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Email</Label>
+                <div className="relative group transition-all duration-200">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
+                  <Input
+                    id="yagoutEmail"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="customer@example.com"
+                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                    required
+                    disabled={isFormLocked}
+                    value={requestForm.customerEmail}
+                    onChange={(e) => setRequestForm({ ...requestForm, customerEmail: e.target.value })}
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 leading-tight">
+                  YagoutPay requires both an email and a phone number.
+                </p>
+              </div>
+            )}
 
             {isMpgs ? (
               <div className="space-y-1.5">
@@ -1364,6 +1423,24 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <Send className="mr-1.5 h-3.5 w-3.5" />
               )}
               {mpgsBusy === "send" ? "Sending…" : "Send Payment Link"}
+            </Button>
+          </div>
+        ) : isYagout ? (
+          // Hosted checkout: the customer pays on Yagout's own page, so there
+          // is no USSD prompt to push — only a link to hand them.
+          <div className="grid grid-cols-1 gap-3">
+            <Button
+              type="button"
+              onClick={() => handleRequestPayment("link")}
+              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
+              disabled={isFormLocked || !isApproved}
+            >
+              {isLinkSubmitting ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {isLinkSubmitting ? "Generating…" : "Generate Payment Link"}
             </Button>
           </div>
         ) : (
