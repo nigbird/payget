@@ -591,6 +591,14 @@ export const db = {
     });
   },
 
+  /** Every merchant holding its own Yagout credentials — for identifying a return post that arrives without me_id. */
+  listMerchantsWithYagoutKeys: async () => {
+    return prisma.merchant.findMany({
+      where: { yagoutMeId: { not: null }, yagoutEncryptionKey: { not: null } },
+      select: { id: true, yagoutMeId: true, yagoutEncryptionKey: true },
+    });
+  },
+
   /** Narrow select for resolving a merchant's own YagoutPay credentials — never pulls jweSecret or other unrelated secrets. */
   getMerchantYagoutCredentials: async (id: string) => {
     return prisma.merchant.findUnique({
