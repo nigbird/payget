@@ -89,7 +89,7 @@ export async function middleware(req: NextRequest) {
     worker-src 'self';
     object-src 'none';
     base-uri 'self';
-    form-action 'self';
+    form-action 'self' https://*.yagoutpay.com;
     frame-ancestors 'none';
     block-all-mixed-content;
     upgrade-insecure-requests;

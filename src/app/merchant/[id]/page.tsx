@@ -803,6 +803,20 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             input.value = value
             form.appendChild(input)
           }
+          // A blocked submit throws nothing, so without this the button would
+          // spin forever. The CSP violation event is the only signal we get.
+          const onBlocked = (e: SecurityPolicyViolationEvent) => {
+            if (e.effectiveDirective !== "form-action") return
+            document.removeEventListener("securitypolicyviolation", onBlocked)
+            form.remove()
+            setPaymentFlowPhase("idle")
+            toast({
+              variant: "destructive",
+              title: "Checkout Blocked",
+              description: "The browser blocked the redirect to YagoutPay. Please contact support.",
+            })
+          }
+          document.addEventListener("securitypolicyviolation", onBlocked)
           document.body.appendChild(form)
           form.submit()
           return
