@@ -778,6 +778,49 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       }
 
       const linkTransactionReference = data?.transactionReference as string | undefined
+
+      // Yagout is paid on the spot: POST the signed fields straight to Yagout's
+      // checkout (it accepts only a browser form POST, never a plain redirect).
+      // The phase stays locked so the button cannot fire twice mid-navigation.
+      if (requestForm.method === "YAGOUT") {
+        const yagoutForm = data?.yagoutForm as
+          | { postUrl?: string; meId?: string; merchantRequest?: string; hash?: string }
+          | undefined
+        if (yagoutForm?.postUrl && yagoutForm.meId && yagoutForm.merchantRequest && yagoutForm.hash) {
+          const form = document.createElement("form")
+          form.method = "POST"
+          form.action = yagoutForm.postUrl
+          form.enctype = "application/x-www-form-urlencoded"
+          const fields: Record<string, string> = {
+            me_id: yagoutForm.meId,
+            merchant_request: yagoutForm.merchantRequest,
+            hash: yagoutForm.hash,
+          }
+          for (const [name, value] of Object.entries(fields)) {
+            const input = document.createElement("input")
+            input.type = "hidden"
+            input.name = name
+            input.value = value
+            form.appendChild(input)
+          }
+          document.body.appendChild(form)
+          form.submit()
+          return
+        }
+        const yagoutUrl = data?.paymentUrl as string | undefined
+        if (yagoutUrl) {
+          window.location.assign(yagoutUrl)
+          return
+        }
+        setPaymentFlowPhase("idle")
+        toast({
+          variant: "destructive",
+          title: "Unexpected Response",
+          description: "YagoutPay checkout could not be opened. Please try again.",
+        })
+        return
+      }
+
       setGeneratedResult({
         paymentUrl: data?.paymentUrl as string | undefined,
         customerPinToken: data?.token as string | undefined,
@@ -1426,8 +1469,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </Button>
           </div>
         ) : isYagout ? (
-          // Hosted checkout: the customer pays on Yagout's own page, so there
-          // is no USSD prompt to push — only a link to hand them.
+          // Hosted checkout: Pay redirects this browser to Yagout's own page,
+          // so there is no USSD prompt to push and no link to hand out.
           <div className="grid grid-cols-1 gap-3">
             <Button
               type="button"
@@ -1438,9 +1481,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               {isLinkSubmitting ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                <Wallet className="mr-1.5 h-3.5 w-3.5" />
               )}
-              {isLinkSubmitting ? "Generating…" : "Generate Payment Link"}
+              {isLinkSubmitting ? "Redirecting…" : "Pay"}
             </Button>
           </div>
         ) : (
