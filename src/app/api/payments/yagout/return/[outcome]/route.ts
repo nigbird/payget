@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { db } from "@/lib/db"
 import { decryptYagout } from "@/lib/yagout-crypto"
 import { parseTxnResponse, parseResponsePgDetails } from "@/lib/yagout-request"
 import { resolveYagoutKeyForMeId, resolveYagoutKeyByTrialDecrypt } from "@/lib/yagout-client"
@@ -24,11 +25,13 @@ import { settleYagoutFromReturn } from "@/lib/yagout-settlement"
  */
 
 function resultRedirect(baseUrl: string, outcome: "success" | "failure", reference?: string) {
-  if (outcome === "success" && reference) {
-    return `${baseUrl}/pay/yagout/result?status=success&ref=${encodeURIComponent(reference)}`
+  // With a reference the merchant-facing result page can show the recorded
+  // outcome for either result; the generic error page is only for posts we
+  // could not tie to a transaction at all.
+  if (reference) {
+    return `${baseUrl}/pay/yagout/result?status=${outcome}&ref=${encodeURIComponent(reference)}`
   }
-  const destination = process.env.YAGOUTPAY_ERROR_URL?.trim() || `${baseUrl}/payment-error`
-  return reference ? `${destination}?reference=${encodeURIComponent(reference)}` : destination
+  return process.env.YAGOUTPAY_ERROR_URL?.trim() || `${baseUrl}/payment-error`
 }
 
 export async function POST(
@@ -134,11 +137,21 @@ export async function POST(
       reason: result.reason,
     })
 
+    // The merchant raised this payment from their dashboard and paid it in the
+    // same browser, so send them back there; the dashboard opens its payment
+    // result modal for this reference. The session cookies are SameSite=Lax,
+    // which a top-level GET after this redirect still carries.
+    const reference = result.transactionReference ?? response.orderNo
+    const tx = result.transactionId && reference ? await db.getTransactionByReference(reference) : null
+    if (tx) {
+      return NextResponse.redirect(
+        `${baseUrl}/merchant/${encodeURIComponent(tx.merchantId)}?yagoutRef=${encodeURIComponent(reference)}`,
+        { status: 303 },
+      )
+    }
+
     const landed = result.status === "success" ? "success" : "failure"
-    return NextResponse.redirect(
-      resultRedirect(baseUrl, landed, result.transactionReference ?? response.orderNo),
-      { status: 303 },
-    )
+    return NextResponse.redirect(resultRedirect(baseUrl, landed, reference), { status: 303 })
   } catch (error) {
     console.error("[YAGOUT] Return post handler failed:", error)
     return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })
