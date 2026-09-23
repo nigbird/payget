@@ -48,6 +48,14 @@ import {
   transactionMatchesSalesUserFilter,
   findSelfTeamMember,
 } from "@/lib/transaction-initiator"
+import {
+  formatAmount,
+  formatTotals,
+  sumByCurrency,
+  toCurrencyTotals,
+  transactionCurrency,
+  type CurrencyTotal,
+} from "@/lib/transaction-currency"
 
 const nonTerminalStatuses: Transaction["status"][] = ["pending", "initiated", "awaiting_pin", "processing"]
 
@@ -359,9 +367,21 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     [filtered]
   )
 
-  const filteredTotalReceived = useMemo(
-    () => filtered.reduce((acc, tx) => acc + (tx.status === "success" ? tx.amount : 0), 0),
-    [filtered]
+  /**
+   * A merchant can raise birr payments over core banking and card payments
+   * through the gateway from the same dashboard, so the currency is a property
+   * of each transaction rather than of the page.
+   */
+  const currencyOf = (tx: Transaction) => transactionCurrency(tx, merchant)
+
+  const filteredTotalsReceived = useMemo(
+    () =>
+      sumByCurrency(
+        filtered.filter((tx) => tx.status === "success"),
+        (tx) => transactionCurrency(tx, merchant),
+        (tx) => tx.amount
+      ),
+    [filtered, merchant]
   )
 
   const hasActiveFilters =
@@ -448,16 +468,17 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const summaryCards = useMemo(() => {
     if (isItemDrilldown) {
       let count = 0
-      let total = 0
+      const totals = new Map<string, number>()
       summaryCardsScope.forEach((tx) => {
         if (tx.status !== "success") return
+        const currency = transactionCurrency(tx, merchant)
         tx.items?.forEach((line) => {
           if (!lineMatchesItemFilters(line)) return
           count += line.quantity
-          total += line.price * line.quantity
+          totals.set(currency, (totals.get(currency) ?? 0) + line.price * line.quantity)
         })
       })
-      return { count, total }
+      return { count, totals: toCurrencyTotals(totals) }
     }
     const sold = summaryCardsScope.filter((tx) => tx.status === "success")
     // Quantity sold, not order count — a single order for 3 coffees counts as 3 sold.
@@ -468,8 +489,11 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       }
       return acc + 1
     }, 0)
-    return { count, total: sold.reduce((acc, tx) => acc + tx.amount, 0) }
-  }, [summaryCardsScope, isItemDrilldown, itemFilters, categoryFilters, mainCategoryFilters])
+    return {
+      count,
+      totals: sumByCurrency(sold, (tx) => transactionCurrency(tx, merchant), (tx) => tx.amount),
+    }
+  }, [summaryCardsScope, isItemDrilldown, itemFilters, categoryFilters, mainCategoryFilters, merchant])
 
   useEffect(() => {
     setPageIndex(0)
@@ -499,21 +523,27 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const densityCellClass = "p-4 text-sm"
 
   const salesSummary = useMemo(() => {
-    const summary: Record<string, { name: string, count: number, total: number }> = {}
-    
+    const summary: Record<string, { name: string, count: number, totals: Map<string, number> }> = {}
+
     filtered.filter(tx => tx.status === 'success').forEach(tx => {
       const userId = tx.userCredentials.initiatedById || 'system'
       const userName = tx.userCredentials.initiatedByName || 'System'
-      
+      const currency = transactionCurrency(tx, merchant)
+
       if (!summary[userId]) {
-        summary[userId] = { name: userName, count: 0, total: 0 }
+        summary[userId] = { name: userName, count: 0, totals: new Map() }
       }
       summary[userId].count += 1
-      summary[userId].total += tx.amount
+      summary[userId].totals.set(currency, (summary[userId].totals.get(currency) ?? 0) + tx.amount)
     })
-    
-    return Object.entries(summary).sort((a, b) => b[1].total - a[1].total)
-  }, [filtered])
+
+    // Ranked on the largest single-currency total each seller brought in — with
+    // no exchange rate to hand, adding currencies together would rank on a
+    // number that means nothing.
+    return Object.entries(summary)
+      .map(([uid, data]) => ({ uid, name: data.name, count: data.count, totals: toCurrencyTotals(data.totals) }))
+      .sort((a, b) => (b.totals[0]?.total ?? 0) - (a.totals[0]?.total ?? 0))
+  }, [filtered, merchant])
 
   /**
    * Exports exactly what the summary cards show: a one-line recap of the active

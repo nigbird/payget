@@ -274,6 +274,9 @@ export async function POST(request: Request) {
           ...result.tx.userCredentials,
           mpgs: {
             orderId,
+            // Recorded so the portal can label the amount in the currency the
+            // link was actually raised in, without re-reading gateway config.
+            currency: mpgsConfig.currency,
             paymentLinkId: mpgs.paymentLinkId ?? null,
             paymentLinkUrl: mpgs.paymentLinkUrl,
             successIndicator: mpgs.successIndicator ?? null,

@@ -183,6 +183,15 @@ model Merchant {
   mpgsBaseUrl               String?
   /// Settlement currency for this merchant's MPGS account; falls back to MPGS_CURRENCY / "USD".
   mpgsCurrency              String?
+  /// This merchant's own YagoutPay merchant id (me_id), used instead of the platform-wide
+  /// YAGOUT_ME_ID env credentials when set. Sent to the gateway in plain text.
+  yagoutMeId                String?
+  /// Yagout's AES-256 key for this merchant, base64 as they issue it. Encrypted at rest the
+  /// same way as jweSecret and mpgsPassword; see merchant-secret.ts.
+  yagoutEncryptionKey       String?
+  /// Optional per-merchant Yagout post URL override; falls back to YAGOUT_POST_URL.
+  /// Yagout issues separate UAT and production endpoints rather than one host.
+  yagoutPostUrl             String?
   accountNumber             String
   dailyLimit                Float                      @default(0)
   transactionLimit          Float                      @default(0)
@@ -736,6 +745,7 @@ enum PaymentMethod {
   BANK
   TELEBIRR
   MPGS
+  YAGOUT
 }
 
 enum TransactionStatus {

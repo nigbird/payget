@@ -14,7 +14,7 @@ import {
 
 export type MerchantStatus = 'pending' | 'branch_approved' | 'approved' | 'rejected' | 'active' | 'rejected_with_update' | 'resubmitted';
 export type TransactionStatus = 'success' | 'failed' | 'initiated' | 'pending' | 'awaiting_pin' | 'processing';
-export type PaymentMethod = 'BANK' | 'TELEBIRR' | 'MPGS';
+export type PaymentMethod = 'BANK' | 'TELEBIRR' | 'MPGS' | 'YAGOUT';
 
 export interface MerchantDocument {
   id: string;
@@ -52,6 +52,11 @@ export interface Merchant {
   mpgsPassword?: string | null;
   mpgsBaseUrl?: string | null;
   mpgsCurrency?: string | null;
+  /** This merchant's own YagoutPay merchant id (me_id), if they have their own Yagout account. */
+  yagoutMeId?: string | null;
+  /** Encrypted at rest; only present when includeSecret is passed, like jweSecret. */
+  yagoutEncryptionKey?: string | null;
+  yagoutPostUrl?: string | null;
   accountNumber: string;
   dailyLimit: number;
   transactionLimit: number;
@@ -150,6 +155,30 @@ export interface Transaction {
       paymentLinkId?: string | null;
       paymentLinkUrl?: string;
       expiresAt?: string;
+      /** Currency the link was raised in; the gateway's own is reported as gatewayCurrency on settlement. */
+      currency?: string;
+      gatewayCurrency?: string | null;
+      [key: string]: unknown;
+    };
+    /** YagoutPay order metadata, written when the hosted hand-off is prepared. */
+    yagout?: {
+      /** order_no as sent to Yagout — the only key correlating their response back to us,
+       *  because their return URLs cannot carry a query string. */
+      orderNo?: string;
+      /** The exact amount string that was hashed and sent; re-hashing a different
+       *  formatting of the same number produces a signature Yagout rejects. */
+      amount?: string;
+      currency?: string;
+      country?: string;
+      /** Gateway reference (pg_ref) — the one to quote to Yagout when reconciling. */
+      pgRef?: string | null;
+      /** Aggregator reference (ag_ref). */
+      agRef?: string | null;
+      status?: string;
+      resCode?: string;
+      resMessage?: string;
+      /** Set once a return POST has been applied, so a replayed post is a no-op. */
+      settledAt?: string;
       [key: string]: unknown;
     };
   };
@@ -189,12 +218,13 @@ function mapMerchant(
   options?: { includeSecret?: boolean }
 ): Merchant {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, passwordResetToken, passwordResetExpires, jweSecret, mpgsPassword, ...safeMerchant } = m;
+  const { password, passwordResetToken, passwordResetExpires, jweSecret, mpgsPassword, yagoutEncryptionKey, ...safeMerchant } = m as any;
 
   return {
     ...safeMerchant,
     jweSecret: options?.includeSecret ? m.jweSecret : "",
     mpgsPassword: options?.includeSecret ? (m as any).mpgsPassword ?? null : undefined,
+    yagoutEncryptionKey: options?.includeSecret ? (m as any).yagoutEncryptionKey ?? null : undefined,
     status: mapMerchantStatus(m.status),
     createdAt: m.createdAt.toISOString(),
     passwordResetExpires: (m as any).passwordResetExpires ? (m as any).passwordResetExpires.toISOString() : null,
@@ -234,6 +264,21 @@ function mapTransaction(
         paymentLinkId?: string | null;
         paymentLinkUrl?: string;
         expiresAt?: string;
+        currency?: string;
+        gatewayCurrency?: string | null;
+        [key: string]: unknown;
+      };
+      yagout?: {
+        orderNo?: string;
+        amount?: string;
+        currency?: string;
+        country?: string;
+        pgRef?: string | null;
+        agRef?: string | null;
+        status?: string;
+        resCode?: string;
+        resMessage?: string;
+        settledAt?: string;
         [key: string]: unknown;
       };
       link?: {
@@ -526,6 +571,18 @@ export const db = {
       where: { id },
       select: { mpgsMerchantId: true, mpgsPassword: true, mpgsBaseUrl: true, mpgsCurrency: true },
     });
+  },
+
+  /** Narrow select for resolving a merchant's own YagoutPay credentials — never pulls jweSecret or other unrelated secrets. */
+  getMerchantYagoutCredentials: async (id: string) => {
+    return prisma.merchant.findUnique({
+      where: { id },
+      select: { yagoutMeId: true, yagoutEncryptionKey: true, yagoutPostUrl: true } as any,
+    }) as Promise<{
+      yagoutMeId: string | null;
+      yagoutEncryptionKey: string | null;
+      yagoutPostUrl: string | null;
+    } | null>;
   },
 
   findMerchantByIdentifier: async (identifier: string, options?: { includeSecret?: boolean }) => {
