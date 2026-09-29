@@ -1,6 +1,7 @@
 import { db, type Transaction, type TransactionStatus } from "@/lib/db"
 import { writeAuditLog } from "@/lib/audit-log"
 import { deliverMerchantCallback } from "@/lib/merchant-callback"
+import { runPostSettlementEffects } from "@/lib/payment-settlement"
 import {
   isSuccessfulTxnResponse,
   type YagoutResponsePgDetails,
@@ -169,6 +170,13 @@ export async function settleYagoutFromReturn(
       resMessage: response.resMessage,
     },
   })
+
+  // Cashback is worked out on the amount we raised (tx.amount), never the
+  // gateway's figure, so Yagout's own fees do not change it. Eligibility and
+  // the customer's account come from the phone on the merchant's cashback list.
+  if (succeeded) {
+    await runPostSettlementEffects(tx.id, "yagout_return")
+  }
 
   const merchant = await db.getMerchantById(tx.merchantId)
   if (merchant?.callbackUrl) {
