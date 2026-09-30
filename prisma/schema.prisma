@@ -236,6 +236,7 @@ model Merchant {
   itemCategories            MerchantItemCategory[]
   itemMainCategories        MerchantItemMainCategory[]
   items                     MerchantItem[]
+  soundDevices              SoundDevice[]
 }
 
 enum CashbackMode {
@@ -655,6 +656,15 @@ model Transaction {
   /// be able to filter and report on it. Written by the provider callback.
   providerStatusCode     String?
   providerStatusDesc     String?
+  /// INTERNAL: initiated by this system (push, link, QR checkout, MPGS, Yagout).
+  /// EXTERNAL: a credit to the merchant's account that core banking reported to
+  /// /api/inbound/credit — e.g. a customer scanning a non-Nibtera QR or paying
+  /// from another bank. External rows have no provider session or callback.
+  origin                 TransactionOrigin              @default(INTERNAL)
+  /// Core banking's reference for an EXTERNAL credit. Kept apart from
+  /// cbsreference so an inbound credit notice can never collide with the
+  /// receipt an internal payment settles against.
+  externalReference      String?                        @unique
   reconciliationRequests PaymentReconciliationRequest[]
   mpgsReconciliationRequests MpgsReconciliationRequest[]
   items                  TransactionItem[]
@@ -746,6 +756,11 @@ enum PaymentMethod {
   TELEBIRR
   MPGS
   YAGOUT
+}
+
+enum TransactionOrigin {
+  INTERNAL
+  EXTERNAL
 }
 
 enum TransactionStatus {
@@ -841,5 +856,25 @@ model MerchantCallbackQueue {
 
   @@index([status, nextRetryAt])
   @@index([transactionId])
+  @@index([merchantId])
+}
+
+/// A listen-only device (counter phone, tablet, PC or soundbox) that announces
+/// a merchant's incoming payments. Authenticates with its own long-lived token
+/// rather than a merchant session, because sessions idle out after minutes and
+/// the speaker has to stay live all day. The token can do nothing except
+/// receive this merchant's payment events.
+model SoundDevice {
+  id          String    @id @default(cuid())
+  merchantId  String
+  merchant    Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  name        String
+  /// SHA-256 of the device token; the raw token is shown once at pairing.
+  tokenHash   String    @unique
+  createdById String?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime?
+  revokedAt   DateTime?
+
   @@index([merchantId])
 }

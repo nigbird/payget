@@ -25,7 +25,8 @@ import {
   ChevronsRight,
   Settings2,
   QrCode,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react"
 import { 
   Select, 
@@ -37,6 +38,8 @@ import {
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import type { Merchant } from "@/lib/db"
+import { useToast } from "@/hooks/use-toast"
+import { triggerBlobDownload } from "@/lib/qr-download"
 
 export default function MerchantManagementPage() {
   const router = useRouter()
@@ -44,6 +47,8 @@ export default function MerchantManagementPage() {
   const [merchants, setMerchants] = useState<Merchant[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isExporting, setIsExporting] = useState(false)
+  const { toast } = useToast()
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -69,6 +74,38 @@ export default function MerchantManagementPage() {
       console.error('Failed to fetch merchants:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Account list core banking watches for credits to announce on merchants' sound devices.
+  const exportCoreAccounts = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch('/api/admin/merchants/core-accounts')
+      if (!response.ok) {
+        toast({ variant: "destructive", title: "Export failed" })
+        return
+      }
+      const blob = await response.blob()
+      const date = new Date().toISOString().slice(0, 10)
+      triggerBlobDownload(blob, `merchant-accounts-${date}.csv`)
+
+      const count = response.headers.get('X-Merchant-Count') ?? '0'
+      const shared = (response.headers.get('X-Shared-Accounts') ?? '').split(',').filter(Boolean)
+      toast(
+        shared.length
+          ? {
+              variant: "destructive",
+              title: `Exported ${count} merchants — ${shared.length} shared account(s)`,
+              description: `Payments to ${shared.join(', ')} can't be matched to one merchant and won't be announced. Fix these before sharing the file.`,
+            }
+          : { title: `Exported ${count} merchant accounts`, description: "Share this file with the core banking team." }
+      )
+    } catch (error) {
+      console.error('Failed to export core account list:', error)
+      toast({ variant: "destructive", title: "Export failed" })
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -160,6 +197,16 @@ export default function MerchantManagementPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <Button
+                variant="outline"
+                onClick={exportCoreAccounts}
+                disabled={isExporting}
+                className="h-10 rounded-2xl border-black/10 bg-white"
+                title="CSV of active merchant accounts for core banking's payment notifications"
+              >
+                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Export accounts for core
+              </Button>
             </div>
           </div>
         </CardHeader>

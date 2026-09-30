@@ -118,7 +118,10 @@ export async function middleware(req: NextRequest) {
     pathname === "/merchant/review-update" ||
     pathname === "/merchant/setup-password" ||
     pathname.startsWith("/pay/") ||
-    pathname.startsWith("/l/")
+    pathname.startsWith("/l/") ||
+    // Sound devices authenticate with their own device token (see lib/sound-devices),
+    // not a session — a counter speaker must outlive the 5-minute idle logout.
+    pathname === "/speaker"
 
   const isAuthRoute =
     pathname.startsWith("/login") ||
@@ -126,7 +129,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/pay/") ||
-    pathname.startsWith("/l/")
+    pathname.startsWith("/l/") ||
+    pathname === "/speaker"
 
   const auth = await resolveUserFromRequest(req)
   let isLoggedIn = auth?.isLoggedIn ?? false
@@ -266,7 +270,7 @@ export async function middleware(req: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } })
 
   const isStaticAsset =
-    /\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map)$/.test(pathname) ||
+    /\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map|mp3|wav|ogg|m4a)$/.test(pathname) ||
     pathname.startsWith("/_next/")
   if (!isStaticAsset) {
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
@@ -281,6 +285,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest\\.webmanifest|sw\\.js|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map)).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest\\.webmanifest|sw\\.js|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|json|map|mp3|wav|ogg|m4a)).*)",
   ],
 }
