@@ -36,6 +36,36 @@ export function unlockAudio() {
 }
 
 /**
+ * Browsers suspend an AudioContext on their own — after the device sleeps, the
+ * output device changes, or a long idle — and a suspended context plays
+ * nothing without any error. Resuming works without a new tap as long as the
+ * page was unlocked once; if the browser still refuses, the speaker page asks
+ * for a tap (see isAudioRunning / onAudioStateChange).
+ */
+export async function ensureAudioRunning(): Promise<boolean> {
+  if (!audioContext) return false
+  if (audioContext.state !== "running") {
+    try {
+      await audioContext.resume()
+    } catch {
+      // needs a user gesture — reported through isAudioRunning()
+    }
+  }
+  return audioContext.state === "running"
+}
+
+export function isAudioRunning() {
+  return audioContext?.state === "running"
+}
+
+export function onAudioStateChange(listener: () => void): () => void {
+  const ctx = audioContext
+  if (!ctx) return () => {}
+  ctx.addEventListener("statechange", listener)
+  return () => ctx.removeEventListener("statechange", listener)
+}
+
+/**
  * Fetches and decodes every recorded clip once. Missing clips are skipped;
  * an announcement needing one of them falls back to the device voice, so a
  * partially recorded set still works for the amounts it covers.
@@ -156,6 +186,10 @@ function speak(text: string, voice: SpeechSynthesisVoice | null): Promise<void> 
     utterance.rate = 0.95
     utterance.onend = () => resolve()
     utterance.onerror = () => resolve()
+    // Chrome's speech engine can wedge after long idle — queued utterances never
+    // start. Announcements are already serialised, so clearing is safe.
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.resume()
     window.speechSynthesis.speak(utterance)
     // Some engines never fire onend; don't let one stuck utterance block the queue.
     setTimeout(resolve, 8000)
@@ -183,6 +217,7 @@ let queue: Promise<void> = Promise.resolve()
 
 export function announcePayment(amount: number, currency: string, options?: { speech?: boolean }) {
   queue = queue.then(async () => {
+    await ensureAudioRunning()
     await playChime()
     if (options?.speech !== false) await speakAmount(amount, currency)
   })

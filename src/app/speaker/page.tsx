@@ -2,9 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { Loader2, Volume2, VolumeX, Wifi, WifiOff, BellRing, Unplug } from "lucide-react"
+import { Loader2, Volume2, VolumeX, Wifi, WifiOff, BellRing, Unplug, BellOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { announcePayment, currentVoiceSource, unlockAudio, type VoiceSource } from "@/lib/payment-announcer"
+import {
+  announcePayment,
+  currentVoiceSource,
+  ensureAudioRunning,
+  isAudioRunning,
+  onAudioStateChange,
+  unlockAudio,
+  type VoiceSource,
+} from "@/lib/payment-announcer"
 
 /**
  * Counter speaker: a phone, tablet or PC left on at the till that announces
@@ -18,6 +26,11 @@ const TOKEN_STORAGE_KEY = "nibtera.soundDeviceToken"
 const SPEECH_STORAGE_KEY = "nibtera.soundDeviceSpeech"
 const MAX_BACKOFF_MS = 30 * 1000
 const RECENT_LIMIT = 20
+/** The server pings every 20 s (api/devices/payment-stream). Silence for longer
+ * than this means the connection died without closing — common after Wi-Fi
+ * drops or a laptop sleeping — so drop it and reconnect. */
+const STREAM_SILENCE_LIMIT_MS = 50 * 1000
+const HEALTH_CHECK_MS = 10 * 1000
 
 type StreamPayment = {
   id: number
@@ -62,6 +75,7 @@ export default function SpeakerPage() {
   const [recent, setRecent] = useState<StreamPayment[]>([])
   const [flash, setFlash] = useState<StreamPayment | null>(null)
   const [voiceSource, setVoiceSource] = useState<VoiceSource | null>(null)
+  const [audioBlocked, setAudioBlocked] = useState(false)
 
   const speechRef = useRef(speech)
   speechRef.current = speech
@@ -104,11 +118,13 @@ export default function SpeakerPage() {
     let controller: AbortController | null = null
     let lastEventId = 0
     let attempt = 0
+    let lastDataAt = Date.now()
     const seen = new Set<number>()
 
     const run = async () => {
       while (!stopped) {
         controller = new AbortController()
+        lastDataAt = Date.now()
         setConnection(attempt === 0 ? "connecting" : "reconnecting")
         try {
           const res = await fetch("/api/devices/payment-stream", {
@@ -131,6 +147,7 @@ export default function SpeakerPage() {
           while (!stopped) {
             const { value, done } = await reader.read()
             if (done) break
+            lastDataAt = Date.now()
             buffer += decoder.decode(value, { stream: true })
 
             let boundary: number
@@ -179,13 +196,26 @@ export default function SpeakerPage() {
     }
 
     void run()
-    // A phone waking from sleep often holds a dead socket; reconnect right away.
-    const onOnline = () => controller?.abort()
-    window.addEventListener("online", onOnline)
+
+    // A device waking from sleep, or coming back online, usually holds a dead
+    // socket that will never deliver another byte; reconnect right away.
+    const reconnectNow = () => {
+      lastDataAt = Date.now()
+      controller?.abort()
+    }
+    let lastTick = Date.now()
+    const health = setInterval(() => {
+      const now = Date.now()
+      const slept = now - lastTick > HEALTH_CHECK_MS * 3
+      lastTick = now
+      if (slept || now - lastDataAt > STREAM_SILENCE_LIMIT_MS) reconnectNow()
+    }, HEALTH_CHECK_MS)
+    window.addEventListener("online", reconnectNow)
     return () => {
       stopped = true
+      clearInterval(health)
       controller?.abort()
-      window.removeEventListener("online", onOnline)
+      window.removeEventListener("online", reconnectNow)
     }
   }, [started, token, unpair, handlePayment])
 
@@ -209,6 +239,48 @@ export default function SpeakerPage() {
       document.removeEventListener("visibilitychange", onVisible)
       void lock?.release?.()
     }
+  }, [started])
+
+  // Keep audio alive. The browser can suspend it silently at any time; try to
+  // resume on our own, and if it insists on a tap, say so on screen instead of
+  // letting payments go unannounced.
+  useEffect(() => {
+    if (!started) return
+    const check = async () => {
+      const running = isAudioRunning() || (await ensureAudioRunning())
+      setAudioBlocked(!running)
+    }
+    void check()
+    const offState = onAudioStateChange(() => void check())
+    const timer = setInterval(() => void check(), HEALTH_CHECK_MS)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void check()
+    }
+    // Any tap on the page is a gesture the browser accepts for resuming audio.
+    const onTap = () => {
+      unlockAudio()
+      void check()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    document.addEventListener("pointerdown", onTap)
+    return () => {
+      offState()
+      clearInterval(timer)
+      document.removeEventListener("visibilitychange", onVisible)
+      document.removeEventListener("pointerdown", onTap)
+    }
+  }, [started])
+
+  // Holding a Web Lock tells Chrome this page is doing live work, so its
+  // Memory Saver / tab freezing leaves it alone. Released when the speaker stops.
+  useEffect(() => {
+    if (!started || !("locks" in navigator)) return
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    navigator.locks.request("nibtera-payment-speaker", () => held).catch(() => {})
+    return () => release()
   }, [started])
 
   useEffect(() => {
@@ -302,6 +374,17 @@ export default function SpeakerPage() {
           </Button>
         </div>
       </header>
+
+      {audioBlocked && (
+        <button
+          type="button"
+          onClick={() => unlockAudio()}
+          className="flex w-full items-center justify-center gap-2 bg-red-600 px-4 py-3 text-sm font-semibold text-white"
+        >
+          <BellOff className="h-4 w-4" />
+          Sound was paused by the browser — tap here to turn it back on
+        </button>
+      )}
 
       <section className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
         {flash ? (
