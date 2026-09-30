@@ -559,14 +559,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     const summaryLine = [
       `"Showing: ${summaryLabel}"`,
       `"Sold: ${summaryCards.count}"`,
-      `"Total: ${summaryCards.total.toFixed(2)} ETB"`,
+      `"Total: ${formatTotals(summaryCards.totals)}"`,
     ].join(",")
 
     let headers: string[]
     let rows: (string | number)[][]
 
     if (isItemDrilldown) {
-      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price (ETB)", "Line Total (ETB)", "Customer", "Sales User"]
+      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price", "Line Total", "Currency", "Customer", "Sales User"]
       rows = []
       summaryCardsScope.forEach((tx) => {
         if (tx.status !== "success") return
@@ -581,13 +581,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             line.quantity,
             line.price.toFixed(2),
             (line.price * line.quantity).toFixed(2),
+            currencyOf(tx),
             customerPhone(tx) ?? "",
             tx.userCredentials.initiatedByName || "System",
           ])
         })
       })
     } else {
-      headers = ["Date", "Order ID", "Customer", "Description", "Amount (ETB)", "Sales User"]
+      headers = ["Date", "Order ID", "Customer", "Description", "Amount", "Currency", "Sales User"]
       rows = summaryCardsScope
         .filter((tx) => tx.status === "success")
         .map((tx) => [
@@ -596,6 +597,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           customerPhone(tx) ?? "",
           tx.serviceDescription,
           tx.amount.toFixed(2),
+          currencyOf(tx),
           tx.userCredentials.initiatedByName || "System",
         ])
     }
@@ -678,7 +680,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           {hasActiveFilters ? (
             <p className="text-sm font-medium text-slate-500 mt-1">
               {filteredSuccessCount} successful · {filtered.length} shown
-              {filteredTotalReceived > 0 && <> · {filteredTotalReceived.toFixed(2)} ETB received</>}
+              {filteredTotalsReceived.length > 0 && <> · {formatTotals(filteredTotalsReceived)} received</>}
             </p>
           ) : (
             <p className="text-sm font-medium text-slate-500 mt-1">
@@ -846,8 +848,8 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     {salesSummary.length === 0 ? (
                       <p className="text-[11px] text-slate-400 italic text-center py-2">No data for this period</p>
                     ) : (
-                      salesSummary.map(([uid, data]) => (
-                        <div key={uid} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 border border-slate-100">
+                      salesSummary.map((data) => (
+                        <div key={data.uid}className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 border border-slate-100">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-sm">
                               <UserIcon className="w-3 h-3 text-slate-400" />
@@ -855,7 +857,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                             <span className="text-[11px] font-bold text-slate-700 truncate max-w-[100px]">{data.name}</span>
                           </div>
                           <div className="text-right">
-                            <p className="text-[11px] font-black text-amber-700">{data.total.toFixed(2)} ETB</p>
+                            {data.totals.map(({ currency, total }) => (
+                              <p key={currency} className="text-[11px] font-black text-amber-700">{formatAmount(total, currency)}</p>
+                            ))}
                             <p className="text-[9px] font-medium text-slate-400">{data.count} orders</p>
                           </div>
                         </div>
@@ -891,7 +895,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
         <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
           <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-1">Total</p>
           <p className="truncate text-lg font-black leading-tight text-[#5b371f] sm:text-xl">
-            {summaryCards.total.toFixed(2)} <span className="text-[10px] font-bold text-slate-400">ETB</span>
+            {(summaryCards.totals.length > 0
+              ? summaryCards.totals
+              : ([{ currency: "ETB", total: 0 }] as CurrencyTotal[])
+            ).map(({ currency, total }) => (
+              <span key={currency} className="block truncate">
+                {total.toFixed(2)} <span className="text-[10px] font-bold text-slate-400">{currency}</span>
+              </span>
+            ))}
           </p>
         </div>
       </div>
@@ -916,7 +927,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-sm font-black text-slate-900 truncate">
-                            {tx.amount.toFixed(2)} ETB
+                            {formatAmount(tx.amount, currencyOf(tx))}
                           </span>
                           <Badge className={cn(
                             "text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0 whitespace-nowrap",

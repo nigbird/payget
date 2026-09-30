@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { withMerchantSecret } from "@/lib/merchant-secret"
-import { YAGOUT_AGGREGATOR_ID } from "@/lib/yagout-request"
+import { YAGOUT_AGGREGATOR_ID, parseTxnResponse } from "@/lib/yagout-request"
+import { decryptYagout } from "@/lib/yagout-crypto"
 
 /**
  * Resolves which YagoutPay account a payment is raised against.
@@ -101,6 +102,52 @@ export async function resolveYagoutKeyForMeId(
     encryptionKey: withMerchantSecret(merchant.yagoutEncryptionKey, (plaintext) => plaintext),
     merchantId: merchant.id,
   }
+}
+
+/**
+ * Yagout's return post does not always carry me_id in plain text (observed in
+ * practice, despite the document), so the key has to be found by trial: try
+ * each configured key and accept one only when the decrypted payload names the
+ * me_id that key belongs to. A wrong key can occasionally survive CBC padding
+ * by chance, so a successful decrypt on its own proves nothing.
+ */
+export async function resolveYagoutKeyByTrialDecrypt(
+  encryptedTxnResponse: string,
+): Promise<{ meId: string; encryptionKey: string; merchantId: string | null; txnPlain: string } | null> {
+  const candidates: { meId: string; encryptionKey: () => string; merchantId: string | null }[] = []
+
+  const platformMeId = process.env.YAGOUTPAY_MERCHANT_ID?.trim()
+  const platformKey = process.env.YAGOUTPAY_ENCRYPTION_KEY?.trim()
+  if (platformMeId && platformKey) {
+    candidates.push({ meId: platformMeId, encryptionKey: () => platformKey, merchantId: null })
+  }
+
+  for (const merchant of await db.listMerchantsWithYagoutKeys()) {
+    const meId = merchant.yagoutMeId?.trim()
+    const stored = merchant.yagoutEncryptionKey
+    if (!meId || !stored) continue
+    candidates.push({
+      meId,
+      encryptionKey: () => withMerchantSecret(stored, (plaintext) => plaintext),
+      merchantId: merchant.id,
+    })
+  }
+
+  for (const candidate of candidates) {
+    let encryptionKey: string
+    let txnPlain: string
+    try {
+      encryptionKey = candidate.encryptionKey()
+      txnPlain = decryptYagout(encryptedTxnResponse, encryptionKey)
+    } catch {
+      continue
+    }
+    if (parseTxnResponse(txnPlain).meId.trim() === candidate.meId) {
+      return { meId: candidate.meId, encryptionKey, merchantId: candidate.merchantId, txnPlain }
+    }
+  }
+
+  return null
 }
 
 /**

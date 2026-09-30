@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
+import { db } from "@/lib/db"
 import { decryptYagout } from "@/lib/yagout-crypto"
 import { parseTxnResponse, parseResponsePgDetails } from "@/lib/yagout-request"
-import { resolveYagoutKeyForMeId } from "@/lib/yagout-client"
+import { resolveYagoutKeyForMeId, resolveYagoutKeyByTrialDecrypt } from "@/lib/yagout-client"
 import { settleYagoutFromReturn } from "@/lib/yagout-settlement"
 
 /**
@@ -24,11 +25,13 @@ import { settleYagoutFromReturn } from "@/lib/yagout-settlement"
  */
 
 function resultRedirect(baseUrl: string, outcome: "success" | "failure", reference?: string) {
-  if (outcome === "success" && reference) {
-    return `${baseUrl}/pay/yagout/result?status=success&ref=${encodeURIComponent(reference)}`
+  // With a reference the merchant-facing result page can show the recorded
+  // outcome for either result; the generic error page is only for posts we
+  // could not tie to a transaction at all.
+  if (reference) {
+    return `${baseUrl}/pay/yagout/result?status=${outcome}&ref=${encodeURIComponent(reference)}`
   }
-  const destination = process.env.YAGOUTPAY_ERROR_URL?.trim() || `${baseUrl}/payment-error`
-  return reference ? `${destination}?reference=${encodeURIComponent(reference)}` : destination
+  return process.env.YAGOUTPAY_ERROR_URL?.trim() || `${baseUrl}/payment-error`
 }
 
 export async function POST(
@@ -47,38 +50,52 @@ export async function POST(
       return typeof value === "string" ? value : ""
     }
 
-    // me_id is the one field Yagout sends in plain text, so it is how we find
-    // the key needed to read everything else.
-    const meId = field("me_id").trim()
     const encryptedTxnResponse = field("txn_response")
-
-    if (!meId || !encryptedTxnResponse) {
-      console.warn("[YAGOUT] Return post missing me_id or txn_response", {
+    if (!encryptedTxnResponse) {
+      console.warn("[YAGOUT] Return post missing txn_response", {
         outcome,
         fields: Array.from(form.keys()),
       })
       return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })
     }
 
-    const resolved = await resolveYagoutKeyForMeId(meId)
-    if (!resolved) {
-      console.warn("[YAGOUT] Return post for an unknown me_id", { meId, outcome })
-      return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })
-    }
-
+    // When Yagout sends me_id in plain text it tells us which key to use. In
+    // practice it often omits it, so fall back to finding the key by trial.
+    let meId = field("me_id").trim()
+    let resolved: { encryptionKey: string; merchantId: string | null } | null
     let txnPlain: string
-    try {
-      txnPlain = decryptYagout(encryptedTxnResponse, resolved.encryptionKey)
-    } catch (error) {
-      // Undecryptable means unauthentic: either not from Yagout, or tampered
-      // with in the browser. Nothing here is trustworthy, so nothing is applied.
-      console.error("[YAGOUT] Return post failed to decrypt", {
-        meId,
-        merchantId: resolved.merchantId,
-        outcome,
-        error: (error as Error).message,
-      })
-      return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })
+
+    if (meId) {
+      resolved = await resolveYagoutKeyForMeId(meId)
+      if (!resolved) {
+        console.warn("[YAGOUT] Return post for an unknown me_id", { meId, outcome })
+        return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })
+      }
+      try {
+        txnPlain = decryptYagout(encryptedTxnResponse, resolved.encryptionKey)
+      } catch (error) {
+        // Undecryptable means unauthentic: either not from Yagout, or tampered
+        // with in the browser. Nothing here is trustworthy, so nothing is applied.
+        console.error("[YAGOUT] Return post failed to decrypt", {
+          meId,
+          merchantId: resolved.merchantId,
+          outcome,
+          error: (error as Error).message,
+        })
+        return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })
+      }
+    } else {
+      const found = await resolveYagoutKeyByTrialDecrypt(encryptedTxnResponse)
+      if (!found) {
+        console.error("[YAGOUT] Return post without me_id matched no configured key", {
+          outcome,
+          fields: Array.from(form.keys()),
+        })
+        return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })
+      }
+      meId = found.meId
+      resolved = { encryptionKey: found.encryptionKey, merchantId: found.merchantId }
+      txnPlain = found.txnPlain
     }
 
     const response = parseTxnResponse(txnPlain)
@@ -120,11 +137,21 @@ export async function POST(
       reason: result.reason,
     })
 
+    // The merchant raised this payment from their dashboard and paid it in the
+    // same browser, so send them back there; the dashboard opens its payment
+    // result modal for this reference. The session cookies are SameSite=Lax,
+    // which a top-level GET after this redirect still carries.
+    const reference = result.transactionReference ?? response.orderNo
+    const tx = result.transactionId && reference ? await db.getTransactionByReference(reference) : null
+    if (tx) {
+      return NextResponse.redirect(
+        `${baseUrl}/merchant/${encodeURIComponent(tx.merchantId)}?yagoutRef=${encodeURIComponent(reference)}`,
+        { status: 303 },
+      )
+    }
+
     const landed = result.status === "success" ? "success" : "failure"
-    return NextResponse.redirect(
-      resultRedirect(baseUrl, landed, result.transactionReference ?? response.orderNo),
-      { status: 303 },
-    )
+    return NextResponse.redirect(resultRedirect(baseUrl, landed, reference), { status: 303 })
   } catch (error) {
     console.error("[YAGOUT] Return post handler failed:", error)
     return NextResponse.redirect(resultRedirect(baseUrl, "failure"), { status: 303 })

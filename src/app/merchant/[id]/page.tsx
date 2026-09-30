@@ -544,6 +544,43 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
   useEffect(() => () => stopPushPolling(), [stopPushPolling])
 
+  // Returning from YagoutPay: the return handler redirects here with the
+  // transaction's reference, and the result is shown in the same modal a push
+  // payment ends in. Runs once the first transaction fetch has landed.
+  const yagoutReturnHandledRef = useRef(false)
+  useEffect(() => {
+    if (loading || yagoutReturnHandledRef.current) return
+    yagoutReturnHandledRef.current = true
+
+    const url = new URL(window.location.href)
+    const reference = url.searchParams.get("yagoutRef")
+    if (!reference) return
+    url.searchParams.delete("yagoutRef")
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash)
+
+    const tx = transactions.find((t) => t.transactionReference === reference)
+    if (!tx) {
+      toast({
+        title: "YagoutPay payment",
+        description: `Payment ${reference} will appear in your recent activity once recorded.`,
+      })
+      return
+    }
+
+    setLastMode("push")
+    setGeneratedResult({ transactionReference: reference, method: "YAGOUT" })
+    setLastRequestDetails({ amount: String(tx.amount), phone: tx.payerPhone || "" })
+    setCurrentTxStatus(tx.status)
+    setIsSuccessModalOpen(true)
+  }, [loading, transactions, toast])
+
+  // Keep an open Yagout result in step with the dashboard's own polling, in
+  // case the return arrived before the settlement had been written.
+  const isYagoutResult = generatedResult?.method === "YAGOUT"
+  useEffect(() => {
+    if (isYagoutResult && successTransaction) setCurrentTxStatus(successTransaction.status)
+  }, [isYagoutResult, successTransaction])
+
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-muted/20 gap-4">
@@ -632,6 +669,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
   const isSuccessPushActive =
     lastMode === "push" &&
+    !isYagoutResult &&
     (paymentFlowPhase === "push_submitting" ||
       (!!currentTxStatus && currentTxStatus !== "success" && currentTxStatus !== "failed"))
 
@@ -778,6 +816,63 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       }
 
       const linkTransactionReference = data?.transactionReference as string | undefined
+
+      // Yagout is paid on the spot: POST the signed fields straight to Yagout's
+      // checkout (it accepts only a browser form POST, never a plain redirect).
+      // The phase stays locked so the button cannot fire twice mid-navigation.
+      if (requestForm.method === "YAGOUT") {
+        const yagoutForm = data?.yagoutForm as
+          | { postUrl?: string; meId?: string; merchantRequest?: string; hash?: string }
+          | undefined
+        if (yagoutForm?.postUrl && yagoutForm.meId && yagoutForm.merchantRequest && yagoutForm.hash) {
+          const form = document.createElement("form")
+          form.method = "POST"
+          form.action = yagoutForm.postUrl
+          form.enctype = "application/x-www-form-urlencoded"
+          const fields: Record<string, string> = {
+            me_id: yagoutForm.meId,
+            merchant_request: yagoutForm.merchantRequest,
+            hash: yagoutForm.hash,
+          }
+          for (const [name, value] of Object.entries(fields)) {
+            const input = document.createElement("input")
+            input.type = "hidden"
+            input.name = name
+            input.value = value
+            form.appendChild(input)
+          }
+          // A blocked submit throws nothing, so without this the button would
+          // spin forever. The CSP violation event is the only signal we get.
+          const onBlocked = (e: SecurityPolicyViolationEvent) => {
+            if (e.effectiveDirective !== "form-action") return
+            document.removeEventListener("securitypolicyviolation", onBlocked)
+            form.remove()
+            setPaymentFlowPhase("idle")
+            toast({
+              variant: "destructive",
+              title: "Checkout Blocked",
+              description: "The browser blocked the redirect to YagoutPay. Please contact support.",
+            })
+          }
+          document.addEventListener("securitypolicyviolation", onBlocked)
+          document.body.appendChild(form)
+          form.submit()
+          return
+        }
+        const yagoutUrl = data?.paymentUrl as string | undefined
+        if (yagoutUrl) {
+          window.location.assign(yagoutUrl)
+          return
+        }
+        setPaymentFlowPhase("idle")
+        toast({
+          variant: "destructive",
+          title: "Unexpected Response",
+          description: "YagoutPay checkout could not be opened. Please try again.",
+        })
+        return
+      }
+
       setGeneratedResult({
         paymentUrl: data?.paymentUrl as string | undefined,
         customerPinToken: data?.token as string | undefined,
@@ -1426,8 +1521,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </Button>
           </div>
         ) : isYagout ? (
-          // Hosted checkout: the customer pays on Yagout's own page, so there
-          // is no USSD prompt to push — only a link to hand them.
+          // Hosted checkout: Pay redirects this browser to Yagout's own page,
+          // so there is no USSD prompt to push and no link to hand out.
           <div className="grid grid-cols-1 gap-3">
             <Button
               type="button"
@@ -1438,9 +1533,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               {isLinkSubmitting ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                <Wallet className="mr-1.5 h-3.5 w-3.5" />
               )}
-              {isLinkSubmitting ? "Generating…" : "Generate Payment Link"}
+              {isLinkSubmitting ? "Redirecting…" : "Pay"}
             </Button>
           </div>
         ) : (
@@ -1874,7 +1969,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-none">Processing Payment</h3>
-                <p className="text-slate-500 mt-1.5 text-[11px]">Sent to customer phone</p>
+                <p className="text-slate-500 mt-1.5 text-[11px]">
+                  {isYagoutResult ? "Awaiting YagoutPay confirmation" : "Sent to customer phone"}
+                </p>
               </>
             )}
           </div>
@@ -2043,8 +2140,27 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   </div>
                 )}
 
-                {currentTxStatus === 'failed' && (
-                  <Button 
+                {currentTxStatus === 'failed' && isYagoutResult && (
+                  <Button
+                    onClick={() => {
+                      setRequestForm((prev) => ({
+                        ...prev,
+                        method: "YAGOUT",
+                        amount: lastRequestDetails?.amount || "",
+                        payerPhone: lastRequestDetails?.phone || "",
+                      }))
+                      handleSuccessModalOpenChange(false)
+                      setIsRequestPanelOpen(true)
+                    }}
+                    className="button-honey-solid w-full h-10 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all text-xs font-bold"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Try Again with YagoutPay
+                  </Button>
+                )}
+
+                {currentTxStatus === 'failed' && !isYagoutResult && (
+                  <Button
                     disabled={paymentFlowPhase === "push_submitting"}
                     onClick={() =>
                       handleRequestPayment("push", {
@@ -2071,7 +2187,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                       </div>
                       <div className="text-[10px] text-slate-700">
                         <p className="font-bold text-slate-900 leading-tight">Waiting for confirmation</p>
-                        <p className="text-slate-500 mt-0.5 leading-tight">Ask customer to authorize on phone.</p>
+                        <p className="text-slate-500 mt-0.5 leading-tight">
+                          {isYagoutResult
+                            ? "YagoutPay has not reported a final result yet."
+                            : "Ask customer to authorize on phone."}
+                        </p>
                       </div>
                     </div>
                   </div>

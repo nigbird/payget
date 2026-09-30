@@ -349,8 +349,17 @@ export async function POST(request: Request) {
         status: "initiated",
         // Our own hand-off page, not Yagout's: the gateway only accepts a
         // browser form POST from a whitelisted domain, so there is no URL we
-        // could send the customer to directly.
+        // could send the customer to directly. Kept as a fallback link.
         paymentUrl: `${baseUrl}/pay/yagout/${result.token}`,
+        // The signed form fields, so the merchant portal can POST straight to
+        // Yagout's checkout without the hand-off page in between. They are
+        // already encrypted and hashed; the hand-off page renders the same.
+        yagoutForm: {
+          postUrl: config.postUrl,
+          meId: config.meId,
+          merchantRequest,
+          hash,
+        },
         orderNo,
       })
     }
