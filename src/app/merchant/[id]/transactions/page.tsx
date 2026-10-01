@@ -192,6 +192,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [salesUserFilter, setSalesUserFilter] = useState<string>("all")
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [itemFilters, setItemFilters] = useState<string[]>([])
   const [mainCategoryFilters, setMainCategoryFilters] = useState<string[]>([])
   const [categoryFilters, setCategoryFilters] = useState<string[]>([])
@@ -337,6 +338,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       if (statusFilter === "failed" && tx.status !== "failed") return false
       if (statusFilter === "initiated" && !nonTerminalStatuses.includes(tx.status)) return false
       if (!transactionMatchesSalesUserFilter(tx, salesUserFilter, teamMembers)) return false
+      if (paymentMethodFilter !== "all" && tx.paymentMethod !== paymentMethodFilter) return false
       if (itemFilters.length > 0 && !tx.items?.some((line) => itemFilters.includes(itemLineKey(line)))) return false
       if (mainCategoryFilters.length > 0 && !tx.items?.some((line) => line.mainCategoryName && mainCategoryFilters.includes(line.mainCategoryName))) return false
       if (categoryFilters.length > 0 && !tx.items?.some((line) => line.categoryName && categoryFilters.includes(line.categoryName))) return false
@@ -359,7 +361,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       return true
     })
-  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, itemFilters, mainCategoryFilters, categoryFilters, teamMembers])
+  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, paymentMethodFilter, itemFilters, mainCategoryFilters, categoryFilters, teamMembers])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
 
@@ -385,9 +387,18 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     [filtered, merchant]
   )
 
+  /** Only the methods this merchant has actually been paid through, in a fixed order. */
+  const paymentMethodOptions = useMemo(() => {
+    const used = new Set(transactions.map((tx) => tx.paymentMethod))
+    return (["BANK", "MPGS", "YAGOUT", "TELEBIRR"] as const)
+      .filter((method) => used.has(method))
+      .map((method) => ({ value: method, label: paymentMethodLabel(method) }))
+  }, [transactions])
+
   const hasActiveFilters =
     statusFilter !== "all" ||
     salesUserFilter !== "all" ||
+    paymentMethodFilter !== "all" ||
     itemFilters.length > 0 ||
     mainCategoryFilters.length > 0 ||
     categoryFilters.length > 0 ||
@@ -498,7 +509,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
   useEffect(() => {
     setPageIndex(0)
-  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, itemFilters, mainCategoryFilters, categoryFilters, pageSize])
+  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, paymentMethodFilter, itemFilters, mainCategoryFilters, categoryFilters, pageSize])
 
   // A category only applies within its own main category, so switching main
   // category can leave stale, now-impossible category selections behind.
@@ -673,6 +684,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     setStatusFilter("all")
     setSearch("")
     setSalesUserFilter("all")
+    setPaymentMethodFilter("all")
     setItemFilters([])
     setMainCategoryFilters([])
     setCategoryFilters([])
@@ -818,6 +830,23 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Method</Label>
+                    <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                      <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Methods</SelectItem>
+                        {paymentMethodOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
