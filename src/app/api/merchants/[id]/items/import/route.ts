@@ -101,7 +101,7 @@ export async function POST(
         }
 
         const existingItem = await tx.merchantItem.findFirst({
-          where: { merchantId, categoryId, name: { equals: row.name, mode: "insensitive" } },
+          where: { merchantId, categoryId, currency: row.currency, name: { equals: row.name, mode: "insensitive" } },
         })
 
         if (existingItem) {
@@ -112,7 +112,7 @@ export async function POST(
           updated++
         } else {
           await tx.merchantItem.create({
-            data: { merchantId, categoryId, name: row.name, price: row.price, isActive: true },
+            data: { merchantId, categoryId, name: row.name, price: row.price, currency: row.currency, isActive: true },
           })
           created++
         }

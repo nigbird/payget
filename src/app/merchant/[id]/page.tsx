@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import type { TransactionStatus } from "@/lib/db"
+import { itemCurrencyForMethod } from "@/lib/transaction-currency"
 
 const nonTerminalStatuses: TransactionStatus[] = ["pending", "initiated", "awaiting_pin", "processing"]
 
@@ -82,7 +83,7 @@ import {
 } from "lucide-react"
 import { QRCodeCanvas } from "qrcode.react"
 
-type CatalogItem = { id: string; name: string; price: number; categoryId: string | null }
+type CatalogItem = { id: string; name: string; price: number; currency: string; categoryId: string | null }
 type CartLine = { itemId: string; name: string; price: number; qty: number }
 import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -127,7 +128,13 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     method: "BANK" as "BANK" | "TELEBIRR" | "MPGS" | "YAGOUT",
   })
 
-  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([])
+  const [allCatalogItems, setCatalogItems] = useState<CatalogItem[]>([])
+  // MPGS card checkout takes the USD-priced items, every other method the ETB ones.
+  const cartCurrency = itemCurrencyForMethod(requestForm.method)
+  const catalogItems = useMemo(
+    () => allCatalogItems.filter((i) => i.currency === cartCurrency),
+    [allCatalogItems, cartCurrency]
+  )
   const [cart, setCart] = useState<CartLine[]>([])
   const [showItemPicker, setShowItemPicker] = useState(false)
   const [itemSearch, setItemSearch] = useState("")
@@ -195,7 +202,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         if (cancelled || !data) return
         const items: CatalogItem[] = (data.items ?? [])
           .filter((i: any) => i.isActive)
-          .map((i: any) => ({ id: i.id, name: i.name, price: i.price, categoryId: i.categoryId }))
+          .map((i: any) => ({ id: i.id, name: i.name, price: i.price, currency: i.currency ?? "ETB", categoryId: i.categoryId }))
         setCatalogItems(items)
       })
       .catch(() => {})
@@ -1028,6 +1035,10 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         method: "MPGS",
         customerEmail: email,
         sendEmail: action === "send",
+        items:
+          cart.length > 0
+            ? cart.map((line) => ({ itemId: line.itemId, name: line.name, price: line.price, quantity: line.qty }))
+            : undefined,
       }
 
       const res = await fetch("/api/payments/link", {
@@ -1109,7 +1120,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               <RadioGroup
                 defaultValue="BANK"
                 value={requestForm.method}
-                onValueChange={(val) => setRequestForm({ ...requestForm, method: val as "BANK" | "TELEBIRR" | "MPGS" | "YAGOUT" })}
+                onValueChange={(val) => {
+                  const method = val as "BANK" | "TELEBIRR" | "MPGS" | "YAGOUT"
+                  setRequestForm((prev) => ({ ...prev, method }))
+                  // Switching between a USD and an ETB method swaps the item list, so a
+                  // cart built from the other currency's items no longer applies.
+                  if (itemCurrencyForMethod(method) !== cartCurrency && cart.length > 0) {
+                    setCart([])
+                    setItemSearch("")
+                    applyCartToForm([], "")
+                  }
+                }}
                 className="grid grid-cols-4 gap-2"
                 disabled={isFormLocked}
               >
@@ -1396,7 +1417,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                                     />
                                     <span className="truncate text-slate-700">
                                       {item.name}{" "}
-                                      <span className="font-semibold text-[#754319]">ETB {item.price.toLocaleString()}</span>
+                                      <span className="font-semibold text-[#754319]">{item.currency} {item.price.toLocaleString()}</span>
                                     </span>
                                   </label>
                                   {line && (
@@ -1460,7 +1481,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount</Label>
+                <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount ({cartCurrency})</Label>
                 {catalogItems.length > 0 && (
                   <span className="text-[9px] font-medium text-slate-400">Calculated from items</span>
                 )}

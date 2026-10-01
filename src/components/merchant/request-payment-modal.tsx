@@ -84,7 +84,8 @@ export function RequestPaymentModal({
       .then((data) => {
         if (cancelled || !data) return
         const items: CatalogItem[] = (data.items ?? [])
-          .filter((i: any) => i.isActive)
+          // Bank and Telebirr settle in birr, so only ETB-priced items apply here.
+          .filter((i: any) => i.isActive && (i.currency ?? "ETB") === "ETB")
           .map((i: any) => ({ id: i.id, name: i.name, price: i.price, categoryId: i.categoryId }))
         setCatalogItems(items)
       })

@@ -5,6 +5,7 @@ import { encryptPayload, PaymentPayloadSchema, type PaymentPayload, decryptPaylo
 import { withMerchantSecret, encryptMerchantSecretAtRest, requiresRewrap } from "@/lib/merchant-secret"
 import { auditSecurityEvent } from "@/lib/request-security"
 import { checkPaymentEligibility } from "@/lib/payment-eligibility"
+import { itemCurrencyForMethod } from "@/lib/transaction-currency"
 
 export const PaymentInitiateSchema = z
   .object({
@@ -184,11 +185,21 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     .filter((v): v is string => !!v)
   type CatalogItemCategory = { name: string; mainCategory: { name: string } | null } | null
   const categoryByItemId = new Map<string, CatalogItemCategory>()
+  // Lines are priced in the method's currency (USD for MPGS, ETB otherwise),
+  // so a cart mixing in the other currency's items would charge a wrong total.
+  const lineCurrency = itemCurrencyForMethod(input.method)
   if (itemIds.length > 0) {
     const catalogItems = await prisma.merchantItem.findMany({
       where: { id: { in: itemIds }, merchantId: input.merchantId },
-      select: { id: true, category: { select: { name: true, mainCategory: { select: { name: true } } } } },
+      select: { id: true, currency: true, category: { select: { name: true, mainCategory: { select: { name: true } } } } },
     })
+    const mismatched = catalogItems.find((item) => item.currency !== lineCurrency)
+    if (mismatched) {
+      return {
+        ok: false as const,
+        error: `Items priced in ${mismatched.currency} cannot be used with this payment method; select ${lineCurrency} items.`,
+      }
+    }
     for (const item of catalogItems) categoryByItemId.set(item.id, item.category)
   }
 
@@ -200,6 +211,7 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
         itemId: i.itemId ?? null,
         name: i.name,
         price: i.price,
+        currency: lineCurrency,
         quantity: i.quantity,
         categoryName: category?.name ?? null,
         mainCategoryName: category?.mainCategory?.name ?? null,

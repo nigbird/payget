@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
 import { writeAuditLog } from "@/lib/audit-log"
+import { isItemCurrency } from "@/lib/transaction-currency"
 
 const MAX_NAME_LENGTH = 60
 
@@ -14,7 +15,10 @@ function validateItemBody(body: any, errors: Record<string, string>) {
   const price = Number(body.price)
   if (!Number.isFinite(price) || price <= 0) errors.price = "Enter a valid price greater than 0."
 
-  return { name, price }
+  const currency = body.currency === undefined || body.currency === null || body.currency === "" ? "ETB" : body.currency
+  if (!isItemCurrency(currency)) errors.currency = "Currency must be ETB or USD."
+
+  return { name, price, currency: String(currency) }
 }
 
 export async function GET(
@@ -61,6 +65,7 @@ export async function GET(
         id: i.id,
         name: i.name,
         price: i.price,
+        currency: i.currency,
         categoryId: i.categoryId,
         sortOrder: i.sortOrder,
         isActive: i.isActive,
@@ -88,7 +93,7 @@ export async function POST(
 
     const body = await request.json()
     const errors: Record<string, string> = {}
-    const { name, price } = validateItemBody(body, errors)
+    const { name, price, currency } = validateItemBody(body, errors)
 
     let categoryId: string | null = null
     if (body.categoryId !== undefined && body.categoryId !== null && body.categoryId !== "") {
@@ -109,6 +114,7 @@ export async function POST(
         categoryId,
         name,
         price,
+        currency,
         sortOrder: Number(body.sortOrder) || 0,
         isActive: body.isActive !== false,
       },
@@ -120,20 +126,21 @@ export async function POST(
       action: "MERCHANT_ITEM_CREATE",
       entityType: "MERCHANT_ITEM",
       entityId: item.id,
-      newValue: { name, price, categoryId },
+      newValue: { name, price, currency, categoryId },
     })
 
     return NextResponse.json({
       id: item.id,
       name: item.name,
       price: item.price,
+      currency: item.currency,
       categoryId: item.categoryId,
       sortOrder: item.sortOrder,
       isActive: item.isActive,
     })
   } catch (e: unknown) {
     if (isUniqueViolation(e)) {
-      return NextResponse.json({ error: "An item with this name already exists in this category." }, { status: 409 })
+      return NextResponse.json({ error: "An item with this name and currency already exists in this category." }, { status: 409 })
     }
     console.error("Failed to create merchant item:", e)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

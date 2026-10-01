@@ -1,4 +1,5 @@
 import { hasAnyDangerousExtension } from "@/lib/file-validation"
+import { isItemCurrency, type ItemCurrency } from "@/lib/transaction-currency"
 
 export const ITEMS_IMPORT_LIMITS = {
   importMaxBytes: 5 * 1024 * 1024,
@@ -12,6 +13,7 @@ export const ITEMS_IMPORT_LIMITS = {
 export type ParsedItemRow = {
   name: string
   price: number
+  currency: ItemCurrency
   categoryName: string | null
   mainCategoryName: string | null
   rowNumber: number
@@ -35,6 +37,7 @@ function buildRow(
   rawPrice: string,
   rawCategory: string,
   rawMainCategory: string,
+  rawCurrency: string,
   rowNumber: number,
   errors: ImportParseError[]
 ): ParsedItemRow | null {
@@ -54,6 +57,12 @@ function buildRow(
     return null
   }
 
+  const currency = rawCurrency.trim().toUpperCase() || "ETB"
+  if (!isItemCurrency(currency)) {
+    errors.push({ rowNumber, message: `Invalid currency: ${rawCurrency} (use ETB or USD)` })
+    return null
+  }
+
   const categoryName = rawCategory.trim()
   if (categoryName.length > ITEMS_IMPORT_LIMITS.categoryNameMax) {
     errors.push({ rowNumber, message: `Category name must be ${ITEMS_IMPORT_LIMITS.categoryNameMax} characters or fewer.` })
@@ -69,6 +78,7 @@ function buildRow(
   return {
     name,
     price,
+    currency,
     categoryName: categoryName || null,
     mainCategoryName: mainCategoryName || null,
     rowNumber,
@@ -96,6 +106,7 @@ export function parseCsvItemRows(content: string): {
   const priceIdx = headers.findIndex((h) => h === "price" || h === "price (etb)" || h === "amount")
   const categoryIdx = headers.findIndex((h) => h === "category" || h === "category name")
   const mainCategoryIdx = headers.findIndex((h) => h === "main category" || h === "main category name" || h === "maincategory")
+  const currencyIdx = headers.findIndex((h) => h === "currency")
 
   if (nameIdx < 0 || priceIdx < 0) {
     return {
@@ -115,6 +126,7 @@ export function parseCsvItemRows(content: string): {
       cols[priceIdx] ?? "",
       categoryIdx >= 0 ? cols[categoryIdx] ?? "" : "",
       mainCategoryIdx >= 0 ? cols[mainCategoryIdx] ?? "" : "",
+      currencyIdx >= 0 ? cols[currencyIdx] ?? "" : "",
       rowNumber,
       errors
     )
@@ -150,6 +162,7 @@ export async function parseExcelItemRows(buffer: ArrayBuffer): Promise<{
   const priceIdx = headers.findIndex((h) => h === "price" || h === "price (etb)" || h === "amount")
   const categoryIdx = headers.findIndex((h) => h === "category" || h === "category name")
   const mainCategoryIdx = headers.findIndex((h) => h === "main category" || h === "main category name" || h === "maincategory")
+  const currencyIdx = headers.findIndex((h) => h === "currency")
 
   if (nameIdx < 0 || priceIdx < 0) {
     return {
@@ -167,7 +180,8 @@ export async function parseExcelItemRows(buffer: ArrayBuffer): Promise<{
     const rawPrice = String(row.getCell(priceIdx).value ?? "").trim()
     const rawCategory = categoryIdx >= 0 ? String(row.getCell(categoryIdx).value ?? "").trim() : ""
     const rawMainCategory = mainCategoryIdx >= 0 ? String(row.getCell(mainCategoryIdx).value ?? "").trim() : ""
-    const parsedRow = buildRow(rawName, rawPrice, rawCategory, rawMainCategory, rowNumber, errors)
+    const rawCurrency = currencyIdx >= 0 ? String(row.getCell(currencyIdx).value ?? "").trim() : ""
+    const parsedRow = buildRow(rawName, rawPrice, rawCategory, rawMainCategory, rawCurrency, rowNumber, errors)
     if (parsedRow) rows.push(parsedRow)
   })
 

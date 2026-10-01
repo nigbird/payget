@@ -51,6 +51,7 @@ import {
 import {
   formatAmount,
   formatTotals,
+  paymentMethodLabel,
   sumByCurrency,
   toCurrencyTotals,
   transactionCurrency,
@@ -566,7 +567,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     let rows: (string | number)[][]
 
     if (isItemDrilldown) {
-      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price", "Line Total", "Currency", "Customer", "Sales User"]
+      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price", "Line Total", "Currency", "Payment Method", "Customer", "Sales User"]
       rows = []
       summaryCardsScope.forEach((tx) => {
         if (tx.status !== "success") return
@@ -582,13 +583,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             line.price.toFixed(2),
             (line.price * line.quantity).toFixed(2),
             currencyOf(tx),
+            paymentMethodLabel(tx.paymentMethod),
             customerPhone(tx) ?? "",
             tx.userCredentials.initiatedByName || "System",
           ])
         })
       })
     } else {
-      headers = ["Date", "Order ID", "Customer", "Description", "Amount", "Currency", "Sales User"]
+      headers = ["Date", "Order ID", "Customer", "Description", "Amount", "Currency", "Payment Method", "Sales User"]
       rows = summaryCardsScope
         .filter((tx) => tx.status === "success")
         .map((tx) => [
@@ -598,6 +600,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           tx.serviceDescription,
           tx.amount.toFixed(2),
           currencyOf(tx),
+          paymentMethodLabel(tx.paymentMethod),
           tx.userCredentials.initiatedByName || "System",
         ])
     }
@@ -936,6 +939,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                             "bg-rose-100 text-rose-700"
                           )}>
                             {statusLabel(tx.status)}
+                          </Badge>
+                          <Badge className="text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0 whitespace-nowrap bg-slate-100 text-slate-600">
+                            {paymentMethodLabel(tx.paymentMethod)}
                           </Badge>
                         </div>
                         {/* The reference is the only part allowed to ellipsize, so a narrow
