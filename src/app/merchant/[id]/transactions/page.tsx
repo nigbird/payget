@@ -547,35 +547,32 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   }, [filtered, merchant])
 
   /**
-   * Exports exactly what the summary cards show: a one-line recap of the active
-   * scope, then the rows behind it — item lines when drilled into an item or
-   * category, otherwise the successful transactions themselves.
+   * With no filter applied this is the sales summary: a one-line recap of the
+   * cards, then the successful sales behind it. Once any filter is on, the
+   * merchant is looking at a specific slice of transactions, so the export is
+   * that slice as filtered — every status, with a Status column — rather than
+   * only the sales in it. Item/category drilldowns export the matching item
+   * lines instead of whole transactions.
    */
   const exportSummaryToCSV = () => {
-    if (summaryCards.count === 0) {
-      toast({ title: "No data to export", variant: "destructive" })
-      return
-    }
-
-    const summaryLine = [
-      `"Showing: ${summaryLabel}"`,
-      `"Sold: ${summaryCards.count}"`,
-      `"Total: ${formatTotals(summaryCards.totals)}"`,
-    ].join(",")
+    const exportFiltered = hasActiveFilters
+    const includeTx = (tx: Transaction) => exportFiltered || tx.status === "success"
 
     let headers: string[]
     let rows: (string | number)[][]
 
     if (isItemDrilldown) {
       headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price", "Line Total", "Currency", "Payment Method", "Customer", "Sales User"]
+      if (exportFiltered) headers.splice(2, 0, "Status")
       rows = []
       summaryCardsScope.forEach((tx) => {
-        if (tx.status !== "success") return
+        if (!includeTx(tx)) return
         tx.items?.forEach((line) => {
           if (!lineMatchesItemFilters(line)) return
           rows.push([
             new Date(tx.timestamp).toLocaleString(),
             tx.transactionReference,
+            ...(exportFiltered ? [statusLabel(tx.status)] : []),
             line.name,
             line.mainCategoryName ?? "",
             line.categoryName ?? "",
@@ -591,33 +588,52 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       })
     } else {
       headers = ["Date", "Order ID", "Customer", "Description", "Amount", "Currency", "Payment Method", "Sales User"]
-      rows = summaryCardsScope
-        .filter((tx) => tx.status === "success")
-        .map((tx) => [
-          new Date(tx.timestamp).toLocaleString(),
-          tx.transactionReference,
-          customerPhone(tx) ?? "",
-          tx.serviceDescription,
-          tx.amount.toFixed(2),
-          currencyOf(tx),
-          paymentMethodLabel(tx.paymentMethod),
-          tx.userCredentials.initiatedByName || "System",
-        ])
+      if (exportFiltered) headers.splice(2, 0, "Status")
+      rows = summaryCardsScope.filter(includeTx).map((tx) => [
+        new Date(tx.timestamp).toLocaleString(),
+        tx.transactionReference,
+        ...(exportFiltered ? [statusLabel(tx.status)] : []),
+        customerPhone(tx) ?? "",
+        tx.serviceDescription,
+        tx.amount.toFixed(2),
+        currencyOf(tx),
+        paymentMethodLabel(tx.paymentMethod),
+        tx.userCredentials.initiatedByName || "System",
+      ])
     }
 
+    if (rows.length === 0) {
+      toast({
+        title: "No data to export",
+        description: exportFiltered
+          ? "No transactions match the current filters."
+          : "No successful sales today. Use Filter to export another date range.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const summaryLine = [
+      `"Showing: ${summaryLabel}${exportFiltered ? " (filtered)" : ""}"`,
+      `"Sold: ${summaryCards.count}"`,
+      `"Total: ${formatTotals(summaryCards.totals)}"`,
+    ].join(",")
+
+    const csvCell = (cell: string | number) => `"${String(cell).replace(/"/g, '""')}"`
     const csvContent = [
       summaryLine,
       "",
       headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ...rows.map((row) => row.map(csvCell).join(",")),
     ].join("\n")
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
     const safeLabel = summaryLabel.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "summary"
+    const filePrefix = exportFiltered ? "transactions" : "sales_summary"
     link.setAttribute("href", url)
-    link.setAttribute("download", `sales_summary_${safeLabel}_${new Date().toISOString().split("T")[0]}.csv`)
+    link.setAttribute("download", `${filePrefix}_${safeLabel}_${new Date().toISOString().split("T")[0]}.csv`)
     link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
