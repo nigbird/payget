@@ -9,6 +9,39 @@ export const CBS_CURRENCY = "ETB"
 /** Mirrors mpgs-client's DEFAULT_CURRENCY, for a merchant with no gateway currency configured. */
 export const DEFAULT_MPGS_CURRENCY = "USD"
 
+/** Currencies a catalog item can be priced in. */
+export const ITEM_CURRENCIES = ["ETB", "USD"] as const
+export type ItemCurrency = (typeof ITEM_CURRENCIES)[number]
+
+export function isItemCurrency(value: unknown): value is ItemCurrency {
+  return typeof value === "string" && (ITEM_CURRENCIES as readonly string[]).includes(value)
+}
+
+/**
+ * Which catalog items a checkout may offer. MPGS card payments are charged in
+ * dollars, so they take the USD-priced items; every other method settles in
+ * birr and takes the ETB ones.
+ */
+export function itemCurrencyForMethod(method: string | null | undefined): ItemCurrency {
+  return method === "MPGS" ? "USD" : "ETB"
+}
+
+/** Human label for a transaction's payment method, for lists and exports. */
+export function paymentMethodLabel(method: string | null | undefined): string {
+  switch (method) {
+    case "BANK":
+      return "Nib Bank"
+    case "TELEBIRR":
+      return "Telebirr"
+    case "MPGS":
+      return "Mastercard"
+    case "YAGOUT":
+      return "YagoutPay"
+    default:
+      return method || "Unknown"
+  }
+}
+
 type MerchantCurrencySource = Pick<Merchant, "mpgsCurrency"> | null | undefined
 
 const trimmedUpper = (value: unknown) =>
