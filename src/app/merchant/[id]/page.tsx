@@ -5,7 +5,14 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import type { TransactionStatus } from "@/lib/db"
-import { itemCurrencyForMethod } from "@/lib/transaction-currency"
+import {
+  CBS_CURRENCY,
+  formatAmount,
+  itemCurrencyForMethod,
+  paymentMethodLabel,
+  sumByCurrency,
+  transactionCurrency,
+} from "@/lib/transaction-currency"
 
 const nonTerminalStatuses: TransactionStatus[] = ["pending", "initiated", "awaiting_pin", "processing"]
 
@@ -296,12 +303,19 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       }
     }
 
+    // Birr and card (USD) payments can't be summed, so totals are kept per
+    // currency; the trend compares the merchant's leading currency only.
+    const currencyOf = (tx: (typeof transactions)[number]) => transactionCurrency(tx, merchant)
     const currentTxs = successfulTxs.filter(tx => filterByRange(new Date(tx.timestamp), timeRange, now))
-    const currentTotal = currentTxs.reduce((acc, tx) => acc + tx.amount, 0)
+    const currentTotals = sumByCurrency(currentTxs, currencyOf, (tx) => tx.amount)
+    const trendCurrency = currentTotals[0]?.currency ?? CBS_CURRENCY
+    const currentTotal = currentTotals.find((t) => t.currency === trendCurrency)?.total ?? 0
 
     const prevRef = getPreviousReferenceDate(timeRange, now)
     const prevTxs = successfulTxs.filter(tx => filterByRange(new Date(tx.timestamp), timeRange, prevRef))
-    const prevTotal = prevTxs.reduce((acc, tx) => acc + tx.amount, 0)
+    const prevTotal = prevTxs
+      .filter((tx) => currencyOf(tx) === trendCurrency)
+      .reduce((acc, tx) => acc + tx.amount, 0)
 
     const trend = prevTotal > 0 ? Math.min(((currentTotal - prevTotal) / prevTotal) * 100, 100) : 0
     const trendLabel = prevTotal > 0
@@ -331,6 +345,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     const formattedDateRange = getFormattedDateRange(timeRange)
 
     return {
+      currentTotals,
       currentTotal,
       prevTotal,
       trend,
@@ -338,7 +353,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       count: currentTxs.length,
       formattedDateRange
     }
-  }, [transactions, timeRange])
+  }, [transactions, timeRange, merchant])
 
   /** The just-created push transaction shown in the success modal, sourced from `transactions`
    * (refreshed with items/printInfo right before the success toast fires) rather than the
@@ -1732,12 +1747,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <CardContent className="p-6">
               <div className="flex flex-col">
                 <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-800/60 mb-1">Revenue</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-[#5b371f]">
-                    {stats.currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </span>
-                  <span className="text-sm font-bold text-amber-800/40">ETB</span>
-                </div>
+                {(stats.currentTotals.length > 0 ? stats.currentTotals : [{ currency: CBS_CURRENCY, total: 0 }]).map(({ currency, total }) => (
+                  <div key={currency} className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-[#5b371f]">
+                      {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-sm font-bold text-amber-800/40">{currency}</span>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -1748,12 +1765,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-800/60 mb-1">Sales Overview</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-[#5b371f]">
-                      {stats.currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-sm font-bold text-amber-800/40">ETB</span>
-                  </div>
+                  {(stats.currentTotals.length > 0 ? stats.currentTotals : [{ currency: CBS_CURRENCY, total: 0 }]).map(({ currency, total }) => (
+                    <div key={currency} className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-[#5b371f]">
+                        {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-sm font-bold text-amber-800/40">{currency}</span>
+                    </div>
+                  ))}
                 </div>
                 {stats.trend !== 0 && (
                   <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
@@ -1795,11 +1814,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <div key={tx.id} className="group flex flex-col gap-3 rounded-2xl border border-amber-200/30 bg-gradient-to-r from-amber-50/50 to-white/50 p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/20 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-[#5b371f] break-words">{tx.description}</p>
-                    <p className="text-xs leading-5 text-amber-800/60 break-words">{tx.payerPhone || "Web checkout"} • {new Date(tx.timestamp).toLocaleDateString()}</p>
+                    <p className="text-xs leading-5 text-amber-800/60 break-words">{tx.payerPhone || "Web checkout"} • {paymentMethodLabel(tx.paymentMethod)} • {new Date(tx.timestamp).toLocaleDateString()}</p>
                   </div>
                   <div className="text-left sm:text-right flex items-center gap-3">
                     <div>
-                      <p className="font-semibold text-[#5b371f]">{tx.amount.toFixed(2)} ETB</p>
+                      <p className="font-semibold text-[#5b371f]">{formatAmount(tx.amount, transactionCurrency(tx, merchant))}</p>
                       <Badge
                         variant="outline"
                         className={`mt-1 whitespace-nowrap text-[10px] capitalize ${
