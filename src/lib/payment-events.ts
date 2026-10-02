@@ -77,6 +77,13 @@ export function subscribePaymentEvents(
   }
 }
 
+/** Id of the latest event published so far. Sent to a device when it connects,
+ * so that even a device that has not received any payment yet can ask for
+ * what it missed after its connection drops. */
+export function currentPaymentEventId(): number {
+  return hub().nextId
+}
+
 /** Events newer than lastEventId still inside the replay window. */
 export function getMissedPaymentEvents(merchantId: string, lastEventId: number): PaymentEvent[] {
   const cutoff = Date.now() - REPLAY_MAX_AGE_MS

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { authenticateSoundDevice, isSoundDeviceStillActive } from "@/lib/sound-devices"
-import { getMissedPaymentEvents, subscribePaymentEvents, type PaymentEvent } from "@/lib/payment-events"
+import {
+  currentPaymentEventId,
+  getMissedPaymentEvents,
+  subscribePaymentEvents,
+  type PaymentEvent,
+} from "@/lib/payment-events"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -17,7 +22,9 @@ const HEARTBEAT_MS = 20 * 1000
  *   Last-Event-ID: <id of the last event received>   (optional, on reconnect)
  *
  * Events:
- *   event: ready    data: { deviceName, merchantName }
+ *   event: ready    data: { deviceName, merchantName, cursor }
+ *                   cursor = latest event id; send it back as Last-Event-ID on
+ *                   reconnect to receive anything published in between
  *   event: payment  data: PaymentEvent       (also "test", from the portal's test button)
  *   event: revoked  — the device was unpaired; the client should stop reconnecting.
  */
@@ -48,7 +55,11 @@ export async function GET(request: Request) {
 
       write(`retry: 5000\n`)
       write(
-        `event: ready\ndata: ${JSON.stringify({ deviceName: device.name, merchantName: device.merchantName })}\n\n`
+        `event: ready\ndata: ${JSON.stringify({
+          deviceName: device.name,
+          merchantName: device.merchantName,
+          cursor: currentPaymentEventId(),
+        })}\n\n`
       )
 
       if (Number.isFinite(lastEventId) && lastEventId > 0) {

@@ -168,7 +168,12 @@ export default function SpeakerPage() {
                 attempt = 0
                 setConnection("live")
                 try {
-                  setInfo(JSON.parse(data))
+                  const ready = JSON.parse(data)
+                  setInfo({ deviceName: ready.deviceName, merchantName: ready.merchantName })
+                  // Without a position, a speaker that drops before its first
+                  // payment would reconnect without Last-Event-ID and miss
+                  // everything published while it was away.
+                  if (!lastEventId && typeof ready.cursor === "number") lastEventId = ready.cursor
                 } catch {}
               } else if (event === "revoked") {
                 unpair()
