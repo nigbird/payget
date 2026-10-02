@@ -51,6 +51,11 @@ type CashbackReconciliationItem = {
   customerPhone: string | null
   customerAccount: string | null
   paymentAmount: number
+  /** BANK | TELEBIRR | YAGOUT | MPGS, from the payment transaction. */
+  paymentMethod: string | null
+  /** YagoutPay gateway the customer paid through (pg_name), e.g. their bank or wallet. */
+  paymentSource: string | null
+  paymentMode: string | null
   cashbackAmount: number
   cashbackPercent: number
   categoryName: string | null
@@ -62,6 +67,22 @@ type CashbackReconciliationItem = {
   processedAt: string | null
   createdAt: string
   requests?: any[]
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  BANK: 'NIB Bank',
+  TELEBIRR: 'Telebirr',
+  YAGOUT: 'YagoutPay',
+  MPGS: 'Card (MPGS)',
+}
+
+function paymentMethodLabel(method: string | null | undefined) {
+  return method ? PAYMENT_METHOD_LABELS[method] ?? method : ''
+}
+
+/** "Gateway · paymode" for Yagout payments; empty for the direct rails. */
+function paymentSourceLabel(source: string | null | undefined, mode: string | null | undefined) {
+  return [source, mode].filter(Boolean).join(' · ')
 }
 
 type ReconciliationStats = {
@@ -213,6 +234,9 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [merchantFilter, setMerchantFilter] = useState<string>('ALL')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('ALL')
+  const [paymentSourceFilter, setPaymentSourceFilter] = useState<string>('ALL')
+  const [paymentSources, setPaymentSources] = useState<string[]>([])
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -249,6 +273,17 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
   // Get merchants for the dropdown from API
   const uniqueMerchants = allMerchants.map(m => m.name).sort()
 
+  const applyFilterParams = (params: URLSearchParams) => {
+    if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
+    if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+    if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
+    if (paymentMethodFilter !== 'ALL') params.set('paymentMethod', paymentMethodFilter)
+    if (paymentSourceFilter !== 'ALL') params.set('paymentSource', paymentSourceFilter)
+    if (dateFrom) params.set('dateFrom', dateFrom)
+    if (dateTo) params.set('dateTo', dateTo)
+    return params
+  }
+
   const fetchData = async () => {
     // Track if search input had focus before we start loading
     hadSearchFocusRef.current = 
@@ -258,11 +293,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
       const params = new URLSearchParams()
       params.set('page', currentPage.toString())
       params.set('limit', itemsPerPage.toString())
-      if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
-      if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
-      if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
-      if (dateFrom) params.set('dateFrom', dateFrom)
-      if (dateTo) params.set('dateTo', dateTo)
+      applyFilterParams(params)
 
       const res = await fetch(`/api/admin/cashback-reconciliation?${params.toString()}`)
       if (res.ok) {
@@ -279,6 +310,9 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
           customerPhone: tx.customerPhone,
           customerAccount: tx.customerAccount,
           paymentAmount: tx.paymentAmount,
+          paymentMethod: tx.paymentMethod ?? null,
+          paymentSource: tx.paymentSource ?? null,
+          paymentMode: tx.paymentMode ?? null,
           cashbackAmount: tx.cashbackAmount,
           cashbackPercent: tx.cashbackPercent,
           categoryName: tx.category?.name,
@@ -296,6 +330,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
         setRequests(data.requests || [])
         setStats(data.stats)
         setAllMerchants(data.merchants || [])
+        setPaymentSources(data.paymentSources || [])
         setTotal(data.total)
         setTotalPages(data.totalPages)
       }
@@ -317,11 +352,11 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchQuery, statusFilter, merchantFilter, dateFrom, dateTo, itemsPerPage])
+  }, [debouncedSearchQuery, statusFilter, merchantFilter, paymentMethodFilter, paymentSourceFilter, dateFrom, dateTo, itemsPerPage])
 
   useEffect(() => {
     fetchData()
-  }, [currentPage, debouncedSearchQuery, statusFilter, merchantFilter, dateFrom, dateTo, itemsPerPage])
+  }, [currentPage, debouncedSearchQuery, statusFilter, merchantFilter, paymentMethodFilter, paymentSourceFilter, dateFrom, dateTo, itemsPerPage])
 
   // Restore focus to search input after load if it had it before
   useEffect(() => {
@@ -339,27 +374,31 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
       try {
         const params = new URLSearchParams()
         params.set('download', 'true')
-        if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
-        if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
-        if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
-        if (dateFrom) params.set('dateFrom', dateFrom)
-        if (dateTo) params.set('dateTo', dateTo)
+        applyFilterParams(params)
 
         const res = await fetch(`/api/admin/cashback-reconciliation?${params.toString()}`)
         if (!res.ok) throw new Error('Failed to fetch export data')
         const data = await res.json()
 
         downloadCsv('cashback-transactions', [
-          'Transaction Ref', 'Merchant', 'Merchant Account', 'Customer', 'Payment Amount (ETB)', 'Cashback Amount (ETB)', 'Category', 'Status', 'Created At'
+          'Transaction Ref', 'Merchant', 'Merchant Account', 'Payment Method', 'Payment Source', 'Pay Mode',
+          'Customer Phone', 'Customer Account', 'Eligibility Category', 'Payment Amount (ETB)', 'Cashback Amount (ETB)',
+          'Cashback %', 'Cashback Status', 'Failure Reason', 'Created At'
         ], data.transactions.map((i: any) => [
           i.transactionReference,
           i.merchant?.name || 'Unknown Merchant',
           i.merchant?.accountNumber || '',
-          i.customerPhone || i.customerAccount || '',
+          paymentMethodLabel(i.paymentMethod),
+          i.paymentSource || '',
+          i.paymentMode || '',
+          i.customerPhone || '',
+          i.customerAccount || '',
+          i.category?.name || '',
           i.paymentAmount,
           i.cashbackAmount,
-          i.category?.name || '',
+          i.cashbackPercent,
           i.status,
+          i.failureReason || i.skipReason || '',
           new Date(i.createdAt).toLocaleString()
         ]))
         toast({ title: 'Export Complete', description: `Exported ${data.transactions.length} transactions to CSV` })
@@ -664,6 +703,42 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                         <SelectItem value='RECONCILED'>Reconciled</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Select
+                      value={paymentMethodFilter}
+                      onValueChange={(v) => {
+                        setPaymentMethodFilter(v)
+                        // A gateway source only exists on YagoutPay payments.
+                        if (v !== 'YAGOUT') setPaymentSourceFilter('ALL')
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='All methods' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='ALL'>All methods</SelectItem>
+                        {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={paymentSourceFilter}
+                      onValueChange={(v) => {
+                        setPaymentSourceFilter(v)
+                        if (v !== 'ALL') setPaymentMethodFilter('YAGOUT')
+                      }}
+                      disabled={paymentSources.length === 0 || (paymentMethodFilter !== 'ALL' && paymentMethodFilter !== 'YAGOUT')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='All Yagout sources' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='ALL'>All Yagout sources</SelectItem>
+                        {paymentSources.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <DateRangeFilter
                       className='sm:col-span-2'
                       from={dateFrom}
@@ -703,6 +778,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                             <TableHead className='text-xs font-semibold'>Merchant</TableHead>
                             <TableHead className='text-xs font-semibold'>Merchant Account</TableHead>
                             <TableHead className='text-xs font-semibold'>Customer</TableHead>
+                            <TableHead className='text-xs font-semibold'>Paid via</TableHead>
                             <TableHead className='text-xs font-semibold text-right'>Payment</TableHead>
                             <TableHead className='text-xs font-semibold text-right'>Cashback</TableHead>
                             <TableHead className='text-xs font-semibold'>Status</TableHead>
@@ -718,6 +794,14 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                               <TableCell className='font-mono text-xs text-slate-600'>{item.merchantAccountNumber || '-'}</TableCell>
                               <TableCell className='text-xs text-slate-600'>
                                 {item.customerPhone || item.customerAccount || '-'}
+                              </TableCell>
+                              <TableCell className='text-sm'>
+                                {paymentMethodLabel(item.paymentMethod) || '-'}
+                                {item.paymentSource && (
+                                  <div className='text-xs text-slate-500'>
+                                    {paymentSourceLabel(item.paymentSource, item.paymentMode)}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className='text-sm font-medium text-right'>
                                 {item.paymentAmount.toLocaleString()} ETB
@@ -758,7 +842,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                           ))}
                           {items.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={9} className='h-32 text-center text-sm text-slate-500'>
+                              <TableCell colSpan={10} className='h-32 text-center text-sm text-slate-500'>
                                 No cashback transactions found
                               </TableCell>
                             </TableRow>

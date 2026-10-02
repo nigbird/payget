@@ -5,6 +5,35 @@ import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 import { executeTransferForTransaction } from '@/lib/cashback/processor';
 
+const PAYMENT_METHODS = ['BANK', 'TELEBIRR', 'YAGOUT', 'MPGS'];
+
+/**
+ * Attaches the payment's method and source to each cashback row. For YagoutPay
+ * the source is the gateway the customer paid through (pg_name / paymode from
+ * the return), which is what separates NIB-via-Yagout from other banks/wallets.
+ */
+async function withPaymentSource<T extends { paymentTransactionId: string }>(rows: T[]) {
+  if (rows.length === 0) return [];
+  const payments = await prisma.transaction.findMany({
+    where: { id: { in: rows.map((r) => r.paymentTransactionId) } },
+    select: { id: true, paymentMethod: true, userCredentials: true },
+  });
+  const byId = new Map(payments.map((p) => [p.id, p]));
+
+  return rows.map((row) => {
+    const payment = byId.get(row.paymentTransactionId);
+    const yagout = (payment?.userCredentials as any)?.yagout as
+      | { pgName?: string | null; paymode?: string | null }
+      | undefined;
+    return {
+      ...row,
+      paymentMethod: payment?.paymentMethod ?? null,
+      paymentSource: yagout?.pgName ?? null,
+      paymentMode: yagout?.paymode ?? null,
+    };
+  });
+}
+
 export async function GET(request: Request) {
   try {
     const user = await requireAuthUser(request);
@@ -24,6 +53,9 @@ export async function GET(request: Request) {
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
     const download = searchParams.get('download') === 'true';
+    const paymentMethodParam = searchParams.get('paymentMethod');
+    const paymentMethod = PAYMENT_METHODS.includes(paymentMethodParam ?? '') ? paymentMethodParam : null;
+    const paymentSource = searchParams.get('paymentSource')?.trim() || null;
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
     const offset = (page - 1) * limit;
@@ -68,6 +100,19 @@ export async function GET(request: Request) {
       ];
     }
 
+    // Payment method/source live on the payment Transaction, which the cashback
+    // row only references by id (no relation), so resolve matching ids first.
+    if (paymentMethod || paymentSource) {
+      const matches = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT c.id
+        FROM "CashbackTransaction" c
+        JOIN "Transaction" t ON t.id = c."paymentTransactionId"
+        WHERE (${paymentMethod}::text IS NULL OR t."paymentMethod"::text = ${paymentMethod})
+          AND (${paymentSource}::text IS NULL OR t."userCredentials"->'yagout'->>'pgName' = ${paymentSource})
+      `;
+      where.id = { in: matches.map((m) => m.id) };
+    }
+
     if (download) {
       // Export needs every row matching the filters, not just the current page.
       const transactions = await prisma.cashbackTransaction.findMany({
@@ -79,10 +124,13 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' },
         take: 50000
       });
-      return NextResponse.json({ transactions, total: transactions.length });
+      return NextResponse.json({
+        transactions: await withPaymentSource(transactions),
+        total: transactions.length,
+      });
     }
 
-    const [transactions, total] = await Promise.all([
+    const [pageTransactions, total] = await Promise.all([
       prisma.cashbackTransaction.findMany({
         where,
         include: {
@@ -102,6 +150,18 @@ export async function GET(request: Request) {
       }),
       prisma.cashbackTransaction.count({ where })
     ]);
+    const transactions = await withPaymentSource(pageTransactions);
+
+    // Yagout gateway names seen on cashback-bearing payments, for the source filter.
+    const sourceRows = await prisma.$queryRaw<{ source: string }[]>`
+      SELECT DISTINCT t."userCredentials"->'yagout'->>'pgName' AS source
+      FROM "CashbackTransaction" c
+      JOIN "Transaction" t ON t.id = c."paymentTransactionId"
+      WHERE t."paymentMethod"::text = 'YAGOUT'
+        AND t."userCredentials"->'yagout'->>'pgName' IS NOT NULL
+      ORDER BY source
+    `;
+    const paymentSources = sourceRows.map((r) => r.source);
 
     // Get pending requests for review
     const requests = await prisma.cashbackRequest.findMany({
@@ -168,6 +228,7 @@ export async function GET(request: Request) {
         topMerchants
       },
       merchants: allMerchants,
+      paymentSources,
       total,
       totalPages,
       currentPage: page,
