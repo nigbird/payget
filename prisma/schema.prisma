@@ -528,13 +528,17 @@ model MerchantItem {
   category         MerchantItemCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   name             String
   price            Float
+  /// ETB or USD. Which items a checkout offers depends on the payment method:
+  /// MPGS card payments get the USD items, every other method the ETB ones
+  /// (see itemCurrencyForMethod). The same name may exist once per currency.
+  currency         String                @default("ETB")
   sortOrder        Int                   @default(0)
   isActive         Boolean               @default(true)
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   transactionLines TransactionItem[]
 
-  @@unique([merchantId, categoryId, name])
+  @@unique([merchantId, categoryId, name, currency])
   @@index([merchantId])
   @@index([categoryId])
 }
@@ -551,6 +555,8 @@ model TransactionItem {
   item             MerchantItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
   name             String
   price            Float
+  /// Currency the line was priced in at checkout, snapshotted with price.
+  currency         String        @default("ETB")
   quantity         Int           @default(1)
   /// Category/main-category names as they were at checkout — snapshotted for
   /// the same reason as name/price above, so a kitchen/bar ticket printed

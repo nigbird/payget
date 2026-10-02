@@ -11,6 +11,7 @@ import {
 } from "@/lib/provider-encryption"
 import { writeAuditLog } from "@/lib/audit-log"
 import { QR_CUSTOMER_INITIATOR_ID } from "@/lib/transaction-initiator"
+import { itemCurrencyForMethod } from "@/lib/transaction-currency"
 
 const CartItemSchema = z.object({
   itemId: z.string().optional(),
@@ -51,7 +52,8 @@ export async function GET(
     }
 
     const items = await prisma.merchantItem.findMany({
-      where: { merchantId: qrCode.merchant.id, isActive: true },
+      // QR checkout always pays through core banking, so only birr-priced items apply.
+      where: { merchantId: qrCode.merchant.id, isActive: true, currency: itemCurrencyForMethod("BANK") },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, price: true, categoryId: true, isActive: true },
     })

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { ITEM_CURRENCIES, type ItemCurrency } from "@/lib/transaction-currency"
 
 const ITEMS_PAGE_SIZE = 10
 
@@ -42,6 +43,7 @@ export type MerchantItemDto = {
   id: string
   name: string
   price: number
+  currency: ItemCurrency
   categoryId: string | null
   sortOrder: number
   isActive: boolean
@@ -69,11 +71,11 @@ export function ItemsTab({ merchantId }: Props) {
   const [addingCategory, setAddingCategory] = useState(false)
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
 
-  const [itemForm, setItemForm] = useState({ name: "", price: "", categoryId: UNCATEGORIZED })
+  const [itemForm, setItemForm] = useState<EditItemForm>({ name: "", price: "", currency: "ETB", categoryId: UNCATEGORIZED })
   const [addingItem, setAddingItem] = useState(false)
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
-  const [editItemForm, setEditItemForm] = useState({ name: "", price: "", categoryId: UNCATEGORIZED })
+  const [editItemForm, setEditItemForm] = useState<EditItemForm>({ name: "", price: "", currency: "ETB", categoryId: UNCATEGORIZED })
   const [savingItemId, setSavingItemId] = useState<string | null>(null)
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null)
 
@@ -277,7 +279,7 @@ export function ItemsTab({ merchantId }: Props) {
 
   const downloadTemplate = () => {
     const csv =
-      "Item Name,Price,Category,Main Category\nEspresso,70,Drinks,Bar\nBurger,250,Main Course,Kitchen\n"
+      "Item Name,Price,Currency,Category,Main Category\nEspresso,70,ETB,Drinks,Bar\nEspresso,2,USD,Drinks,Bar\nBurger,250,ETB,Main Course,Kitchen\n"
     const blob = new Blob([csv], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -300,12 +302,13 @@ export function ItemsTab({ merchantId }: Props) {
         body: JSON.stringify({
           name: itemForm.name.trim(),
           price: Number(itemForm.price),
+          currency: itemForm.currency,
           categoryId: itemForm.categoryId === UNCATEGORIZED ? null : itemForm.categoryId,
         }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Failed to add item")
-      setItemForm((p) => ({ name: "", price: "", categoryId: p.categoryId }))
+      setItemForm((p) => ({ name: "", price: "", currency: p.currency, categoryId: p.categoryId }))
       await load()
     } catch (e: unknown) {
       toast({
@@ -320,7 +323,7 @@ export function ItemsTab({ merchantId }: Props) {
 
   const startEditItem = (item: MerchantItemDto) => {
     setEditingItemId(item.id)
-    setEditItemForm({ name: item.name, price: String(item.price), categoryId: item.categoryId ?? UNCATEGORIZED })
+    setEditItemForm({ name: item.name, price: String(item.price), currency: item.currency ?? "ETB", categoryId: item.categoryId ?? UNCATEGORIZED })
   }
 
   const cancelEditItem = () => setEditingItemId(null)
@@ -335,6 +338,7 @@ export function ItemsTab({ merchantId }: Props) {
         body: JSON.stringify({
           name: editItemForm.name.trim(),
           price: Number(editItemForm.price),
+          currency: editItemForm.currency,
           categoryId: editItemForm.categoryId === UNCATEGORIZED ? null : editItemForm.categoryId,
         }),
       })
@@ -584,7 +588,7 @@ export function ItemsTab({ merchantId }: Props) {
             </Button>
           </div>
 
-          <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3 sm:grid-cols-[1fr,120px,160px,auto]">
+          <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3 sm:grid-cols-[1fr,120px,100px,160px,auto]">
             <div className="space-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Item name</Label>
               <Input
@@ -607,6 +611,24 @@ export function ItemsTab({ merchantId }: Props) {
                 inputMode="decimal"
                 className="h-9 rounded-xl bg-white"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Currency</Label>
+              <Select
+                value={itemForm.currency}
+                onValueChange={(v) => setItemForm((p) => ({ ...p, currency: v as ItemCurrency }))}
+              >
+                <SelectTrigger className="h-9 rounded-xl bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ITEM_CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</Label>
@@ -739,7 +761,7 @@ export function ItemsTab({ merchantId }: Props) {
   )
 }
 
-type EditItemForm = { name: string; price: string; categoryId: string }
+type EditItemForm = { name: string; price: string; currency: ItemCurrency; categoryId: string }
 
 function CategoryItemsList({
   items,
@@ -848,6 +870,21 @@ function CategoryItemsList({
                     inputMode="decimal"
                   />
                   <Select
+                    value={editItemForm.currency}
+                    onValueChange={(v) => setEditItemForm((p) => ({ ...p, currency: v as ItemCurrency }))}
+                  >
+                    <SelectTrigger className="h-8 w-20 rounded-lg text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ITEM_CURRENCIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
                     value={editItemForm.categoryId}
                     onValueChange={(v) => setEditItemForm((p) => ({ ...p, categoryId: v }))}
                   >
@@ -897,7 +934,7 @@ function CategoryItemsList({
                   />
                   <span className={item.isActive ? "" : "text-slate-400 line-through"}>{item.name}</span>
                   <span className="text-xs font-semibold text-[#754319]">
-                    ETB {item.price.toLocaleString()}
+                    {item.currency ?? "ETB"} {item.price.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">

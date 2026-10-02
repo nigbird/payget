@@ -90,6 +90,7 @@ export interface TransactionItemLine {
   itemId: string | null;
   name: string;
   price: number;
+  currency: string;
   quantity: number;
   categoryName: string | null;
   mainCategoryName: string | null;
@@ -100,6 +101,7 @@ export interface TransactionItemInput {
   itemId?: string | null;
   name: string;
   price: number;
+  currency?: string;
   quantity: number;
   categoryName?: string | null;
   mainCategoryName?: string | null;
@@ -293,6 +295,7 @@ function mapTransaction(
       itemId: i.itemId,
       name: i.name,
       price: i.price,
+      currency: i.currency,
       quantity: i.quantity,
       categoryName: i.categoryName,
       mainCategoryName: i.mainCategoryName,
@@ -829,6 +832,7 @@ export const db = {
                   itemId: i.itemId ?? null,
                   name: i.name,
                   price: i.price,
+                  currency: i.currency ?? "ETB",
                   quantity: i.quantity,
                   categoryName: i.categoryName ?? null,
                   mainCategoryName: i.mainCategoryName ?? null,

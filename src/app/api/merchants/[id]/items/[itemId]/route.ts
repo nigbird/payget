@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
 import { writeAuditLog } from "@/lib/audit-log"
+import { isItemCurrency } from "@/lib/transaction-currency"
 
 const MAX_NAME_LENGTH = 60
 
@@ -41,6 +42,12 @@ export async function PATCH(
       if (!Number.isFinite(price) || price <= 0) errors.price = "Enter a valid price greater than 0."
     }
 
+    let currency: string | undefined
+    if (body.currency !== undefined) {
+      if (!isItemCurrency(body.currency)) errors.currency = "Currency must be ETB or USD."
+      else currency = body.currency
+    }
+
     let categoryId: string | null | undefined
     if (body.categoryId !== undefined) {
       if (body.categoryId === null || body.categoryId === "") {
@@ -63,6 +70,7 @@ export async function PATCH(
       data: {
         name,
         price,
+        currency,
         categoryId,
         sortOrder: body.sortOrder !== undefined ? Number(body.sortOrder) : undefined,
         isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
@@ -75,7 +83,7 @@ export async function PATCH(
       action: "MERCHANT_ITEM_UPDATE",
       entityType: "MERCHANT_ITEM",
       entityId: itemId,
-      oldValue: { name: existing.name, price: existing.price, categoryId: existing.categoryId },
+      oldValue: { name: existing.name, price: existing.price, currency: existing.currency, categoryId: existing.categoryId },
       newValue: body,
     })
 
@@ -83,13 +91,14 @@ export async function PATCH(
       id: updated.id,
       name: updated.name,
       price: updated.price,
+      currency: updated.currency,
       categoryId: updated.categoryId,
       sortOrder: updated.sortOrder,
       isActive: updated.isActive,
     })
   } catch (e: unknown) {
     if (isUniqueViolation(e)) {
-      return NextResponse.json({ error: "An item with this name already exists in this category." }, { status: 409 })
+      return NextResponse.json({ error: "An item with this name and currency already exists in this category." }, { status: 409 })
     }
     console.error("Failed to update merchant item:", e)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -123,7 +132,7 @@ export async function DELETE(
       action: "MERCHANT_ITEM_DELETE",
       entityType: "MERCHANT_ITEM",
       entityId: itemId,
-      oldValue: { name: existing.name, price: existing.price, categoryId: existing.categoryId },
+      oldValue: { name: existing.name, price: existing.price, currency: existing.currency, categoryId: existing.categoryId },
     })
 
     return NextResponse.json({ success: true })

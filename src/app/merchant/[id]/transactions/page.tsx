@@ -51,6 +51,7 @@ import {
 import {
   formatAmount,
   formatTotals,
+  paymentMethodLabel,
   sumByCurrency,
   toCurrencyTotals,
   transactionCurrency,
@@ -191,6 +192,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [salesUserFilter, setSalesUserFilter] = useState<string>("all")
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [itemFilters, setItemFilters] = useState<string[]>([])
   const [mainCategoryFilters, setMainCategoryFilters] = useState<string[]>([])
   const [categoryFilters, setCategoryFilters] = useState<string[]>([])
@@ -336,6 +338,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       if (statusFilter === "failed" && tx.status !== "failed") return false
       if (statusFilter === "initiated" && !nonTerminalStatuses.includes(tx.status)) return false
       if (!transactionMatchesSalesUserFilter(tx, salesUserFilter, teamMembers)) return false
+      if (paymentMethodFilter !== "all" && tx.paymentMethod !== paymentMethodFilter) return false
       if (itemFilters.length > 0 && !tx.items?.some((line) => itemFilters.includes(itemLineKey(line)))) return false
       if (mainCategoryFilters.length > 0 && !tx.items?.some((line) => line.mainCategoryName && mainCategoryFilters.includes(line.mainCategoryName))) return false
       if (categoryFilters.length > 0 && !tx.items?.some((line) => line.categoryName && categoryFilters.includes(line.categoryName))) return false
@@ -358,7 +361,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
       return true
     })
-  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, itemFilters, mainCategoryFilters, categoryFilters, teamMembers])
+  }, [transactions, dateRange.from, dateRange.to, search, statusFilter, salesUserFilter, paymentMethodFilter, itemFilters, mainCategoryFilters, categoryFilters, teamMembers])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
 
@@ -384,9 +387,18 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     [filtered, merchant]
   )
 
+  /** Only the methods this merchant has actually been paid through, in a fixed order. */
+  const paymentMethodOptions = useMemo(() => {
+    const used = new Set(transactions.map((tx) => tx.paymentMethod))
+    return (["BANK", "MPGS", "YAGOUT", "TELEBIRR"] as const)
+      .filter((method) => used.has(method))
+      .map((method) => ({ value: method, label: paymentMethodLabel(method) }))
+  }, [transactions])
+
   const hasActiveFilters =
     statusFilter !== "all" ||
     salesUserFilter !== "all" ||
+    paymentMethodFilter !== "all" ||
     itemFilters.length > 0 ||
     mainCategoryFilters.length > 0 ||
     categoryFilters.length > 0 ||
@@ -497,7 +509,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
 
   useEffect(() => {
     setPageIndex(0)
-  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, itemFilters, mainCategoryFilters, categoryFilters, pageSize])
+  }, [statusFilter, search, dateRange.from, dateRange.to, salesUserFilter, paymentMethodFilter, itemFilters, mainCategoryFilters, categoryFilters, pageSize])
 
   // A category only applies within its own main category, so switching main
   // category can leave stale, now-impossible category selections behind.
@@ -546,35 +558,32 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   }, [filtered, merchant])
 
   /**
-   * Exports exactly what the summary cards show: a one-line recap of the active
-   * scope, then the rows behind it — item lines when drilled into an item or
-   * category, otherwise the successful transactions themselves.
+   * With no filter applied this is the sales summary: a one-line recap of the
+   * cards, then the successful sales behind it. Once any filter is on, the
+   * merchant is looking at a specific slice of transactions, so the export is
+   * that slice as filtered — every status, with a Status column — rather than
+   * only the sales in it. Item/category drilldowns export the matching item
+   * lines instead of whole transactions.
    */
   const exportSummaryToCSV = () => {
-    if (summaryCards.count === 0) {
-      toast({ title: "No data to export", variant: "destructive" })
-      return
-    }
-
-    const summaryLine = [
-      `"Showing: ${summaryLabel}"`,
-      `"Sold: ${summaryCards.count}"`,
-      `"Total: ${formatTotals(summaryCards.totals)}"`,
-    ].join(",")
+    const exportFiltered = hasActiveFilters
+    const includeTx = (tx: Transaction) => exportFiltered || tx.status === "success"
 
     let headers: string[]
     let rows: (string | number)[][]
 
     if (isItemDrilldown) {
-      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price", "Line Total", "Currency", "Customer", "Sales User"]
+      headers = ["Date", "Order ID", "Item", "Main Category", "Category", "Quantity", "Unit Price", "Line Total", "Currency", "Payment Method", "Customer", "Sales User"]
+      if (exportFiltered) headers.splice(2, 0, "Status")
       rows = []
       summaryCardsScope.forEach((tx) => {
-        if (tx.status !== "success") return
+        if (!includeTx(tx)) return
         tx.items?.forEach((line) => {
           if (!lineMatchesItemFilters(line)) return
           rows.push([
             new Date(tx.timestamp).toLocaleString(),
             tx.transactionReference,
+            ...(exportFiltered ? [statusLabel(tx.status)] : []),
             line.name,
             line.mainCategoryName ?? "",
             line.categoryName ?? "",
@@ -582,39 +591,60 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             line.price.toFixed(2),
             (line.price * line.quantity).toFixed(2),
             currencyOf(tx),
+            paymentMethodLabel(tx.paymentMethod),
             customerPhone(tx) ?? "",
             tx.userCredentials.initiatedByName || "System",
           ])
         })
       })
     } else {
-      headers = ["Date", "Order ID", "Customer", "Description", "Amount", "Currency", "Sales User"]
-      rows = summaryCardsScope
-        .filter((tx) => tx.status === "success")
-        .map((tx) => [
-          new Date(tx.timestamp).toLocaleString(),
-          tx.transactionReference,
-          customerPhone(tx) ?? "",
-          tx.serviceDescription,
-          tx.amount.toFixed(2),
-          currencyOf(tx),
-          tx.userCredentials.initiatedByName || "System",
-        ])
+      headers = ["Date", "Order ID", "Customer", "Description", "Amount", "Currency", "Payment Method", "Sales User"]
+      if (exportFiltered) headers.splice(2, 0, "Status")
+      rows = summaryCardsScope.filter(includeTx).map((tx) => [
+        new Date(tx.timestamp).toLocaleString(),
+        tx.transactionReference,
+        ...(exportFiltered ? [statusLabel(tx.status)] : []),
+        customerPhone(tx) ?? "",
+        tx.serviceDescription,
+        tx.amount.toFixed(2),
+        currencyOf(tx),
+        paymentMethodLabel(tx.paymentMethod),
+        tx.userCredentials.initiatedByName || "System",
+      ])
     }
 
+    if (rows.length === 0) {
+      toast({
+        title: "No data to export",
+        description: exportFiltered
+          ? "No transactions match the current filters."
+          : "No successful sales today. Use Filter to export another date range.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const summaryLine = [
+      `"Showing: ${summaryLabel}${exportFiltered ? " (filtered)" : ""}"`,
+      `"Sold: ${summaryCards.count}"`,
+      `"Total: ${formatTotals(summaryCards.totals)}"`,
+    ].join(",")
+
+    const csvCell = (cell: string | number) => `"${String(cell).replace(/"/g, '""')}"`
     const csvContent = [
       summaryLine,
       "",
       headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ...rows.map((row) => row.map(csvCell).join(",")),
     ].join("\n")
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
     const safeLabel = summaryLabel.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "summary"
+    const filePrefix = exportFiltered ? "transactions" : "sales_summary"
     link.setAttribute("href", url)
-    link.setAttribute("download", `sales_summary_${safeLabel}_${new Date().toISOString().split("T")[0]}.csv`)
+    link.setAttribute("download", `${filePrefix}_${safeLabel}_${new Date().toISOString().split("T")[0]}.csv`)
     link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
@@ -654,6 +684,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     setStatusFilter("all")
     setSearch("")
     setSalesUserFilter("all")
+    setPaymentMethodFilter("all")
     setItemFilters([])
     setMainCategoryFilters([])
     setCategoryFilters([])
@@ -802,6 +833,23 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   </div>
 
                   <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Method</Label>
+                    <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                      <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Methods</SelectItem>
+                        {paymentMethodOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item</Label>
                     <FilterMultiSelect
                       label="Item"
@@ -936,6 +984,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                             "bg-rose-100 text-rose-700"
                           )}>
                             {statusLabel(tx.status)}
+                          </Badge>
+                          <Badge className="text-[9px] uppercase tracking-wider font-bold h-4 px-1.5 rounded-md border-0 whitespace-nowrap bg-slate-100 text-slate-600">
+                            {paymentMethodLabel(tx.paymentMethod)}
                           </Badge>
                         </div>
                         {/* The reference is the only part allowed to ellipsize, so a narrow
