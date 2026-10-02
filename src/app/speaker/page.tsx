@@ -31,6 +31,10 @@ const RECENT_LIMIT = 20
  * drops or a laptop sleeping — so drop it and reconnect. */
 const STREAM_SILENCE_LIMIT_MS = 50 * 1000
 const HEALTH_CHECK_MS = 10 * 1000
+/** How long to wait for the stream's first message before switching to polling. */
+const STREAM_READY_TIMEOUT_MS = 8 * 1000
+/** Polling interval when the stream can't get through. */
+const POLL_INTERVAL_MS = 3 * 1000
 
 type StreamPayment = {
   id: number
@@ -76,6 +80,7 @@ export default function SpeakerPage() {
   const [flash, setFlash] = useState<StreamPayment | null>(null)
   const [voiceSource, setVoiceSource] = useState<VoiceSource | null>(null)
   const [audioBlocked, setAudioBlocked] = useState(false)
+  const [transport, setTransport] = useState<"stream" | "polling">("stream")
 
   const speechRef = useRef(speech)
   speechRef.current = speech
@@ -109,8 +114,10 @@ export default function SpeakerPage() {
     void announcePayment(payment.amount, payment.currency, { speech: speechRef.current })
   }, [])
 
-  // The stream. fetch() rather than EventSource because EventSource can't send
-  // an Authorization header, and the token must not go in the URL.
+  // Receiving payments. Prefer the live stream (instant); fall back to polling
+  // when the network holds the stream back. fetch() rather than EventSource
+  // because EventSource can't send an Authorization header, and the token must
+  // not go in the URL.
   useEffect(() => {
     if (!started || !token) return
 
@@ -119,79 +126,125 @@ export default function SpeakerPage() {
     let lastEventId = 0
     let attempt = 0
     let lastDataAt = Date.now()
+    let usePolling = false
     const seen = new Set<number>()
+    const auth = { Authorization: `Bearer ${token}` }
+
+    const deliver = (payment: StreamPayment) => {
+      lastEventId = Math.max(lastEventId, payment.id)
+      if (seen.has(payment.id)) return
+      seen.add(payment.id)
+      handlePayment(payment)
+    }
+
+    const onReady = (ready: { deviceName: string; merchantName: string; cursor?: number }) => {
+      attempt = 0
+      setConnection("live")
+      setInfo({ deviceName: ready.deviceName, merchantName: ready.merchantName })
+      // Without a position, a speaker that drops before its first payment would
+      // reconnect without Last-Event-ID and miss everything published while away.
+      if (!lastEventId && typeof ready.cursor === "number") lastEventId = ready.cursor
+    }
+
+    /** One stream connection. Resolves when it ends; returns false if the device was unpaired. */
+    const streamOnce = async (): Promise<boolean> => {
+      let gotReady = false
+      // Some proxies and WAFs buffer a response until it ends, so a stream never
+      // arrives. If even the first message doesn't come through, switch to polling.
+      const readyTimer = setTimeout(() => {
+        if (!gotReady) {
+          usePolling = true
+          controller?.abort()
+        }
+      }, STREAM_READY_TIMEOUT_MS)
+      try {
+        const res = await fetch("/api/devices/payment-stream", {
+          headers: { ...auth, ...(lastEventId ? { "Last-Event-ID": String(lastEventId) } : {}) },
+          cache: "no-store",
+          signal: controller!.signal,
+        })
+        if (res.status === 401) return false
+        if (!res.ok || !res.body) throw new Error(`Stream failed: ${res.status}`)
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        while (!stopped) {
+          const { value, done } = await reader.read()
+          if (done) break
+          lastDataAt = Date.now()
+          buffer += decoder.decode(value, { stream: true })
+
+          let boundary: number
+          while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+            const raw = buffer.slice(0, boundary)
+            buffer = buffer.slice(boundary + 2)
+
+            let event = "message"
+            let data = ""
+            for (const line of raw.split("\n")) {
+              if (line.startsWith("event:")) event = line.slice(6).trim()
+              else if (line.startsWith("data:")) data += line.slice(5).trim()
+            }
+
+            try {
+              if (event === "ready") {
+                gotReady = true
+                onReady(JSON.parse(data))
+              } else if (event === "revoked") {
+                return false
+              } else if (event === "payment" || event === "test") {
+                deliver(JSON.parse(data))
+              }
+            } catch {}
+          }
+        }
+      } catch {
+        // dropped, timed out or aborted — the caller decides what happens next
+      } finally {
+        clearTimeout(readyTimer)
+      }
+      return true
+    }
+
+    /** One poll. Returns false if the device was unpaired; throws on network errors. */
+    const pollOnce = async (): Promise<boolean> => {
+      const res = await fetch(`/api/devices/payment-events${lastEventId ? `?after=${lastEventId}` : ""}`, {
+        headers: auth,
+        cache: "no-store",
+        signal: controller!.signal,
+      })
+      if (res.status === 401) return false
+      if (!res.ok) throw new Error(`Poll failed: ${res.status}`)
+      const body = await res.json()
+      lastDataAt = Date.now()
+      onReady(body)
+      setTransport("polling")
+      for (const payment of body.events ?? []) deliver(payment)
+      lastEventId = Math.max(lastEventId, body.cursor ?? 0)
+      return true
+    }
 
     const run = async () => {
       while (!stopped) {
         controller = new AbortController()
         lastDataAt = Date.now()
-        setConnection(attempt === 0 ? "connecting" : "reconnecting")
-        try {
-          const res = await fetch("/api/devices/payment-stream", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              ...(lastEventId ? { "Last-Event-ID": String(lastEventId) } : {}),
-            },
-            cache: "no-store",
-            signal: controller.signal,
-          })
-          if (res.status === 401) {
-            unpair()
-            return
-          }
-          if (!res.ok || !res.body) throw new Error(`Stream failed: ${res.status}`)
+        if (attempt > 0) setConnection("reconnecting")
 
-          const reader = res.body.getReader()
-          const decoder = new TextDecoder()
-          let buffer = ""
-          while (!stopped) {
-            const { value, done } = await reader.read()
-            if (done) break
-            lastDataAt = Date.now()
-            buffer += decoder.decode(value, { stream: true })
-
-            let boundary: number
-            while ((boundary = buffer.indexOf("\n\n")) !== -1) {
-              const raw = buffer.slice(0, boundary)
-              buffer = buffer.slice(boundary + 2)
-
-              let event = "message"
-              let data = ""
-              let id: number | null = null
-              for (const line of raw.split("\n")) {
-                if (line.startsWith("event:")) event = line.slice(6).trim()
-                else if (line.startsWith("data:")) data += line.slice(5).trim()
-                else if (line.startsWith("id:")) id = Number(line.slice(3).trim())
-              }
-
-              if (event === "ready") {
-                attempt = 0
-                setConnection("live")
-                try {
-                  const ready = JSON.parse(data)
-                  setInfo({ deviceName: ready.deviceName, merchantName: ready.merchantName })
-                  // Without a position, a speaker that drops before its first
-                  // payment would reconnect without Last-Event-ID and miss
-                  // everything published while it was away.
-                  if (!lastEventId && typeof ready.cursor === "number") lastEventId = ready.cursor
-                } catch {}
-              } else if (event === "revoked") {
-                unpair()
-                return
-              } else if ((event === "payment" || event === "test") && id !== null) {
-                lastEventId = Math.max(lastEventId, id)
-                if (seen.has(id)) continue
-                seen.add(id)
-                try {
-                  handlePayment(JSON.parse(data))
-                } catch {}
-              }
-            }
-          }
-        } catch {
+        if (!usePolling) {
+          setTransport("stream")
+          if (!(await streamOnce())) return unpair()
           if (stopped) return
+          if (usePolling) continue // stream was held back: go straight to polling
+        } else {
+          try {
+            if (!(await pollOnce())) return unpair()
+            await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+            continue
+          } catch {
+            if (stopped) return
+          }
         }
-        if (stopped) return
 
         attempt += 1
         setConnection("reconnecting")
@@ -357,6 +410,7 @@ export default function SpeakerPage() {
           <p className="truncate text-xs text-[#754319]/70">
             {info?.deviceName}
             {voiceSource && (voiceSource === "recorded" ? " · Recorded Amharic voice" : " · Device voice")}
+            {transport === "polling" && connection === "live" && " · Compatibility mode"}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
