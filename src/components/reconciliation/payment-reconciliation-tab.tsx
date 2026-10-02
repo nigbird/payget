@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import {
-  Search,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
@@ -12,6 +11,7 @@ import {
   ReceiptText,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,12 +24,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { downloadCsv } from '@/lib/export-csv'
+import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
 
 type UnresolvedTransaction = {
   id: string
   merchantId: string
   merchant: { id: string; name: string; accountNumber: string | null }
   amount: number
+  paymentMethod?: string | null
   status: string
   transactionReference: string
   cbsreference: string | null
@@ -48,7 +51,9 @@ type ReconciliationRequest = {
   transaction?: {
     transactionReference: string
     amount: number
+    paymentMethod?: string | null
     payerPhone: string | null
+    payerAccount?: string | null
     merchant: { name: string }
   }
   ftNumber: string
@@ -64,11 +69,33 @@ type ReconciliationRequest = {
 
 type Stats = { unresolved: number; settledByFt: number; pendingRequests: number }
 
+type View = 'unresolved' | 'history'
+
+const UNRESOLVED_STATUS_OPTIONS = [
+  { value: 'AWAITING_PIN', label: 'Awaiting PIN' },
+  { value: 'INITIATED', label: 'Initiated' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'PROCESSING', label: 'Processing' },
+]
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  BANK: 'NIB Bank',
+  TELEBIRR: 'Telebirr',
+  YAGOUT: 'YagoutPay',
+}
+
+const HISTORY_STATUS_OPTIONS = [
+  { value: 'EXECUTED', label: 'Settled' },
+  { value: 'REJECTED', label: 'Rejected' },
+]
+
 const STATUS_STYLES: Record<string, string> = {
   AWAITING_PIN: 'bg-amber-100 text-amber-800 border-amber-200',
   INITIATED: 'bg-slate-100 text-slate-700 border-slate-200',
   PENDING: 'bg-blue-100 text-blue-800 border-blue-200',
   PROCESSING: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  EXECUTED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  REJECTED: 'bg-red-100 text-red-800 border-red-200',
 }
 
 function formatCurrency(amount: number) {
@@ -95,15 +122,22 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   const canView = userRole === 'ADMIN' || userPermissions.includes('payment.reconciliation.view')
   const canRequest = userRole === 'ADMIN' || userPermissions.includes('payment.reconciliation.request')
   const canManage = userRole === 'ADMIN' || userPermissions.includes('payment.reconciliation.manage')
+  // No ADMIN fallback: the API checks this permission on download.
+  const canExport = userPermissions.includes('payment.reconciliation.export')
 
   const [transactions, setTransactions] = useState<UnresolvedTransaction[]>([])
   const [requests, setRequests] = useState<ReconciliationRequest[]>([])
+  const [history, setHistory] = useState<ReconciliationRequest[]>([])
   const [merchants, setMerchants] = useState<Array<{ id: string; name: string }>>([])
   const [stats, setStats] = useState<Stats>({ unresolved: 0, settledByFt: 0, pendingRequests: 0 })
   const [isLoading, setIsLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
+  const [view, setView] = useState<View>('unresolved')
 
   const [search, setSearch] = useState('')
   const [merchantId, setMerchantId] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [paymentMethod, setPaymentMethod] = useState('ALL')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
@@ -119,34 +153,142 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   const [comments, setComments] = useState('')
   const [actingId, setActingId] = useState<string | null>(null)
 
+  const buildParams = useCallback(
+    (extra: Record<string, string> = {}) => {
+      const params = new URLSearchParams({ page: String(page), limit: '20', ...extra })
+      if (view === 'history') params.set('view', 'history')
+      if (search.trim()) params.set('search', search.trim())
+      if (merchantId !== 'ALL') params.set('merchantId', merchantId)
+      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (paymentMethod !== 'ALL') params.set('paymentMethod', paymentMethod)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+      return params
+    },
+    [page, view, search, merchantId, statusFilter, paymentMethod, dateFrom, dateTo]
+  )
+
   const fetchData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '20' })
-      if (search.trim()) params.set('search', search.trim())
-      if (merchantId !== 'ALL') params.set('merchantId', merchantId)
-      if (dateFrom) params.set('dateFrom', dateFrom)
-      if (dateTo) params.set('dateTo', dateTo)
-
-      const res = await fetch(`/api/admin/payment-reconciliation?${params}`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
+      // Stats, merchants and pending requests only come with the unresolved
+      // response, so it is always loaded; history is fetched alongside it.
+      const [res, historyRes] = await Promise.all([
+        fetch(
+          `/api/admin/payment-reconciliation?${view === 'unresolved' ? buildParams() : new URLSearchParams({ limit: '1' })}`
+        ),
+        view === 'history' ? fetch(`/api/admin/payment-reconciliation?${buildParams()}`) : Promise.resolve(null),
+      ])
+      const failed = !res.ok ? res : historyRes && !historyRes.ok ? historyRes : null
+      if (failed) {
+        const err = await failed.json().catch(() => ({}))
         toast({ variant: 'destructive', title: 'Could not load', description: err.error || 'Request failed.' })
         return
       }
       const data = await res.json()
-      setTransactions(data.transactions || [])
       setRequests(data.requests || [])
       setMerchants(data.merchants || [])
       setStats(data.stats || { unresolved: 0, settledByFt: 0, pendingRequests: 0 })
-      setTotalPages(data.totalPages || 1)
-      setTotal(data.total || 0)
+
+      const listData = historyRes ? await historyRes.json() : data
+      if (historyRes) setHistory(listData.history || [])
+      else setTransactions(data.transactions || [])
+      setTotalPages(listData.totalPages || 1)
+      setTotal(listData.total || 0)
     } catch {
       toast({ variant: 'destructive', title: 'Error', description: 'A technical error occurred.' })
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, merchantId, dateFrom, dateTo, toast])
+  }, [view, buildParams, toast])
+
+  const switchView = (next: View) => {
+    if (next === view) return
+    setView(next)
+    setStatusFilter('ALL')
+    setPage(1)
+  }
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      const res = await fetch(`/api/admin/payment-reconciliation?${buildParams({ download: 'true' })}`)
+      if (!res.ok) throw new Error('Failed to fetch export data')
+      const data = await res.json()
+
+      if (view === 'history') {
+        const rows: ReconciliationRequest[] = data.history || []
+        downloadCsv(
+          'payment-reconciliation-history',
+          [
+            'Reference',
+            'Merchant',
+            'Amount (ETB)',
+            'Payment method',
+            'Payer',
+            'FT',
+            'Status before',
+            'Result',
+            'Reason',
+            'Submitted by',
+            'Submitted at',
+            'Reviewed by',
+            'Reviewed at',
+            'Comments',
+          ],
+          rows.map((r) => [
+            r.transaction?.transactionReference || '',
+            r.transaction?.merchant?.name || '',
+            r.transaction?.amount ?? '',
+            r.transaction?.paymentMethod || '',
+            r.transaction?.payerPhone || r.transaction?.payerAccount || '',
+            r.ftNumber,
+            r.previousStatus,
+            r.status === 'EXECUTED' ? 'Settled' : 'Rejected',
+            r.reason,
+            r.maker?.name || r.maker?.email || '',
+            formatDate(r.createdAt),
+            r.checker?.name || r.checker?.email || '',
+            r.checkedAt ? formatDate(r.checkedAt) : '',
+            r.comments || '',
+          ])
+        )
+        toast({ title: 'Export complete', description: `Exported ${rows.length} decided requests to CSV.` })
+      } else {
+        const rows: UnresolvedTransaction[] = data.transactions || []
+        downloadCsv(
+          'payment-unresolved-transactions',
+          [
+            'Reference',
+            'Merchant',
+            'Amount (ETB)',
+            'Payment method',
+            'Payer',
+            'Status',
+            'Provider response',
+            'Initiated',
+            'Pending FT request',
+          ],
+          rows.map((tx) => [
+            tx.transactionReference,
+            tx.merchant?.name || '',
+            tx.amount,
+            tx.paymentMethod || '',
+            tx.payerPhone || tx.payerAccount || tx.userCredentials?.phone || '',
+            tx.status,
+            tx.providerStatusDesc || '',
+            formatDate(tx.timestamp),
+            tx.reconciliationRequests?.find((r) => r.status === 'PENDING')?.ftNumber || '',
+          ])
+        )
+        toast({ title: 'Export complete', description: `Exported ${rows.length} transactions to CSV.` })
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Export failed', description: 'Could not export the report.' })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   useEffect(() => {
     if (canView) fetchData()
@@ -229,25 +371,22 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between gap-4">
-        {!embedded && (
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Payment Reconciliation</h1>
-            <p className="text-sm text-muted-foreground">
-              Settle payments that succeeded at the bank but were never resolved here, using the FT
-              from the internal bank receipt.
-            </p>
-          </div>
-        )}
-        <Button variant="outline" size="sm" className="ml-auto" onClick={fetchData} disabled={isLoading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
+    <div className={embedded ? 'space-y-4' : 'space-y-6 p-6'}>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Payment Reconciliation</h1>
+          <p className="text-sm text-muted-foreground">
+            Settle payments that succeeded at the bank but were never resolved here, using the FT
+            from the internal bank receipt.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
+        <Card
+          className={`cursor-pointer transition-colors hover:bg-muted/40 ${view === 'unresolved' ? 'border-amber-400 ring-1 ring-amber-400' : ''}`}
+          onClick={() => switchView('unresolved')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Unresolved payments</CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
@@ -267,14 +406,17 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
             <p className="text-xs text-muted-foreground">FT submitted, needs a checker</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`cursor-pointer transition-colors hover:bg-muted/40 ${view === 'history' ? 'border-emerald-400 ring-1 ring-emerald-400' : ''}`}
+          onClick={() => switchView('history')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Settled by FT</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.settledByFt}</div>
-            <p className="text-xs text-muted-foreground">Recovered through this screen</p>
+            <p className="text-xs text-muted-foreground">Click to view the reconciliation report</p>
           </CardContent>
         </Card>
       </div>
@@ -292,19 +434,38 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
         )}
 
         <TabsContent value="unresolved" className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[240px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search reference, FT, phone or account"
-                className="pl-8"
+          <FilterToolbar
+            search={
+              <SearchInput
+                placeholder={
+                  view === 'history' ? 'Search reference or FT' : 'Search reference, FT, phone or account'
+                }
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value)
+                onChange={(v) => {
+                  setSearch(v)
                   setPage(1)
                 }}
               />
-            </div>
+            }
+            actions={
+              <>
+                <Button variant="outline" onClick={fetchData} disabled={isLoading}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                {canExport && (
+                  <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+                    {isExporting ? (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Export
+                  </Button>
+                )}
+              </>
+            }
+          >
             <Select
               value={merchantId}
               onValueChange={(v) => {
@@ -312,7 +473,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                 setPage(1)
               }}
             >
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger>
                 <SelectValue placeholder="All merchants" />
               </SelectTrigger>
               <SelectContent>
@@ -324,44 +485,127 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                className="w-[160px]"
-                value={dateFrom}
-                max={dateTo || undefined}
-                onChange={(e) => {
-                  setDateFrom(e.target.value)
-                  setPage(1)
-                }}
-              />
-              <span className="text-sm text-muted-foreground">to</span>
-              <Input
-                type="date"
-                className="w-[160px]"
-                value={dateTo}
-                min={dateFrom || undefined}
-                onChange={(e) => {
-                  setDateTo(e.target.value)
-                  setPage(1)
-                }}
-              />
-              {(dateFrom || dateTo) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setDateFrom('')
-                    setDateTo('')
-                    setPage(1)
-                  }}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
+            <Select
+              value={paymentMethod}
+              onValueChange={(v) => {
+                setPaymentMethod(v)
+                setPage(1)
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All methods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All methods</SelectItem>
+                {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v)
+                setPage(1)
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All statuses</SelectItem>
+                {(view === 'history' ? HISTORY_STATUS_OPTIONS : UNRESOLVED_STATUS_OPTIONS).map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DateRangeFilter
+              from={dateFrom}
+              to={dateTo}
+              onChange={({ from, to }) => {
+                setDateFrom(from)
+                setDateTo(to)
+                setPage(1)
+              }}
+            />
+          </FilterToolbar>
 
+          {view === 'history' ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Reconciliation history</CardTitle>
+                <CardDescription>
+                  Every FT request a checker has decided — settled or rejected.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Merchant</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>FT</TableHead>
+                      <TableHead>Result</TableHead>
+                      <TableHead>Submitted by</TableHead>
+                      <TableHead>Reviewed by</TableHead>
+                      <TableHead>Reviewed at</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                          Loading…
+                        </TableCell>
+                      </TableRow>
+                    ) : history.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                          No decided reconciliation requests.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      history.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-mono text-xs">
+                            {r.transaction?.transactionReference}
+                          </TableCell>
+                          <TableCell>{r.transaction?.merchant?.name}</TableCell>
+                          <TableCell>
+                            {r.transaction ? formatCurrency(r.transaction.amount) : '—'}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {PAYMENT_METHOD_LABELS[r.transaction?.paymentMethod ?? ''] ?? r.transaction?.paymentMethod ?? '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{r.ftNumber}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={STATUS_STYLES[r.status] || ''}>
+                              {r.status === 'EXECUTED' ? 'Settled' : 'Rejected'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {r.maker?.name || r.maker?.email}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {r.checker?.name || r.checker?.email || '—'}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {r.checkedAt ? formatDate(r.checkedAt) : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ) : (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -370,6 +614,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                     <TableHead>Reference</TableHead>
                     <TableHead>Merchant</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Method</TableHead>
                     <TableHead>Payer</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Initiated</TableHead>
@@ -379,13 +624,13 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                         Loading…
                       </TableCell>
                     </TableRow>
                   ) : transactions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                         No unresolved payments.
                       </TableCell>
                     </TableRow>
@@ -397,6 +642,9 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                           <TableCell className="font-mono text-xs">{tx.transactionReference}</TableCell>
                           <TableCell>{tx.merchant?.name}</TableCell>
                           <TableCell>{formatCurrency(tx.amount)}</TableCell>
+                          <TableCell className="text-sm">
+                            {PAYMENT_METHOD_LABELS[tx.paymentMethod ?? ''] ?? tx.paymentMethod ?? '—'}
+                          </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {tx.payerPhone || tx.payerAccount || tx.userCredentials?.phone || '—'}
                           </TableCell>
@@ -442,11 +690,12 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
               </Table>
             </CardContent>
           </Card>
+          )}
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Page {page} of {totalPages} · {total} unresolved
+                Page {page} of {totalPages} · {total} {view === 'history' ? 'decided' : 'unresolved'}
               </p>
               <div className="flex gap-2">
                 <Button

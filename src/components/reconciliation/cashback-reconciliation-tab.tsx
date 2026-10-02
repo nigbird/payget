@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import {
-  Search,
-  Filter,
   RefreshCw,
   Download,
   Eye,
@@ -14,7 +12,6 @@ import {
   XCircle,
   Clock,
   DollarSign,
-  Users as UsersIcon,
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
@@ -42,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { downloadCsv } from '@/lib/export-csv'
+import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
 
 type CashbackReconciliationItem = {
   id: string
@@ -554,21 +552,15 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
 
   return (
     <>
-      <div className='space-y-6 bg-white'>
-        <div className='flex items-center justify-between'>
-          {!embedded && (
-            <div>
-              <h1 className='text-2xl font-bold tracking-tight text-[#1F2937]'>Cashback Reconciliation</h1>
-              <p className='text-sm text-[#6B7280] mt-1'>Monitor, recover, and reconcile cashback transactions</p>
-            </div>
-          )}
-          {merchantFilter !== 'ALL' && (
-            <div className='px-4 py-2 rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7]'>
-              <div className='text-xs font-semibold text-[#6B7280] uppercase tracking-wide'>Selected Merchant</div>
-              <div className='text-sm font-semibold text-[#1F2937]'>{merchantFilter}</div>
-            </div>
-          )}
-        </div>
+      <div className='space-y-6'>
+        {/* The merchant filter dropdown already shows the selection, so the
+            header only exists on the standalone page. */}
+        {!embedded && (
+          <div>
+            <h1 className='text-2xl font-bold tracking-tight text-[#1F2937]'>Cashback Reconciliation</h1>
+            <p className='text-sm text-[#6B7280] mt-1'>Monitor, recover, and reconcile cashback transactions</p>
+          </div>
+        )}
 
         {/* When embedded, pin to the transactions view — pending requests are
             shown in the shared approvals queue instead. */}
@@ -614,26 +606,42 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
             )}
 
             {/* Filters and Search */}
-            <Card className='card-soft-cream rounded-[20px] mt-4'>
-              <CardContent className='p-6'>
-                <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
-                  <div className='flex flex-wrap items-center gap-3'>
-                    <div className='relative flex-1 max-w-md'>
-                      <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]' />
-                      <Input
-                        ref={searchInputRef}
-                        placeholder='Search by reference, FT, merchant, phone, or account...'
-                        className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7] pl-10'
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
+            <div className='mt-4'>
+            <FilterToolbar
+              search={
+                <SearchInput
+                  inputRef={searchInputRef}
+                  placeholder='Search by reference, FT, merchant, phone, or account'
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                />
+              }
+              actions={
+                <>
+                  <Button variant='outline' onClick={fetchData} disabled={isLoading}>
+                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  {canExport && (
+                    <Button
+                      variant='outline'
+                      onClick={() => handleExport('transactions')}
+                      disabled={isExporting}
+                    >
+                      {isExporting ? (
+                        <RefreshCw className='h-4 w-4 mr-2 animate-spin' />
+                      ) : (
+                        <Download className='h-4 w-4 mr-2' />
+                      )}
+                      Export
+                    </Button>
+                  )}
+                </>
+              }
+            >
                     <Select value={merchantFilter} onValueChange={setMerchantFilter}>
-                      <SelectTrigger className='h-10 w-48 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'>
-                        <div className='flex items-center gap-2'>
-                          <UsersIcon className='h-4 w-4' />
-                          <SelectValue placeholder='Merchant' />
-                        </div>
+                      <SelectTrigger>
+                        <SelectValue placeholder='All merchants' />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value='ALL'>All Merchants</SelectItem>
@@ -643,11 +651,8 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                       </SelectContent>
                     </Select>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className='h-10 w-40 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'>
-                        <div className='flex items-center gap-2'>
-                          <Filter className='h-4 w-4' />
-                          <SelectValue placeholder='Status' />
-                        </div>
+                      <SelectTrigger>
+                        <SelectValue placeholder='All statuses' />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value='ALL'>All Status</SelectItem>
@@ -659,80 +664,17 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                         <SelectItem value='RECONCILED'>Reconciled</SelectItem>
                       </SelectContent>
                     </Select>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        type='date'
-                        className='h-10 w-[150px] rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                        value={dateFrom}
-                        max={dateTo || undefined}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                      />
-                      <span className='text-sm text-[#6B7280]'>to</span>
-                      <Input
-                        type='date'
-                        className='h-10 w-[150px] rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                        value={dateTo}
-                        min={dateFrom || undefined}
-                        onChange={(e) => setDateTo(e.target.value)}
-                      />
-                      {(dateFrom || dateTo) && (
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          className='h-10 rounded-[18px]'
-                          onClick={() => {
-                            setDateFrom('')
-                            setDateTo('')
-                          }}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                    <Select
-                      value={String(itemsPerPage)}
-                      onValueChange={(val) => {
-                        setItemsPerPage(Number(val))
+                    <DateRangeFilter
+                      className='sm:col-span-2'
+                      from={dateFrom}
+                      to={dateTo}
+                      onChange={({ from, to }) => {
+                        setDateFrom(from)
+                        setDateTo(to)
                       }}
-                    >
-                      <SelectTrigger className='h-10 w-24 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                      onClick={fetchData}
-                    >
-                      <RefreshCw className='h-4 w-4' />
-                    </Button>
-                    {canExport && (
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                        onClick={() => handleExport('transactions')}
-                        disabled={isExporting}
-                      >
-                        {isExporting ? (
-                          <RefreshCw className='h-4 w-4 mr-2 animate-spin' />
-                        ) : (
-                          <Download className='h-4 w-4 mr-2' />
-                        )}
-                        Export
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    />
+            </FilterToolbar>
+            </div>
 
             {/* Reconciliation Table */}
             <Card className='card-soft-cream rounded-[20px] mt-4'>
@@ -826,10 +768,24 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                     </div>
                     
                     {/* Pagination */}
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between px-6 py-4 border-t border-[#F1E7D0] bg-amber-50/20">
-                        <div className="text-xs font-medium text-[#6B7280]">
-                          Showing <span className="text-[#1F2937] font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-[#1F2937] font-bold">{Math.min(currentPage * itemsPerPage, total)}</span> of <span className="text-[#1F2937] font-bold">{total}</span> results
+                    {total > 0 && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-[#F1E7D0] bg-amber-50/20">
+                        <div className="flex items-center gap-3 text-xs font-medium text-[#6B7280]">
+                          <span>
+                            Showing <span className="text-[#1F2937] font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-[#1F2937] font-bold">{Math.min(currentPage * itemsPerPage, total)}</span> of <span className="text-[#1F2937] font-bold">{total}</span> results
+                          </span>
+                          <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                            <SelectTrigger className="h-8 w-[110px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[10, 20, 50, 100].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} / page
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Button
