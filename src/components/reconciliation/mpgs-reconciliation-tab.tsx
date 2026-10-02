@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import {
-  Search,
-  Filter,
   RefreshCw,
   Download,
   CheckCircle2,
@@ -19,7 +17,6 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -29,6 +26,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
+import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
 
 type OpenCardTransaction = {
   id: string
@@ -342,7 +340,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className={embedded ? 'space-y-4' : 'space-y-6 p-6'}>
       {!embedded && (
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Card (MPGS) Reconciliation</h1>
@@ -428,12 +426,18 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
                     settled to a final outcome may no longer appear in the open list above.
                   </CardDescription>
                 </div>
-                {canExport && (
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button variant="outline" onClick={fetchData} disabled={isLoading}>
+                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
                   </Button>
-                )}
+                  {canExport && (
+                    <Button variant="outline" onClick={handleExport}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -494,19 +498,42 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
             </Card>
           ) : (
             <>
-              <Card>
-                <CardContent className="flex flex-wrap items-center gap-3 p-4">
-                  <div className="relative min-w-[220px] flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search reference, phone or account"
-                      className="pl-8"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                    />
-                  </div>
+              <FilterToolbar
+                search={
+                  <SearchInput
+                    placeholder="Search reference, phone or account"
+                    value={search}
+                    onChange={setSearch}
+                  />
+                }
+                actions={
+                  <>
+                    <Button variant="outline" onClick={fetchData} disabled={isLoading}>
+                      <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                    {canExport && (
+                      <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+                        {isExporting ? (
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Export
+                      </Button>
+                    )}
+                  </>
+                }
+                footer={
+                  viewFilter === 'pending' && (
+                    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+                      Showing only transactions awaiting approval
+                    </Badge>
+                  )
+                }
+              >
                   <Select value={merchantId} onValueChange={setMerchantId}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger>
                       <SelectValue placeholder="All merchants" />
                     </SelectTrigger>
                     <SelectContent>
@@ -519,11 +546,8 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
                     </SelectContent>
                   </Select>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4" />
-                        <SelectValue placeholder="All status" />
-                      </div>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ALL">All status</SelectItem>
@@ -534,66 +558,16 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="date"
-                      className="w-[150px]"
-                      value={dateFrom}
-                      max={dateTo || undefined}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                    />
-                    <span className="text-sm text-muted-foreground">to</span>
-                    <Input
-                      type="date"
-                      className="w-[150px]"
-                      value={dateTo}
-                      min={dateFrom || undefined}
-                      onChange={(e) => setDateTo(e.target.value)}
-                    />
-                    {(dateFrom || dateTo) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setDateFrom('')
-                          setDateTo('')
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
-                    <SelectTrigger className="w-[90px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
-                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  </Button>
-                  {canExport && (
-                    <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
-                      {isExporting ? (
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="mr-2 h-4 w-4" />
-                      )}
-                      Export
-                    </Button>
-                  )}
-                  {viewFilter === 'pending' && (
-                    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
-                      Showing only transactions awaiting approval
-                    </Badge>
-                  )}
-                </CardContent>
-              </Card>
+                  <DateRangeFilter
+                    className="sm:col-span-2"
+                    from={dateFrom}
+                    to={dateTo}
+                    onChange={({ from, to }) => {
+                      setDateFrom(from)
+                      setDateTo(to)
+                    }}
+                  />
+              </FilterToolbar>
 
               <Card>
                 <CardContent className="p-0">
@@ -682,12 +656,26 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
                 </CardContent>
               </Card>
 
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
-                  <div className="text-xs font-medium text-muted-foreground">
-                    Showing <span className="font-bold text-foreground">{(page - 1) * itemsPerPage + 1}</span> to{' '}
-                    <span className="font-bold text-foreground">{Math.min(page * itemsPerPage, total)}</span> of{' '}
-                    <span className="font-bold text-foreground">{total}</span> results
+              {total > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3">
+                  <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                    <span>
+                      Showing <span className="font-bold text-foreground">{(page - 1) * itemsPerPage + 1}</span> to{' '}
+                      <span className="font-bold text-foreground">{Math.min(page * itemsPerPage, total)}</span> of{' '}
+                      <span className="font-bold text-foreground">{total}</span> results
+                    </span>
+                    <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                      <SelectTrigger className="h-8 w-[110px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 20, 50, 100].map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n} / page
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Button

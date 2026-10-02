@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import {
-  Search,
-  Filter,
   RefreshCw,
   Download,
   Eye,
@@ -14,7 +12,6 @@ import {
   XCircle,
   Clock,
   DollarSign,
-  Users as UsersIcon,
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
@@ -42,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { downloadCsv } from '@/lib/export-csv'
+import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
 
 type CashbackReconciliationItem = {
   id: string
@@ -53,6 +51,11 @@ type CashbackReconciliationItem = {
   customerPhone: string | null
   customerAccount: string | null
   paymentAmount: number
+  /** BANK | TELEBIRR | YAGOUT | MPGS, from the payment transaction. */
+  paymentMethod: string | null
+  /** YagoutPay gateway the customer paid through (pg_name), e.g. their bank or wallet. */
+  paymentSource: string | null
+  paymentMode: string | null
   cashbackAmount: number
   cashbackPercent: number
   categoryName: string | null
@@ -64,6 +67,22 @@ type CashbackReconciliationItem = {
   processedAt: string | null
   createdAt: string
   requests?: any[]
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  BANK: 'NIB Bank',
+  TELEBIRR: 'Telebirr',
+  YAGOUT: 'YagoutPay',
+  MPGS: 'Card (MPGS)',
+}
+
+function paymentMethodLabel(method: string | null | undefined) {
+  return method ? PAYMENT_METHOD_LABELS[method] ?? method : ''
+}
+
+/** "Gateway · paymode" for Yagout payments; empty for the direct rails. */
+function paymentSourceLabel(source: string | null | undefined, mode: string | null | undefined) {
+  return [source, mode].filter(Boolean).join(' · ')
 }
 
 type ReconciliationStats = {
@@ -215,6 +234,9 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [merchantFilter, setMerchantFilter] = useState<string>('ALL')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('ALL')
+  const [paymentSourceFilter, setPaymentSourceFilter] = useState<string>('ALL')
+  const [paymentSources, setPaymentSources] = useState<string[]>([])
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -251,6 +273,17 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
   // Get merchants for the dropdown from API
   const uniqueMerchants = allMerchants.map(m => m.name).sort()
 
+  const applyFilterParams = (params: URLSearchParams) => {
+    if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
+    if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+    if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
+    if (paymentMethodFilter !== 'ALL') params.set('paymentMethod', paymentMethodFilter)
+    if (paymentSourceFilter !== 'ALL') params.set('paymentSource', paymentSourceFilter)
+    if (dateFrom) params.set('dateFrom', dateFrom)
+    if (dateTo) params.set('dateTo', dateTo)
+    return params
+  }
+
   const fetchData = async () => {
     // Track if search input had focus before we start loading
     hadSearchFocusRef.current = 
@@ -260,11 +293,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
       const params = new URLSearchParams()
       params.set('page', currentPage.toString())
       params.set('limit', itemsPerPage.toString())
-      if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
-      if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
-      if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
-      if (dateFrom) params.set('dateFrom', dateFrom)
-      if (dateTo) params.set('dateTo', dateTo)
+      applyFilterParams(params)
 
       const res = await fetch(`/api/admin/cashback-reconciliation?${params.toString()}`)
       if (res.ok) {
@@ -281,6 +310,9 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
           customerPhone: tx.customerPhone,
           customerAccount: tx.customerAccount,
           paymentAmount: tx.paymentAmount,
+          paymentMethod: tx.paymentMethod ?? null,
+          paymentSource: tx.paymentSource ?? null,
+          paymentMode: tx.paymentMode ?? null,
           cashbackAmount: tx.cashbackAmount,
           cashbackPercent: tx.cashbackPercent,
           categoryName: tx.category?.name,
@@ -298,6 +330,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
         setRequests(data.requests || [])
         setStats(data.stats)
         setAllMerchants(data.merchants || [])
+        setPaymentSources(data.paymentSources || [])
         setTotal(data.total)
         setTotalPages(data.totalPages)
       }
@@ -319,11 +352,11 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchQuery, statusFilter, merchantFilter, dateFrom, dateTo, itemsPerPage])
+  }, [debouncedSearchQuery, statusFilter, merchantFilter, paymentMethodFilter, paymentSourceFilter, dateFrom, dateTo, itemsPerPage])
 
   useEffect(() => {
     fetchData()
-  }, [currentPage, debouncedSearchQuery, statusFilter, merchantFilter, dateFrom, dateTo, itemsPerPage])
+  }, [currentPage, debouncedSearchQuery, statusFilter, merchantFilter, paymentMethodFilter, paymentSourceFilter, dateFrom, dateTo, itemsPerPage])
 
   // Restore focus to search input after load if it had it before
   useEffect(() => {
@@ -341,27 +374,31 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
       try {
         const params = new URLSearchParams()
         params.set('download', 'true')
-        if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
-        if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
-        if (merchantFilter && merchantFilter !== 'ALL') params.set('merchantName', merchantFilter)
-        if (dateFrom) params.set('dateFrom', dateFrom)
-        if (dateTo) params.set('dateTo', dateTo)
+        applyFilterParams(params)
 
         const res = await fetch(`/api/admin/cashback-reconciliation?${params.toString()}`)
         if (!res.ok) throw new Error('Failed to fetch export data')
         const data = await res.json()
 
         downloadCsv('cashback-transactions', [
-          'Transaction Ref', 'Merchant', 'Merchant Account', 'Customer', 'Payment Amount (ETB)', 'Cashback Amount (ETB)', 'Category', 'Status', 'Created At'
+          'Transaction Ref', 'Merchant', 'Merchant Account', 'Payment Method', 'Payment Source', 'Pay Mode',
+          'Customer Phone', 'Customer Account', 'Eligibility Category', 'Payment Amount (ETB)', 'Cashback Amount (ETB)',
+          'Cashback %', 'Cashback Status', 'Failure Reason', 'Created At'
         ], data.transactions.map((i: any) => [
           i.transactionReference,
           i.merchant?.name || 'Unknown Merchant',
           i.merchant?.accountNumber || '',
-          i.customerPhone || i.customerAccount || '',
+          paymentMethodLabel(i.paymentMethod),
+          i.paymentSource || '',
+          i.paymentMode || '',
+          i.customerPhone || '',
+          i.customerAccount || '',
+          i.category?.name || '',
           i.paymentAmount,
           i.cashbackAmount,
-          i.category?.name || '',
+          i.cashbackPercent,
           i.status,
+          i.failureReason || i.skipReason || '',
           new Date(i.createdAt).toLocaleString()
         ]))
         toast({ title: 'Export Complete', description: `Exported ${data.transactions.length} transactions to CSV` })
@@ -554,21 +591,15 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
 
   return (
     <>
-      <div className='space-y-6 bg-white'>
-        <div className='flex items-center justify-between'>
-          {!embedded && (
-            <div>
-              <h1 className='text-2xl font-bold tracking-tight text-[#1F2937]'>Cashback Reconciliation</h1>
-              <p className='text-sm text-[#6B7280] mt-1'>Monitor, recover, and reconcile cashback transactions</p>
-            </div>
-          )}
-          {merchantFilter !== 'ALL' && (
-            <div className='px-4 py-2 rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7]'>
-              <div className='text-xs font-semibold text-[#6B7280] uppercase tracking-wide'>Selected Merchant</div>
-              <div className='text-sm font-semibold text-[#1F2937]'>{merchantFilter}</div>
-            </div>
-          )}
-        </div>
+      <div className='space-y-6'>
+        {/* The merchant filter dropdown already shows the selection, so the
+            header only exists on the standalone page. */}
+        {!embedded && (
+          <div>
+            <h1 className='text-2xl font-bold tracking-tight text-[#1F2937]'>Cashback Reconciliation</h1>
+            <p className='text-sm text-[#6B7280] mt-1'>Monitor, recover, and reconcile cashback transactions</p>
+          </div>
+        )}
 
         {/* When embedded, pin to the transactions view — pending requests are
             shown in the shared approvals queue instead. */}
@@ -614,26 +645,42 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
             )}
 
             {/* Filters and Search */}
-            <Card className='card-soft-cream rounded-[20px] mt-4'>
-              <CardContent className='p-6'>
-                <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
-                  <div className='flex flex-wrap items-center gap-3'>
-                    <div className='relative flex-1 max-w-md'>
-                      <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]' />
-                      <Input
-                        ref={searchInputRef}
-                        placeholder='Search by reference, FT, merchant, phone, or account...'
-                        className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7] pl-10'
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
+            <div className='mt-4'>
+            <FilterToolbar
+              search={
+                <SearchInput
+                  inputRef={searchInputRef}
+                  placeholder='Search by reference, FT, merchant, phone, or account'
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                />
+              }
+              actions={
+                <>
+                  <Button variant='outline' onClick={fetchData} disabled={isLoading}>
+                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  {canExport && (
+                    <Button
+                      variant='outline'
+                      onClick={() => handleExport('transactions')}
+                      disabled={isExporting}
+                    >
+                      {isExporting ? (
+                        <RefreshCw className='h-4 w-4 mr-2 animate-spin' />
+                      ) : (
+                        <Download className='h-4 w-4 mr-2' />
+                      )}
+                      Export
+                    </Button>
+                  )}
+                </>
+              }
+            >
                     <Select value={merchantFilter} onValueChange={setMerchantFilter}>
-                      <SelectTrigger className='h-10 w-48 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'>
-                        <div className='flex items-center gap-2'>
-                          <UsersIcon className='h-4 w-4' />
-                          <SelectValue placeholder='Merchant' />
-                        </div>
+                      <SelectTrigger>
+                        <SelectValue placeholder='All merchants' />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value='ALL'>All Merchants</SelectItem>
@@ -643,11 +690,8 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                       </SelectContent>
                     </Select>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className='h-10 w-40 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'>
-                        <div className='flex items-center gap-2'>
-                          <Filter className='h-4 w-4' />
-                          <SelectValue placeholder='Status' />
-                        </div>
+                      <SelectTrigger>
+                        <SelectValue placeholder='All statuses' />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value='ALL'>All Status</SelectItem>
@@ -659,80 +703,53 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                         <SelectItem value='RECONCILED'>Reconciled</SelectItem>
                       </SelectContent>
                     </Select>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        type='date'
-                        className='h-10 w-[150px] rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                        value={dateFrom}
-                        max={dateTo || undefined}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                      />
-                      <span className='text-sm text-[#6B7280]'>to</span>
-                      <Input
-                        type='date'
-                        className='h-10 w-[150px] rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                        value={dateTo}
-                        min={dateFrom || undefined}
-                        onChange={(e) => setDateTo(e.target.value)}
-                      />
-                      {(dateFrom || dateTo) && (
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          className='h-10 rounded-[18px]'
-                          onClick={() => {
-                            setDateFrom('')
-                            setDateTo('')
-                          }}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
                     <Select
-                      value={String(itemsPerPage)}
-                      onValueChange={(val) => {
-                        setItemsPerPage(Number(val))
+                      value={paymentMethodFilter}
+                      onValueChange={(v) => {
+                        setPaymentMethodFilter(v)
+                        // A gateway source only exists on YagoutPay payments.
+                        if (v !== 'YAGOUT') setPaymentSourceFilter('ALL')
                       }}
                     >
-                      <SelectTrigger className='h-10 w-24 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'>
-                        <SelectValue />
+                      <SelectTrigger>
+                        <SelectValue placeholder='All methods' />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value='ALL'>All methods</SelectItem>
+                        {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                      onClick={fetchData}
+                    <Select
+                      value={paymentSourceFilter}
+                      onValueChange={(v) => {
+                        setPaymentSourceFilter(v)
+                        if (v !== 'ALL') setPaymentMethodFilter('YAGOUT')
+                      }}
+                      disabled={paymentSources.length === 0 || (paymentMethodFilter !== 'ALL' && paymentMethodFilter !== 'YAGOUT')}
                     >
-                      <RefreshCw className='h-4 w-4' />
-                    </Button>
-                    {canExport && (
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='h-10 rounded-[18px] border-[#F1E7D0] bg-[#FFFDF7]'
-                        onClick={() => handleExport('transactions')}
-                        disabled={isExporting}
-                      >
-                        {isExporting ? (
-                          <RefreshCw className='h-4 w-4 mr-2 animate-spin' />
-                        ) : (
-                          <Download className='h-4 w-4 mr-2' />
-                        )}
-                        Export
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                      <SelectTrigger>
+                        <SelectValue placeholder='All Yagout sources' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='ALL'>All Yagout sources</SelectItem>
+                        {paymentSources.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <DateRangeFilter
+                      className='sm:col-span-2'
+                      from={dateFrom}
+                      to={dateTo}
+                      onChange={({ from, to }) => {
+                        setDateFrom(from)
+                        setDateTo(to)
+                      }}
+                    />
+            </FilterToolbar>
+            </div>
 
             {/* Reconciliation Table */}
             <Card className='card-soft-cream rounded-[20px] mt-4'>
@@ -761,6 +778,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                             <TableHead className='text-xs font-semibold'>Merchant</TableHead>
                             <TableHead className='text-xs font-semibold'>Merchant Account</TableHead>
                             <TableHead className='text-xs font-semibold'>Customer</TableHead>
+                            <TableHead className='text-xs font-semibold'>Paid via</TableHead>
                             <TableHead className='text-xs font-semibold text-right'>Payment</TableHead>
                             <TableHead className='text-xs font-semibold text-right'>Cashback</TableHead>
                             <TableHead className='text-xs font-semibold'>Status</TableHead>
@@ -776,6 +794,14 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                               <TableCell className='font-mono text-xs text-slate-600'>{item.merchantAccountNumber || '-'}</TableCell>
                               <TableCell className='text-xs text-slate-600'>
                                 {item.customerPhone || item.customerAccount || '-'}
+                              </TableCell>
+                              <TableCell className='text-sm'>
+                                {paymentMethodLabel(item.paymentMethod) || '-'}
+                                {item.paymentSource && (
+                                  <div className='text-xs text-slate-500'>
+                                    {paymentSourceLabel(item.paymentSource, item.paymentMode)}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className='text-sm font-medium text-right'>
                                 {item.paymentAmount.toLocaleString()} ETB
@@ -816,7 +842,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                           ))}
                           {items.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={9} className='h-32 text-center text-sm text-slate-500'>
+                              <TableCell colSpan={10} className='h-32 text-center text-sm text-slate-500'>
                                 No cashback transactions found
                               </TableCell>
                             </TableRow>
@@ -826,10 +852,24 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                     </div>
                     
                     {/* Pagination */}
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between px-6 py-4 border-t border-[#F1E7D0] bg-amber-50/20">
-                        <div className="text-xs font-medium text-[#6B7280]">
-                          Showing <span className="text-[#1F2937] font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-[#1F2937] font-bold">{Math.min(currentPage * itemsPerPage, total)}</span> of <span className="text-[#1F2937] font-bold">{total}</span> results
+                    {total > 0 && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-[#F1E7D0] bg-amber-50/20">
+                        <div className="flex items-center gap-3 text-xs font-medium text-[#6B7280]">
+                          <span>
+                            Showing <span className="text-[#1F2937] font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-[#1F2937] font-bold">{Math.min(currentPage * itemsPerPage, total)}</span> of <span className="text-[#1F2937] font-bold">{total}</span> results
+                          </span>
+                          <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                            <SelectTrigger className="h-8 w-[110px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[10, 20, 50, 100].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} / page
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Button

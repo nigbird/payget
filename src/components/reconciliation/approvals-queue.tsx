@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { CheckCircle2, XCircle, RefreshCw, AlertCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, RefreshCw, Download } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { downloadCsv } from '@/lib/export-csv'
+import { FilterToolbar, SearchInput } from './filter-toolbar'
 
 /**
  * One inbox for everything awaiting a checker, across payment, cashback, and
@@ -44,6 +47,19 @@ const ENDPOINTS: Record<Kind, string> = {
   MPGS: '/api/admin/mpgs-reconciliation',
 }
 
+const KIND_LABELS: Record<Kind, string> = {
+  PAYMENT: 'Payment',
+  CASHBACK: 'Cashback',
+  MPGS: 'Card',
+}
+
+/** Each request type is exported under its own subsystem's export permission. */
+const EXPORT_PERMISSIONS: Record<Kind, string> = {
+  PAYMENT: 'payment.reconciliation.export',
+  CASHBACK: 'cashback.reconciliation.export',
+  MPGS: 'mpgs.reconciliation.export',
+}
+
 const CASHBACK_ACTION_LABELS: Record<string, string> = {
   RETRY: 'Retry transfer',
   REFERENCE_UPDATE: 'Update reference',
@@ -69,6 +85,8 @@ export function ApprovalsQueue({
   const { toast } = useToast()
 
   const [rows, setRows] = useState<QueueRow[]>([])
+  const [kindFilter, setKindFilter] = useState<'ALL' | Kind>('ALL')
+  const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [selected, setSelected] = useState<QueueRow | null>(null)
   const [comments, setComments] = useState('')
@@ -147,6 +165,42 @@ export function ApprovalsQueue({
     fetchQueue()
   }, [fetchQueue])
 
+  const visibleRows = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return rows.filter(
+      (r) =>
+        (kindFilter === 'ALL' || r.kind === kindFilter) &&
+        (!q || [r.reference, r.merchantName, r.evidence, r.makerName].some((v) => v.toLowerCase().includes(q)))
+    )
+  }, [rows, kindFilter, search])
+
+  const userPermissions = user?.permissions || []
+  const exportableRows = visibleRows.filter((r) => userPermissions.includes(EXPORT_PERMISSIONS[r.kind]))
+  const canExport = (Object.values(EXPORT_PERMISSIONS) as string[]).some((p) => userPermissions.includes(p))
+
+  const handleExport = () => {
+    downloadCsv(
+      'reconciliation-approvals',
+      ['Type', 'Reference', 'Merchant', 'Action', 'Amount', 'FT / new reference', 'Reason', 'Submitted by', 'Submitted at'],
+      exportableRows.map((r) => [
+        KIND_LABELS[r.kind],
+        r.reference,
+        r.merchantName,
+        r.action,
+        r.amount ?? '',
+        r.evidence,
+        r.reason,
+        r.makerName,
+        new Date(r.createdAt).toLocaleString(),
+      ])
+    )
+    const skipped = visibleRows.length - exportableRows.length
+    toast({
+      title: 'Export complete',
+      description: `Exported ${exportableRows.length} requests to CSV.${skipped ? ` ${skipped} skipped — no export permission for their type.` : ''}`,
+    })
+  }
+
   const canActOn = (row: QueueRow) => {
     if (row.makerId === user?.id) return false
     if (row.kind === 'PAYMENT') return canManagePayments
@@ -193,20 +247,50 @@ export function ApprovalsQueue({
   }
 
   return (
-    <>
+    <div className="space-y-4">
+      <FilterToolbar
+        search={
+          <SearchInput
+            placeholder="Search reference, merchant, FT or submitter"
+            value={search}
+            onChange={setSearch}
+          />
+        }
+        actions={
+          <>
+            <Button variant="outline" onClick={fetchQueue} disabled={isLoading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            {canExport && (
+              <Button variant="outline" onClick={handleExport} disabled={isLoading || exportableRows.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            )}
+          </>
+        }
+      >
+        <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as 'ALL' | Kind)}>
+          <SelectTrigger>
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All types</SelectItem>
+            {canViewPayments && <SelectItem value="PAYMENT">Payment</SelectItem>}
+            {canViewCashback && <SelectItem value="CASHBACK">Cashback</SelectItem>}
+            {canViewMpgs && <SelectItem value="MPGS">Card</SelectItem>}
+          </SelectContent>
+        </Select>
+      </FilterToolbar>
+
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle className="text-base">Awaiting approval</CardTitle>
-            <CardDescription>
-              Payment and cashback requests in one queue. You cannot approve a request you
-              submitted yourself.
-            </CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={fetchQueue} disabled={isLoading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-base">Awaiting approval</CardTitle>
+          <CardDescription>
+            Payment, cashback, and card requests in one queue. You cannot approve a request you
+            submitted yourself.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -228,14 +312,14 @@ export function ApprovalsQueue({
                     Loading…
                   </TableCell>
                 </TableRow>
-              ) : rows.length === 0 ? (
+              ) : visibleRows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                     Nothing awaiting approval.
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((row) => (
+                visibleRows.map((row) => (
                   <TableRow key={`${row.kind}-${row.id}`}>
                     <TableCell>
                       <Badge
@@ -248,7 +332,7 @@ export function ApprovalsQueue({
                               : 'border-purple-200 bg-purple-50 text-purple-700'
                         }
                       >
-                        {row.kind === 'PAYMENT' ? 'Payment' : row.kind === 'CASHBACK' ? 'Cashback' : 'Card'}
+                        {KIND_LABELS[row.kind]}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{row.reference}</TableCell>
@@ -357,6 +441,6 @@ export function ApprovalsQueue({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

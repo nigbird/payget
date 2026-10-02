@@ -20,6 +20,9 @@ import { settleTransaction } from '@/lib/payment-settlement';
 /** Statuses that are stuck and therefore reconcilable. */
 const UNRESOLVED_STATUSES = ['AWAITING_PIN', 'INITIATED', 'PENDING', 'PROCESSING'] as const;
 
+/** Payment methods this FT-based flow reconciles (everything but card). */
+const FT_PAYMENT_METHODS = ['BANK', 'TELEBIRR', 'YAGOUT'] as const;
+
 export async function GET(request: Request) {
   try {
     const user = await requireAuthUser(request);
@@ -34,29 +37,103 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const merchantId = searchParams.get('merchantId');
     const search = searchParams.get('search');
+    const status = searchParams.get('status');
+    // MPGS is reconciled from its own tab, so it is never a valid filter here.
+    const paymentMethod = (FT_PAYMENT_METHODS as readonly string[]).includes(searchParams.get('paymentMethod') ?? '')
+      ? searchParams.get('paymentMethod')
+      : null;
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
+    const view = searchParams.get('view') === 'history' ? 'history' : 'unresolved';
+    const download = searchParams.get('download') === 'true';
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
     const offset = (page - 1) * limit;
 
+    if (download && !userHasPermission(user, 'payment.reconciliation.export')) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+    }
+
+    const dateRange = (() => {
+      if (!dateFrom && !dateTo) return null;
+      const range: { gte?: Date; lte?: Date } = {};
+      if (dateFrom) range.gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        range.lte = end;
+      }
+      return range;
+    })();
+
+    // Decided requests (executed or rejected). Once a payment is settled it
+    // drops out of the unresolved list, so this is the reconciliation report.
+    if (view === 'history') {
+      const historyWhere: any = {
+        status: status === 'EXECUTED' || status === 'REJECTED' ? status : { in: ['EXECUTED', 'REJECTED'] },
+      };
+      if (merchantId || paymentMethod) {
+        historyWhere.transaction = {
+          ...(merchantId ? { merchantId } : {}),
+          ...(paymentMethod ? { paymentMethod } : {}),
+        };
+      }
+      if (dateRange) historyWhere.checkedAt = dateRange;
+      if (search) {
+        historyWhere.OR = [
+          { ftNumber: { contains: search, mode: 'insensitive' } },
+          { transaction: { transactionReference: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
+
+      const [history, historyTotal] = await Promise.all([
+        prisma.paymentReconciliationRequest.findMany({
+          where: historyWhere,
+          include: {
+            transaction: {
+              select: {
+                transactionReference: true,
+                amount: true,
+                paymentMethod: true,
+                payerPhone: true,
+                payerAccount: true,
+                timestamp: true,
+                merchant: { select: { id: true, name: true } },
+              },
+            },
+            maker: { select: { id: true, name: true, email: true } },
+            checker: { select: { id: true, name: true, email: true } },
+          },
+          orderBy: { checkedAt: 'desc' },
+          take: download ? 50000 : limit,
+          skip: download ? 0 : offset,
+        }),
+        prisma.paymentReconciliationRequest.count({ where: historyWhere }),
+      ]);
+
+      return NextResponse.json({
+        history,
+        total: historyTotal,
+        totalPages: Math.max(1, Math.ceil(historyTotal / limit)),
+        currentPage: page,
+        itemsPerPage: limit,
+      });
+    }
+
     // Card transactions are reconciled by re-querying the gateway (see the
     // Card/MPGS tab and /api/admin/mpgs-reconciliation) — this FT-based flow
     // is for BANK/TELEBIRR receipts and has no way to verify a card payment.
-    const where: any = { status: { in: [...UNRESOLVED_STATUSES] }, paymentMethod: { not: 'MPGS' } };
+    const statusFilter = (UNRESOLVED_STATUSES as readonly string[]).includes(status ?? '')
+      ? status
+      : { in: [...UNRESOLVED_STATUSES] };
+    const where: any = { status: statusFilter, paymentMethod: paymentMethod ?? { not: 'MPGS' } };
 
     if (merchantId) {
       where.merchantId = merchantId;
     }
 
-    if (dateFrom || dateTo) {
-      where.timestamp = {};
-      if (dateFrom) where.timestamp.gte = new Date(dateFrom);
-      if (dateTo) {
-        const end = new Date(dateTo);
-        end.setHours(23, 59, 59, 999);
-        where.timestamp.lte = end;
-      }
+    if (dateRange) {
+      where.timestamp = dateRange;
     }
 
     if (search) {
@@ -82,8 +159,9 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { timestamp: 'desc' },
-        take: limit,
-        skip: offset,
+        // Export needs every row matching the filters, not just the current page.
+        take: download ? 50000 : limit,
+        skip: download ? 0 : offset,
       }),
       prisma.transaction.count({ where }),
     ]);
