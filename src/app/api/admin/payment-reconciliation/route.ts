@@ -171,7 +171,7 @@ export async function GET(request: Request) {
       where: { status: 'PENDING' },
       include: {
         transaction: {
-          include: { merchant: { select: { id: true, name: true } } },
+          include: { merchant: { select: { id: true, name: true, accountNumber: true } } },
         },
         maker: { select: { id: true, name: true, email: true } },
       },
