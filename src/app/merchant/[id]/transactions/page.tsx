@@ -16,7 +16,6 @@ import {
   TrendingUp,
   Filter,
   CheckCircle2,
-  CalendarDays,
   MoreVertical,
   ChevronDown,
   Phone,
@@ -37,7 +36,7 @@ import {
 } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+import { DateRangePicker, formatDateRange } from "@/components/ui/date-range-picker"
 import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
@@ -406,13 +405,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     !!dateRange.to ||
     search.trim().length > 0
 
-  const dateRangeLabel = useMemo(() => {
-    const { from, to } = dateRange
-    if (!from && !to) return "Any time"
-    if (from && !to) return `From ${from.toLocaleDateString()}`
-    if (!from && to) return `Until ${to.toLocaleDateString()}`
-    return `${from?.toLocaleDateString()} - ${to?.toLocaleDateString()}`
-  }, [dateRange.from, dateRange.to])
+  const dateRangeLabel = useMemo(() => formatDateRange(dateRange), [dateRange.from, dateRange.to])
 
   /** With nothing filtered, the summary cards default to today rather than every transaction ever recorded. */
   const todayScope = useMemo(() => {
@@ -671,14 +664,6 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
     return "Failed"
   }
 
-  const handleToday = () => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tonight = new Date()
-    tonight.setHours(23, 59, 59, 999)
-    setDateRange({ from: today, to: tonight })
-    toast({ title: "Filter applied", description: "Showing today's transactions." })
-  }
 
   const handleReset = () => {
     setStatusFilter("all")
@@ -771,32 +756,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date Range</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-9 rounded-lg text-xs font-bold border-slate-100 hover:bg-slate-50"
-                        onClick={handleToday}
-                      >
-                        Today
-                      </Button>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs font-bold border-slate-100 truncate">
-                            <CalendarDays className="mr-2 h-3.5 w-3.5" />
-                            {dateRangeLabel}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                          <Calendar
-                            hideWeekdays
-                            mode="range"
-                            selected={dateRange as any}
-                            onSelect={(range) => setDateRange((range ?? {}) as any)}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    <DateRangePicker value={dateRange} onChange={setDateRange} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
