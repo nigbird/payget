@@ -90,6 +90,7 @@ export async function POST(
     source = stored.yagoutMeId && stored.yagoutEncryptionKey ? "merchant" : "platform"
   }
 
-  const checks = await checkYagoutConfig(config)
+  const appBaseUrl = (process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/$/, "")
+  const checks = await checkYagoutConfig(config, appBaseUrl)
   return NextResponse.json({ status: summarise(checks), source, checks } satisfies ConfigCheckReport)
 }

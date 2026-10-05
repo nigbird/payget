@@ -1,7 +1,14 @@
 import crypto from "crypto"
 import { retrieveMpgsOrder, type MpgsConfig } from "@/lib/mpgs-client"
-import { encryptYagout, decryptYagout, isValidYagoutKey } from "@/lib/yagout-crypto"
-import type { YagoutConfig } from "@/lib/yagout-client"
+import { encryptYagout, isValidYagoutKey, yagoutHash } from "@/lib/yagout-crypto"
+import { yagoutReturnUrls, type YagoutConfig } from "@/lib/yagout-client"
+import {
+  YAGOUT_CHANNEL_WEB,
+  YAGOUT_COUNTRY,
+  YAGOUT_CURRENCY,
+  YAGOUT_TXN_TYPE,
+  buildHostedMerchantRequest,
+} from "@/lib/yagout-request"
 
 /**
  * Checks a gateway configuration against the gateway itself, so an admin learns
@@ -106,22 +113,118 @@ export async function checkMpgsConfig(config: MpgsConfig): Promise<ConfigCheck[]
 // YagoutPay
 // ---------------------------------------------------------------------------
 
-/**
- * Yagout's encryption API sits next to the hosted payment page, so it is derived
- * from the post URL rather than configured separately; YAGOUTPAY_ENCRYPT_URL
- * overrides that when the layout differs.
- */
-function yagoutEncryptUrl(postUrl: string): string | null {
-  const override = process.env.YAGOUTPAY_ENCRYPT_URL?.trim()
-  if (override) return override
-
-  const marker = "/paymentRedirection/"
-  const at = postUrl.indexOf(marker)
-  if (at < 0) return null
-  return `${postUrl.slice(0, at)}/othersRedirection/encryption`
+/** Pulls the message out of Yagout's HTML error page ("Invalid Merchant Id" etc.). */
+function yagoutPageMessage(html: string): string {
+  const heading = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? html
+  return heading
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200)
 }
 
-export async function checkYagoutConfig(config: YagoutConfig): Promise<ConfigCheck[]> {
+/**
+ * Yagout has no credential-check endpoint (its encryption API needs a token the
+ * integration document never mentions), but its checkout page validates in a
+ * fixed order and says which step failed:
+ *
+ *   unknown me_id         -> "Invalid Merchant Id"
+ *   key cannot decrypt    -> "Invalid Encryption..."
+ *
+ * So we post a request built exactly as a real payment is, except that the hash
+ * covers a different order number. A correct key gets past decryption and is
+ * then refused on the hash, which proves the key without ever opening a
+ * checkout session a customer could pay into.
+ */
+async function probeYagoutCheckout(config: YagoutConfig, appBaseUrl: string): Promise<ConfigCheck> {
+  const label = "Credentials"
+  const orderNo = `verify${crypto.randomBytes(5).toString("hex")}`
+  const amount = "1.00"
+  const { successUrl, failureUrl } = yagoutReturnUrls(appBaseUrl)
+
+  let merchantRequest: string
+  let hash: string
+  try {
+    merchantRequest = encryptYagout(
+      buildHostedMerchantRequest({
+        txn: {
+          agId: config.aggregatorId,
+          meId: config.meId,
+          orderNo,
+          amount,
+          country: YAGOUT_COUNTRY,
+          currency: YAGOUT_CURRENCY,
+          txnType: YAGOUT_TXN_TYPE,
+          successUrl,
+          failureUrl,
+          channel: YAGOUT_CHANNEL_WEB,
+        },
+        cust: { emailId: "verify@example.com", mobileNo: "251900000000", isLoggedIn: "Y" },
+      }),
+      config.encryptionKey,
+    )
+    // Deliberately mismatched: see the comment above.
+    hash = yagoutHash(
+      { meId: config.meId, orderNo: `${orderNo}x`, amount, country: YAGOUT_COUNTRY, currency: YAGOUT_CURRENCY },
+      config.encryptionKey,
+    )
+  } catch (error) {
+    return {
+      label,
+      status: "fail",
+      detail: `Could not build a test request: ${error instanceof Error ? error.message : "unknown error"}`,
+    }
+  }
+
+  let status: number
+  let message: string
+  try {
+    const res = await fetch(config.postUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ me_id: config.meId, merchant_request: merchantRequest, hash }),
+      redirect: "manual",
+      signal: AbortSignal.timeout(REMOTE_TIMEOUT_MS),
+    })
+    status = res.status
+    message = yagoutPageMessage(await res.text())
+  } catch (error) {
+    return {
+      label,
+      status: "fail",
+      detail: `Could not reach ${new URL(config.postUrl).hostname}: ${error instanceof Error ? error.message : "network error"}`,
+    }
+  }
+
+  if (/invalid merchant/i.test(message)) {
+    return {
+      label,
+      status: "fail",
+      detail: `Yagout does not recognise me_id ${config.meId} on this endpoint ("${message}"). Check the me_id, and that it belongs to this environment (test vs live).`,
+    }
+  }
+  if (/invalid encryption/i.test(message)) {
+    return {
+      label,
+      status: "fail",
+      detail: `Yagout knows me_id ${config.meId} but could not decrypt with this key ("${message}"). The encryption key is wrong.`,
+    }
+  }
+  if (status >= 500) {
+    return {
+      label,
+      status: "warn",
+      detail: `Yagout returned HTTP ${status}${message ? ` ("${message}")` : ""}; could not confirm the credentials.`,
+    }
+  }
+  return {
+    label,
+    status: "pass",
+    detail: `Yagout accepted me_id ${config.meId} and decrypted the request with this key${message ? ` (gateway said: "${message}")` : ""}.`,
+  }
+}
+
+export async function checkYagoutConfig(config: YagoutConfig, appBaseUrl: string): Promise<ConfigCheck[]> {
   const checks: ConfigCheck[] = []
 
   checks.push(
@@ -164,7 +267,8 @@ export async function checkYagoutConfig(config: YagoutConfig): Promise<ConfigChe
   }
   if (!/(^|\.)yagoutpay\.com$/i.test(postUrl.hostname)) {
     // The CSP form-action only allows *.yagoutpay.com, so the browser would
-    // block the redirect to any other host.
+    // block the redirect to any other host — and we will not post credentials
+    // to an arbitrary host either.
     checks.push({
       label: "Post URL",
       status: "fail",
@@ -179,87 +283,7 @@ export async function checkYagoutConfig(config: YagoutConfig): Promise<ConfigChe
     detail: isUat ? `${config.postUrl} (UAT/test endpoint, not live)` : config.postUrl,
   })
 
-  try {
-    const res = await fetch(config.postUrl, {
-      method: "GET",
-      redirect: "manual",
-      signal: AbortSignal.timeout(REMOTE_TIMEOUT_MS),
-    })
-    checks.push({
-      label: "Post URL reachable",
-      status: res.status >= 500 ? "warn" : "pass",
-      detail: `${postUrl.hostname} responded (HTTP ${res.status}).`,
-    })
-  } catch (error) {
-    checks.push({
-      label: "Post URL reachable",
-      status: "fail",
-      detail: `Could not reach ${postUrl.hostname}: ${error instanceof Error ? error.message : "network error"}`,
-    })
-  }
-
-  // The only proof the key is right: Yagout encrypts a probe with the key it
-  // holds for this me_id, and ours must produce identical ciphertext.
-  const encryptUrl = yagoutEncryptUrl(config.postUrl)
-  if (!encryptUrl) {
-    checks.push({
-      label: "Key matches Yagout",
-      status: "warn",
-      detail: "Could not derive Yagout's encryption API from the post URL; set YAGOUTPAY_ENCRYPT_URL to enable this check.",
-    })
-    return checks
-  }
-
-  const probe = JSON.stringify({ me_id: config.meId, amount: "100" })
-  try {
-    const res = await fetch(encryptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/text", me_id: config.meId },
-      body: probe,
-      signal: AbortSignal.timeout(REMOTE_TIMEOUT_MS),
-    })
-    const text = await res.text()
-    let theirs = ""
-    try {
-      theirs = String(JSON.parse(text)?.Response ?? "").trim()
-    } catch {
-      theirs = ""
-    }
-
-    if (!theirs) {
-      checks.push({
-        label: "Key matches Yagout",
-        status: "warn",
-        detail: `Yagout's encryption API returned no ciphertext (HTTP ${res.status}); the me_id may be unknown to this environment.`,
-      })
-    } else if (theirs === encryptYagout(probe, key)) {
-      checks.push({
-        label: "Key matches Yagout",
-        status: "pass",
-        detail: `Yagout confirms this key belongs to me_id ${config.meId}.`,
-      })
-    } else {
-      let readable = false
-      try {
-        readable = decryptYagout(theirs, key) === probe
-      } catch {
-        readable = false
-      }
-      checks.push({
-        label: "Key matches Yagout",
-        status: "fail",
-        detail: readable
-          ? "Yagout's ciphertext decrypts with this key but differs byte-for-byte; payments may be rejected."
-          : `This key does not match the one Yagout holds for me_id ${config.meId}.`,
-      })
-    }
-  } catch (error) {
-    checks.push({
-      label: "Key matches Yagout",
-      status: "warn",
-      detail: `Could not reach Yagout's encryption API: ${error instanceof Error ? error.message : "network error"}`,
-    })
-  }
+  checks.push(await probeYagoutCheckout({ ...config, encryptionKey: key }, appBaseUrl))
 
   return checks
 }

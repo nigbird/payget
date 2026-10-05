@@ -19,7 +19,9 @@ import {
   CreditCard,
   Trash2,
   ShieldCheck,
-  XCircle
+  XCircle,
+  Eye,
+  EyeOff
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -130,6 +132,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [showClearMpgsConfirm, setShowClearMpgsConfirm] = useState(false)
   const [isTestingMpgs, setIsTestingMpgs] = useState(false)
   const [mpgsReport, setMpgsReport] = useState<ConfigCheckReport | null>(null)
+  const [showMpgsPassword, setShowMpgsPassword] = useState(false)
 
   // This business's own YagoutPay account. Same idea as the MPGS block above:
   // set it and their Yagout payments settle to their own account, leave it and
@@ -149,6 +152,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [showClearYagoutConfirm, setShowClearYagoutConfirm] = useState(false)
   const [isTestingYagout, setIsTestingYagout] = useState(false)
   const [yagoutReport, setYagoutReport] = useState<ConfigCheckReport | null>(null)
+  const [showYagoutKey, setShowYagoutKey] = useState(false)
 
   const qrUrl = useMemo(() => {
     if (!qrConfig?.activeQr?.token) return ""
@@ -745,13 +749,24 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                       <span className="normal-case font-normal text-slate-400"> (leave blank to keep current)</span>
                     )}
                   </Label>
-                  <Input
-                    type="password"
-                    placeholder={mpgsConfig?.configured ? "••••••••" : "Password"}
-                    value={mpgsForm.mpgsPassword}
-                    onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsPassword: e.target.value })}
-                    autoComplete="new-password"
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showMpgsPassword ? "text" : "password"}
+                      placeholder={mpgsConfig?.configured ? "••••••••" : "Password"}
+                      value={mpgsForm.mpgsPassword}
+                      onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsPassword: e.target.value })}
+                      autoComplete="new-password"
+                      className="pr-11"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMpgsPassword((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:text-amber-600 transition-colors"
+                      aria-label={showMpgsPassword ? "Hide password" : "Show password"}
+                    >
+                      {showMpgsPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Settlement Currency</Label>
@@ -857,13 +872,24 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                       <span className="normal-case font-normal text-slate-400"> (leave blank to keep current)</span>
                     )}
                   </Label>
-                  <Input
-                    type="password"
-                    placeholder={yagoutConfig?.configured ? "••••••••" : "Base64 AES-256 key from Yagout"}
-                    value={yagoutForm.yagoutEncryptionKey}
-                    onChange={(e) => setYagoutForm({ ...yagoutForm, yagoutEncryptionKey: e.target.value })}
-                    autoComplete="new-password"
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showYagoutKey ? "text" : "password"}
+                      placeholder={yagoutConfig?.configured ? "••••••••" : "Base64 AES-256 key from Yagout"}
+                      value={yagoutForm.yagoutEncryptionKey}
+                      onChange={(e) => setYagoutForm({ ...yagoutForm, yagoutEncryptionKey: e.target.value })}
+                      autoComplete="new-password"
+                      className="pr-11"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowYagoutKey((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:text-amber-600 transition-colors"
+                      aria-label={showYagoutKey ? "Hide encryption key" : "Show encryption key"}
+                    >
+                      {showYagoutKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                   <p className="text-[11px] text-slate-400">
                     Paste exactly as Yagout issued it, including any trailing &quot;=&quot;.
                   </p>
