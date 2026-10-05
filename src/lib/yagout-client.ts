@@ -11,7 +11,7 @@ import { decryptYagout } from "@/lib/yagout-crypto"
  * POST, so "the client" is just credentials plus the URL the form targets.
  */
 
-const DEFAULT_UAT_POST_URL =
+export const DEFAULT_YAGOUT_POST_URL =
   "https://uatcheckout.yagoutpay.com/ms-transaction-core-1-0/paymentRedirection/checksumGatewayPage"
 
 export type YagoutConfig = {
@@ -37,7 +37,7 @@ export function resolveYagoutConfig(): YagoutConfig {
     aggregatorId: process.env.YAGOUTPAY_AGGREGATOR_ID?.trim() || YAGOUT_AGGREGATOR_ID,
     meId,
     encryptionKey,
-    postUrl: process.env.YAGOUTPAY_POST_URL?.trim() || DEFAULT_UAT_POST_URL,
+    postUrl: process.env.YAGOUTPAY_POST_URL?.trim() || DEFAULT_YAGOUT_POST_URL,
   }
 }
 
@@ -65,7 +65,7 @@ export async function resolveYagoutConfigForMerchant(
       postUrl:
         stored.yagoutPostUrl?.trim() ||
         process.env.YAGOUTPAY_POST_URL?.trim() ||
-        DEFAULT_UAT_POST_URL,
+        DEFAULT_YAGOUT_POST_URL,
     }
   }
 

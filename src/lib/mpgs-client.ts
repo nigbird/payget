@@ -2,9 +2,9 @@ import { safeJsonParse } from "@/lib/json-utils";
 import { db } from "@/lib/db";
 import { withMerchantSecret } from "@/lib/merchant-secret";
 
-const DEFAULT_BASE_URL = "https://test-gateway.mastercard.com";
-const DEFAULT_API_VERSION = "100";
-const DEFAULT_CURRENCY = "USD";
+export const DEFAULT_MPGS_BASE_URL = "https://test-gateway.mastercard.com";
+export const DEFAULT_MPGS_API_VERSION = "100";
+export const DEFAULT_MPGS_CURRENCY = "USD";
 
 export type MpgsConfig = {
   baseUrl: string;
@@ -27,14 +27,14 @@ export function resolveMpgsConfig(): MpgsConfig {
   }
 
   return {
-    baseUrl: (process.env.MPGS_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(
+    baseUrl: (process.env.MPGS_BASE_URL?.trim() || DEFAULT_MPGS_BASE_URL).replace(
       /\/$/,
       "",
     ),
-    apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_API_VERSION,
+    apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_MPGS_API_VERSION,
     merchantId,
     password,
-    currency: process.env.MPGS_CURRENCY?.trim() || DEFAULT_CURRENCY,
+    currency: process.env.MPGS_CURRENCY?.trim() || DEFAULT_MPGS_CURRENCY,
   };
 }
 
@@ -52,14 +52,14 @@ export async function resolveMpgsConfigForMerchant(
   if (stored?.mpgsMerchantId && stored?.mpgsPassword) {
     const password = withMerchantSecret(stored.mpgsPassword, (plaintext) => plaintext);
     return {
-      baseUrl: (stored.mpgsBaseUrl?.trim() || process.env.MPGS_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(
+      baseUrl: (stored.mpgsBaseUrl?.trim() || process.env.MPGS_BASE_URL?.trim() || DEFAULT_MPGS_BASE_URL).replace(
         /\/$/,
         "",
       ),
-      apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_API_VERSION,
+      apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_MPGS_API_VERSION,
       merchantId: stored.mpgsMerchantId.trim(),
       password,
-      currency: stored.mpgsCurrency?.trim() || process.env.MPGS_CURRENCY?.trim() || DEFAULT_CURRENCY,
+      currency: stored.mpgsCurrency?.trim() || process.env.MPGS_CURRENCY?.trim() || DEFAULT_MPGS_CURRENCY,
     };
   }
 

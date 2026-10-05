@@ -17,7 +17,9 @@ import {
   ArrowLeft,
   ImageIcon,
   CreditCard,
-  Trash2
+  Trash2,
+  ShieldCheck,
+  XCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -51,6 +53,45 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+
+type ConfigCheckReport = {
+  status: "pass" | "warn" | "fail"
+  source: "merchant" | "platform" | "form"
+  checks: { label: string; status: "pass" | "warn" | "fail"; detail: string }[]
+}
+
+const REPORT_SOURCE_LABEL: Record<ConfigCheckReport["source"], string> = {
+  merchant: "Checked this business's saved credentials.",
+  platform: "No own account configured — checked the platform's shared account.",
+  form: "Checked the values entered above (not yet saved).",
+}
+
+function ConfigCheckResults({ report }: { report: ConfigCheckReport }) {
+  const tone = {
+    pass: "border-emerald-200 bg-emerald-50/60",
+    warn: "border-amber-200 bg-amber-50/60",
+    fail: "border-rose-200 bg-rose-50/60",
+  }[report.status]
+
+  return (
+    <div className={`rounded-xl border p-4 space-y-2 ${tone}`}>
+      <p className="text-[11px] text-slate-500">{REPORT_SOURCE_LABEL[report.source]}</p>
+      <ul className="space-y-1.5">
+        {report.checks.map((check, i) => (
+          <li key={i} className="flex items-start gap-2 text-xs">
+            {check.status === "pass" && <CheckCircle2 className="w-4 h-4 mt-px shrink-0 text-emerald-600" />}
+            {check.status === "warn" && <AlertCircle className="w-4 h-4 mt-px shrink-0 text-amber-600" />}
+            {check.status === "fail" && <XCircle className="w-4 h-4 mt-px shrink-0 text-rose-600" />}
+            <span>
+              <span className="font-semibold text-slate-700">{check.label}:</span>{" "}
+              <span className="text-slate-600 break-all">{check.detail}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
 
 const QR_DISPLAY_SIZE = 200
 const QR_DOWNLOAD_SIZE = 1024
@@ -87,6 +128,8 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [isSavingMpgs, setIsSavingMpgs] = useState(false)
   const [isClearingMpgs, setIsClearingMpgs] = useState(false)
   const [showClearMpgsConfirm, setShowClearMpgsConfirm] = useState(false)
+  const [isTestingMpgs, setIsTestingMpgs] = useState(false)
+  const [mpgsReport, setMpgsReport] = useState<ConfigCheckReport | null>(null)
 
   // This business's own YagoutPay account. Same idea as the MPGS block above:
   // set it and their Yagout payments settle to their own account, leave it and
@@ -104,6 +147,8 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   const [isSavingYagout, setIsSavingYagout] = useState(false)
   const [isClearingYagout, setIsClearingYagout] = useState(false)
   const [showClearYagoutConfirm, setShowClearYagoutConfirm] = useState(false)
+  const [isTestingYagout, setIsTestingYagout] = useState(false)
+  const [yagoutReport, setYagoutReport] = useState<ConfigCheckReport | null>(null)
 
   const qrUrl = useMemo(() => {
     if (!qrConfig?.activeQr?.token) return ""
@@ -159,6 +204,68 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Runs the gateway checks. An unedited form tests what is saved (or the
+  // platform fallback when nothing is); an edited one tests the values on screen.
+  const runConfigCheck = async (
+    gateway: "mpgs-config" | "yagout-config",
+    formValues: Record<string, string> | null,
+    setReport: (report: ConfigCheckReport | null) => void,
+    setTesting: (testing: boolean) => void,
+  ) => {
+    setTesting(true)
+    setReport(null)
+    try {
+      const response = await fetch(`/api/admin/merchants/${id}/${gateway}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formValues ?? {}),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data?.error || "Check failed")
+      setReport(data)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Could not run the check",
+        description: error?.message || "Please try again.",
+      })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const handleTestMpgsConfig = () => {
+    const edited =
+      mpgsForm.mpgsPassword.trim() !== "" ||
+      mpgsForm.mpgsMerchantId.trim() !== (mpgsConfig?.mpgsMerchantId ?? "") ||
+      mpgsForm.mpgsBaseUrl.trim() !== (mpgsConfig?.mpgsBaseUrl ?? "") ||
+      mpgsForm.mpgsCurrency.trim() !== (mpgsConfig?.mpgsCurrency ?? "")
+    const values = edited && mpgsForm.mpgsMerchantId.trim()
+      ? {
+          mpgsMerchantId: mpgsForm.mpgsMerchantId.trim(),
+          mpgsPassword: mpgsForm.mpgsPassword.trim(),
+          mpgsBaseUrl: mpgsForm.mpgsBaseUrl.trim(),
+          mpgsCurrency: mpgsForm.mpgsCurrency.trim(),
+        }
+      : null
+    runConfigCheck("mpgs-config", values, setMpgsReport, setIsTestingMpgs)
+  }
+
+  const handleTestYagoutConfig = () => {
+    const edited =
+      yagoutForm.yagoutEncryptionKey.trim() !== "" ||
+      yagoutForm.yagoutMeId.trim() !== (yagoutConfig?.yagoutMeId ?? "") ||
+      yagoutForm.yagoutPostUrl.trim() !== (yagoutConfig?.yagoutPostUrl ?? "")
+    const values = edited && yagoutForm.yagoutMeId.trim()
+      ? {
+          yagoutMeId: yagoutForm.yagoutMeId.trim(),
+          yagoutEncryptionKey: yagoutForm.yagoutEncryptionKey.trim(),
+          yagoutPostUrl: yagoutForm.yagoutPostUrl.trim(),
+        }
+      : null
+    runConfigCheck("yagout-config", values, setYagoutReport, setIsTestingYagout)
   }
 
   const handleSaveMpgsConfig = async () => {
@@ -664,6 +771,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   />
                 </div>
               </div>
+              {mpgsReport && <ConfigCheckResults report={mpgsReport} />}
             </CardContent>
             <CardFooter className="flex items-center justify-between gap-3 border-t border-black/5 bg-amber-50/10 px-6 py-4">
               {mpgsConfig?.configured ? (
@@ -682,18 +790,33 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   Remove
                 </Button>
               ) : <span />}
-              <Button
-                onClick={handleSaveMpgsConfig}
-                disabled={isSavingMpgs}
-                className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
-              >
-                {isSavingMpgs ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Save
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleTestMpgsConfig}
+                  disabled={isTestingMpgs}
+                  className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
+                >
+                  {isTestingMpgs ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                  )}
+                  Test
+                </Button>
+                <Button
+                  onClick={handleSaveMpgsConfig}
+                  disabled={isSavingMpgs}
+                  className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                >
+                  {isSavingMpgs ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save
+                </Button>
+              </div>
             </CardFooter>
           </Card>
 
@@ -758,6 +881,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   </p>
                 </div>
               </div>
+              {yagoutReport && <ConfigCheckResults report={yagoutReport} />}
             </CardContent>
             <CardFooter className="flex items-center justify-between gap-3 border-t border-black/5 bg-amber-50/10 px-6 py-4">
               {yagoutConfig?.configured ? (
@@ -776,18 +900,33 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   Remove
                 </Button>
               ) : <span />}
-              <Button
-                onClick={handleSaveYagoutConfig}
-                disabled={isSavingYagout}
-                className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
-              >
-                {isSavingYagout ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Save
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleTestYagoutConfig}
+                  disabled={isTestingYagout}
+                  className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
+                >
+                  {isTestingYagout ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                  )}
+                  Test
+                </Button>
+                <Button
+                  onClick={handleSaveYagoutConfig}
+                  disabled={isSavingYagout}
+                  className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                >
+                  {isSavingYagout ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save
+                </Button>
+              </div>
             </CardFooter>
           </Card>
         </div>
