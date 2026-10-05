@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
+import { CBS_CURRENCY, formatAmount, paymentMethodLabel, transactionCurrency } from '@/lib/transaction-currency'
 import { FilterToolbar, SearchInput } from './filter-toolbar'
 
 /**
@@ -39,7 +40,88 @@ type QueueRow = {
   makerId: string
   makerName: string
   createdAt: string
+  /** Everything a checker needs to decide, grouped for the review dialog. */
+  sections: DetailSection[]
 }
+
+type DetailField = { label: string; value: string | number | null | undefined; mono?: boolean }
+type DetailSection = { title: string; fields: DetailField[] }
+
+const fmtDate = (value: string | null | undefined) => (value ? new Date(value).toLocaleString() : null)
+
+const makerLabel = (maker: any) =>
+  maker?.name && maker?.email ? `${maker.name} (${maker.email})` : maker?.name || maker?.email || null
+
+/** Shared "who asked, when, and why" block for every request type. */
+const requestSection = (r: any, action: string, extra: DetailField[] = []): DetailSection => ({
+  title: 'Request',
+  fields: [
+    { label: 'Action', value: action },
+    ...extra,
+    { label: 'Status before request', value: r.previousStatus },
+    { label: 'Submitted by', value: makerLabel(r.maker) },
+    { label: 'Submitted at', value: fmtDate(r.createdAt) },
+    { label: 'Request ID', value: r.id, mono: true },
+  ],
+})
+
+const merchantSection = (merchant: any): DetailSection => ({
+  title: 'Merchant',
+  fields: [
+    { label: 'Name', value: merchant?.name },
+    { label: 'Account number', value: merchant?.accountNumber, mono: true },
+  ],
+})
+
+/** The payment transaction a payment or card request concerns. */
+const transactionSection = (tx: any): DetailSection => ({
+  title: 'Transaction',
+  fields: [
+    { label: 'Reference', value: tx?.transactionReference, mono: true },
+    {
+      label: 'Amount',
+      value: tx?.amount != null ? formatAmount(tx.amount, transactionCurrency(tx, tx.merchant)) : null,
+    },
+    { label: 'Payment method', value: tx ? paymentMethodLabel(tx.paymentMethod) : null },
+    { label: 'Current status', value: tx?.status },
+    { label: 'Payer phone', value: tx?.payerPhone, mono: true },
+    { label: 'Payer account', value: tx?.payerAccount, mono: true },
+    { label: 'Existing FT / CBS reference', value: tx?.cbsreference, mono: true },
+    {
+      label: 'Provider response',
+      value: [tx?.providerStatusCode, tx?.providerStatusDesc].filter(Boolean).join(' — ') || null,
+    },
+    { label: 'Description', value: tx?.description },
+    { label: 'Initiated at', value: fmtDate(tx?.timestamp) },
+    { label: 'Transaction ID', value: tx?.id, mono: true },
+  ],
+})
+
+const cashbackSection = (cb: any): DetailSection => ({
+  title: 'Cashback',
+  fields: [
+    { label: 'Payment reference', value: cb?.transactionReference, mono: true },
+    { label: 'Payment amount', value: cb?.paymentAmount != null ? formatAmount(cb.paymentAmount, CBS_CURRENCY) : null },
+    {
+      label: 'Cashback amount',
+      value:
+        cb?.cashbackAmount != null
+          ? `${formatAmount(cb.cashbackAmount, CBS_CURRENCY)}${cb.cashbackPercent != null ? ` (${cb.cashbackPercent}%)` : ''}`
+          : null,
+    },
+    { label: 'Category', value: cb?.category?.name },
+    { label: 'Current status', value: cb?.status },
+    { label: 'Failure reason', value: cb?.failureReason },
+    { label: 'Customer phone', value: cb?.customerPhone, mono: true },
+    { label: 'Customer account', value: cb?.customerAccount, mono: true },
+    { label: 'Subsidiary account', value: cb?.subsidiaryAccount, mono: true },
+    { label: 'Provider debit ref', value: cb?.providerDebitRef, mono: true },
+    { label: 'Provider credit ref', value: cb?.providerCreditRef, mono: true },
+    { label: 'Created at', value: fmtDate(cb?.createdAt) },
+    { label: 'Last processed at', value: fmtDate(cb?.processedAt) },
+    { label: 'Cashback ID', value: cb?.id, mono: true },
+  ],
+})
 
 const ENDPOINTS: Record<Kind, string> = {
   PAYMENT: '/api/admin/payment-reconciliation',
@@ -119,6 +201,11 @@ export function ApprovalsQueue({
         makerId: r.maker?.id,
         makerName: r.maker?.name || r.maker?.email || '—',
         createdAt: r.createdAt,
+        sections: [
+          requestSection(r, 'Settle by FT', [{ label: 'FT number to settle with', value: r.ftNumber, mono: true }]),
+          transactionSection(r.transaction),
+          merchantSection(r.transaction?.merchant),
+        ],
       }))
 
       const cashbackRows: QueueRow[] = (cashbackRes?.requests ?? []).map((r: any) => ({
@@ -133,6 +220,15 @@ export function ApprovalsQueue({
         makerId: r.maker?.id,
         makerName: r.maker?.name || r.maker?.email || '—',
         createdAt: r.createdAt,
+        sections: [
+          requestSection(r, CASHBACK_ACTION_LABELS[r.type] ?? r.type, [
+            { label: 'FT number', value: r.ftNumber, mono: true },
+            { label: 'Old reference', value: r.oldTransactionReference, mono: true },
+            { label: 'New reference', value: r.newTransactionReference, mono: true },
+          ]),
+          cashbackSection(r.cashbackTransaction),
+          merchantSection(r.cashbackTransaction?.merchant),
+        ],
       }))
 
       const mpgsRows: QueueRow[] = (mpgsRes?.requests ?? []).map((r: any) => ({
@@ -147,6 +243,11 @@ export function ApprovalsQueue({
         makerId: r.maker?.id,
         makerName: r.maker?.name || r.maker?.email || '—',
         createdAt: r.createdAt,
+        sections: [
+          requestSection(r, 'Re-check with gateway'),
+          transactionSection(r.transaction),
+          merchantSection(r.transaction?.merchant),
+        ],
       }))
 
       setRows(
@@ -367,7 +468,7 @@ export function ApprovalsQueue({
       </Card>
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Review request</DialogTitle>
             <DialogDescription>
@@ -381,24 +482,25 @@ export function ApprovalsQueue({
 
           {selected && (
             <div className="space-y-4">
-              <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Reference</span>
-                  <span className="font-mono text-xs">{selected.reference}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Action</span>
-                  <span>{selected.action}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">FT / new reference</span>
-                  <span className="font-mono text-xs">{selected.evidence}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Submitted by</span>
-                  <span>{selected.makerName}</span>
-                </div>
-              </div>
+              {selected.sections.map((section) => {
+                const fields = section.fields.filter((f) => f.value != null && f.value !== '')
+                if (fields.length === 0) return null
+                return (
+                  <div key={section.title} className="space-y-1">
+                    <Label className="text-muted-foreground">{section.title}</Label>
+                    <div className="space-y-1 rounded-md border bg-muted/40 p-3 text-sm">
+                      {fields.map((f) => (
+                        <div key={f.label} className="flex justify-between gap-4">
+                          <span className="shrink-0 text-muted-foreground">{f.label}</span>
+                          <span className={`break-all text-right ${f.mono ? 'font-mono text-xs' : ''}`}>
+                            {f.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
 
               <div className="space-y-1">
                 <Label className="text-muted-foreground">Maker&apos;s reason</Label>

@@ -169,7 +169,8 @@ export async function GET(request: Request) {
       include: {
         cashbackTransaction: {
           include: {
-            merchant: { select: { id: true, name: true } }
+            merchant: { select: { id: true, name: true, accountNumber: true } },
+            category: { select: { id: true, name: true } }
           }
         },
         maker: { select: { id: true, name: true, email: true } }
