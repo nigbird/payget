@@ -283,6 +283,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     }
 
     setIsSavingMpgs(true)
+    setMpgsReport(null)
     try {
       const response = await fetch(`/api/admin/merchants/${id}/mpgs-config`, {
         method: 'POST',
@@ -295,16 +296,22 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         })
       })
 
+      const data = await response.json().catch(() => ({}))
+      // The server checks the credentials against the gateway before saving
+      // and sends back what it found either way.
+      if (data?.report) setMpgsReport(response.ok ? { ...data.report, source: "merchant" } : data.report)
+
       if (response.ok) {
         toast({
           title: "Mastercard gateway saved",
-          description: "This business's card payments now settle to their own account.",
+          description: "Credentials verified with the gateway. This business's card payments now settle to their own account.",
         })
         setMpgsForm((prev) => ({ ...prev, mpgsPassword: "" }))
         fetchData()
       } else {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data?.error || "Failed to save")
+        throw new Error(
+          data?.report ? `${data.error} See the results below.` : data?.error || "Failed to save"
+        )
       }
     } catch (error: any) {
       toast({
@@ -354,6 +361,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
     }
 
     setIsSavingYagout(true)
+    setYagoutReport(null)
     try {
       const response = await fetch(`/api/admin/merchants/${id}/yagout-config`, {
         method: 'POST',
@@ -367,19 +375,25 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         })
       })
 
+      const data = await response.json().catch(() => ({}))
+      // The server checks the credentials with Yagout before saving and sends
+      // back what it found either way.
+      if (data?.report) setYagoutReport(response.ok ? { ...data.report, source: "merchant" } : data.report)
+
       if (response.ok) {
         toast({
           title: "YagoutPay saved",
-          description: "This business's Yagout payments now settle to their own account.",
+          description: "Credentials verified with Yagout. This business's Yagout payments now settle to their own account.",
         })
         setYagoutForm((prev) => ({ ...prev, yagoutEncryptionKey: "" }))
         fetchData()
       } else {
-        const data = await response.json().catch(() => ({}))
         // The API validates the key decodes to 32 bytes, so surface that reason
         // rather than a generic failure — a mistyped key is the likely cause.
         const detail = data?.details?.fieldErrors?.yagoutEncryptionKey?.[0]
-        throw new Error(detail || data?.error || "Failed to save")
+        throw new Error(
+          detail || (data?.report ? `${data.error} See the results below.` : data?.error || "Failed to save")
+        )
       }
     } catch (error: any) {
       toast({

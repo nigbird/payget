@@ -2,16 +2,14 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
-import { withMerchantSecret } from "@/lib/merchant-secret"
 import { requireCsrf } from "@/lib/request-security"
+import { resolveMpgsConfigForMerchant, type MpgsConfig } from "@/lib/mpgs-client"
 import {
-  DEFAULT_MPGS_API_VERSION,
-  DEFAULT_MPGS_BASE_URL,
-  DEFAULT_MPGS_CURRENCY,
-  resolveMpgsConfigForMerchant,
-  type MpgsConfig,
-} from "@/lib/mpgs-client"
-import { checkMpgsConfig, summarise, type ConfigCheckReport } from "@/lib/gateway-config-check"
+  checkMpgsConfig,
+  mpgsConfigFromForm,
+  summarise,
+  type ConfigCheckReport,
+} from "@/lib/gateway-config-check"
 
 /**
  * Tests MPGS credentials against the gateway without charging anything.
@@ -56,23 +54,15 @@ export async function POST(
   let source: ConfigCheckReport["source"]
 
   if (form.mpgsMerchantId) {
-    const password =
-      form.mpgsPassword ||
-      (stored.mpgsPassword ? withMerchantSecret(stored.mpgsPassword, (plaintext) => plaintext) : "")
-    if (!password) {
+    const fromForm = mpgsConfigFromForm({ ...form, mpgsMerchantId: form.mpgsMerchantId }, stored.mpgsPassword)
+    if (!fromForm) {
       return NextResponse.json({
         status: "fail",
         source: "form",
         checks: [{ label: "Credentials", status: "fail", detail: "Enter the MPGS password to test these credentials." }],
       } satisfies ConfigCheckReport)
     }
-    config = {
-      baseUrl: (form.mpgsBaseUrl || process.env.MPGS_BASE_URL?.trim() || DEFAULT_MPGS_BASE_URL).replace(/\/$/, ""),
-      apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_MPGS_API_VERSION,
-      merchantId: form.mpgsMerchantId,
-      password,
-      currency: (form.mpgsCurrency || process.env.MPGS_CURRENCY?.trim() || DEFAULT_MPGS_CURRENCY).toUpperCase(),
-    }
+    config = fromForm
     source = "form"
   } else {
     try {

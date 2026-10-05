@@ -2,15 +2,15 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
-import { withMerchantSecret } from "@/lib/merchant-secret"
 import { requireCsrf } from "@/lib/request-security"
+import { resolveYagoutConfigForMerchant, type YagoutConfig } from "@/lib/yagout-client"
 import {
-  DEFAULT_YAGOUT_POST_URL,
-  resolveYagoutConfigForMerchant,
-  type YagoutConfig,
-} from "@/lib/yagout-client"
-import { YAGOUT_AGGREGATOR_ID } from "@/lib/yagout-request"
-import { checkYagoutConfig, summarise, type ConfigCheckReport } from "@/lib/gateway-config-check"
+  appBaseUrlFor,
+  checkYagoutConfig,
+  summarise,
+  yagoutConfigFromForm,
+  type ConfigCheckReport,
+} from "@/lib/gateway-config-check"
 
 /**
  * Tests YagoutPay credentials against Yagout without raising a payment.
@@ -54,24 +54,15 @@ export async function POST(
   let source: ConfigCheckReport["source"]
 
   if (form.yagoutMeId) {
-    const encryptionKey =
-      form.yagoutEncryptionKey ||
-      (stored.yagoutEncryptionKey
-        ? withMerchantSecret(stored.yagoutEncryptionKey, (plaintext) => plaintext)
-        : "")
-    if (!encryptionKey) {
+    const fromForm = yagoutConfigFromForm({ ...form, yagoutMeId: form.yagoutMeId }, stored.yagoutEncryptionKey)
+    if (!fromForm) {
       return NextResponse.json({
         status: "fail",
         source: "form",
         checks: [{ label: "Encryption key", status: "fail", detail: "Enter the encryption key to test these credentials." }],
       } satisfies ConfigCheckReport)
     }
-    config = {
-      aggregatorId: process.env.YAGOUTPAY_AGGREGATOR_ID?.trim() || YAGOUT_AGGREGATOR_ID,
-      meId: form.yagoutMeId,
-      encryptionKey,
-      postUrl: form.yagoutPostUrl || process.env.YAGOUTPAY_POST_URL?.trim() || DEFAULT_YAGOUT_POST_URL,
-    }
+    config = fromForm
     source = "form"
   } else {
     try {
@@ -90,7 +81,6 @@ export async function POST(
     source = stored.yagoutMeId && stored.yagoutEncryptionKey ? "merchant" : "platform"
   }
 
-  const appBaseUrl = (process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/$/, "")
-  const checks = await checkYagoutConfig(config, appBaseUrl)
+  const checks = await checkYagoutConfig(config, appBaseUrlFor(request))
   return NextResponse.json({ status: summarise(checks), source, checks } satisfies ConfigCheckReport)
 }

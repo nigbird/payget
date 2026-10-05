@@ -1,11 +1,19 @@
 import crypto from "crypto"
-import { retrieveMpgsOrder, type MpgsConfig } from "@/lib/mpgs-client"
+import {
+  DEFAULT_MPGS_API_VERSION,
+  DEFAULT_MPGS_BASE_URL,
+  DEFAULT_MPGS_CURRENCY,
+  retrieveMpgsOrder,
+  type MpgsConfig,
+} from "@/lib/mpgs-client"
+import { withMerchantSecret } from "@/lib/merchant-secret"
 import { encryptYagout, isValidYagoutKey, yagoutHash } from "@/lib/yagout-crypto"
-import { yagoutReturnUrls, type YagoutConfig } from "@/lib/yagout-client"
+import { DEFAULT_YAGOUT_POST_URL, yagoutReturnUrls, type YagoutConfig } from "@/lib/yagout-client"
 import {
   YAGOUT_CHANNEL_WEB,
   YAGOUT_COUNTRY,
   YAGOUT_CURRENCY,
+  YAGOUT_AGGREGATOR_ID,
   YAGOUT_TXN_TYPE,
   buildHostedMerchantRequest,
 } from "@/lib/yagout-request"
@@ -286,4 +294,47 @@ export async function checkYagoutConfig(config: YagoutConfig, appBaseUrl: string
   checks.push(await probeYagoutCheckout({ ...config, encryptionKey: key }, appBaseUrl))
 
   return checks
+}
+
+// ---------------------------------------------------------------------------
+// Building a config from the admin form, shared by Test and Save
+// ---------------------------------------------------------------------------
+
+/** A blank secret on the form means "keep the stored one". */
+function formSecret(entered: string | undefined, stored: string | null | undefined): string {
+  if (entered) return entered
+  return stored ? withMerchantSecret(stored, (plaintext) => plaintext) : ""
+}
+
+export function mpgsConfigFromForm(
+  form: { mpgsMerchantId: string; mpgsPassword?: string; mpgsBaseUrl?: string; mpgsCurrency?: string },
+  storedPassword: string | null | undefined,
+): MpgsConfig | null {
+  const password = formSecret(form.mpgsPassword, storedPassword)
+  if (!password) return null
+  return {
+    baseUrl: (form.mpgsBaseUrl || process.env.MPGS_BASE_URL?.trim() || DEFAULT_MPGS_BASE_URL).replace(/\/$/, ""),
+    apiVersion: process.env.MPGS_API_VERSION?.trim() || DEFAULT_MPGS_API_VERSION,
+    merchantId: form.mpgsMerchantId,
+    password,
+    currency: (form.mpgsCurrency || process.env.MPGS_CURRENCY?.trim() || DEFAULT_MPGS_CURRENCY).toUpperCase(),
+  }
+}
+
+export function yagoutConfigFromForm(
+  form: { yagoutMeId: string; yagoutEncryptionKey?: string; yagoutPostUrl?: string },
+  storedKey: string | null | undefined,
+): YagoutConfig | null {
+  const encryptionKey = formSecret(form.yagoutEncryptionKey, storedKey)
+  if (!encryptionKey) return null
+  return {
+    aggregatorId: process.env.YAGOUTPAY_AGGREGATOR_ID?.trim() || YAGOUT_AGGREGATOR_ID,
+    meId: form.yagoutMeId,
+    encryptionKey,
+    postUrl: form.yagoutPostUrl || process.env.YAGOUTPAY_POST_URL?.trim() || DEFAULT_YAGOUT_POST_URL,
+  }
+}
+
+export function appBaseUrlFor(request: Request): string {
+  return (process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/$/, "")
 }

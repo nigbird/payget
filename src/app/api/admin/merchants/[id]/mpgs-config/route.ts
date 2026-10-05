@@ -4,6 +4,12 @@ import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { encryptMerchantSecretAtRest } from "@/lib/merchant-secret"
 import { auditSecurityEvent, requireCsrf } from "@/lib/request-security"
+import {
+  checkMpgsConfig,
+  mpgsConfigFromForm,
+  summarise,
+  type ConfigCheckReport,
+} from "@/lib/gateway-config-check"
 
 /**
  * Per-merchant MPGS (Mastercard Payment Gateway Services) gateway credentials.
@@ -72,6 +78,24 @@ export async function POST(
     )
   }
 
+  // Never store credentials the gateway rejects: a bad password saved here
+  // would only surface as a failed payment for this merchant's next customer.
+  const candidate = mpgsConfigFromForm(parsed.data, merchant.mpgsPassword)
+  let report: ConfigCheckReport | undefined
+  if (candidate) {
+    const checks = await checkMpgsConfig(candidate)
+    report = { status: summarise(checks), source: "form", checks }
+    if (report.status === "fail") {
+      return NextResponse.json(
+        {
+          error: "Not saved: the Mastercard gateway rejected these settings.",
+          report,
+        },
+        { status: 422 },
+      )
+    }
+  }
+
   await db.updateMerchant(id, {
     mpgsMerchantId: parsed.data.mpgsMerchantId,
     ...(parsed.data.mpgsPassword
@@ -93,7 +117,7 @@ export async function POST(
     },
   })
 
-  return NextResponse.json({ configured: true, mpgsMerchantId: parsed.data.mpgsMerchantId })
+  return NextResponse.json({ configured: true, mpgsMerchantId: parsed.data.mpgsMerchantId, report })
 }
 
 export async function DELETE(

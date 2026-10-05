@@ -5,6 +5,13 @@ import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { encryptMerchantSecretAtRest } from "@/lib/merchant-secret"
 import { auditSecurityEvent, requireCsrf } from "@/lib/request-security"
 import { isValidYagoutKey } from "@/lib/yagout-crypto"
+import {
+  appBaseUrlFor,
+  checkYagoutConfig,
+  summarise,
+  yagoutConfigFromForm,
+  type ConfigCheckReport,
+} from "@/lib/gateway-config-check"
 
 /**
  * Per-merchant YagoutPay credentials. A merchant with its own me_id here has
@@ -83,6 +90,24 @@ export async function POST(
     )
   }
 
+  // Never store credentials Yagout rejects: a bad me_id or key saved here
+  // would only surface as a failed payment for this merchant's next customer.
+  const candidate = yagoutConfigFromForm(parsed.data, merchant.yagoutEncryptionKey)
+  let report: ConfigCheckReport | undefined
+  if (candidate) {
+    const checks = await checkYagoutConfig(candidate, appBaseUrlFor(request))
+    report = { status: summarise(checks), source: "form", checks }
+    if (report.status === "fail") {
+      return NextResponse.json(
+        {
+          error: "Not saved: Yagout rejected these settings.",
+          report,
+        },
+        { status: 422 },
+      )
+    }
+  }
+
   await db.updateMerchant(id, {
     yagoutMeId: parsed.data.yagoutMeId,
     ...(parsed.data.yagoutEncryptionKey
@@ -103,7 +128,7 @@ export async function POST(
     },
   })
 
-  return NextResponse.json({ configured: true, yagoutMeId: parsed.data.yagoutMeId })
+  return NextResponse.json({ configured: true, yagoutMeId: parsed.data.yagoutMeId, report })
 }
 
 export async function DELETE(
