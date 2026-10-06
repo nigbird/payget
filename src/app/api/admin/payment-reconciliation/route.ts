@@ -4,6 +4,7 @@ import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 import { settleTransaction } from '@/lib/payment-settlement';
+import { createIfNoPendingRequest, PENDING_REQUEST_EXISTS_ERROR } from '@/lib/reconciliation-request-lock';
 
 /**
  * Manual payment reconciliation (maker/checker).
@@ -283,25 +284,24 @@ export async function POST(request: Request) {
         );
       }
 
-      const openRequest = await prisma.paymentReconciliationRequest.findFirst({
-        where: { transactionId, status: 'PENDING' },
-      });
-      if (openRequest) {
-        return NextResponse.json(
-          { error: 'This transaction already has a reconciliation request awaiting approval.' },
-          { status: 409 }
-        );
+      const reconciliationRequest = await createIfNoPendingRequest(
+        `payment-reconciliation:${transactionId}`,
+        async (tx) =>
+          !!(await tx.paymentReconciliationRequest.findFirst({ where: { transactionId, status: 'PENDING' } })),
+        (tx) =>
+          tx.paymentReconciliationRequest.create({
+            data: {
+              transactionId,
+              ftNumber: ft,
+              previousStatus: transaction.status,
+              reason: String(reason).trim(),
+              makerId: user.id,
+            },
+          })
+      );
+      if (!reconciliationRequest) {
+        return NextResponse.json({ error: PENDING_REQUEST_EXISTS_ERROR }, { status: 409 });
       }
-
-      const reconciliationRequest = await prisma.paymentReconciliationRequest.create({
-        data: {
-          transactionId,
-          ftNumber: ft,
-          previousStatus: transaction.status,
-          reason: String(reason).trim(),
-          makerId: userId,
-        },
-      });
 
       await writeAuditLog({
         request,

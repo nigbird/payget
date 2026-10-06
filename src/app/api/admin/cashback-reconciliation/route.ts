@@ -4,6 +4,7 @@ import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 import { executeTransferForTransaction } from '@/lib/cashback/processor';
+import { createIfNoPendingRequest, PENDING_REQUEST_EXISTS_ERROR } from '@/lib/reconciliation-request-lock';
 
 const PAYMENT_METHODS = ['BANK', 'TELEBIRR', 'YAGOUT', 'MPGS'];
 
@@ -303,17 +304,28 @@ export async function POST(request: Request) {
         );
       }
 
-      const cashbackRequest = await prisma.cashbackRequest.create({
-        data: {
-          type,
-          cashbackTransactionId,
-          oldTransactionReference: transaction.transactionReference,
-          newTransactionReference: newTransactionReference || null,
-          ftNumber: ftNumber?.trim() || null,
-          reason,
-          makerId: userId
-        }
-      });
+      // One open request per cashback, whatever its type — a retry and a
+      // settle-by-FT both awaiting approval could pay the customer twice.
+      const cashbackRequest = await createIfNoPendingRequest(
+        `cashback-reconciliation:${cashbackTransactionId}`,
+        async (tx) =>
+          !!(await tx.cashbackRequest.findFirst({ where: { cashbackTransactionId, status: 'PENDING' } })),
+        (tx) =>
+          tx.cashbackRequest.create({
+            data: {
+              type,
+              cashbackTransactionId,
+              oldTransactionReference: transaction.transactionReference,
+              newTransactionReference: newTransactionReference || null,
+              ftNumber: ftNumber?.trim() || null,
+              reason,
+              makerId: user.id
+            }
+          })
+      );
+      if (!cashbackRequest) {
+        return NextResponse.json({ error: PENDING_REQUEST_EXISTS_ERROR }, { status: 409 });
+      }
 
       await writeAuditLog({
         request,
@@ -357,51 +369,62 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Cannot approve your own request' }, { status: 400 });
       }
 
-      // Execute the request
-      if (cashbackRequest.type === 'REFERENCE_UPDATE' && cashbackRequest.newTransactionReference) {
-        await prisma.cashbackTransaction.update({
-          where: { id: cashbackRequest.cashbackTransactionId },
-          data: { transactionReference: cashbackRequest.newTransactionReference }
-        });
-      } else if (cashbackRequest.type === 'RETRY') {
-        // Trigger actual execution using the refund API
-        await executeTransferForTransaction(cashbackRequest.cashbackTransactionId);
-      } else if (cashbackRequest.type === 'MANUAL_SETTLE') {
-        // The FT on the bank receipt is the evidence that the credit landed —
-        // record it and close the cashback out without calling the provider.
-        await prisma.cashbackTransaction.update({
-          where: { id: cashbackRequest.cashbackTransactionId },
-          data: {
-            status: 'COMPLETED',
-            providerCreditRef: cashbackRequest.ftNumber,
-            failureReason: null,
-            processedAt: new Date(),
-          }
-        });
-        await prisma.cashbackProcessingLog.create({
-          data: {
-            cashbackTransactionId: cashbackRequest.cashbackTransactionId,
-            level: 'INFO',
-            message: 'Cashback settled manually from bank receipt FT',
-            metadata: {
-              ftNumber: cashbackRequest.ftNumber,
-              makerId: cashbackRequest.makerId,
-              checkerId: userId,
-              reason: cashbackRequest.reason,
-            },
-          }
-        });
+      // Claim the request before executing it. Only one of two concurrent
+      // approvals can flip PENDING → EXECUTED, so a retry can't transfer twice.
+      const claimed = await prisma.cashbackRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data: { status: 'EXECUTED', checkerId: userId, checkedAt: new Date(), comments }
+      });
+      if (claimed.count === 0) {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 409 });
       }
 
-      const updatedRequest = await prisma.cashbackRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'EXECUTED',
-          checkerId: userId,
-          checkedAt: new Date(),
-          comments
+      try {
+        // Execute the request
+        if (cashbackRequest.type === 'REFERENCE_UPDATE' && cashbackRequest.newTransactionReference) {
+          await prisma.cashbackTransaction.update({
+            where: { id: cashbackRequest.cashbackTransactionId },
+            data: { transactionReference: cashbackRequest.newTransactionReference }
+          });
+        } else if (cashbackRequest.type === 'RETRY') {
+          // Trigger actual execution using the refund API
+          await executeTransferForTransaction(cashbackRequest.cashbackTransactionId);
+        } else if (cashbackRequest.type === 'MANUAL_SETTLE') {
+          // The FT on the bank receipt is the evidence that the credit landed —
+          // record it and close the cashback out without calling the provider.
+          await prisma.cashbackTransaction.update({
+            where: { id: cashbackRequest.cashbackTransactionId },
+            data: {
+              status: 'COMPLETED',
+              providerCreditRef: cashbackRequest.ftNumber,
+              failureReason: null,
+              processedAt: new Date(),
+            }
+          });
+          await prisma.cashbackProcessingLog.create({
+            data: {
+              cashbackTransactionId: cashbackRequest.cashbackTransactionId,
+              level: 'INFO',
+              message: 'Cashback settled manually from bank receipt FT',
+              metadata: {
+                ftNumber: cashbackRequest.ftNumber,
+                makerId: cashbackRequest.makerId,
+                checkerId: userId,
+                reason: cashbackRequest.reason,
+              },
+            }
+          });
         }
-      });
+      } catch (e) {
+        // Execution never finished — hand the request back to the queue.
+        await prisma.cashbackRequest.update({
+          where: { id: requestId },
+          data: { status: 'PENDING', checkerId: null, checkedAt: null, comments: null }
+        });
+        throw e;
+      }
+
+      const updatedRequest = await prisma.cashbackRequest.findUniqueOrThrow({ where: { id: requestId } });
 
       await writeAuditLog({
         request,

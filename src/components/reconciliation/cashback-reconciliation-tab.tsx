@@ -269,6 +269,8 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
   const canRetry = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.retry')
   const canExport = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.export')
   const canManage = userRole === 'ADMIN' || userPermissions.includes('cashback.reconciliation.manage')
+  const selectedItemHasPending = !!selectedItem?.requests?.some((r) => r.status === 'PENDING')
+  const canCreateRequest = canRetry && selectedItem?.status === 'FAILED' && !selectedItemHasPending
 
   // Get merchants for the dropdown from API
   const uniqueMerchants = allMerchants.map(m => m.name).sort()
@@ -1212,9 +1214,15 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Actions — only one open request per cashback, so none while one awaits a checker */}
+              {selectedItemHasPending && (
+                <div className='flex items-center gap-2 rounded-[18px] border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800'>
+                  <Clock className='h-4 w-4 shrink-0' />
+                  A request for this cashback is awaiting approval. Another can be submitted once it is approved or rejected.
+                </div>
+              )}
               <div className='flex gap-3 pt-4 border-t border-[#F1E7D0]'>
-                {canRetry && selectedItem.status === 'FAILED' && (
+                {canCreateRequest && (
                   <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
                     <DialogTrigger asChild>
                       <Button
@@ -1304,7 +1312,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                     </DialogContent>
                   </Dialog>
                 )}
-                {canRetry && selectedItem.status === 'FAILED' && (
+                {canCreateRequest && (
                   <Button
                     variant='outline'
                     className='flex-1 rounded-[18px] border-[#F1E7D0]'

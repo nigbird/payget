@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
+import { createIfNoPendingRequest, PENDING_REQUEST_EXISTS_ERROR } from '@/lib/reconciliation-request-lock';
 import {
   isMpgsReconciliationCandidate,
   listMpgsReconciliationCandidates,
@@ -225,24 +226,23 @@ export async function POST(request: Request) {
         );
       }
 
-      const openRequest = await prisma.mpgsReconciliationRequest.findFirst({
-        where: { transactionId, status: 'PENDING' },
-      });
-      if (openRequest) {
-        return NextResponse.json(
-          { error: 'This transaction already has a reconciliation request awaiting approval.' },
-          { status: 409 }
-        );
+      const reconciliationRequest = await createIfNoPendingRequest(
+        `mpgs-reconciliation:${transactionId}`,
+        async (tx) =>
+          !!(await tx.mpgsReconciliationRequest.findFirst({ where: { transactionId, status: 'PENDING' } })),
+        (tx) =>
+          tx.mpgsReconciliationRequest.create({
+            data: {
+              transactionId,
+              previousStatus: transaction.status,
+              reason: String(reason).trim(),
+              makerId: user.id,
+            },
+          })
+      );
+      if (!reconciliationRequest) {
+        return NextResponse.json({ error: PENDING_REQUEST_EXISTS_ERROR }, { status: 409 });
       }
-
-      const reconciliationRequest = await prisma.mpgsReconciliationRequest.create({
-        data: {
-          transactionId,
-          previousStatus: transaction.status,
-          reason: String(reason).trim(),
-          makerId: userId,
-        },
-      });
 
       await writeAuditLog({
         request,

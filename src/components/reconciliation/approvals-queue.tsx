@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
 import { CBS_CURRENCY, formatAmount, paymentMethodLabel, transactionCurrency } from '@/lib/transaction-currency'
-import { FilterToolbar, SearchInput } from './filter-toolbar'
+import { format } from 'date-fns'
+import { DateRangeFilter, FilterToolbar, SearchInput } from './filter-toolbar'
 
 /**
  * One inbox for everything awaiting a checker, across payment, cashback, and
@@ -169,6 +170,8 @@ export function ApprovalsQueue({
   const [rows, setRows] = useState<QueueRow[]>([])
   const [kindFilter, setKindFilter] = useState<'ALL' | Kind>('ALL')
   const [search, setSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [selected, setSelected] = useState<QueueRow | null>(null)
   const [comments, setComments] = useState('')
@@ -268,12 +271,17 @@ export function ApprovalsQueue({
 
   const visibleRows = useMemo(() => {
     const q = search.trim().toLowerCase()
+    // Submission date, compared as the viewer's local calendar day — the
+    // same yyyy-MM-dd strings the date filter hands back.
+    const submittedDay = (r: QueueRow) => format(new Date(r.createdAt), 'yyyy-MM-dd')
     return rows.filter(
       (r) =>
         (kindFilter === 'ALL' || r.kind === kindFilter) &&
+        (!dateFrom || submittedDay(r) >= dateFrom) &&
+        (!dateTo || submittedDay(r) <= dateTo) &&
         (!q || [r.reference, r.merchantName, r.evidence, r.makerName].some((v) => v.toLowerCase().includes(q)))
     )
-  }, [rows, kindFilter, search])
+  }, [rows, kindFilter, search, dateFrom, dateTo])
 
   const userPermissions = user?.permissions || []
   const exportableRows = visibleRows.filter((r) => userPermissions.includes(EXPORT_PERMISSIONS[r.kind]))
@@ -383,6 +391,14 @@ export function ApprovalsQueue({
             {canViewMpgs && <SelectItem value="MPGS">Card</SelectItem>}
           </SelectContent>
         </Select>
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onChange={({ from, to }) => {
+            setDateFrom(from)
+            setDateTo(to)
+          }}
+        />
       </FilterToolbar>
 
       <Card>
