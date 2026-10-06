@@ -137,12 +137,13 @@ export function DateRangePicker({
               month={month}
               onMonthChange={setMonth}
               selected={value.from ? { from: value.from, to: value.to } : undefined}
-              onSelect={(range, clicked) =>
-                // With a complete range, a click starts a new one instead of stretching the old.
-                value.from && value.to
-                  ? onChange({ from: clicked, to: undefined })
-                  : onChange({ from: range?.from, to: range?.to })
-              }
+              onSelect={(_range, clicked) => {
+                // Our own two-click flow rather than day-picker's, which makes the
+                // first click a one-day range: click one sets only the start, click
+                // two sets the end (swapping if it's earlier), click three starts over.
+                if (!value.from || value.to) return onChange({ from: clicked, to: undefined })
+                onChange(clicked < value.from ? { from: clicked, to: value.from } : { from: value.from, to: clicked })
+              }}
               disabled={{ after: new Date() }}
               endMonth={new Date()}
             />
