@@ -79,7 +79,16 @@ export async function appendCashbackLog(
 
 export async function listCashbackTransactions(
   merchantId: string,
-  options?: { limit?: number; status?: string; offset?: number; page?: number; search?: string }
+  options?: {
+    limit?: number
+    status?: string
+    offset?: number
+    page?: number
+    search?: string
+    /** Inclusive bounds on when the cashback was created. */
+    from?: Date
+    to?: Date
+  }
 ): Promise<{ transactions: CashbackTransactionDto[]; total: number }> {
   const where: any = {
     merchantId,
@@ -99,7 +108,14 @@ export async function listCashbackTransactions(
       { customerAccount: { contains: options.search } },
     ]
   }
-  
+
+  if (options?.from || options?.to) {
+    where.createdAt = {
+      ...(options.from && { gte: options.from }),
+      ...(options.to && { lte: options.to }),
+    }
+  }
+
   const take = options?.limit ?? 30
   const offset = options?.page ? (options.page - 1) * take : (options?.offset ?? 0)
   

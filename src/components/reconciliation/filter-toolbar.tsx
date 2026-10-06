@@ -3,8 +3,9 @@
 import type { ReactNode } from 'react'
 import { Search } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { format, parse } from 'date-fns'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 
 /**
  * Shared filter bar for the reconciliation tabs, so every tab lines up the
@@ -63,7 +64,15 @@ export function SearchInput({
   )
 }
 
-/** From/to date pair that fills one filter grid cell. */
+const DAY_FORMAT = 'yyyy-MM-dd'
+const toDay = (value: string) => (value ? parse(value, DAY_FORMAT, new Date()) : undefined)
+const fromDay = (date?: Date) => (date ? format(date, DAY_FORMAT) : '')
+
+/**
+ * Date range picker that fills one filter grid cell. Speaks yyyy-MM-dd strings
+ * (what the reconciliation APIs take as dateFrom/dateTo) on the outside, and
+ * the shared presets-and-calendar picker on the inside.
+ */
 export function DateRangeFilter({
   from,
   to,
@@ -76,29 +85,12 @@ export function DateRangeFilter({
   className?: string
 }) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <Input
-        type="date"
-        aria-label="From date"
-        className="min-w-0 flex-1"
-        value={from}
-        max={to || undefined}
-        onChange={(e) => onChange({ from: e.target.value, to })}
+    <div className={className}>
+      <DateRangePicker
+        className="text-sm font-normal"
+        value={{ from: toDay(from), to: toDay(to) }}
+        onChange={(range) => onChange({ from: fromDay(range.from), to: fromDay(range.to) })}
       />
-      <span className="text-sm text-muted-foreground">to</span>
-      <Input
-        type="date"
-        aria-label="To date"
-        className="min-w-0 flex-1"
-        value={to}
-        min={from || undefined}
-        onChange={(e) => onChange({ from, to: e.target.value })}
-      />
-      {(from || to) && (
-        <Button variant="ghost" size="sm" className="shrink-0" onClick={() => onChange({ from: '', to: '' })}>
-          Clear
-        </Button>
-      )}
     </div>
   )
 }

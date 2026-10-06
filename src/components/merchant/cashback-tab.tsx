@@ -55,7 +55,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker"
 import { useToast } from "@/hooks/use-toast"
+import { downloadCsv } from "@/lib/export-csv"
+import { endOfDay, startOfDay } from "date-fns"
 import {
   sanitizeAccountNumberInput,
   validateAccountNumber,
@@ -82,6 +85,15 @@ import type {
 } from "@/lib/cashback/types"
 
 type Props = { merchantId: string }
+
+/**
+ * Sends the picked days as instants in the viewer's own timezone — the start of
+ * the first day and the very end of the last — so both days are included.
+ */
+function setDateRangeParams(params: URLSearchParams, { from, to }: DateRangeValue) {
+  if (from) params.set("from", startOfDay(from).toISOString())
+  if (to) params.set("to", endOfDay(to).toISOString())
+}
 
 const THEME_BTN =
   "rounded-xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 hover:shadow-md transition-all"
@@ -116,6 +128,8 @@ export function CashbackTab({ merchantId }: Props) {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
+  const [historyDateRange, setHistoryDateRange] = useState<DateRangeValue>({})
+  const [customerSearch, setCustomerSearch] = useState("")
   const searchInputRef = useRef<HTMLInputElement>(null)
   const hadSearchFocusRef = useRef(false)
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
@@ -189,7 +203,8 @@ export function CashbackTab({ merchantId }: Props) {
       params.set('limit', itemsPerPage.toString())
       if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
       if (statusFilter && statusFilter !== "ALL") params.set('status', statusFilter)
-      
+      setDateRangeParams(params, historyDateRange)
+
       const txRes = await fetch(
         `/api/merchants/${merchantId}/cashback/transactions?${params.toString()}`
       )
@@ -205,7 +220,7 @@ export function CashbackTab({ merchantId }: Props) {
     } catch {
       toast({ variant: "destructive", title: "Failed to load transactions" })
     }
-  }, [merchantId, toast, currentPage, itemsPerPage, debouncedSearchQuery, statusFilter])
+  }, [merchantId, toast, currentPage, itemsPerPage, debouncedSearchQuery, statusFilter, historyDateRange])
 
   // Debounce search input
   useEffect(() => {
@@ -229,7 +244,7 @@ export function CashbackTab({ merchantId }: Props) {
   // Reset page when search/filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchQuery, statusFilter, itemsPerPage])
+  }, [debouncedSearchQuery, statusFilter, itemsPerPage, historyDateRange])
 
   // Restore focus to search input after load if it had it before
   useEffect(() => {
@@ -641,6 +656,7 @@ export function CashbackTab({ merchantId }: Props) {
       const params = new URLSearchParams()
       if (debouncedSearchQuery) params.set('search', debouncedSearchQuery)
       if (statusFilter && statusFilter !== "ALL") params.set('status', statusFilter)
+      setDateRangeParams(params, historyDateRange)
       params.set('download', 'true')
       
       const res = await fetch(`/api/merchants/${merchantId}/cashback/transactions?${params.toString()}`)
@@ -714,9 +730,29 @@ export function CashbackTab({ merchantId }: Props) {
     )
   }
 
-  const filteredEligible = eligible.filter(
+  const customerQuery = customerSearch.trim().toLowerCase()
+  const groupEligible = eligible.filter(
     (row) => customerFilterCategoryId === "all" || row.categoryId === customerFilterCategoryId
   )
+  const filteredEligible = groupEligible.filter(
+    (row) =>
+      !customerQuery ||
+      [row.phone, row.accountNumber ?? "", row.categoryName].some((v) => v.toLowerCase().includes(customerQuery))
+  )
+
+  const exportEligible = () => {
+    downloadCsv(
+      "cashback_customers",
+      ["Phone number", "Account", "Assigned category", "Imported at"],
+      filteredEligible.map((row) => [
+        row.phone,
+        row.accountNumber,
+        row.categoryName,
+        new Date(row.importedAt).toLocaleString(),
+      ])
+    )
+    toast({ title: "Export complete", description: `Exported ${filteredEligible.length} customer(s).` })
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-8">
@@ -1114,7 +1150,27 @@ export function CashbackTab({ merchantId }: Props) {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {filteredEligible.length > 0 && (
+                    <div className="relative w-full sm:w-56">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        placeholder="Search phone, account, group…"
+                        className="h-9 rounded-xl border-slate-200 bg-white pl-9 text-sm"
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl h-9 border-amber-200 text-amber-800 hover:bg-amber-50"
+                      onClick={exportEligible}
+                      disabled={filteredEligible.length === 0}
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Export
+                    </Button>
+                    {groupEligible.length > 0 && (
                       <Button
                         type="button"
                         variant="outline"
@@ -1276,9 +1332,11 @@ export function CashbackTab({ merchantId }: Props) {
                               <div className="flex flex-col items-center gap-2">
                                 <Users className="h-10 w-10 text-slate-200" />
                                 <p className="text-sm text-slate-400 font-medium">
-                                  {customerFilterCategoryId === "all" 
-                                    ? "No eligible customers found." 
-                                    : "No customers in this category."}
+                                  {customerQuery
+                                    ? "No customers match your search."
+                                    : customerFilterCategoryId === "all"
+                                      ? "No eligible customers found."
+                                      : "No customers in this category."}
                                 </p>
                               </div>
                             </td>
@@ -1324,6 +1382,9 @@ export function CashbackTab({ merchantId }: Props) {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
+                    </div>
+                    <div className="w-full sm:w-60">
+                      <DateRangePicker value={historyDateRange} onChange={setHistoryDateRange} />
                     </div>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                       <SelectTrigger className="h-10 w-40 rounded-xl border-slate-200 bg-white">
