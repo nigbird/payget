@@ -10,10 +10,6 @@ import {
   XCircle,
   Clock,
   CreditCard,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
 import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
+import { TablePagination } from './table-pagination'
 
 type OpenCardTransaction = {
   id: string
@@ -653,91 +650,15 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
                       )}
                     </TableBody>
                   </Table>
+                  <TablePagination
+                    page={page}
+                    pageSize={itemsPerPage}
+                    total={total}
+                    onPageChange={setPage}
+                    onPageSizeChange={setItemsPerPage}
+                  />
                 </CardContent>
               </Card>
-
-              {total > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3">
-                  <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                    <span>
-                      Showing <span className="font-bold text-foreground">{(page - 1) * itemsPerPage + 1}</span> to{' '}
-                      <span className="font-bold text-foreground">{Math.min(page * itemsPerPage, total)}</span> of{' '}
-                      <span className="font-bold text-foreground">{total}</span> results
-                    </span>
-                    <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
-                      <SelectTrigger className="h-8 w-[110px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[10, 20, 50, 100].map((n) => (
-                          <SelectItem key={n} value={String(n)}>
-                            {n} / page
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setPage(1)}
-                      disabled={page === 1}
-                    >
-                      <ChevronsLeft className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                      disabled={page === 1}
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </Button>
-                    <div className="mx-1 flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum = page
-                        if (totalPages <= 5) pageNum = i + 1
-                        else if (page <= 3) pageNum = i + 1
-                        else if (page >= totalPages - 2) pageNum = totalPages - 4 + i
-                        else pageNum = page - 2 + i
-
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={page === pageNum ? 'default' : 'outline'}
-                            size="sm"
-                            className="h-8 min-w-[32px]"
-                            onClick={() => setPage(pageNum)}
-                          >
-                            {pageNum}
-                          </Button>
-                        )
-                      })}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                      disabled={page === totalPages}
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setPage(totalPages)}
-                      disabled={page === totalPages}
-                    >
-                      <ChevronsRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </TabsContent>

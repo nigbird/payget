@@ -18,10 +18,7 @@ import {
   FileText,
   Activity,
   MoreHorizontal,
-  ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Edit3,
   Send
 } from 'lucide-react'
@@ -40,6 +37,7 @@ import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { downloadCsv } from '@/lib/export-csv'
 import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
+import { TablePagination } from './table-pagination'
 
 type CashbackReconciliationItem = {
   id: string
@@ -854,92 +852,13 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                     </div>
                     
                     {/* Pagination */}
-                    {total > 0 && (
-                      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-[#F1E7D0] bg-amber-50/20">
-                        <div className="flex items-center gap-3 text-xs font-medium text-[#6B7280]">
-                          <span>
-                            Showing <span className="text-[#1F2937] font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-[#1F2937] font-bold">{Math.min(currentPage * itemsPerPage, total)}</span> of <span className="text-[#1F2937] font-bold">{total}</span> results
-                          </span>
-                          <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
-                            <SelectTrigger className="h-8 w-[110px] text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[10, 20, 50, 100].map((n) => (
-                                <SelectItem key={n} value={String(n)}>
-                                  {n} / page
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
-                            onClick={() => setCurrentPage(1)}
-                            disabled={currentPage === 1}
-                          >
-                            <ChevronsLeft className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                          >
-                            <ChevronLeft className="h-3.5 w-3.5" />
-                          </Button>
-                          
-                          <div className="flex items-center gap-1 mx-1">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                              let pageNum = currentPage;
-                              if (totalPages <= 5) pageNum = i + 1;
-                              else if (currentPage <= 3) pageNum = i + 1;
-                              else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
-                              else pageNum = currentPage - 2 + i;
-
-                              return (
-                                <Button
-                                  key={pageNum}
-                                  variant={currentPage === pageNum ? "default" : "outline"}
-                                  size="sm"
-                                  className={`h-8 min-w-[32px] rounded-2xl border-[#F1E7D0] text-xs font-bold transition-all ${
-                                    currentPage === pageNum 
-                                      ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-sm shadow-amber-950/15" 
-                                      : "bg-white text-slate-600 hover:bg-amber-50/50"
-                                  }`}
-                                  onClick={() => setCurrentPage(pageNum)}
-                                >
-                                  {pageNum}
-                                </Button>
-                              );
-                            })}
-                          </div>
-
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                          >
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-xl border-[#F1E7D0] bg-white text-slate-600 disabled:opacity-50 hover:bg-amber-50/50"
-                            onClick={() => setCurrentPage(totalPages)}
-                            disabled={currentPage === totalPages}
-                          >
-                            <ChevronsRight className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    <TablePagination
+                      page={currentPage}
+                      pageSize={itemsPerPage}
+                      total={total}
+                      onPageChange={setCurrentPage}
+                      onPageSizeChange={setItemsPerPage}
+                    />
                   </>
                 )}
               </CardContent>

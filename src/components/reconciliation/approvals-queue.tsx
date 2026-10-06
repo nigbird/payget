@@ -16,6 +16,7 @@ import { downloadCsv } from '@/lib/export-csv'
 import { CBS_CURRENCY, formatAmount, paymentMethodLabel, transactionCurrency } from '@/lib/transaction-currency'
 import { format } from 'date-fns'
 import { DateRangeFilter, FilterToolbar, SearchInput } from './filter-toolbar'
+import { TablePagination } from './table-pagination'
 
 /**
  * One inbox for everything awaiting a checker, across payment, cashback, and
@@ -172,6 +173,8 @@ export function ApprovalsQueue({
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [isLoading, setIsLoading] = useState(true)
   const [selected, setSelected] = useState<QueueRow | null>(null)
   const [comments, setComments] = useState('')
@@ -282,6 +285,17 @@ export function ApprovalsQueue({
         (!q || [r.reference, r.merchantName, r.evidence, r.makerName].some((v) => v.toLowerCase().includes(q)))
     )
   }, [rows, kindFilter, search, dateFrom, dateTo])
+
+  // Back to the first page whenever the filtered set changes shape.
+  useEffect(() => {
+    setPage(1)
+  }, [kindFilter, search, dateFrom, dateTo, pageSize])
+
+  // Approving or rejecting the last row of the last page shrinks the queue —
+  // step back rather than show an empty page.
+  const lastPage = Math.max(1, Math.ceil(visibleRows.length / pageSize))
+  const currentPage = Math.min(page, lastPage)
+  const pageRows = visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const userPermissions = user?.permissions || []
   const exportableRows = visibleRows.filter((r) => userPermissions.includes(EXPORT_PERMISSIONS[r.kind]))
@@ -436,7 +450,7 @@ export function ApprovalsQueue({
                   </TableCell>
                 </TableRow>
               ) : (
-                visibleRows.map((row) => (
+                pageRows.map((row) => (
                   <TableRow key={`${row.kind}-${row.id}`}>
                     <TableCell>
                       <Badge
@@ -480,6 +494,13 @@ export function ApprovalsQueue({
               )}
             </TableBody>
           </Table>
+          <TablePagination
+            page={currentPage}
+            pageSize={pageSize}
+            total={visibleRows.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </CardContent>
       </Card>
 

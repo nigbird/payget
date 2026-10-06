@@ -466,15 +466,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Cannot reject your own request' }, { status: 400 });
       }
 
-      const updatedRequest = await prisma.cashbackRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'REJECTED',
-          checkerId: userId,
-          checkedAt: new Date(),
-          comments
-        }
+      // Conditional, so a reject can't overwrite an approval that just landed.
+      const rejected = await prisma.cashbackRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data: { status: 'REJECTED', checkerId: userId, checkedAt: new Date(), comments }
       });
+      if (rejected.count === 0) {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 409 });
+      }
+      const updatedRequest = await prisma.cashbackRequest.findUniqueOrThrow({ where: { id: requestId } });
 
       await writeAuditLog({
         request,

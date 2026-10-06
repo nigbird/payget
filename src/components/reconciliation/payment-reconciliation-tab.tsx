@@ -9,8 +9,6 @@ import {
   XCircle,
   Clock,
   ReceiptText,
-  ChevronLeft,
-  ChevronRight,
   Download,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
 import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
+import { TablePagination } from './table-pagination'
 
 type UnresolvedTransaction = {
   id: string
@@ -141,7 +140,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [total, setTotal] = useState(0)
 
   const [selectedTx, setSelectedTx] = useState<UnresolvedTransaction | null>(null)
@@ -155,7 +154,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
 
   const buildParams = useCallback(
     (extra: Record<string, string> = {}) => {
-      const params = new URLSearchParams({ page: String(page), limit: '20', ...extra })
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize), ...extra })
       if (view === 'history') params.set('view', 'history')
       if (search.trim()) params.set('search', search.trim())
       if (merchantId !== 'ALL') params.set('merchantId', merchantId)
@@ -165,7 +164,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
       if (dateTo) params.set('dateTo', dateTo)
       return params
     },
-    [page, view, search, merchantId, statusFilter, paymentMethod, dateFrom, dateTo]
+    [page, pageSize, view, search, merchantId, statusFilter, paymentMethod, dateFrom, dateTo]
   )
 
   const fetchData = useCallback(async () => {
@@ -193,7 +192,6 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
       const listData = historyRes ? await historyRes.json() : data
       if (historyRes) setHistory(listData.history || [])
       else setTransactions(data.transactions || [])
-      setTotalPages(listData.totalPages || 1)
       setTotal(listData.total || 0)
     } catch {
       toast({ variant: 'destructive', title: 'Error', description: 'A technical error occurred.' })
@@ -603,6 +601,16 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                     )}
                   </TableBody>
                 </Table>
+                <TablePagination
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size)
+                    setPage(1)
+                  }}
+                />
               </CardContent>
             </Card>
           ) : (
@@ -688,34 +696,18 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                   )}
                 </TableBody>
               </Table>
+              <TablePagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size)
+                  setPage(1)
+                }}
+              />
             </CardContent>
           </Card>
-          )}
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Page {page} of {totalPages} · {total} {view === 'history' ? 'decided' : 'unresolved'}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
           )}
         </TabsContent>
 

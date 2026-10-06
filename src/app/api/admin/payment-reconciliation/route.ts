@@ -349,15 +349,38 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Cannot approve your own request' }, { status: 400 });
       }
 
-      // Settles the payment, records the FT, and triggers cashback
-      const settlement = await settleTransaction({
-        transactionId: reconciliationRequest.transactionId,
-        status: 'success',
-        ftNumber: reconciliationRequest.ftNumber,
-        source: 'manual_ft_reconciliation',
+      // Claim the request before settling. Only one of two concurrent checkers
+      // (or an approve racing a reject) can flip it out of PENDING.
+      const claimed = await prisma.paymentReconciliationRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data: { status: 'EXECUTED', checkerId: userId, checkedAt: new Date(), comments },
       });
+      if (claimed.count === 0) {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 409 });
+      }
+      // Settlement didn't happen — hand the request back to the queue.
+      const releaseClaim = () =>
+        prisma.paymentReconciliationRequest.update({
+          where: { id: requestId },
+          data: { status: 'PENDING', checkerId: null, checkedAt: null, comments: null },
+        });
+
+      // Settles the payment, records the FT, and triggers cashback
+      let settlement: Awaited<ReturnType<typeof settleTransaction>>;
+      try {
+        settlement = await settleTransaction({
+          transactionId: reconciliationRequest.transactionId,
+          status: 'success',
+          ftNumber: reconciliationRequest.ftNumber,
+          source: 'manual_ft_reconciliation',
+        });
+      } catch (e) {
+        await releaseClaim();
+        throw e;
+      }
 
       if (!settlement.ok) {
+        await releaseClaim();
         await writeAuditLog({
           request,
           userId,
@@ -369,14 +392,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: settlement.error }, { status: 409 });
       }
 
-      const updatedRequest = await prisma.paymentReconciliationRequest.update({
+      const updatedRequest = await prisma.paymentReconciliationRequest.findUniqueOrThrow({
         where: { id: requestId },
-        data: {
-          status: 'EXECUTED',
-          checkerId: userId,
-          checkedAt: new Date(),
-          comments,
-        },
       });
 
       await writeAuditLog({
@@ -427,14 +444,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Cannot reject your own request' }, { status: 400 });
       }
 
-      const updatedRequest = await prisma.paymentReconciliationRequest.update({
+      // Conditional, so a reject can't overwrite an approval that just landed.
+      const rejected = await prisma.paymentReconciliationRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data: { status: 'REJECTED', checkerId: userId, checkedAt: new Date(), comments },
+      });
+      if (rejected.count === 0) {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 409 });
+      }
+      const updatedRequest = await prisma.paymentReconciliationRequest.findUniqueOrThrow({
         where: { id: requestId },
-        data: {
-          status: 'REJECTED',
-          checkerId: userId,
-          checkedAt: new Date(),
-          comments,
-        },
       });
 
       await writeAuditLog({

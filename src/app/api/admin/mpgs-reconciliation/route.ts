@@ -289,12 +289,35 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Cannot approve your own request' }, { status: 400 });
       }
 
-      const settlement = await settleMpgsTransaction(reconciliationRequest.transactionId, {
-        request,
-        actorUserId: userId,
+      // Claim the request before re-checking the gateway. Only one of two
+      // concurrent checkers (or an approve racing a reject) can flip it out of PENDING.
+      const claimed = await prisma.mpgsReconciliationRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data: { status: 'EXECUTED', checkerId: userId, checkedAt: new Date(), comments },
       });
+      if (claimed.count === 0) {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 409 });
+      }
+      // The gateway check didn't complete — hand the request back to the queue.
+      const releaseClaim = () =>
+        prisma.mpgsReconciliationRequest.update({
+          where: { id: requestId },
+          data: { status: 'PENDING', checkerId: null, checkedAt: null, comments: null },
+        });
+
+      let settlement: Awaited<ReturnType<typeof settleMpgsTransaction>>;
+      try {
+        settlement = await settleMpgsTransaction(reconciliationRequest.transactionId, {
+          request,
+          actorUserId: userId,
+        });
+      } catch (e) {
+        await releaseClaim();
+        throw e;
+      }
 
       if (settlement.action === 'error') {
+        await releaseClaim();
         await writeAuditLog({
           request,
           userId,
@@ -311,13 +334,7 @@ export async function POST(request: Request) {
 
       const updatedRequest = await prisma.mpgsReconciliationRequest.update({
         where: { id: requestId },
-        data: {
-          status: 'EXECUTED',
-          checkerId: userId,
-          checkedAt: new Date(),
-          comments,
-          resultAction: settlement.action,
-        },
+        data: { resultAction: settlement.action },
       });
 
       await writeAuditLog({
@@ -369,14 +386,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Cannot reject your own request' }, { status: 400 });
       }
 
-      const updatedRequest = await prisma.mpgsReconciliationRequest.update({
+      // Conditional, so a reject can't overwrite an approval that just landed.
+      const rejected = await prisma.mpgsReconciliationRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data: { status: 'REJECTED', checkerId: userId, checkedAt: new Date(), comments },
+      });
+      if (rejected.count === 0) {
+        return NextResponse.json({ error: 'Request is not pending' }, { status: 409 });
+      }
+      const updatedRequest = await prisma.mpgsReconciliationRequest.findUniqueOrThrow({
         where: { id: requestId },
-        data: {
-          status: 'REJECTED',
-          checkerId: userId,
-          checkedAt: new Date(),
-          comments,
-        },
       });
 
       await writeAuditLog({
