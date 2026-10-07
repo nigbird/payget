@@ -7,8 +7,9 @@ import { normalizeInboundCredit, recordInboundCredit } from "@/lib/inbound-credi
  * Core banking → us: "this merchant account was just credited".
  *
  * Records the credit as an EXTERNAL transaction and announces it on the
- * merchant's sound devices. Idempotent on `reference`, so core banking can
- * safely retry until it gets a 2xx.
+ * merchant's sound devices. Idempotent on `transactionId`, so core banking
+ * can safely retry until it gets a 2xx. The payload format is documented in
+ * lib/inbound-credit.ts.
  *
  * Auth: `Authorization: Bearer <INBOUND_CREDIT_TOKEN>`. Restrict the source
  * IPs at the reverse proxy as well — this endpoint creates money records.
@@ -61,11 +62,13 @@ export async function POST(request: Request) {
       entityId: "transactionId" in result ? result.transactionId : null,
       newValue: {
         result: result.status,
-        reference: credit.reference,
+        coreTransactionId: credit.transactionId,
+        coreReference: credit.coreReference,
         accountNumber: credit.accountNumber,
+        coreStatus: credit.status,
         amount: credit.amount,
         currency: credit.currency,
-        channel: credit.channel,
+        payerBank: credit.payerBank,
       },
     })
 
@@ -74,6 +77,7 @@ export async function POST(request: Request) {
         return NextResponse.json(result, { status: 201 })
       case "duplicate":
       case "matched_internal":
+      case "ignored":
         return NextResponse.json(result, { status: 200 })
       case "unknown_account":
         return NextResponse.json(
@@ -85,7 +89,7 @@ export async function POST(request: Request) {
           "[INBOUND-CREDIT] Account %s is shared by %d merchants; credit %s not recorded",
           credit.accountNumber,
           result.merchantCount,
-          credit.reference
+          credit.transactionId
         )
         return NextResponse.json(
           { status: result.status, error: "Account is linked to more than one merchant" },
@@ -93,7 +97,7 @@ export async function POST(request: Request) {
         )
     }
   } catch (err) {
-    console.error("[INBOUND-CREDIT] Failed to record credit %s:", credit.reference, err)
+    console.error("[INBOUND-CREDIT] Failed to record credit %s:", credit.transactionId, err)
     return NextResponse.json({ error: "Failed to record credit" }, { status: 500 })
   }
 }

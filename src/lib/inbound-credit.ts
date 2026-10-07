@@ -8,26 +8,50 @@ import { publishPaymentEvent } from "@/lib/payment-events"
  * customer scanning another bank's or wallet's QR, or transferring directly —
  * reported to us by core banking via POST /api/inbound/credit.
  *
- * The request shape below is our proposed contract; core banking's real
- * notification format is not wired up yet. When it is, adapt
- * normalizeInboundCredit() to it — the rest of the flow works on the
- * normalized InboundCredit and should not need to change.
+ * Core banking's notification format:
+ *
+ *   {
+ *     "institution": "Commercial Bank of Ethiopia",   // payer's bank
+ *     "merchantId": "7000100425047",                  // the credited merchant ACCOUNT
+ *                                                     // number, from our exported CSV
+ *     "mobileNumber": "+251911223344",                // payer's phone
+ *     "transactionId": "TXN-2026-1007-001",           // unique per credit — our repeat key
+ *     "reference": "REF-ABC123XYZ",
+ *     "status": "SUCCESS",                            // only SUCCESS is recorded
+ *     "message": "Payment completed successfully",
+ *     "amount": 1500.00,
+ *     "currency": "ETB",
+ *     "timestamp": "2026-10-07T10:13:00Z",
+ *     "additionalData": {
+ *       "bankCode": "CBE-01",
+ *       "qrBillId": "QR-BILL-554433",
+ *       "debitAccountNumber": "1000123456789"         // payer's account
+ *     }
+ *   }
+ *
+ * Despite its name, `merchantId` carries the credited account number, not our
+ * Merchant.id. normalizeInboundCredit() maps this shape onto InboundCredit;
+ * the rest of the flow works on InboundCredit only.
  */
 
 export type InboundCredit = {
-  /** Core banking's unique reference for this credit (FT number or similar). */
-  reference: string
+  /** Core banking's transactionId — unique per credit; a repeat is recorded and announced once. */
+  transactionId: string
+  /** Core banking's own reference, kept for reconciliation. */
+  coreReference: string | null
   /** The credited account — how the credit is matched to a merchant. */
   accountNumber: string
+  /** Core banking's status, upper-cased. Only SUCCESS is recorded and announced. */
+  status: string
   amount: number
   currency: string
-  payerName: string | null
-  payerAccount: string | null
   payerPhone: string | null
+  payerAccount: string | null
+  /** Payer's bank name (`institution`). */
   payerBank: string | null
-  /** How the money arrived, e.g. "IPS", "EthSwitch QR", "Telebirr", "Transfer". */
-  channel: string | null
-  narration: string | null
+  payerBankCode: string | null
+  qrBillId: string | null
+  message: string | null
   /** When core banking posted the credit; defaults to receipt time. */
   postedAt: Date
 }
@@ -46,12 +70,16 @@ export function normalizeInboundCredit(
   if (!body || typeof body !== "object") {
     return { errors: { body: "Expected a JSON object." } }
   }
+  const extra = body.additionalData && typeof body.additionalData === "object" ? body.additionalData : {}
 
-  const reference = str(body.reference ?? body.ftNumber ?? body.cbsreference ?? body.transactionId, 64)
-  if (!reference) errors.reference = "reference is required."
+  const transactionId = str(body.transactionId, 64)
+  if (!transactionId) errors.transactionId = "transactionId is required."
 
-  const accountNumber = str(body.accountNumber ?? body.creditAccount, 32)
-  if (!accountNumber) errors.accountNumber = "accountNumber is required."
+  const accountNumber = str(body.merchantId, 32)
+  if (!accountNumber) errors.merchantId = "merchantId (the merchant's account number) is required."
+
+  const status = str(body.status, 32)
+  if (!status) errors.status = "status is required."
 
   const amount = typeof body.amount === "string" ? Number(body.amount) : body.amount
   if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
@@ -59,10 +87,9 @@ export function normalizeInboundCredit(
   }
 
   let postedAt = new Date()
-  const rawPostedAt = body.postedAt ?? body.transactionTime
-  if (rawPostedAt !== undefined && rawPostedAt !== null && rawPostedAt !== "") {
-    const parsed = new Date(rawPostedAt)
-    if (Number.isNaN(parsed.getTime())) errors.postedAt = "postedAt must be an ISO-8601 date-time."
+  if (body.timestamp !== undefined && body.timestamp !== null && body.timestamp !== "") {
+    const parsed = new Date(body.timestamp)
+    if (Number.isNaN(parsed.getTime())) errors.timestamp = "timestamp must be an ISO-8601 date-time."
     else postedAt = parsed
   }
 
@@ -70,16 +97,18 @@ export function normalizeInboundCredit(
 
   return {
     credit: {
-      reference: reference!,
+      transactionId: transactionId!,
+      coreReference: str(body.reference, 64),
       accountNumber: accountNumber!,
+      status: status!.toUpperCase(),
       amount: Math.round((amount as number) * 100) / 100,
       currency: (str(body.currency, 3) ?? "ETB").toUpperCase(),
-      payerName: str(body.payerName, 120),
-      payerAccount: str(body.payerAccount, 40),
-      payerPhone: str(body.payerPhone, 20),
-      payerBank: str(body.payerBank, 80),
-      channel: str(body.channel, 40),
-      narration: str(body.narration, 200),
+      payerPhone: str(body.mobileNumber, 20),
+      payerAccount: str(extra.debitAccountNumber, 40),
+      payerBank: str(body.institution, 80),
+      payerBankCode: str(extra.bankCode, 20),
+      qrBillId: str(extra.qrBillId, 64),
+      message: str(body.message, 200),
       postedAt,
     },
   }
@@ -90,6 +119,8 @@ export type InboundCreditResult =
   | { status: "duplicate"; transactionId: string; merchantId: string }
   /** Credit is the settlement of a payment this system initiated. */
   | { status: "matched_internal"; transactionId: string; merchantId: string }
+  /** Not a completed credit (e.g. status FAILED); acknowledged, not recorded. */
+  | { status: "ignored"; reason: string }
   | { status: "unknown_account" }
   | { status: "ambiguous_account"; merchantCount: number }
 
@@ -100,17 +131,22 @@ function announce(merchantId: string, transactionId: string, credit: InboundCred
     transactionId,
     amount: credit.amount,
     currency: credit.currency,
-    payerName: credit.payerName,
-    channel: credit.channel,
-    reference: credit.reference,
+    payerName: null,
+    // Shown beside the amount on the speaker: which bank the customer paid from.
+    channel: credit.payerBank,
+    reference: credit.transactionId,
     occurredAt: new Date().toISOString(),
   })
 }
 
 export async function recordInboundCredit(credit: InboundCredit): Promise<InboundCreditResult> {
+  if (credit.status !== "SUCCESS") {
+    return { status: "ignored", reason: `status ${credit.status}` }
+  }
+
   // Replayed notice: already recorded and announced once — never ring twice.
   const existing = await prisma.transaction.findUnique({
-    where: { externalReference: credit.reference },
+    where: { externalReference: credit.transactionId },
     select: { id: true, merchantId: true },
   })
   if (existing) {
@@ -120,8 +156,9 @@ export async function recordInboundCredit(credit: InboundCredit): Promise<Inboun
   // Core banking may report every credit to the account, including ones that
   // settle payments this system started. Those already have a Transaction;
   // announce the money but don't record it a second time.
-  const internal = await prisma.transaction.findUnique({
-    where: { cbsreference: credit.reference },
+  const receiptRefs = [credit.transactionId, credit.coreReference].filter((r): r is string => !!r)
+  const internal = await prisma.transaction.findFirst({
+    where: { cbsreference: { in: receiptRefs } },
     select: { id: true, merchantId: true },
   })
   if (internal) {
@@ -139,7 +176,7 @@ export async function recordInboundCredit(credit: InboundCredit): Promise<Inboun
 
   const merchantId = merchants[0].id
   const transactionId = `ext_${crypto.randomUUID()}`
-  const description = credit.narration ?? `Payment received${credit.payerName ? ` from ${credit.payerName}` : ""}`
+  const description = credit.payerBank ? `Payment received from ${credit.payerBank}` : "Payment received"
 
   try {
     await prisma.transaction.create({
@@ -149,14 +186,14 @@ export async function recordInboundCredit(credit: InboundCredit): Promise<Inboun
         amount: credit.amount,
         status: "SUCCESS",
         origin: "EXTERNAL",
-        externalReference: credit.reference,
+        externalReference: credit.transactionId,
         // Initiation-only fields: an external credit has no callback, provider
         // session or initiator. Kept non-null so existing readers of these
         // columns don't have to special-case external rows.
         callbackUrl: "",
         description,
-        serviceDescription: credit.channel ? `External payment (${credit.channel})` : "External payment",
-        transactionReference: `ext_${credit.reference}`,
+        serviceDescription: credit.qrBillId ? "External payment (QR)" : "External payment",
+        transactionReference: `ext_${credit.transactionId}`,
         payerPhone: credit.payerPhone,
         payerAccount: credit.payerAccount,
         timestamp: credit.postedAt,
@@ -169,9 +206,12 @@ export async function recordInboundCredit(credit: InboundCredit): Promise<Inboun
           initiatedById: "external",
           initiatedByName: "External payment",
           external: {
-            payerName: credit.payerName,
+            coreTransactionId: credit.transactionId,
+            coreReference: credit.coreReference,
             payerBank: credit.payerBank,
-            channel: credit.channel,
+            payerBankCode: credit.payerBankCode,
+            qrBillId: credit.qrBillId,
+            message: credit.message,
             currency: credit.currency,
             creditedAccount: credit.accountNumber,
             receivedAt: new Date().toISOString(),
@@ -183,7 +223,7 @@ export async function recordInboundCredit(credit: InboundCredit): Promise<Inboun
     // Two copies of the same notice raced past the lookup above.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       const winner = await prisma.transaction.findUnique({
-        where: { externalReference: credit.reference },
+        where: { externalReference: credit.transactionId },
         select: { id: true, merchantId: true },
       })
       if (winner) return { status: "duplicate", transactionId: winner.id, merchantId: winner.merchantId }
