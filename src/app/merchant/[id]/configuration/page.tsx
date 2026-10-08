@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useCallback, useEffect, useMemo, useState } from "react"
+import { use, useCallback, useEffect, useMemo, useState, type ComponentType } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { z } from "zod"
@@ -60,6 +60,15 @@ type ProfileData = {
 }
 
 type TabValue = "system" | "profile" | "cashback" | "eligibility" | "items" | "sound"
+
+const TABS: { value: TabValue; label: string; icon: ComponentType<{ className?: string }> }[] = [
+  { value: "system", label: "System Configuration", icon: Building2 },
+  { value: "profile", label: "Profile & Security", icon: User },
+  { value: "cashback", label: "Cashback", icon: Gift },
+  { value: "eligibility", label: "Eligible Customers", icon: ListChecks },
+  { value: "items", label: "Items", icon: Package },
+  { value: "sound", label: "Sound Devices", icon: Speaker },
+]
 
 const QR_DISPLAY_SIZE = 200
 const QR_DOWNLOAD_SIZE = 1024
@@ -555,92 +564,35 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
       <Card className="rounded-3xl border-white/60 bg-white/70 shadow-xl backdrop-blur-sm overflow-hidden">
         <CardContent className="p-0">
           {/* Tab Navigation */}
-          <div className="border-b border-white/40 bg-gradient-to-r from-white/80 to-white/60 px-4 md:px-6 py-4">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveTab("system")}
-                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
-                  activeTab === "system"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
-                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
-                }`}
-                title="System Configuration"
-              >
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">System Configuration</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("profile")}
-                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
-                  activeTab === "profile"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
-                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
-                }`}
-                title="Profile & Security"
-              >
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Profile & Security</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("cashback")}
-                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
-                  activeTab === "cashback"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
-                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
-                }`}
-                title="Cashback"
-              >
-                <div className="flex items-center gap-2">
-                  <Gift className="h-4 w-4" />
-                  <span className="hidden sm:inline">Cashback</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("eligibility")}
-                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
-                  activeTab === "eligibility"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
-                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
-                }`}
-                title="Eligible Customers"
-              >
-                <div className="flex items-center gap-2">
-                  <ListChecks className="h-4 w-4" />
-                  <span className="hidden sm:inline">Eligible Customers</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("items")}
-                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
-                  activeTab === "items"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
-                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
-                }`}
-                title="Items"
-              >
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  <span className="hidden sm:inline">Items</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("sound")}
-                className={`relative min-h-11 px-4 md:px-6 py-2.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
-                  activeTab === "sound"
-                    ? "bg-gradient-to-r from-[#f8b513] to-[#754319] border border-white/20 text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
-                    : "text-[#754319]/70 hover:text-[#5b371f] hover:bg-white/50"
-                }`}
-                title="Sound Devices"
-              >
-                <div className="flex items-center gap-2">
-                  <Speaker className="h-4 w-4" />
-                  <span className="hidden sm:inline">Sound Devices</span>
-                </div>
-              </button>
+          <div className="border-b border-[#754319]/10 bg-white/60 px-3 md:px-5">
+            <div
+              role="tablist"
+              aria-label="Configuration sections"
+              className="-mb-px flex items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {TABS.map(({ value, label, icon: Icon }, index) => {
+                const active = activeTab === value
+                return (
+                  <div key={value} className="flex shrink-0 items-center">
+                    {index > 0 && <span aria-hidden className="h-4 w-px bg-[#754319]/10" />}
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setActiveTab(value)}
+                      title={label}
+                      className={`relative mx-1 my-2 flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-colors duration-200 after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f8b513]/40 ${
+                        active
+                          ? "bg-[#fdf6e7] text-[#5b371f] after:bg-[#f8b513]"
+                          : "text-[#754319]/60 after:bg-transparent hover:bg-[#fdf6e7]/60 hover:text-[#5b371f]"
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 ${active ? "text-[#754319]" : "text-[#754319]/50"}`} />
+                      {label}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
