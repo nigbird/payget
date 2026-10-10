@@ -8,15 +8,12 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
 } from "recharts"
 import {
-  Activity,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -98,7 +95,7 @@ function buildHighlights(s: TechnicalStats): string[] {
   }
   const reason = s.providerErrors[0]
   if (reason) out.push(`Most common failure: “${reason.reason}”${reason.code ? ` (${reason.code})` : ""} — ${int(reason.count)} payments.`)
-  if (s.stuck.count > 0) out.push(`${int(s.stuck.count)} payment${s.stuck.count === 1 ? " is" : "s are"} stuck in flight for over ${s.stuck.thresholdMinutes} minutes.`)
+  if (s.stuck.count > 0) out.push(`${int(s.stuck.count)} payment${s.stuck.count === 1 ? " is" : "s are"} started but still not completed after ${s.stuck.thresholdMinutes} minutes.`)
   if (s.operations.callbacks.exhausted > 0) out.push(`${int(s.operations.callbacks.exhausted)} merchant callbacks ran out of retries.`)
   const peak = s.hourly.reduce((a, b) => (b.count > a.count ? b : a), s.hourly[0])
   if (peak?.count > 0) out.push(`Peak hour is ${formatHour(peak.hour)}–${formatHour((peak.hour + 1) % 24)} with ${int(peak.count)} successful payments.`)
@@ -245,7 +242,7 @@ export function TechnicalDashboard({
       {/* Operational signals: things that need someone to act */}
       {s ? (
         <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6", loading && "opacity-60")}>
-          <SignalTile label="Stuck payments" value={s.stuck.count} hint={`In flight > ${s.stuck.thresholdMinutes} min`} icon={Clock} tone="critical" />
+          <SignalTile label="Stuck payments" value={s.stuck.count} hint={`Not completed after ${s.stuck.thresholdMinutes} min`} icon={Clock} tone="critical" />
           <SignalTile label="Callbacks exhausted" value={s.operations.callbacks.exhausted} hint="Merchant never notified" icon={Send} tone="critical" />
           <SignalTile label="Callbacks retrying" value={s.operations.callbacks.pending} hint="Queued for retry" icon={Send} tone="warning" />
           <SignalTile
@@ -264,16 +261,15 @@ export function TechnicalDashboard({
 
       {/* KPIs */}
       {c && s ? (
-        <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6", loading && "opacity-60 transition-opacity")}>
+        <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5", loading && "opacity-60 transition-opacity")}>
           <KpiTile title="Successful volume" value={`${compact(c.volume)} ETB`} sub={etb(c.volume, 0)} delta={<Delta value={s.changes.volume} />} icon={TrendingUp} />
-          <KpiTile title="Successful payments" value={int(c.successCount)} sub={`${int(c.totalCount)} attempted`} delta={<Delta value={s.changes.successCount} />} icon={Receipt} />
-          <KpiTile title="Success rate" value={pct(c.successRate)} sub={`${int(c.failedCount)} failed`} delta={<Delta value={s.changes.successRate} unit="pts" />} icon={CheckCircle2} />
-          <KpiTile title="Average ticket" value={`${compact(c.avgTicket)} ETB`} sub="Per successful payment" delta={<Delta value={s.changes.avgTicket} />} icon={Activity} />
+          <KpiTile title="Successful payments" value={int(c.successCount)} sub={`out of ${int(c.totalCount)} transactions`} delta={<Delta value={s.changes.successCount} />} icon={Receipt} />
+          <KpiTile title="Success rate" value={pct(c.successRate)} sub={`of finished payments · ${int(c.failedCount)} failed`} delta={<Delta value={s.changes.successRate} unit="pts" />} icon={CheckCircle2} />
           <KpiTile title="Merchants with sales" value={int(c.payingMerchants)} sub={`of ${int(s.activeMerchants)} approved`} delta={<Delta value={s.changes.payingMerchants} />} icon={Store} />
           <KpiTile title="New registrations" value={int(c.newMerchants)} sub={`${int(s.pendingMerchants)} awaiting approval`} delta={<Delta value={s.changes.newMerchants} />} icon={UserPlus} />
         </div>
       ) : (
-        <KpiSkeleton count={6} className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" />
+        <KpiSkeleton count={5} className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" />
       )}
 
       {/* Volume + insights */}
@@ -303,7 +299,7 @@ export function TechnicalDashboard({
                           { label: "Volume", value: etb(d.volume) },
                           { label: "Successful", value: int(d.success), color: STATUS_COLORS.success },
                           { label: "Failed", value: int(d.failed), color: STATUS_COLORS.failed },
-                          { label: "In flight", value: int(d.pending), color: STATUS_COLORS.pending },
+                          { label: "Not completed", value: int(d.pending), color: STATUS_COLORS.pending },
                         ]}
                       />
                     )
@@ -331,39 +327,9 @@ export function TechnicalDashboard({
         </SectionCard>
       </div>
 
-      {/* Success rate trend + outcome split */}
+      {/* Statuses + payment method health */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <SectionCard title="Success rate" description="Successful ÷ (successful + failed), per bucket" className="lg:col-span-2">
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={s?.series ?? []} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="#E5DCC8" strokeOpacity={0.6} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} tick={{ fill: "#6B7280", fontSize: 11 }} />
-                <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickLine={false} axisLine={false} width={40} tick={{ fill: "#6B7280", fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-                <RechartsTooltip
-                  cursor={{ stroke: BROWN, strokeOpacity: 0.3 }}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0].payload as TechnicalStats["series"][number]
-                    return (
-                      <ChartTooltip
-                        title={d.label}
-                        rows={[
-                          { label: "Success rate", value: pct(d.successRate) },
-                          { label: "Successful", value: int(d.success), color: STATUS_COLORS.success },
-                          { label: "Failed", value: int(d.failed), color: STATUS_COLORS.failed },
-                        ]}
-                      />
-                    )
-                  }}
-                />
-                <Line type="monotone" dataKey="successRate" stroke={BROWN} strokeWidth={2} dot={false} connectNulls={false} activeDot={{ r: 4, stroke: "#fff", strokeWidth: 2, fill: BROWN }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Transaction statuses" description="Every attempt in the period">
+        <SectionCard title="Transaction statuses" description="Initiated, pending, awaiting PIN and processing mean the payment was started but not completed">
           {c && allAttempts > 0 ? (
             <div className="space-y-4">
               <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Outcome split">
@@ -398,10 +364,6 @@ export function TechnicalDashboard({
             <div className="py-6 text-center text-xs text-[#6B7280]">{loading ? "Loading…" : "No payment attempts in this period."}</div>
           )}
         </SectionCard>
-      </div>
-
-      {/* Payment method health + provider errors */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SectionCard title="Payment method health" description="Attempts and outcomes per channel" className="lg:col-span-2">
           {s?.methodHealth.length ? (
             <div className="overflow-x-auto">
@@ -412,7 +374,7 @@ export function TechnicalDashboard({
                     <th className={thR}>Attempts</th>
                     <th className={thR}>Successful</th>
                     <th className={thR}>Failed</th>
-                    <th className={thR}>In flight</th>
+                    <th className={thR} title="Started but never finished">Not completed</th>
                     <th className={thR}>Success rate</th>
                     <th className="py-2 text-right font-semibold">Volume</th>
                   </tr>
@@ -444,7 +406,10 @@ export function TechnicalDashboard({
             <div className="py-6 text-center text-xs text-[#6B7280]">{loading ? "Loading…" : "No payment attempts in this period."}</div>
           )}
         </SectionCard>
+      </div>
 
+      {/* Provider errors + stuck payments */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SectionCard title="Provider errors" description="Failed payments by provider code and reason">
           <BarList
             rows={(s?.providerErrors ?? []).map((e) => ({
@@ -456,13 +421,9 @@ export function TechnicalDashboard({
             empty="No failed payments."
           />
         </SectionCard>
-      </div>
-
-      {/* Stuck payments + peak hours */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SectionCard
           title="Stuck payments"
-          description={s ? `Oldest of ${int(s.stuck.count)} payments still in flight after ${s.stuck.thresholdMinutes} minutes` : "Payments still in flight"}
+          description={s ? `${int(s.stuck.count)} payments started but still not completed after ${s.stuck.thresholdMinutes} minutes — oldest first` : "Payments started but not completed"}
           className="lg:col-span-2"
         >
           {s?.stuck.oldest.length ? (
@@ -497,43 +458,6 @@ export function TechnicalDashboard({
               {loading ? "Loading…" : <><CheckCircle2 className="h-4 w-4 text-emerald-600" /> No stuck payments.</>}
             </div>
           )}
-        </SectionCard>
-
-        <SectionCard
-          title="Peak hours"
-          description={s && peakHour >= 0 && s.hourly[peakHour].count > 0 ? `Successful payments by hour · busiest ${formatHour(peakHour)}` : "Successful payments by hour"}
-        >
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={s?.hourly ?? []} margin={{ top: 8, right: 4, left: -16, bottom: 0 }} barCategoryGap={2}>
-                <CartesianGrid vertical={false} stroke="#E5DCC8" strokeOpacity={0.6} />
-                <XAxis dataKey="hour" tickLine={false} axisLine={false} interval={5} tick={{ fill: "#6B7280", fontSize: 11 }} tickFormatter={(h) => formatHour(Number(h))} />
-                <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: "#6B7280", fontSize: 11 }} tickFormatter={(v) => compact(Number(v))} />
-                <RechartsTooltip
-                  cursor={{ fill: GOLD, fillOpacity: 0.08 }}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0].payload as TechnicalStats["hourly"][number]
-                    return (
-                      <ChartTooltip
-                        title={`${formatHour(d.hour)}–${formatHour((d.hour + 1) % 24)}`}
-                        rows={[
-                          { label: "Successful", value: int(d.count), color: STATUS_COLORS.success },
-                          { label: "Failed", value: int(d.failed), color: STATUS_COLORS.failed },
-                          { label: "Volume", value: etb(d.volume, 0) },
-                        ]}
-                      />
-                    )
-                  }}
-                />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {(s?.hourly ?? []).map((h) => (
-                    <Cell key={h.hour} fill={h.hour === peakHour && h.count > 0 ? BROWN : GOLD} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
         </SectionCard>
       </div>
 
@@ -613,8 +537,44 @@ export function TechnicalDashboard({
         </SectionCard>
       </div>
 
-      {/* Platform operations */}
+      {/* Peak hours, cashback, merchant pipeline */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <SectionCard
+          title="Peak hours"
+          description={s && peakHour >= 0 && s.hourly[peakHour].count > 0 ? `Successful payments by hour · busiest ${formatHour(peakHour)}` : "Successful payments by hour"}
+        >
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={s?.hourly ?? []} margin={{ top: 8, right: 4, left: -16, bottom: 0 }} barCategoryGap={2}>
+                <CartesianGrid vertical={false} stroke="#E5DCC8" strokeOpacity={0.6} />
+                <XAxis dataKey="hour" tickLine={false} axisLine={false} interval={5} tick={{ fill: "#6B7280", fontSize: 11 }} tickFormatter={(h) => formatHour(Number(h))} />
+                <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: "#6B7280", fontSize: 11 }} tickFormatter={(v) => compact(Number(v))} />
+                <RechartsTooltip
+                  cursor={{ fill: GOLD, fillOpacity: 0.08 }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null
+                    const d = payload[0].payload as TechnicalStats["hourly"][number]
+                    return (
+                      <ChartTooltip
+                        title={`${formatHour(d.hour)}–${formatHour((d.hour + 1) % 24)}`}
+                        rows={[
+                          { label: "Successful", value: int(d.count), color: STATUS_COLORS.success },
+                          { label: "Failed", value: int(d.failed), color: STATUS_COLORS.failed },
+                          { label: "Volume", value: etb(d.volume, 0) },
+                        ]}
+                      />
+                    )
+                  }}
+                />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {(s?.hourly ?? []).map((h) => (
+                    <Cell key={h.hour} fill={h.hour === peakHour && h.count > 0 ? BROWN : GOLD} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </SectionCard>
         <SectionCard title="Cashback processing" description="Cashback transactions created in the period">
           <BarList
             rows={(s?.operations.cashback ?? []).map((r) => ({ key: r.status, label: r.status.charAt(0) + r.status.slice(1).toLowerCase(), value: r.count, detail: etb(r.amount, 0) }))}
@@ -622,31 +582,6 @@ export function TechnicalDashboard({
             empty="No cashback activity."
           />
         </SectionCard>
-
-        <SectionCard title="Platform" description="Live counts across the system">
-          {s ? (
-            <dl className="grid grid-cols-2 gap-3 text-xs">
-              {(
-                [
-                  ["Active sessions", s.operations.activeSessions],
-                  ["Active system users", s.activeUsers],
-                  ["Callbacks delivered", s.operations.callbacks.delivered],
-                  ["Callbacks retrying", s.operations.callbacks.pending],
-                  ["Bank reconciliations pending", s.operations.paymentReconPending],
-                  ["Card reconciliations pending", s.operations.mpgsReconPending],
-                ] as const
-              ).map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-[#F1E7D0] bg-[#FFFDF7] p-3">
-                  <dt className="text-[#6B7280]">{label}</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums text-[#1F2937]">{int(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : (
-            <div className="py-6 text-center text-xs text-[#6B7280]">Loading…</div>
-          )}
-        </SectionCard>
-
         <SectionCard title="Merchant pipeline" description={s ? `${int(s.totalMerchants)} merchants in total` : "All-time status"}>
           <BarList
             rows={PIPELINE_STAGES.map((st) => ({ key: st.status, label: st.label, value: s?.merchantPipeline[st.status] ?? 0 }))}

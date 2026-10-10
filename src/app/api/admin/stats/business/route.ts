@@ -8,21 +8,17 @@ import { TZ_INTERVAL, bucketFrame, localDateKey, merchantOptions, parsePeriod, p
 /** Upper bound on transaction rows returned for an Excel export. */
 const DETAIL_LIMIT = 20000
 
+// The business view reports successful transactions only; failures and
+// abandoned payments belong to the technical view.
+
 async function totals(where: Prisma.TransactionWhereInput) {
-  const [byStatus, merchantsWithSales] = await Promise.all([
-    prisma.transaction.groupBy({ by: ["status"], where, _sum: { amount: true }, _count: { _all: true } }),
-    prisma.transaction.groupBy({ by: ["merchantId"], where: { ...where, status: "SUCCESS" } }),
+  const [sum, merchantsWithSales] = await Promise.all([
+    prisma.transaction.aggregate({ where, _sum: { amount: true }, _count: { _all: true } }),
+    prisma.transaction.groupBy({ by: ["merchantId"], where }),
   ])
-  const success = byStatus.find((s) => s.status === "SUCCESS")
-  const amount = success?._sum.amount ?? 0
-  const successCount = success?._count._all ?? 0
-  const totalCount = byStatus.reduce((sum, s) => sum + s._count._all, 0)
   return {
-    amount,
-    successCount,
-    totalCount,
-    failedCount: byStatus.find((s) => s.status === "FAILED")?._count._all ?? 0,
-    avgTicket: successCount ? amount / successCount : 0,
+    amount: sum._sum.amount ?? 0,
+    successCount: sum._count._all,
     merchantsWithSales: merchantsWithSales.length,
   }
 }
@@ -41,7 +37,11 @@ export async function GET(request: Request) {
 
     const merchantId = params.get("merchantId") || null
     const merchantWhere = merchantId ? { merchantId } : {}
-    const where: Prisma.TransactionWhereInput = { ...merchantWhere, timestamp: { gte: period.from, lt: period.to } }
+    const where: Prisma.TransactionWhereInput = {
+      ...merchantWhere,
+      status: "SUCCESS",
+      timestamp: { gte: period.from, lt: period.to },
+    }
 
     // Full transaction list, only requested when exporting.
     if (params.get("detail") === "1") {
@@ -54,9 +54,7 @@ export async function GET(request: Request) {
           transactionReference: true,
           cbsreference: true,
           amount: true,
-          status: true,
           paymentMethod: true,
-          origin: true,
           timestamp: true,
           merchant: { select: { id: true, name: true, branchName: true } },
         },
@@ -72,58 +70,38 @@ export async function GET(request: Request) {
 
     const [current, previous, seriesRows, perMerchant, merchants] = await Promise.all([
       totals(where),
-      totals({ ...merchantWhere, timestamp: { gte: period.prevFrom, lt: period.from } }),
-      prisma.$queryRaw<{ bucket: Date; amount: number | null; success: bigint; total: bigint }[]>`
+      totals({ ...merchantWhere, status: "SUCCESS", timestamp: { gte: period.prevFrom, lt: period.from } }),
+      prisma.$queryRaw<{ bucket: Date; amount: number | null; count: bigint }[]>`
         SELECT date_trunc(${period.bucket}, "timestamp" + ${TZ_INTERVAL}::interval) AS bucket,
-               SUM(CASE WHEN status = 'SUCCESS' THEN amount ELSE 0 END) AS amount,
-               COUNT(*) FILTER (WHERE status = 'SUCCESS') AS success,
-               COUNT(*) AS total
+               SUM(amount) AS amount,
+               COUNT(*) AS count
         FROM "Transaction"
-        WHERE "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${merchantSql}
+        WHERE status = 'SUCCESS' AND "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${merchantSql}
         GROUP BY 1`,
-      prisma.transaction.groupBy({
-        by: ["merchantId", "status"],
-        where,
-        _sum: { amount: true },
-        _count: { _all: true },
-      }),
+      prisma.transaction.groupBy({ by: ["merchantId"], where, _sum: { amount: true }, _count: { _all: true } }),
       merchantOptions(),
     ])
 
     const rowsByKey = new Map(seriesRows.map((r) => [localDateKey(r.bucket), r]))
     const series = bucketFrame(period).map(({ key, label }) => {
       const r = rowsByKey.get(key)
-      return {
-        date: key,
-        label,
-        amount: Number(r?.amount ?? 0),
-        successCount: Number(r?.success ?? 0),
-        totalCount: Number(r?.total ?? 0),
-      }
+      return { date: key, label, amount: Number(r?.amount ?? 0), successCount: Number(r?.count ?? 0) }
     })
 
     const info = new Map(merchants.map((m) => [m.id, m]))
-    const agg = new Map<string, { successCount: number; totalCount: number; failedCount: number; amount: number }>()
-    for (const row of perMerchant) {
-      const a = agg.get(row.merchantId) ?? { successCount: 0, totalCount: 0, failedCount: 0, amount: 0 }
-      a.totalCount += row._count._all
-      if (row.status === "SUCCESS") {
-        a.successCount += row._count._all
-        a.amount += row._sum.amount ?? 0
-      } else if (row.status === "FAILED") {
-        a.failedCount += row._count._all
-      }
-      agg.set(row.merchantId, a)
-    }
-    const byMerchant = [...agg.entries()]
-      .map(([id, a]) => ({
-        id,
-        name: info.get(id)?.name ?? id,
-        branchName: info.get(id)?.branchName ?? "",
-        ...a,
-        share: current.amount ? (a.amount / current.amount) * 100 : 0,
-      }))
-      .sort((x, y) => y.amount - x.amount || y.totalCount - x.totalCount)
+    const byMerchant = perMerchant
+      .map((r) => {
+        const amount = r._sum.amount ?? 0
+        return {
+          id: r.merchantId,
+          name: info.get(r.merchantId)?.name ?? r.merchantId,
+          branchName: info.get(r.merchantId)?.branchName ?? "",
+          successCount: r._count._all,
+          amount,
+          share: current.amount ? (amount / current.amount) * 100 : 0,
+        }
+      })
+      .sort((x, y) => y.amount - x.amount || y.successCount - x.successCount)
 
     return NextResponse.json({
       period: {
@@ -139,8 +117,7 @@ export async function GET(request: Request) {
       changes: {
         amount: pctChange(current.amount, previous.amount),
         successCount: pctChange(current.successCount, previous.successCount),
-        totalCount: pctChange(current.totalCount, previous.totalCount),
-        avgTicket: pctChange(current.avgTicket, previous.avgTicket),
+        merchantsWithSales: pctChange(current.merchantsWithSales, previous.merchantsWithSales),
       },
       series,
       byMerchant,

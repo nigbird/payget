@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts"
-import { Banknote, CheckCircle2, Download, Loader2, Receipt, RefreshCw, Scale } from "lucide-react"
+import { Banknote, CheckCircle2, Download, Loader2, RefreshCw, Store } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -17,22 +17,20 @@ import {
 } from "@/lib/admin-dashboard-export"
 import {
   ChartTooltip,
+  Delta,
   ErrorBanner,
   FilterBar,
   GOLD,
   KpiSkeleton,
   KpiTile,
-  Delta,
   compact,
   etb,
   int,
-  pct,
   useDashboardStats,
   type DashboardFilters,
 } from "./shared"
 
-const rate = (success: number, total: number) => (total ? (success / total) * 100 : null)
-
+/** Business view: successful transactions and the amount they collected, nothing else. */
 export function BusinessDashboard({
   filters,
   onFiltersChange,
@@ -70,7 +68,7 @@ export function BusinessDashboard({
         title: "Report exported",
         description: detail.truncated
           ? `Downloaded. Transactions sheet capped at ${int(detail.limit)} rows — narrow the filters to export all.`
-          : `Downloaded with ${int(detail.transactions.length)} transactions.`,
+          : `Downloaded with ${int(detail.transactions.length)} successful transactions.`,
       })
     } catch (e) {
       console.error(e)
@@ -101,34 +99,33 @@ export function BusinessDashboard({
 
       <p className="px-1 text-xs text-[#6B7280]">
         {data
-          ? `${formatPeriod(data.period)} · ${data.merchant?.name ?? "All merchants"} · change compared with the previous ${data.period.days} day${data.period.days === 1 ? "" : "s"}`
+          ? `${formatPeriod(data.period)} · ${data.merchant?.name ?? "All merchants"} · successful transactions only · change compared with the previous ${data.period.days} day${data.period.days === 1 ? "" : "s"}`
           : "Loading…"}
       </p>
 
       {error ? <ErrorBanner message={error} /> : null}
 
       {c && data ? (
-        <div className={cn("grid grid-cols-2 gap-3 lg:grid-cols-4", loading && "opacity-60 transition-opacity")}>
-          <KpiTile size="lg" title="Amount collected" value={etb(c.amount)} sub="Successful payments only" delta={<Delta value={data.changes.amount} />} icon={Banknote} />
+        <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-3", loading && "opacity-60 transition-opacity")}>
+          <KpiTile size="lg" title="Amount collected" value={etb(c.amount)} delta={<Delta value={data.changes.amount} />} sub="vs previous period" icon={Banknote} />
+          <KpiTile size="lg" title="Successful transactions" value={int(c.successCount)} delta={<Delta value={data.changes.successCount} />} sub="vs previous period" icon={CheckCircle2} />
           <KpiTile
             size="lg"
-            title="Successful transactions"
-            value={int(c.successCount)}
-            sub={`${pct(rate(c.successCount, c.totalCount))} of all transactions`}
-            delta={<Delta value={data.changes.successCount} />}
-            icon={CheckCircle2}
+            title="Merchants with sales"
+            value={int(c.merchantsWithSales)}
+            delta={data.merchant ? undefined : <Delta value={data.changes.merchantsWithSales} />}
+            sub={data.merchant ? "Filtered to one merchant" : "vs previous period"}
+            icon={Store}
           />
-          <KpiTile size="lg" title="Total transactions" value={int(c.totalCount)} sub={`${int(c.failedCount)} failed`} delta={<Delta value={data.changes.totalCount} />} icon={Receipt} />
-          <KpiTile size="lg" title="Average transaction" value={etb(c.avgTicket)} sub="Per successful payment" delta={<Delta value={data.changes.avgTicket} />} icon={Scale} />
         </div>
       ) : (
-        <KpiSkeleton count={4} className="grid grid-cols-2 gap-3 lg:grid-cols-4" />
+        <KpiSkeleton count={3} className="grid grid-cols-1 gap-3 sm:grid-cols-3" />
       )}
 
       <Card className="card-soft-cream rounded-[20px]">
         <CardHeader className="pb-2">
           <CardTitle className="text-base tracking-tight">Amount collected</CardTitle>
-          <CardDescription className="text-[#6B7280]">ETB from successful payments, per {data?.period.bucket ?? "day"}</CardDescription>
+          <CardDescription className="text-[#6B7280]">ETB per {data?.period.bucket ?? "day"}</CardDescription>
         </CardHeader>
         <CardContent className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -145,9 +142,8 @@ export function BusinessDashboard({
                     <ChartTooltip
                       title={d.label}
                       rows={[
-                        { label: "Amount", value: etb(d.amount) },
-                        { label: "Successful", value: int(d.successCount) },
-                        { label: "Total", value: int(d.totalCount) },
+                        { label: "Amount collected", value: etb(d.amount) },
+                        { label: "Successful transactions", value: int(d.successCount) },
                       ]}
                     />
                   )
@@ -193,35 +189,28 @@ export function BusinessDashboard({
           )}
         </CardHeader>
         <CardContent>
-          {!data ? (
+          {!data || !c ? (
             <div className="py-8 text-center text-xs text-[#6B7280]">Loading…</div>
           ) : breakdown === "merchant" ? (
             <BreakdownTable
               firstHeader="Merchant"
+              showShare
               rows={data.byMerchant.map((m) => ({
                 key: m.id,
                 title: m.name,
                 sub: [m.id, m.branchName].filter(Boolean).join(" · "),
-                success: m.successCount,
-                total: m.totalCount,
+                count: m.successCount,
                 amount: m.amount,
+                share: m.share,
                 onClick: () => onFiltersChange({ ...filters, merchantId: m.id }),
               }))}
-              totals={c!}
-              empty="No transactions in this period."
+              totals={c}
             />
           ) : (
             <BreakdownTable
               firstHeader={data.period.bucket === "day" ? "Date" : data.period.bucket === "week" ? "Week of" : "Month"}
-              rows={[...data.series].reverse().map((s) => ({
-                key: s.date,
-                title: s.label,
-                success: s.successCount,
-                total: s.totalCount,
-                amount: s.amount,
-              }))}
-              totals={c!}
-              empty="No transactions in this period."
+              rows={[...data.series].reverse().map((s) => ({ key: s.date, title: s.label, count: s.successCount, amount: s.amount }))}
+              totals={c}
             />
           )}
         </CardContent>
@@ -234,41 +223,44 @@ function BreakdownTable({
   firstHeader,
   rows,
   totals,
-  empty,
+  showShare = false,
 }: {
   firstHeader: string
-  rows: { key: string; title: string; sub?: string; success: number; total: number; amount: number; onClick?: () => void }[]
-  totals: { successCount: number; totalCount: number; amount: number }
-  empty: string
+  rows: { key: string; title: string; sub?: string; count: number; amount: number; share?: number; onClick?: () => void }[]
+  totals: BusinessStats["current"]
+  showShare?: boolean
 }) {
-  if (!rows.length) return <div className="py-8 text-center text-xs text-[#6B7280]">{empty}</div>
+  if (!rows.length) return <div className="py-8 text-center text-xs text-[#6B7280]">No successful transactions in this period.</div>
   return (
     <div className="max-h-[480px] overflow-auto">
-      <table className="w-full min-w-[520px] text-sm">
+      <table className="w-full min-w-[480px] text-sm">
         <thead className="sticky top-0 bg-[#FFFBF2]">
           <tr className="border-b border-[#F1E7D0] text-left text-[11px] uppercase tracking-wide text-[#9CA3AF]">
             <th className="py-2 pr-2 font-semibold">{firstHeader}</th>
-            <th className="py-2 pr-2 text-right font-semibold">Successful</th>
-            <th className="py-2 pr-2 text-right font-semibold">Total</th>
-            <th className="py-2 pr-2 text-right font-semibold">Success rate</th>
-            <th className="py-2 text-right font-semibold">Amount collected</th>
+            <th className="py-2 pr-2 text-right font-semibold">Successful transactions</th>
+            <th className="py-2 pr-2 text-right font-semibold">Amount collected</th>
+            {showShare ? <th className="w-[20%] py-2 font-semibold">Share</th> : null}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr
-              key={r.key}
-              onClick={r.onClick}
-              className={cn("border-b border-[#F1E7D0]/60", r.onClick && "cursor-pointer hover:bg-amber-50/50")}
-            >
+            <tr key={r.key} onClick={r.onClick} className={cn("border-b border-[#F1E7D0]/60", r.onClick && "cursor-pointer hover:bg-amber-50/50")}>
               <td className="max-w-[260px] py-2.5 pr-2">
                 <div className="truncate font-medium text-[#1F2937]">{r.title}</div>
                 {r.sub ? <div className="truncate text-[11px] text-[#9CA3AF]">{r.sub}</div> : null}
               </td>
-              <td className="py-2.5 pr-2 text-right tabular-nums text-[#1F2937]">{int(r.success)}</td>
-              <td className="py-2.5 pr-2 text-right tabular-nums text-[#4B5563]">{int(r.total)}</td>
-              <td className="py-2.5 pr-2 text-right tabular-nums text-[#4B5563]">{pct(rate(r.success, r.total))}</td>
-              <td className="py-2.5 text-right font-medium tabular-nums text-[#1F2937]">{etb(r.amount)}</td>
+              <td className="py-2.5 pr-2 text-right tabular-nums text-[#1F2937]">{int(r.count)}</td>
+              <td className="py-2.5 pr-2 text-right font-medium tabular-nums text-[#1F2937]">{etb(r.amount)}</td>
+              {showShare ? (
+                <td className="py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 flex-1 rounded-full bg-[#F4ECDB]">
+                      <div className="h-1.5 rounded-full bg-[#f8b513]" style={{ width: `${r.share ?? 0}%` }} />
+                    </div>
+                    <span className="w-11 text-right text-xs tabular-nums text-[#4B5563]">{(r.share ?? 0).toFixed(1)}%</span>
+                  </div>
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -276,9 +268,8 @@ function BreakdownTable({
           <tr className="border-t-2 border-[#F1E7D0] font-semibold text-[#1F2937]">
             <td className="py-2.5 pr-2">Total</td>
             <td className="py-2.5 pr-2 text-right tabular-nums">{int(totals.successCount)}</td>
-            <td className="py-2.5 pr-2 text-right tabular-nums">{int(totals.totalCount)}</td>
-            <td className="py-2.5 pr-2 text-right tabular-nums">{pct(rate(totals.successCount, totals.totalCount))}</td>
-            <td className="py-2.5 text-right tabular-nums">{etb(totals.amount)}</td>
+            <td className="py-2.5 pr-2 text-right tabular-nums">{etb(totals.amount)}</td>
+            {showShare ? <td className="py-2.5 text-xs tabular-nums text-[#4B5563]">100%</td> : null}
           </tr>
         </tfoot>
       </table>

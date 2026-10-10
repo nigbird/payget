@@ -26,7 +26,6 @@ async function periodTotals(where: Prisma.TransactionWhereInput) {
     failedCount,
     pendingCount: totalCount - settled,
     totalCount,
-    avgTicket: successCount ? volume / successCount : 0,
     successRate: settled ? (successCount / settled) * 100 : null,
     payingMerchants: payingMerchants.length,
   }
@@ -257,7 +256,6 @@ export async function GET(request: Request) {
       changes: {
         volume: pctChange(current.volume, previous.volume),
         successCount: pctChange(current.successCount, previous.successCount),
-        avgTicket: pctChange(current.avgTicket, previous.avgTicket),
         payingMerchants: pctChange(current.payingMerchants, previous.payingMerchants),
         newMerchants: pctChange(newMerchants, prevNewMerchants),
         // Success rate moves in percentage points, not percent.

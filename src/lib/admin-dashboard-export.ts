@@ -15,32 +15,21 @@ export type DashboardPeriod = {
 
 export type MerchantOption = { id: string; name: string; branchName: string }
 
+/** Business view: successful transactions only. */
 export type BusinessStats = {
   period: DashboardPeriod
   merchant: { id: string; name: string } | null
   current: BusinessTotals
   previous: BusinessTotals
-  changes: { amount: number | null; successCount: number | null; totalCount: number | null; avgTicket: number | null }
-  series: { date: string; label: string; amount: number; successCount: number; totalCount: number }[]
-  byMerchant: {
-    id: string
-    name: string
-    branchName: string
-    successCount: number
-    totalCount: number
-    failedCount: number
-    amount: number
-    share: number
-  }[]
+  changes: { amount: number | null; successCount: number | null; merchantsWithSales: number | null }
+  series: { date: string; label: string; amount: number; successCount: number }[]
+  byMerchant: { id: string; name: string; branchName: string; successCount: number; amount: number; share: number }[]
   merchants: MerchantOption[]
 }
 
 export type BusinessTotals = {
   amount: number
   successCount: number
-  totalCount: number
-  failedCount: number
-  avgTicket: number
   merchantsWithSales: number
 }
 
@@ -49,9 +38,7 @@ export type BusinessTransaction = {
   transactionReference: string
   cbsreference: string | null
   amount: number
-  status: string
   paymentMethod: string
-  origin: string
   timestamp: string
   merchant: { id: string; name: string; branchName: string }
 }
@@ -62,7 +49,6 @@ export type TechnicalTotals = {
   failedCount: number
   pendingCount: number
   totalCount: number
-  avgTicket: number
   successRate: number | null
   payingMerchants: number
   newMerchants: number
@@ -76,7 +62,6 @@ export type TechnicalStats = {
   changes: {
     volume: number | null
     successCount: number | null
-    avgTicket: number | null
     payingMerchants: number | null
     newMerchants: number | null
     successRate: number | null
@@ -293,13 +278,11 @@ export async function exportBusinessWorkbook(
   const summary = addSummary(wb, "NibTera Merchants — Business report", stats.period, stats.merchant, generatedBy, [
     ["Amount collected", c.amount, p.amount, changes.amount, MONEY],
     ["Successful transactions", c.successCount, p.successCount, changes.successCount, "#,##0"],
-    ["Total transactions", c.totalCount, p.totalCount, changes.totalCount, "#,##0"],
-    ["Failed transactions", c.failedCount, p.failedCount, null, "#,##0"],
-    ["Average transaction", c.avgTicket, p.avgTicket, changes.avgTicket, MONEY],
-    ["Merchants with sales", c.merchantsWithSales, p.merchantsWithSales, null, "#,##0"],
+    ["Merchants with sales", c.merchantsWithSales, p.merchantsWithSales, changes.merchantsWithSales, "#,##0"],
   ])
+  summary.addRow([])
+  summary.addRow(["All figures are successful transactions only."]).font = { italic: true, color: { argb: "FF6B7280" } }
   if (detail.truncated) {
-    summary.addRow([])
     summary.addRow([
       `Note: the Transactions sheet lists the latest ${detail.limit.toLocaleString()} transactions only. Narrow the date range or pick a merchant to export all.`,
     ]).font = { italic: true, color: { argb: "FFB45309" } }
@@ -312,14 +295,11 @@ export async function exportBusinessWorkbook(
       { header: "Merchant", key: "name", width: 32 },
       { header: "Merchant ID", key: "id", width: 16 },
       { header: "Branch", key: "branchName", width: 20 },
-      { header: "Successful", key: "successCount", width: 12 },
-      { header: "Total", key: "totalCount", width: 10 },
-      { header: "Success rate", key: "rate", width: 13, numFmt: PCT },
+      { header: "Successful transactions", key: "successCount", width: 22 },
       { header: "Amount collected", key: "amount", width: 20, numFmt: MONEY },
       { header: "Share of amount", key: "share", width: 16, numFmt: PCT },
     ],
-    // Business success rate is successful ÷ all transactions, matching the dashboard.
-    stats.byMerchant.map((m) => ({ ...m, rate: m.totalCount ? (m.successCount / m.totalCount) * 100 : null })),
+    stats.byMerchant,
   )
 
   addTable(
@@ -328,8 +308,7 @@ export async function exportBusinessWorkbook(
     [
       { header: "Period", key: "label", width: 16 },
       { header: "Start date", key: "date", width: 13 },
-      { header: "Successful", key: "successCount", width: 12 },
-      { header: "Total", key: "totalCount", width: 10 },
+      { header: "Successful transactions", key: "successCount", width: 22 },
       { header: "Amount collected", key: "amount", width: 20, numFmt: MONEY },
     ],
     stats.series,
@@ -345,7 +324,6 @@ export async function exportBusinessWorkbook(
       { header: "Reference", key: "transactionReference", width: 22 },
       { header: "FT / CBS reference", key: "cbs", width: 20 },
       { header: "Payment method", key: "method", width: 16 },
-      { header: "Status", key: "status", width: 14 },
       { header: "Amount", key: "amount", width: 16, numFmt: MONEY },
     ],
     detail.transactions.map((t) => ({
@@ -355,7 +333,6 @@ export async function exportBusinessWorkbook(
       transactionReference: t.transactionReference,
       cbs: t.cbsreference ?? "",
       method: PAYMENT_METHOD_LABELS[t.paymentMethod] ?? t.paymentMethod,
-      status: STATUS_LABELS[t.status] ?? t.status,
       amount: t.amount,
     })),
   )
@@ -375,9 +352,8 @@ export async function exportTechnicalWorkbook(stats: TechnicalStats, generatedBy
     ["Successful volume", c.volume, p.volume, changes.volume, MONEY],
     ["Successful transactions", c.successCount, p.successCount, changes.successCount, "#,##0"],
     ["Failed transactions", c.failedCount, p.failedCount, null, "#,##0"],
-    ["In-flight / unresolved transactions", c.pendingCount, p.pendingCount, null, "#,##0"],
-    ["Success rate (of settled)", c.successRate, p.successRate, changes.successRate, PCT, PTS],
-    ["Average ticket", c.avgTicket, p.avgTicket, changes.avgTicket, MONEY],
+    ["Not completed (started, never finished)", c.pendingCount, p.pendingCount, null, "#,##0"],
+    ["Success rate (successful ÷ finished)", c.successRate, p.successRate, changes.successRate, PCT, PTS],
     ["Merchants with sales", c.payingMerchants, p.payingMerchants, changes.payingMerchants, "#,##0"],
     ["New merchant registrations", c.newMerchants, p.newMerchants, changes.newMerchants, "#,##0"],
   ])
@@ -409,7 +385,7 @@ export async function exportTechnicalWorkbook(stats: TechnicalStats, generatedBy
       { header: "Successful volume", key: "volume", width: 20, numFmt: MONEY },
       { header: "Successful", key: "success", width: 12 },
       { header: "Failed", key: "failed", width: 10 },
-      { header: "In flight", key: "pending", width: 10 },
+      { header: "Not completed", key: "pending", width: 14 },
       { header: "Success rate", key: "successRate", width: 13, numFmt: PCT },
     ],
     stats.series,
@@ -423,7 +399,7 @@ export async function exportTechnicalWorkbook(stats: TechnicalStats, generatedBy
       { header: "Attempts", key: "total", width: 11 },
       { header: "Successful", key: "success", width: 12 },
       { header: "Failed", key: "failed", width: 10 },
-      { header: "In flight", key: "pending", width: 10 },
+      { header: "Not completed", key: "pending", width: 14 },
       { header: "Success rate", key: "successRate", width: 13, numFmt: PCT },
       { header: "Volume", key: "volume", width: 20, numFmt: MONEY },
     ],
