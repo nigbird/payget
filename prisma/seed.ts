@@ -29,6 +29,8 @@ async function main() {
   // 2. Permissions
   const permissionsData = [
     { name: 'DASHBOARD_VIEW', category: 'DASHBOARD', description: 'Access to the administration dashboard' },
+    { name: 'dashboard.business.view', category: 'DASHBOARD', description: 'View the business dashboard: transactions and amounts by date and merchant, with export' },
+    { name: 'dashboard.technical.view', category: 'DASHBOARD', description: 'View the technical dashboard: payment health, failures, stuck payments, queues and security signals' },
     { name: 'MERCHANT_REGISTER', category: 'MERCHANT', description: 'Register new merchants' },
     { name: 'MERCHANT_APPROVE', category: 'MERCHANT', description: 'Approve merchant registrations' },
     { name: 'SUBSIDIARY_ACCOUNT_REQUEST', category: 'MERCHANT', description: 'Request a subsidiary account for a merchant (maker)' },
@@ -74,13 +76,13 @@ async function main() {
     {
       name: 'Super Admin',
       description: 'Full system access',
-      perms: ['DASHBOARD_VIEW', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_REQUEST', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW', 'cashback.reconciliation.view', 'cashback.reconciliation.retry', 'cashback.reconciliation.export', 'cashback.reconciliation.manual_review', 'cashback.reconciliation.manage', 'cashback.eligible.view', 'payment.reconciliation.view', 'payment.reconciliation.request', 'payment.reconciliation.manage', 'payment.reconciliation.export', 'mpgs.reconciliation.view', 'mpgs.reconciliation.request', 'mpgs.reconciliation.manage', 'mpgs.reconciliation.export', 'qr.generation.manage']
+      perms: ['DASHBOARD_VIEW', 'dashboard.business.view', 'dashboard.technical.view', 'CONFIGURATION_MANAGE', 'MERCHANT_REGISTER', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_REQUEST', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE', 'USER_CREATE', 'ROLE_CREATE', 'ROLE_EDIT', 'ROLE_DELETE', 'TRANSACTION_LIMIT_SET', 'TRANSACTION_LIMIT_OVERRIDE', 'AUDIT_LOG_VIEW', 'cashback.reconciliation.view', 'cashback.reconciliation.retry', 'cashback.reconciliation.export', 'cashback.reconciliation.manual_review', 'cashback.reconciliation.manage', 'cashback.eligible.view', 'payment.reconciliation.view', 'payment.reconciliation.request', 'payment.reconciliation.manage', 'payment.reconciliation.export', 'mpgs.reconciliation.view', 'mpgs.reconciliation.request', 'mpgs.reconciliation.manage', 'mpgs.reconciliation.export', 'qr.generation.manage']
     },
 
     {
       name: 'Final Approver',
       description: 'Performs final review and activates merchant accounts',
-      perms: ['DASHBOARD_VIEW', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE']
+      perms: ['DASHBOARD_VIEW', 'dashboard.business.view', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE']
     },
     {
       name: 'Merchant',

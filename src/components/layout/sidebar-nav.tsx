@@ -34,7 +34,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 
 const mainMenuItems = [
-  { name: "Management Overview", href: "/admin", icon: Activity, permission: "DASHBOARD_VIEW" },
+  { name: "Management Overview", href: "/admin", icon: Activity, anyPermission: ["DASHBOARD_VIEW", "dashboard.business.view", "dashboard.technical.view"] },
   { name: "Merchant Onboarding", href: "/admin/onboarding", icon: UserPlus, permission: "MERCHANT_REGISTER" },
   { name: "Review & Approvals", href: "/admin/review", icon: ShieldCheck, permission: "MERCHANT_APPROVE" },
   // Payments, cashback, and card (MPGS) share one console; any view permission opens it.

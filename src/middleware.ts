@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
 import { decryptAccessTokenFromCookie, accessTokenCookieName } from "@/lib/access-token-cookie"
+import { canOpenDashboard } from "@/lib/dashboard-permissions"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -194,7 +195,7 @@ export async function middleware(req: NextRequest) {
     }
 
     const getAdminLandingPath = () => {
-      if (userPermissions.includes("DASHBOARD_VIEW")) return "/admin"
+      if (canOpenDashboard(userPermissions)) return "/admin"
       if (userPermissions.includes("MERCHANT_REGISTER")) return "/admin/onboarding"
       if (userPermissions.includes("MERCHANT_APPROVE")) return "/admin/review"
       if (userPermissions.includes("USER_CREATE")) return "/admin/users"
@@ -221,7 +222,7 @@ export async function middleware(req: NextRequest) {
 
     if (isAdminRoute) {
       const hasAdminAccess =
-        userPermissions.includes("DASHBOARD_VIEW") ||
+        canOpenDashboard(userPermissions) ||
         userPermissions.includes("MERCHANT_REGISTER") ||
         userPermissions.includes("MERCHANT_APPROVE") ||
         userPermissions.includes("USER_CREATE") ||
@@ -237,7 +238,7 @@ export async function middleware(req: NextRequest) {
         return redirect(userRole === "MERCHANT" || userRole === "SALES" ? "/merchant" : "/login")
       }
 
-      if (pathname === "/admin" && !userPermissions.includes("DASHBOARD_VIEW")) {
+      if (pathname === "/admin" && !canOpenDashboard(userPermissions)) {
         const landing = getAdminLandingPath()
         if (landing && landing !== "/admin") return redirect(landing)
         return redirect("/login")

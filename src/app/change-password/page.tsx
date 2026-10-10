@@ -10,9 +10,10 @@ import { Loader2, Lock, Eye, EyeOff, LogOut } from "lucide-react"
 import { SigningInOverlay } from "@/components/auth/signing-in-overlay"
 import { PasswordStrength } from "@/components/auth/password-strength"
 import { validatePassword } from "@/lib/password-policy"
+import { canOpenDashboard } from "@/lib/dashboard-permissions"
 
 const getAdminLandingPath = (permissions: string[]) => {
-  if (permissions.includes("DASHBOARD_VIEW")) return "/admin"
+  if (canOpenDashboard(permissions)) return "/admin"
   if (permissions.includes("MERCHANT_REGISTER")) return "/admin/onboarding"
   if (permissions.includes("MERCHANT_APPROVE")) return "/admin/review"
   if (permissions.includes("USER_CREATE")) return "/admin/users"

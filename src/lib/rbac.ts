@@ -2,6 +2,8 @@ import { requireAuthUserFromContext } from "@/lib/request-auth";
 
 export type PermissionName =
   | 'DASHBOARD_VIEW'
+  | 'dashboard.business.view'
+  | 'dashboard.technical.view'
   | 'CONFIGURATION_MANAGE'
   | 'MERCHANT_REGISTER'
   | 'MERCHANT_APPROVE'

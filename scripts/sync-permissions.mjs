@@ -7,6 +7,8 @@ const prisma = new PrismaClient()
 
 const permissionsData = [
   { name: 'DASHBOARD_VIEW', category: 'DASHBOARD', description: 'Access to the administration dashboard' },
+  { name: 'dashboard.business.view', category: 'DASHBOARD', description: 'View the business dashboard: transactions and amounts by date and merchant, with export' },
+  { name: 'dashboard.technical.view', category: 'DASHBOARD', description: 'View the technical dashboard: payment health, failures, stuck payments, queues and security signals' },
   { name: 'MERCHANT_REGISTER', category: 'MERCHANT', description: 'Register new merchants' },
   { name: 'MERCHANT_APPROVE', category: 'MERCHANT', description: 'Approve merchant registrations' },
   { name: 'SUBSIDIARY_ACCOUNT_REQUEST', category: 'MERCHANT', description: 'Request a subsidiary account for a merchant (maker)' },
@@ -45,7 +47,7 @@ const roles = [
   {
     name: 'Final Approver',
     description: 'Performs final review and activates merchant accounts',
-    perms: ['DASHBOARD_VIEW', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE'],
+    perms: ['DASHBOARD_VIEW', 'dashboard.business.view', 'MERCHANT_APPROVE', 'SUBSIDIARY_ACCOUNT_APPROVE', 'PAYMENT_ELIGIBILITY_APPROVE'],
   },
   {
     name: 'Merchant',

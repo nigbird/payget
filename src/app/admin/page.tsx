@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { DashboardInsights } from "@/components/admin/dashboard-insights"
+import { AdminAnalytics } from "@/components/admin/dashboard/admin-analytics"
 
 export default function AdminDashboard() {
   const { user } = useAuth()
@@ -93,7 +93,7 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <DashboardInsights userName={user?.name ?? user?.email ?? undefined} />
+      <AdminAnalytics />
 
       <Card className="card-soft-cream rounded-[20px]">
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
