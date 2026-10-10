@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
@@ -161,6 +162,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   const [pageSize, setPageSize] = useState(20)
   const [total, setTotal] = useState(0)
 
+  const [detailTx, setDetailTx] = useState<UnresolvedTransaction | null>(null)
   const [selectedTx, setSelectedTx] = useState<UnresolvedTransaction | null>(null)
   const [ftNumber, setFtNumber] = useState('')
   const [reason, setReason] = useState('')
@@ -278,6 +280,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
         downloadCsv(
           'payment-reconciliation-transactions',
           [
+            'id',
             'merchantId',
             'amount',
             'status',
@@ -292,6 +295,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
             'providerStatusDesc',
           ],
           rows.map((tx) => [
+            tx.id,
             tx.merchant?.accountNumber || '',
             tx.amount,
             tx.status,
@@ -673,7 +677,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                     transactions.map((tx) => {
                       const hasPending = tx.reconciliationRequests?.some((r) => r.status === 'PENDING')
                       return (
-                        <TableRow key={tx.id}>
+                        <TableRow key={tx.id} className="cursor-pointer" onClick={() => setDetailTx(tx)}>
                           <TableCell className="font-mono text-xs">{tx.transactionReference}</TableCell>
                           <TableCell>{tx.merchant?.name}</TableCell>
                           <TableCell>{formatCurrency(tx.amount)}</TableCell>
@@ -696,7 +700,8 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(tx.timestamp)}
                           </TableCell>
-                          <TableCell className="text-right">
+                          {/* Keep the action from also opening the details panel. */}
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             {!UNRESOLVED_STATUSES.includes(tx.status) ? (
                               <span className="text-sm text-muted-foreground">—</span>
                             ) : hasPending ? (
@@ -802,6 +807,76 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Transaction details — the same fields as the export, in the same order */}
+      <Sheet open={!!detailTx} onOpenChange={(open) => !open && setDetailTx(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Transaction details</SheetTitle>
+            <SheetDescription className="font-mono text-xs">{detailTx?.transactionReference}</SheetDescription>
+          </SheetHeader>
+
+          {detailTx && (
+            <div className="mt-6 space-y-6">
+              <dl className="divide-y rounded-md border text-sm">
+                {(
+                  [
+                    ['id', detailTx.id],
+                    ['Merchant', detailTx.merchant?.name],
+                    ['merchantId (credit account)', detailTx.merchant?.accountNumber],
+                    ['amount', formatCurrency(detailTx.amount)],
+                    [
+                      'status',
+                      <Badge key="status" variant="outline" className={STATUS_STYLES[detailTx.status] || ''}>
+                        {detailTx.status}
+                      </Badge>,
+                    ],
+                    ['Trx_Date', formatDay(detailTx.timestamp)],
+                    ['payerPhone', detailTx.payerPhone || detailTx.userCredentials?.phone],
+                    ['DEBIT.ACCT.NO', detailTx.payerAccount],
+                    ['transactionReference', detailTx.transactionReference],
+                    ['serviceDescription', detailTx.serviceDescription],
+                    ['transactionTimestamp', formatDate(detailTx.transactionTimestamp)],
+                    [
+                      'paymentMethod',
+                      PAYMENT_METHOD_LABELS[detailTx.paymentMethod ?? ''] ?? detailTx.paymentMethod,
+                    ],
+                    ['cbsreference', detailTx.cbsreference],
+                    ['providerStatusCode', detailTx.providerStatusCode],
+                    ['providerStatusDesc', detailTx.providerStatusDesc],
+                  ] as [string, React.ReactNode][]
+                ).map(([label, value]) => (
+                  <div key={label} className="grid grid-cols-[150px_1fr] gap-3 px-3 py-2">
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="whitespace-pre-line break-all">{value || '—'}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              {detailTx.reconciliationRequests?.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium">FT reconciliation requests</h3>
+                  {detailTx.reconciliationRequests.map((r) => (
+                    <div key={r.id} className="space-y-1 rounded-md border p-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs">{r.ftNumber}</span>
+                        <Badge variant="outline" className={STATUS_STYLES[r.status] || ''}>
+                          {r.status === 'EXECUTED' ? 'Settled' : r.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                        </Badge>
+                      </div>
+                      <p className="text-muted-foreground">{r.reason}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Submitted by {r.maker?.name || r.maker?.email} · {formatDate(r.createdAt)}
+                        {r.checker && ` · Reviewed by ${r.checker.name || r.checker.email}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Maker: submit FT */}
       <Dialog open={!!selectedTx} onOpenChange={(open) => !open && setSelectedTx(null)}>
