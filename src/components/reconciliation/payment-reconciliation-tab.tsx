@@ -10,6 +10,7 @@ import {
   Clock,
   ReceiptText,
   Download,
+  Eye,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
@@ -162,7 +162,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   const [pageSize, setPageSize] = useState(20)
   const [total, setTotal] = useState(0)
 
-  const [detailTx, setDetailTx] = useState<UnresolvedTransaction | null>(null)
+  // Transaction open in the details modal, which also holds the Settle by FT form.
   const [selectedTx, setSelectedTx] = useState<UnresolvedTransaction | null>(null)
   const [ftNumber, setFtNumber] = useState('')
   const [reason, setReason] = useState('')
@@ -331,6 +331,12 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
     })
     const data = await res.json().catch(() => ({}))
     return { ok: res.ok, data }
+  }
+
+  const openDetails = (tx: UnresolvedTransaction) => {
+    setSelectedTx(tx)
+    setFtNumber('')
+    setReason('')
   }
 
   const handleSubmitFt = async () => {
@@ -677,7 +683,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                     transactions.map((tx) => {
                       const hasPending = tx.reconciliationRequests?.some((r) => r.status === 'PENDING')
                       return (
-                        <TableRow key={tx.id} className="cursor-pointer" onClick={() => setDetailTx(tx)}>
+                        <TableRow key={tx.id}>
                           <TableCell className="font-mono text-xs">{tx.transactionReference}</TableCell>
                           <TableCell>{tx.merchant?.name}</TableCell>
                           <TableCell>{formatCurrency(tx.amount)}</TableCell>
@@ -700,29 +706,23 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(tx.timestamp)}
                           </TableCell>
-                          {/* Keep the action from also opening the details panel. */}
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            {!UNRESOLVED_STATUSES.includes(tx.status) ? (
-                              <span className="text-sm text-muted-foreground">—</span>
-                            ) : hasPending ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                                Awaiting approval
-                              </Badge>
-                            ) : (
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {hasPending && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                  Awaiting approval
+                                </Badge>
+                              )}
                               <Button
+                                variant="ghost"
                                 size="sm"
-                                variant="outline"
-                                disabled={!canRequest}
-                                onClick={() => {
-                                  setSelectedTx(tx)
-                                  setFtNumber('')
-                                  setReason('')
-                                }}
+                                className="h-8 rounded-[16px]"
+                                aria-label="View details"
+                                onClick={() => openDetails(tx)}
                               >
-                                <ReceiptText className="mr-2 h-4 w-4" />
-                                Settle by FT
+                                <Eye className="h-4 w-4" />
                               </Button>
-                            )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       )
@@ -808,153 +808,172 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
         </TabsContent>
       </Tabs>
 
-      {/* Transaction details — the same fields as the export, in the same order */}
-      <Sheet open={!!detailTx} onOpenChange={(open) => !open && setDetailTx(null)}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Transaction details</SheetTitle>
-            <SheetDescription className="font-mono text-xs">{detailTx?.transactionReference}</SheetDescription>
-          </SheetHeader>
-
-          {detailTx && (
-            <div className="mt-6 space-y-6">
-              <dl className="divide-y rounded-md border text-sm">
-                {(
-                  [
-                    ['id', detailTx.id],
-                    ['Merchant', detailTx.merchant?.name],
-                    ['merchantId (credit account)', detailTx.merchant?.accountNumber],
-                    ['amount', formatCurrency(detailTx.amount)],
-                    [
-                      'status',
-                      <Badge key="status" variant="outline" className={STATUS_STYLES[detailTx.status] || ''}>
-                        {detailTx.status}
-                      </Badge>,
-                    ],
-                    ['Trx_Date', formatDay(detailTx.timestamp)],
-                    ['payerPhone', detailTx.payerPhone || detailTx.userCredentials?.phone],
-                    ['DEBIT.ACCT.NO', detailTx.payerAccount],
-                    ['transactionReference', detailTx.transactionReference],
-                    ['serviceDescription', detailTx.serviceDescription],
-                    ['transactionTimestamp', formatDate(detailTx.transactionTimestamp)],
-                    [
-                      'paymentMethod',
-                      PAYMENT_METHOD_LABELS[detailTx.paymentMethod ?? ''] ?? detailTx.paymentMethod,
-                    ],
-                    ['cbsreference', detailTx.cbsreference],
-                    ['providerStatusCode', detailTx.providerStatusCode],
-                    ['providerStatusDesc', detailTx.providerStatusDesc],
-                  ] as [string, React.ReactNode][]
-                ).map(([label, value]) => (
-                  <div key={label} className="grid grid-cols-[150px_1fr] gap-3 px-3 py-2">
-                    <dt className="text-muted-foreground">{label}</dt>
-                    <dd className="whitespace-pre-line break-all">{value || '—'}</dd>
-                  </div>
-                ))}
-              </dl>
-
-              {detailTx.reconciliationRequests?.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">FT reconciliation requests</h3>
-                  {detailTx.reconciliationRequests.map((r) => (
-                    <div key={r.id} className="space-y-1 rounded-md border p-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs">{r.ftNumber}</span>
-                        <Badge variant="outline" className={STATUS_STYLES[r.status] || ''}>
-                          {r.status === 'EXECUTED' ? 'Settled' : r.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                        </Badge>
-                      </div>
-                      <p className="text-muted-foreground">{r.reason}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Submitted by {r.maker?.name || r.maker?.email} · {formatDate(r.createdAt)}
-                        {r.checker && ` · Reviewed by ${r.checker.name || r.checker.email}`}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Maker: submit FT */}
+      {/* Transaction details, with the Settle by FT form for unresolved payments */}
       <Dialog open={!!selectedTx} onOpenChange={(open) => !open && setSelectedTx(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-[20px]">
           <DialogHeader>
-            <DialogTitle>Settle payment by FT</DialogTitle>
-            <DialogDescription>
-              Enter the FT from the internal bank receipt proving this payment landed. A second reviewer must
-              approve before the status changes.
-            </DialogDescription>
+            <DialogTitle>Payment Transaction Details</DialogTitle>
+            <DialogDescription>Every field in the reconciliation export, plus FT request history</DialogDescription>
           </DialogHeader>
 
-          {selectedTx && (
-            <div className="space-y-4">
-              <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Reference</span>
-                  <span className="font-mono text-xs">{selectedTx.transactionReference}</span>
+          {selectedTx && (() => {
+            const isUnresolved = UNRESOLVED_STATUSES.includes(selectedTx.status)
+            const hasPending = selectedTx.reconciliationRequests?.some((r) => r.status === 'PENDING')
+            const fields: [string, React.ReactNode, boolean?][] = [
+              ['id', selectedTx.id, true],
+              ['merchantId (credit account)', selectedTx.merchant?.accountNumber, true],
+              ['amount', formatCurrency(selectedTx.amount)],
+              ['Trx_Date', formatDay(selectedTx.timestamp)],
+              ['payerPhone', selectedTx.payerPhone || selectedTx.userCredentials?.phone],
+              ['DEBIT.ACCT.NO', selectedTx.payerAccount, true],
+              ['transactionReference', selectedTx.transactionReference, true],
+              ['serviceDescription', selectedTx.serviceDescription],
+              ['transactionTimestamp', formatDate(selectedTx.transactionTimestamp)],
+              ['paymentMethod', PAYMENT_METHOD_LABELS[selectedTx.paymentMethod ?? ''] ?? selectedTx.paymentMethod],
+              ['cbsreference', selectedTx.cbsreference, true],
+            ]
+            return (
+              <div className="mt-6 space-y-6">
+                {/* Core Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Merchant</div>
+                    <div className="mt-1 text-sm font-medium">{selectedTx.merchant?.name}</div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current Status</div>
+                      <Badge variant="outline" className={STATUS_STYLES[selectedTx.status] || ''}>
+                        {selectedTx.status}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Merchant</span>
-                  <span>{selectedTx.merchant?.name}</span>
+
+                {/* Reconciliation fields, named as in the export */}
+                <div className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Reconciliation Fields
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    {fields.map(([label, value, mono]) => (
+                      <div key={label}>
+                        <div className="text-slate-500">{label}</div>
+                        <div className={`mt-0.5 break-all ${mono ? 'font-mono' : ''}`}>{value || '—'}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span>{formatCurrency(selectedTx.amount)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Current status</span>
-                  <span>{selectedTx.status}</span>
-                </div>
-                {selectedTx.providerStatusDesc && (
-                  <div className="mt-2 border-t pt-2">
-                    <div className="text-muted-foreground">
-                      Provider response
+
+                {/* Provider response */}
+                {(selectedTx.providerStatusDesc || selectedTx.providerStatusCode) && (
+                  <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Provider Response
                       {selectedTx.providerStatusCode ? ` (code ${selectedTx.providerStatusCode})` : ''}
                     </div>
-                    <div className="mt-1 whitespace-pre-line text-xs">
-                      {selectedTx.providerStatusDesc}
+                    {selectedTx.providerStatusDesc && (
+                      <div className="mt-1 whitespace-pre-line text-sm">{selectedTx.providerStatusDesc}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Request History */}
+                {selectedTx.reconciliationRequests?.length > 0 && (
+                  <div>
+                    <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      FT Request History
+                    </div>
+                    <div className="space-y-3">
+                      {selectedTx.reconciliationRequests.map((r) => (
+                        <div key={r.id} className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
+                          <div className="mb-2 flex items-center justify-between">
+                            <div className="font-mono text-sm">{r.ftNumber}</div>
+                            <Badge variant="outline" className={STATUS_STYLES[r.status] || ''}>
+                              {r.status === 'EXECUTED' ? 'Settled' : r.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1 text-xs text-slate-600">
+                            <div><span className="font-semibold">Reason:</span> {r.reason}</div>
+                            <div>
+                              <span className="font-semibold">Created by:</span> {r.maker?.name || r.maker?.email} ·{' '}
+                              {formatDate(r.createdAt)}
+                            </div>
+                            {r.comments && <div><span className="font-semibold">Comments:</span> {r.comments}</div>}
+                            {r.checker && (
+                              <div>
+                                <span className="font-semibold">Reviewed by:</span> {r.checker.name || r.checker.email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions — only stuck payments can be settled, one open request at a time */}
+                {isUnresolved && hasPending && (
+                  <div className="flex items-center gap-2 rounded-[18px] border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+                    <Clock className="h-4 w-4 shrink-0" />
+                    An FT request for this payment is awaiting approval. Another can be submitted once it is
+                    approved or rejected.
+                  </div>
+                )}
+                {isUnresolved && !hasPending && canRequest && (
+                  <div className="space-y-4 border-t border-[#F1E7D0] pt-4">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Settle by FT</div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Enter the FT from the internal bank receipt proving this payment landed. A second reviewer
+                        must approve before the status changes.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ft">FT number</Label>
+                      <Input
+                        id="ft"
+                        value={ftNumber}
+                        onChange={(e) => setFtNumber(e.target.value)}
+                        placeholder="FT from the bank receipt"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reason">Reason</Label>
+                      <Textarea
+                        id="reason"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="Where the FT came from and why this payment needs reconciling"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1 rounded-[18px] border-[#F1E7D0]"
+                        onClick={() => setSelectedTx(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="flex-1 rounded-[18px]"
+                        onClick={handleSubmitFt}
+                        disabled={isSubmitting || !ftNumber.trim() || !reason.trim()}
+                      >
+                        {isSubmitting ? (
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <ReceiptText className="mr-2 h-4 w-4" />
+                        )}
+                        Submit for approval
+                      </Button>
                     </div>
                   </div>
                 )}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ft">FT number</Label>
-                <Input
-                  id="ft"
-                  value={ftNumber}
-                  onChange={(e) => setFtNumber(e.target.value)}
-                  placeholder="FT from the bank receipt"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason</Label>
-                <Textarea
-                  id="reason"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Where the FT came from and why this payment needs reconciling"
-                  rows={3}
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedTx(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmitFt}
-              disabled={isSubmitting || !ftNumber.trim() || !reason.trim()}
-            >
-              Submit for approval
-            </Button>
-          </DialogFooter>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 
