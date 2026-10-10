@@ -40,7 +40,9 @@ type UnresolvedTransaction = {
   payerPhone: string | null
   payerAccount: string | null
   userCredentials?: { phone?: string | null } | null
+  serviceDescription: string | null
   timestamp: string
+  transactionTimestamp: string
   reconciliationRequests: ReconciliationRequest[]
 }
 
@@ -70,11 +72,18 @@ type Stats = { unresolved: number; settledByFt: number; pendingRequests: number 
 
 type View = 'unresolved' | 'history'
 
-const UNRESOLVED_STATUS_OPTIONS = [
+/** Default for the payments list: only stuck payments, which are the ones that can be settled. */
+const UNRESOLVED = 'UNRESOLVED'
+const UNRESOLVED_STATUSES = ['AWAITING_PIN', 'INITIATED', 'PENDING', 'PROCESSING']
+
+const PAYMENT_STATUS_OPTIONS = [
+  { value: UNRESOLVED, label: 'Unresolved only' },
   { value: 'AWAITING_PIN', label: 'Awaiting PIN' },
   { value: 'INITIATED', label: 'Initiated' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'PROCESSING', label: 'Processing' },
+  { value: 'SUCCESS', label: 'Success' },
+  { value: 'FAILED', label: 'Failed' },
 ]
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -93,6 +102,8 @@ const STATUS_STYLES: Record<string, string> = {
   INITIATED: 'bg-slate-100 text-slate-700 border-slate-200',
   PENDING: 'bg-blue-100 text-blue-800 border-blue-200',
   PROCESSING: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  SUCCESS: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  FAILED: 'bg-red-100 text-red-800 border-red-200',
   EXECUTED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   REJECTED: 'bg-red-100 text-red-800 border-red-200',
 }
@@ -103,6 +114,13 @@ function formatCurrency(amount: number) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString()
+}
+
+/** YYYY-MM-DD in local time, for the Trx_Date column of the reconciliation export. */
+function formatDay(value: string) {
+  const d = new Date(value)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 /**
@@ -135,7 +153,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
 
   const [search, setSearch] = useState('')
   const [merchantId, setMerchantId] = useState('ALL')
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState(UNRESOLVED)
   const [paymentMethod, setPaymentMethod] = useState('ALL')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -158,7 +176,8 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
       if (view === 'history') params.set('view', 'history')
       if (search.trim()) params.set('search', search.trim())
       if (merchantId !== 'ALL') params.set('merchantId', merchantId)
-      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      // The payments list defaults server-side to unresolved, so ALL has to be sent explicitly.
+      if (statusFilter !== 'ALL' || view === 'unresolved') params.set('status', statusFilter)
       if (paymentMethod !== 'ALL') params.set('paymentMethod', paymentMethod)
       if (dateFrom) params.set('dateFrom', dateFrom)
       if (dateTo) params.set('dateTo', dateTo)
@@ -203,7 +222,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   const switchView = (next: View) => {
     if (next === view) return
     setView(next)
-    setStatusFilter('ALL')
+    setStatusFilter(next === 'unresolved' ? UNRESOLVED : 'ALL')
     setPage(1)
   }
 
@@ -254,29 +273,37 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
         toast({ title: 'Export complete', description: `Exported ${rows.length} decided requests to CSV.` })
       } else {
         const rows: UnresolvedTransaction[] = data.transactions || []
+        // Column names and order follow the reconciliation team's template.
+        // merchantId is the merchant's credit account, the side they match against core banking.
         downloadCsv(
-          'payment-unresolved-transactions',
+          'payment-reconciliation-transactions',
           [
-            'Reference',
-            'Merchant',
-            'Amount (ETB)',
-            'Payment method',
-            'Payer',
-            'Status',
-            'Provider response',
-            'Initiated',
-            'Pending FT request',
+            'merchantId',
+            'amount',
+            'status',
+            'Trx_Date',
+            'payerPhone',
+            'DEBIT.ACCT.NO',
+            'transactionReference',
+            'serviceDescription',
+            'transactionTimestamp',
+            'paymentMethod',
+            'cbsreference',
+            'providerStatusDesc',
           ],
           rows.map((tx) => [
-            tx.transactionReference,
-            tx.merchant?.name || '',
+            tx.merchant?.accountNumber || '',
             tx.amount,
-            tx.paymentMethod || '',
-            tx.payerPhone || tx.payerAccount || tx.userCredentials?.phone || '',
             tx.status,
+            formatDay(tx.timestamp),
+            tx.payerPhone || tx.userCredentials?.phone || '',
+            tx.payerAccount || '',
+            tx.transactionReference,
+            tx.serviceDescription || '',
+            formatDate(tx.transactionTimestamp),
+            tx.paymentMethod || '',
+            tx.cbsreference || '',
             tx.providerStatusDesc || '',
-            formatDate(tx.timestamp),
-            tx.reconciliationRequests?.find((r) => r.status === 'PENDING')?.ftNumber || '',
           ])
         )
         toast({ title: 'Export complete', description: `Exported ${rows.length} transactions to CSV.` })
@@ -514,7 +541,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All statuses</SelectItem>
-                {(view === 'history' ? HISTORY_STATUS_OPTIONS : UNRESOLVED_STATUS_OPTIONS).map((o) => (
+                {(view === 'history' ? HISTORY_STATUS_OPTIONS : PAYMENT_STATUS_OPTIONS).map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
                   </SelectItem>
@@ -639,7 +666,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                   ) : transactions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                        No unresolved payments.
+                        {statusFilter === UNRESOLVED ? 'No unresolved payments.' : 'No payments match these filters.'}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -670,7 +697,9 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                             {formatDate(tx.timestamp)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {hasPending ? (
+                            {!UNRESOLVED_STATUSES.includes(tx.status) ? (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            ) : hasPending ? (
                               <Badge variant="outline" className="bg-blue-50 text-blue-700">
                                 Awaiting approval
                               </Badge>

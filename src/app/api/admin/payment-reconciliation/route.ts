@@ -21,6 +21,9 @@ import { createIfNoPendingRequest, PENDING_REQUEST_EXISTS_ERROR } from '@/lib/re
 /** Statuses that are stuck and therefore reconcilable. */
 const UNRESOLVED_STATUSES = ['AWAITING_PIN', 'INITIATED', 'PENDING', 'PROCESSING'] as const;
 
+/** Every status, so the reconciliation team can report on resolved payments too. */
+const ALL_STATUSES = [...UNRESOLVED_STATUSES, 'SUCCESS', 'FAILED'] as const;
+
 /** Payment methods this FT-based flow reconciles (everything but card). */
 const FT_PAYMENT_METHODS = ['BANK', 'TELEBIRR', 'YAGOUT'] as const;
 
@@ -124,10 +127,15 @@ export async function GET(request: Request) {
     // Card transactions are reconciled by re-querying the gateway (see the
     // Card/MPGS tab and /api/admin/mpgs-reconciliation) — this FT-based flow
     // is for BANK/TELEBIRR receipts and has no way to verify a card payment.
-    const statusFilter = (UNRESOLVED_STATUSES as readonly string[]).includes(status ?? '')
+    // No status (or UNRESOLVED) keeps the default stuck-payments list; ALL drops
+    // the status filter entirely.
+    const statusFilter = (ALL_STATUSES as readonly string[]).includes(status ?? '')
       ? status
-      : { in: [...UNRESOLVED_STATUSES] };
-    const where: any = { status: statusFilter, paymentMethod: paymentMethod ?? { not: 'MPGS' } };
+      : status === 'ALL'
+        ? undefined
+        : { in: [...UNRESOLVED_STATUSES] };
+    const where: any = { paymentMethod: paymentMethod ?? { not: 'MPGS' } };
+    if (statusFilter) where.status = statusFilter;
 
     if (merchantId) {
       where.merchantId = merchantId;
