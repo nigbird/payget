@@ -50,6 +50,8 @@
     "next-auth": "^5.0.0-beta.32",
     "nodemailer": "^9.1.1",
     "patch-package": "^8.0.0",
+    "pino": "^10.4.0",
+    "pino-roll": "^4.0.0",
     "prisma": "^6.19.3",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
