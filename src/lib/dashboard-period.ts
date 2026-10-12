@@ -1,4 +1,5 @@
 // Server-side date-period helpers shared by the business and technical dashboard APIs.
+import { PaymentMethod, Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 
 // Ethiopia has no DST, so a fixed offset keeps day/hour buckets aligned with
@@ -94,6 +95,27 @@ export function bucketFrame(period: Period): { key: string; label: string }[] {
 export function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return current === 0 ? 0 : null
   return ((current - previous) / previous) * 100
+}
+
+/**
+ * Merchant and payment-method filters, as a Prisma `where` fragment for
+ * transaction queries and the matching SQL fragment for raw queries.
+ * Unknown payment methods are ignored rather than matching nothing.
+ */
+export function parseTransactionFilters(params: URLSearchParams) {
+  const merchantId = params.get("merchantId") || null
+  const rawMethod = params.get("paymentMethod")
+  const paymentMethod =
+    rawMethod && (Object.values(PaymentMethod) as string[]).includes(rawMethod) ? (rawMethod as PaymentMethod) : null
+
+  const where: Prisma.TransactionWhereInput = {
+    ...(merchantId ? { merchantId } : {}),
+    ...(paymentMethod ? { paymentMethod } : {}),
+  }
+  const sql = Prisma.sql`${merchantId ? Prisma.sql`AND "merchantId" = ${merchantId}` : Prisma.empty} ${
+    paymentMethod ? Prisma.sql`AND "paymentMethod"::text = ${paymentMethod}` : Prisma.empty
+  }`
+  return { merchantId, paymentMethod, where, sql }
 }
 
 /** Merchants offered in the dashboard merchant filter. */

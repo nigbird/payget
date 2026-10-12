@@ -19,6 +19,7 @@ export type MerchantOption = { id: string; name: string; branchName: string }
 export type BusinessStats = {
   period: DashboardPeriod
   merchant: { id: string; name: string } | null
+  paymentMethod: string | null
   current: BusinessTotals
   previous: BusinessTotals
   changes: { amount: number | null; successCount: number | null; merchantsWithSales: number | null }
@@ -57,6 +58,7 @@ export type TechnicalTotals = {
 export type TechnicalStats = {
   period: DashboardPeriod
   merchant: { id: string; name: string } | null
+  paymentMethod: string | null
   current: TechnicalTotals
   previous: TechnicalTotals
   changes: {
@@ -110,6 +112,7 @@ export type TechnicalStats = {
     total: number
     failed: number
     share: number
+    previousVolume: number
     change: number | null
   }[]
   failingMerchants: {
@@ -235,7 +238,7 @@ function addSummary(
   wb: Workbook,
   title: string,
   period: DashboardPeriod,
-  merchant: { name: string } | null,
+  scope: { merchant: { name: string } | null; paymentMethod: string | null },
   generatedBy: string | undefined,
   kpis: [label: string, current: number | null, previous: number | null, change: number | null, fmt: string, changeFmt?: string][],
 ) {
@@ -243,7 +246,8 @@ function addSummary(
   ws.columns = [{ width: 34 }, { width: 22 }, { width: 22 }, { width: 16 }]
   ws.addRow([title]).font = { bold: true, size: 14, color: { argb: BRAND_BROWN } }
   ws.addRow([`Period: ${formatPeriod(period)} (${period.days} day${period.days === 1 ? "" : "s"})`])
-  ws.addRow([`Merchant: ${merchant?.name ?? "All merchants"}`])
+  ws.addRow([`Merchant: ${scope.merchant?.name ?? "All merchants"}`])
+  ws.addRow([`Payment method: ${scope.paymentMethod ? PAYMENT_METHOD_LABELS[scope.paymentMethod] ?? scope.paymentMethod : "All payment methods"}`])
   ws.addRow([`Compared with the previous ${period.days} day${period.days === 1 ? "" : "s"}`])
   ws.addRow([`Generated: ${formatEat(new Date().toISOString())}${generatedBy ? ` by ${generatedBy}` : ""}`])
   ws.addRow([])
@@ -275,7 +279,7 @@ export async function exportBusinessWorkbook(
   const wb = await newWorkbook()
   const { current: c, previous: p, changes } = stats
 
-  const summary = addSummary(wb, "NibTera Merchants — Business report", stats.period, stats.merchant, generatedBy, [
+  const summary = addSummary(wb, "NibTera Merchants — Business report", stats.period, stats, generatedBy, [
     ["Amount collected", c.amount, p.amount, changes.amount, MONEY],
     ["Successful transactions", c.successCount, p.successCount, changes.successCount, "#,##0"],
     ["Merchants with sales", c.merchantsWithSales, p.merchantsWithSales, changes.merchantsWithSales, "#,##0"],
@@ -348,7 +352,7 @@ export async function exportTechnicalWorkbook(stats: TechnicalStats, generatedBy
   const wb = await newWorkbook()
   const { current: c, previous: p, changes, operations: ops } = stats
 
-  const summary = addSummary(wb, "NibTera Merchants — Technical report", stats.period, stats.merchant, generatedBy, [
+  const summary = addSummary(wb, "NibTera Merchants — Technical report", stats.period, stats, generatedBy, [
     ["Successful volume", c.volume, p.volume, changes.volume, MONEY],
     ["Successful transactions", c.successCount, p.successCount, changes.successCount, "#,##0"],
     ["Failed transactions", c.failedCount, p.failedCount, null, "#,##0"],
@@ -460,7 +464,7 @@ export async function exportTechnicalWorkbook(stats: TechnicalStats, generatedBy
       { header: "Successful", key: "count", width: 12 },
       { header: "Attempts", key: "total", width: 11 },
       { header: "Share of volume", key: "share", width: 16, numFmt: PCT },
-      { header: "Change vs previous", key: "change", width: 18, numFmt: PCT },
+      { header: "Previous period volume", key: "previousVolume", width: 22, numFmt: MONEY },
     ],
     stats.topMerchants.map((m, i) => ({ ...m, rank: i + 1 })),
   )

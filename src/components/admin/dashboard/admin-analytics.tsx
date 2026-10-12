@@ -29,7 +29,7 @@ export function AdminAnalytics() {
   const allowed = VIEWS.filter((v) => permissions.includes(v.permission))
 
   const [view, setView] = useState<View | null>(null)
-  const [filters, setFilters] = useState<DashboardFilters>(() => ({ range: defaultRange(), merchantId: null }))
+  const [filters, setFilters] = useState<DashboardFilters>(() => ({ range: defaultRange(), merchantId: null, paymentMethod: null }))
   const [merchants, setMerchants] = useState<MerchantOption[]>([])
 
   useEffect(() => {

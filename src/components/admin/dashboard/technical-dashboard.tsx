@@ -50,7 +50,6 @@ import {
   BROWN,
   BarList,
   ChartTooltip,
-  Delta,
   ErrorBanner,
   FilterBar,
   GOLD,
@@ -119,7 +118,7 @@ function SignalTile({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-[16px] border p-3",
+        "flex items-start gap-3 rounded-[16px] border p-3",
         !active && "border-[#F1E7D0] bg-[#FFFDF7]",
         active && tone === "critical" && "border-rose-200 bg-rose-50",
         active && tone === "warning" && "border-amber-200 bg-amber-50",
@@ -137,8 +136,8 @@ function SignalTile({
       </span>
       <div className="min-w-0">
         <div className="text-lg font-semibold leading-tight tabular-nums text-[#1F2937]">{int(value)}</div>
-        <div className="truncate text-xs font-medium text-[#4B5563]">{label}</div>
-        <div className="truncate text-[11px] text-[#9CA3AF]">{active ? hint : "All clear"}</div>
+        <div className="text-xs font-medium leading-snug text-[#4B5563]">{label}</div>
+        <div className="text-[11px] leading-snug text-[#9CA3AF]">{active ? hint : "All clear"}</div>
       </div>
     </div>
   )
@@ -233,7 +232,7 @@ export function TechnicalDashboard({
 
       <p className="px-1 text-xs text-[#6B7280]">
         {s
-          ? `${formatPeriod(s.period)} · ${s.merchant?.name ?? "All merchants"} · compared with the previous ${s.period.days} day${s.period.days === 1 ? "" : "s"} · times in EAT`
+          ? `${formatPeriod(s.period)} · ${s.merchant?.name ?? "All merchants"} · ${s.paymentMethod ? PAYMENT_METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod : "All payment methods"} · times in EAT`
           : "Loading…"}
       </p>
 
@@ -262,11 +261,36 @@ export function TechnicalDashboard({
       {/* KPIs */}
       {c && s ? (
         <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5", loading && "opacity-60 transition-opacity")}>
-          <KpiTile title="Successful volume" value={`${compact(c.volume)} ETB`} sub={etb(c.volume, 0)} delta={<Delta value={s.changes.volume} />} icon={TrendingUp} />
-          <KpiTile title="Successful payments" value={int(c.successCount)} sub={`out of ${int(c.totalCount)} transactions`} delta={<Delta value={s.changes.successCount} />} icon={Receipt} />
-          <KpiTile title="Success rate" value={pct(c.successRate)} sub={`of finished payments · ${int(c.failedCount)} failed`} delta={<Delta value={s.changes.successRate} unit="pts" />} icon={CheckCircle2} />
-          <KpiTile title="Merchants with sales" value={int(c.payingMerchants)} sub={`of ${int(s.activeMerchants)} approved`} delta={<Delta value={s.changes.payingMerchants} />} icon={Store} />
-          <KpiTile title="New registrations" value={int(c.newMerchants)} sub={`${int(s.pendingMerchants)} awaiting approval`} delta={<Delta value={s.changes.newMerchants} />} icon={UserPlus} />
+          <KpiTile
+            title="Successful volume"
+            value={etb(c.volume, 0)}
+            sub="Money from successful payments"
+            icon={TrendingUp}
+          />
+          <KpiTile
+            title="Successful payments"
+            value={int(c.successCount)}
+            sub={`Out of ${int(c.totalCount)} transactions`}
+            icon={Receipt}
+          />
+          <KpiTile
+            title="Success rate"
+            value={pct(c.successRate)}
+            sub={`Of finished payments · ${int(c.failedCount)} failed`}
+            icon={CheckCircle2}
+          />
+          <KpiTile
+            title="Merchants with sales"
+            value={int(c.payingMerchants)}
+            sub={`Of ${int(s.activeMerchants)} approved merchants`}
+            icon={Store}
+          />
+          <KpiTile
+            title="New registrations"
+            value={int(c.newMerchants)}
+            sub={`${int(s.pendingMerchants)} awaiting approval`}
+            icon={UserPlus}
+          />
         </div>
       ) : (
         <KpiSkeleton count={5} className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" />
@@ -463,7 +487,7 @@ export function TechnicalDashboard({
 
       {/* Merchants */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <SectionCard title="Top merchants" description="Ranked by successful volume, with change vs previous period" className="lg:col-span-2">
+        <SectionCard title="Top merchants" description="Ranked by successful volume" className="lg:col-span-2">
           {s?.topMerchants.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
@@ -474,7 +498,6 @@ export function TechnicalDashboard({
                     <th className={thR}>Volume</th>
                     <th className={thR}>Txns</th>
                     <th className={cn(th, "w-[22%]")}>Share</th>
-                    <th className="py-2 text-right font-semibold">Change</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -494,9 +517,6 @@ export function TechnicalDashboard({
                           </div>
                           <span className="w-11 text-right text-xs tabular-nums text-[#4B5563]">{m.share.toFixed(1)}%</span>
                         </div>
-                      </td>
-                      <td className="py-2.5 text-right">
-                        <Delta value={m.change} />
                       </td>
                     </tr>
                   ))}

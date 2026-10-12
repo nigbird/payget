@@ -3,7 +3,15 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireAuthUser } from "@/lib/request-auth"
 import { DASHBOARD_BUSINESS_VIEW } from "@/lib/dashboard-permissions"
-import { TZ_INTERVAL, bucketFrame, localDateKey, merchantOptions, parsePeriod, pctChange } from "@/lib/dashboard-period"
+import {
+  TZ_INTERVAL,
+  bucketFrame,
+  localDateKey,
+  merchantOptions,
+  parsePeriod,
+  parseTransactionFilters,
+  pctChange,
+} from "@/lib/dashboard-period"
 
 /** Upper bound on transaction rows returned for an Excel export. */
 const DETAIL_LIMIT = 20000
@@ -35,10 +43,9 @@ export async function GET(request: Request) {
     const period = parsePeriod(params)
     if ("error" in period) return NextResponse.json({ error: period.error }, { status: 400 })
 
-    const merchantId = params.get("merchantId") || null
-    const merchantWhere = merchantId ? { merchantId } : {}
+    const { merchantId, paymentMethod, where: txFilter, sql: txSql } = parseTransactionFilters(params)
     const where: Prisma.TransactionWhereInput = {
-      ...merchantWhere,
+      ...txFilter,
       status: "SUCCESS",
       timestamp: { gte: period.from, lt: period.to },
     }
@@ -66,17 +73,15 @@ export async function GET(request: Request) {
       })
     }
 
-    const merchantSql = merchantId ? Prisma.sql`AND "merchantId" = ${merchantId}` : Prisma.empty
-
     const [current, previous, seriesRows, perMerchant, merchants] = await Promise.all([
       totals(where),
-      totals({ ...merchantWhere, status: "SUCCESS", timestamp: { gte: period.prevFrom, lt: period.from } }),
+      totals({ ...txFilter, status: "SUCCESS", timestamp: { gte: period.prevFrom, lt: period.from } }),
       prisma.$queryRaw<{ bucket: Date; amount: number | null; count: bigint }[]>`
         SELECT date_trunc(${period.bucket}, "timestamp" + ${TZ_INTERVAL}::interval) AS bucket,
                SUM(amount) AS amount,
                COUNT(*) AS count
         FROM "Transaction"
-        WHERE status = 'SUCCESS' AND "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${merchantSql}
+        WHERE status = 'SUCCESS' AND "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${txSql}
         GROUP BY 1`,
       prisma.transaction.groupBy({ by: ["merchantId"], where, _sum: { amount: true }, _count: { _all: true } }),
       merchantOptions(),
@@ -112,6 +117,7 @@ export async function GET(request: Request) {
         prevFrom: period.prevFrom,
       },
       merchant: merchantId ? { id: merchantId, name: info.get(merchantId)?.name ?? merchantId } : null,
+      paymentMethod,
       current,
       previous,
       changes: {

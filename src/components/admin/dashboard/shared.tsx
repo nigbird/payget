@@ -2,20 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format, startOfDay, subDays } from "date-fns"
-import { ArrowDownRight, ArrowUpRight, Check, ChevronsUpDown, Minus, Search, Store } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, Check, ChevronsUpDown, CreditCard, Minus, Search, Store } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker"
-import type { MerchantOption } from "@/lib/admin-dashboard-export"
+import { PAYMENT_METHOD_LABELS, type MerchantOption } from "@/lib/admin-dashboard-export"
 
 // ---------------------------------------------------------------------------
 // Filters
 // ---------------------------------------------------------------------------
 
-export type DashboardFilters = { range: DateRangeValue; merchantId: string | null }
+export type DashboardFilters = { range: DateRangeValue; merchantId: string | null; paymentMethod: string | null }
 
 export const defaultRange = (): DateRangeValue => ({
   from: subDays(startOfDay(new Date()), 29),
@@ -31,6 +31,7 @@ export function filtersToQuery(f: DashboardFilters): string | null {
     q.set("to", format(f.range.to, "yyyy-MM-dd"))
   }
   if (f.merchantId) q.set("merchantId", f.merchantId)
+  if (f.paymentMethod) q.set("paymentMethod", f.paymentMethod)
   return q.toString()
 }
 
@@ -135,6 +136,42 @@ export function MerchantPicker({
   )
 }
 
+export function PaymentMethodPicker({ value, onChange }: { value: string | null; onChange: (method: string | null) => void }) {
+  const [open, setOpen] = useState(false)
+  const pick = (method: string | null) => {
+    onChange(method)
+    setOpen(false)
+  }
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label="Payment method"
+          className={cn(
+            "h-10 w-full justify-start rounded-lg px-3 text-left text-xs font-bold sm:w-48",
+            value ? "border-primary/40 bg-primary/5" : "border-slate-100",
+          )}
+        >
+          <CreditCard className="mr-2 h-4 w-4 shrink-0 text-primary" />
+          <span className="flex-1 truncate">{value ? PAYMENT_METHOD_LABELS[value] ?? value : "All payment methods"}</span>
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 rounded-2xl p-1" align="start">
+        <div role="listbox">
+          <MerchantRow label="All payment methods" active={!value} onClick={() => pick(null)} />
+          {Object.entries(PAYMENT_METHOD_LABELS).map(([method, label]) => (
+            <MerchantRow key={method} label={label} active={value === method} onClick={() => pick(method)} />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function MerchantRow({ label, sub, active, onClick }: { label: string; sub?: string; active: boolean; onClick: () => void }) {
   return (
     <button
@@ -166,8 +203,8 @@ export function FilterBar({
   children?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-2 rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <DateRangePicker
           className="sm:w-60"
           align="start"
@@ -176,6 +213,7 @@ export function FilterBar({
           onChange={(range) => onChange({ ...filters, range: range.from || range.to ? range : defaultRange() })}
         />
         <MerchantPicker merchants={merchants} value={filters.merchantId} onChange={(merchantId) => onChange({ ...filters, merchantId })} />
+        <PaymentMethodPicker value={filters.paymentMethod} onChange={(paymentMethod) => onChange({ ...filters, paymentMethod })} />
       </div>
       <div className="flex items-center gap-2">{children}</div>
     </div>
@@ -219,6 +257,40 @@ export function Delta({ value, unit = "%", invert = false }: { value: number | n
   )
 }
 
+/**
+ * Plain-language comparison for a KPI card: an arrow for direction and the
+ * previous period's actual value, e.g. "↗ Previous 30 days: 1".
+ */
+export function Comparison({
+  current,
+  previous,
+  days,
+  format,
+}: {
+  current: number | null
+  previous: number | null
+  days: number
+  format: (n: number) => string
+}) {
+  const label = `Previous ${days} day${days === 1 ? "" : "s"}: ${previous === null ? "—" : format(previous)}`
+  const direction =
+    current === null || previous === null || Math.abs(current - previous) < 1e-9 ? "flat" : current > previous ? "up" : "down"
+  const Icon = direction === "up" ? ArrowUpRight : direction === "down" ? ArrowDownRight : Minus
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-[#6B7280]">
+      <Icon
+        className={cn(
+          "h-3.5 w-3.5 shrink-0",
+          direction === "up" && "text-emerald-700",
+          direction === "down" && "text-rose-700",
+          direction === "flat" && "text-[#9CA3AF]",
+        )}
+      />
+      {label}
+    </span>
+  )
+}
+
 export function KpiTile({
   title,
   value,
@@ -230,23 +302,22 @@ export function KpiTile({
   title: string
   value: string
   sub?: string
+  /** Footer content, normally a <Comparison />. */
   delta?: React.ReactNode
   icon: React.ComponentType<{ className?: string }>
   size?: "md" | "lg"
 }) {
   return (
-    <div className="flex flex-col justify-between gap-3 rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4 shadow-sm shadow-black/5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-xs font-semibold text-[#6B7280]">{title}</div>
-        <span className="rounded-xl bg-[#f8b513]/10 p-1.5 text-[#754319]">
-          <Icon className="h-4 w-4" />
-        </span>
+    <div className="flex h-full flex-col rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4 shadow-sm shadow-black/5">
+      <div className="flex items-center gap-2 text-xs font-semibold text-[#6B7280]">
+        <Icon className="h-4 w-4 shrink-0 text-[#754319]" />
+        <span className="truncate">{title}</span>
       </div>
-      <div className={cn("font-semibold tracking-tight text-[#1F2937] tabular-nums", size === "lg" ? "text-2xl" : "text-xl")}>{value}</div>
-      {sub || delta ? (
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[11px] text-[#6B7280]">{sub}</span>
-          {delta}
+      <div className={cn("mt-2 font-semibold tracking-tight text-[#1F2937] tabular-nums", size === "lg" ? "text-2xl" : "text-xl")}>{value}</div>
+      {sub ? <p className="mt-1 text-xs leading-snug text-[#6B7280]">{sub}</p> : null}
+      {delta ? (
+        <div className="mt-auto pt-3">
+          <div className="border-t border-[#F1E7D0] pt-2.5">{delta}</div>
         </div>
       ) : null}
     </div>

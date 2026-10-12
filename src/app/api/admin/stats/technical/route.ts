@@ -3,7 +3,15 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireAuthUser } from "@/lib/request-auth"
 import { DASHBOARD_TECHNICAL_VIEW } from "@/lib/dashboard-permissions"
-import { TZ_INTERVAL, bucketFrame, localDateKey, merchantOptions, parsePeriod, pctChange } from "@/lib/dashboard-period"
+import {
+  TZ_INTERVAL,
+  bucketFrame,
+  localDateKey,
+  merchantOptions,
+  parsePeriod,
+  parseTransactionFilters,
+  pctChange,
+} from "@/lib/dashboard-period"
 
 /** A non-terminal payment older than this is reported as stuck. */
 const STUCK_AFTER_MS = 30 * 60 * 1000
@@ -43,13 +51,13 @@ export async function GET(request: Request) {
     const period = parsePeriod(params)
     if ("error" in period) return NextResponse.json({ error: period.error }, { status: 400 })
 
-    const merchantId = params.get("merchantId") || null
+    const { merchantId, paymentMethod, where: txFilter, sql: txSql } = parseTransactionFilters(params)
+    // Callbacks and cashback have no payment method, so they follow the merchant filter only.
     const merchantWhere = merchantId ? { merchantId } : {}
-    const merchantSql = merchantId ? Prisma.sql`AND "merchantId" = ${merchantId}` : Prisma.empty
-    const where: Prisma.TransactionWhereInput = { ...merchantWhere, timestamp: { gte: period.from, lt: period.to } }
+    const where: Prisma.TransactionWhereInput = { ...txFilter, timestamp: { gte: period.from, lt: period.to } }
     const now = new Date()
     const stuckWhere: Prisma.TransactionWhereInput = {
-      ...merchantWhere,
+      ...txFilter,
       status: { in: [...IN_FLIGHT] },
       timestamp: { gte: period.from, lt: new Date(Math.min(period.to.getTime(), now.getTime() - STUCK_AFTER_MS)) },
     }
@@ -79,7 +87,7 @@ export async function GET(request: Request) {
       merchants,
     ] = await Promise.all([
       periodTotals(where),
-      periodTotals({ ...merchantWhere, timestamp: { gte: period.prevFrom, lt: period.from } }),
+      periodTotals({ ...txFilter, timestamp: { gte: period.prevFrom, lt: period.from } }),
       prisma.$queryRaw<{ bucket: Date; volume: number | null; success: bigint; failed: bigint; total: bigint }[]>`
         SELECT date_trunc(${period.bucket}, "timestamp" + ${TZ_INTERVAL}::interval) AS bucket,
                SUM(CASE WHEN status = 'SUCCESS' THEN amount ELSE 0 END) AS volume,
@@ -87,7 +95,7 @@ export async function GET(request: Request) {
                COUNT(*) FILTER (WHERE status = 'FAILED') AS failed,
                COUNT(*) AS total
         FROM "Transaction"
-        WHERE "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${merchantSql}
+        WHERE "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${txSql}
         GROUP BY 1`,
       prisma.$queryRaw<{ hour: number; count: bigint; failed: bigint; volume: number | null }[]>`
         SELECT EXTRACT(HOUR FROM "timestamp" + ${TZ_INTERVAL}::interval)::int AS hour,
@@ -95,7 +103,7 @@ export async function GET(request: Request) {
                COUNT(*) FILTER (WHERE status = 'FAILED') AS failed,
                SUM(CASE WHEN status = 'SUCCESS' THEN amount ELSE 0 END) AS volume
         FROM "Transaction"
-        WHERE "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${merchantSql}
+        WHERE "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${txSql}
         GROUP BY 1`,
       prisma.transaction.groupBy({ by: ["paymentMethod", "status"], where, _sum: { amount: true }, _count: { _all: true } }),
       prisma.transaction.groupBy({
@@ -129,10 +137,10 @@ export async function GET(request: Request) {
       }),
       prisma.merchantCallbackQueue.groupBy({ by: ["status"], where: merchantWhere, _count: { _all: true } }),
       prisma.paymentReconciliationRequest.count({
-        where: { status: "PENDING", ...(merchantId ? { transaction: { merchantId } } : {}) },
+        where: { status: "PENDING", ...(merchantId || paymentMethod ? { transaction: txFilter } : {}) },
       }),
       prisma.mpgsReconciliationRequest.count({
-        where: { status: "PENDING", ...(merchantId ? { transaction: { merchantId } } : {}) },
+        where: { status: "PENDING", ...(merchantId || paymentMethod ? { transaction: txFilter } : {}) },
       }),
       prisma.cashbackTransaction.groupBy({
         by: ["status"],
@@ -221,7 +229,7 @@ export async function GET(request: Request) {
     const topPrev = top.length
       ? await prisma.transaction.groupBy({
           by: ["merchantId"],
-          where: { merchantId: { in: top.map((m) => m.id) }, status: "SUCCESS", timestamp: { gte: period.prevFrom, lt: period.from } },
+          where: { ...txFilter, merchantId: { in: top.map((m) => m.id) }, status: "SUCCESS", timestamp: { gte: period.prevFrom, lt: period.from } },
           _sum: { amount: true },
         })
       : []
@@ -230,6 +238,7 @@ export async function GET(request: Request) {
       ...m,
       count: m.success,
       share: current.volume ? (m.volume / current.volume) * 100 : 0,
+      previousVolume: prevById.get(m.id) ?? 0,
       change: pctChange(m.volume, prevById.get(m.id) ?? 0),
     }))
 
@@ -251,6 +260,7 @@ export async function GET(request: Request) {
         prevFrom: period.prevFrom,
       },
       merchant: merchantId ? { id: merchantId, name: info.get(merchantId)?.name ?? merchantId } : null,
+      paymentMethod,
       current: { ...current, newMerchants },
       previous: { ...previous, newMerchants: prevNewMerchants },
       changes: {

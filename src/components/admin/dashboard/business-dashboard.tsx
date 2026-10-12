@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
+  PAYMENT_METHOD_LABELS,
   exportBusinessWorkbook,
   formatPeriod,
   type BusinessStats,
@@ -17,7 +18,6 @@ import {
 } from "@/lib/admin-dashboard-export"
 import {
   ChartTooltip,
-  Delta,
   ErrorBanner,
   FilterBar,
   GOLD,
@@ -99,7 +99,7 @@ export function BusinessDashboard({
 
       <p className="px-1 text-xs text-[#6B7280]">
         {data
-          ? `${formatPeriod(data.period)} · ${data.merchant?.name ?? "All merchants"} · successful transactions only · change compared with the previous ${data.period.days} day${data.period.days === 1 ? "" : "s"}`
+          ? `${formatPeriod(data.period)} · ${data.merchant?.name ?? "All merchants"} · ${data.paymentMethod ? PAYMENT_METHOD_LABELS[data.paymentMethod] ?? data.paymentMethod : "All payment methods"} · successful transactions only`
           : "Loading…"}
       </p>
 
@@ -107,14 +107,25 @@ export function BusinessDashboard({
 
       {c && data ? (
         <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-3", loading && "opacity-60 transition-opacity")}>
-          <KpiTile size="lg" title="Amount collected" value={etb(c.amount)} delta={<Delta value={data.changes.amount} />} sub="vs previous period" icon={Banknote} />
-          <KpiTile size="lg" title="Successful transactions" value={int(c.successCount)} delta={<Delta value={data.changes.successCount} />} sub="vs previous period" icon={CheckCircle2} />
+          <KpiTile
+            size="lg"
+            title="Amount collected"
+            value={etb(c.amount)}
+            sub="Total from successful transactions"
+            icon={Banknote}
+          />
+          <KpiTile
+            size="lg"
+            title="Successful transactions"
+            value={int(c.successCount)}
+            sub="Payments completed and confirmed"
+            icon={CheckCircle2}
+          />
           <KpiTile
             size="lg"
             title="Merchants with sales"
             value={int(c.merchantsWithSales)}
-            delta={data.merchant ? undefined : <Delta value={data.changes.merchantsWithSales} />}
-            sub={data.merchant ? "Filtered to one merchant" : "vs previous period"}
+            sub={data.merchant ? "Filtered to one merchant" : "Merchants with at least one successful payment"}
             icon={Store}
           />
         </div>
