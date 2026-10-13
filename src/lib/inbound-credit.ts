@@ -68,6 +68,18 @@ function str(value: unknown, maxLength: number): string | null {
   return trimmed ? trimmed.slice(0, maxLength) : null
 }
 
+/** additionalData as an object — some senders post it as a JSON-encoded string. */
+export function parseAdditionalData(value: unknown): Record<string, any> {
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value)
+    } catch {
+      return {}
+    }
+  }
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, any>) : {}
+}
+
 export function normalizeInboundCredit(
   body: any
 ): { credit: InboundCredit; errors?: never } | { credit?: never; errors: Record<string, string> } {
@@ -75,7 +87,7 @@ export function normalizeInboundCredit(
   if (!body || typeof body !== "object") {
     return { errors: { body: "Expected a JSON object." } }
   }
-  const extra = body.additionalData && typeof body.additionalData === "object" ? body.additionalData : {}
+  const extra = parseAdditionalData(body.additionalData)
 
   const transactionId = str(body.transactionId, 64)
   if (!transactionId) errors.transactionId = "transactionId is required."
@@ -110,7 +122,7 @@ export function normalizeInboundCredit(
       currency: (str(body.currency, 3) ?? "ETB").toUpperCase(),
       payerPhone: str(body.mobileNumber, 20),
       payerAccount: str(extra.debitAccountNumber, 40),
-      payerName: str(extra.debitorName, 80),
+      payerName: str(extra.debitorName ?? extra.debtorName ?? body.debitorName, 80),
       payerBank: str(body.institution, 80),
       payerBankCode: str(extra.bankCode, 20),
       qrBillId: str(extra.qrBillId, 64),

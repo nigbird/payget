@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
-import { normalizeInboundCredit, recordInboundCredit } from "@/lib/inbound-credit"
+import { normalizeInboundCredit, parseAdditionalData, recordInboundCredit } from "@/lib/inbound-credit"
 
 /**
  * Core banking → us: "this merchant account was just credited".
@@ -47,6 +47,15 @@ export async function POST(request: Request) {
   }
 
   const { credit, errors } = normalizeInboundCredit(body)
+  // Key names only (no values) — shows what core banking actually sends, e.g.
+  // whether debitorName is present for the speaker's payer-name line.
+  console.info(
+    "[INBOUND-CREDIT] %s additionalData type=%s keys=[%s] payerName=%s",
+    credit?.transactionId ?? "invalid",
+    typeof (body as any)?.additionalData,
+    Object.keys(parseAdditionalData((body as any)?.additionalData)).join(","),
+    credit?.payerName ? "present" : "missing"
+  )
   if (!credit) {
     return NextResponse.json({ error: "Validation failed", errors }, { status: 400 })
   }
