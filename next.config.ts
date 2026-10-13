@@ -1,6 +1,8 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  // pino writes logs from a worker thread; it must load from node_modules, not the bundle.
+  serverExternalPackages: ['pino', 'pino-roll', 'thread-stream'],
   typescript: {
     ignoreBuildErrors: true,
   },
