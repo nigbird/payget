@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    console.log('[CALLBACK] Received raw body:', JSON.stringify(body, null, 2));
+    console.log('[CALLBACK] Received body with fields: %s', Object.keys(body ?? {}).join(', '));
     
     const { payload, salt, tag, cksum, pubkey: providerPubKey } = body;
     // Provider canonical field is transactionRef; keep legacy aliases for compatibility.

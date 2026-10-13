@@ -1,4 +1,5 @@
 import { safeJsonParse } from "@/lib/json-utils"
+import { maskAccount } from "@/lib/utils"
 import type { CashbackTransferProvider, CashbackTransferRequest, CashbackTransferResult } from "./transfer-provider"
 
 export type MerchantRefundResponse = {
@@ -74,7 +75,12 @@ export class MerchantRefundTransferProvider implements CashbackTransferProvider 
       amount: request.cashbackAmount,
     }
 
-    console.log("[MerchantRefundProvider] Request:", { url, body })
+    console.log("[MerchantRefundProvider] Request:", {
+      url,
+      debitAcctNumber: maskAccount(body.debitAcctNumber),
+      creditAcctNumber: maskAccount(body.creditAcctNumber),
+      amount: body.amount,
+    })
 
     try {
       const response = await fetch(url, {

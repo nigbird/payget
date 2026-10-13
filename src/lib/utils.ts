@@ -57,6 +57,15 @@ export function maskPhone(phone: string): string {
 }
 
 /**
+ * Masks a bank account number for logging, keeping the last 4 digits (e.g. *********5047)
+ */
+export function maskAccount(account: string | null | undefined): string {
+  const value = String(account ?? '').trim();
+  if (value.length <= 4) return '****';
+  return `${'*'.repeat(value.length - 4)}${value.slice(-4)}`;
+}
+
+/**
  * Masks a general identifier (email or phone)
  */
 export function maskIdentifier(identifier: string): string {

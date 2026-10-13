@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
     const receiptText = await receiptRes.text()
     console.log("[receipt] ← bank receipt status:", receiptRes.status)
-    console.log("[receipt] ← bank receipt body:", receiptText)
+    console.log("[receipt] ← bank receipt body length:", receiptText.length)
 
     if (!receiptRes.ok) {
       let err: any = {}
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     try {
       bankReceipt = JSON.parse(receiptText)
     } catch {
-      console.error("[receipt] bank receipt response is not valid JSON:", receiptText)
+      console.error("[receipt] bank receipt response is not valid JSON (length %d)", receiptText.length)
       return NextResponse.json({ error: "Bank returned invalid receipt data" }, { status: 502 })
     }
 
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       paymentChannel: "USSD Push",
     }
 
-    console.log("[receipt] → invoice request body:", JSON.stringify(invoiceData))
+    console.log("[receipt] → invoice request for:", invoiceData.invoiceId)
 
     // Step 3: Submit to invoice generator
     const invoiceRes = await fetch(`${invoiceBase}/api/invoice/`, {
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
 
     const invoiceText = await invoiceRes.text()
     console.log("[receipt] ← invoice service status:", invoiceRes.status)
-    console.log("[receipt] ← invoice service body:", invoiceText)
+    console.log("[receipt] ← invoice service body length:", invoiceText.length)
 
     if (!invoiceRes.ok) {
       let err: any = {}

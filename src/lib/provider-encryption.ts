@@ -455,8 +455,7 @@ export async function sendProviderPushPayment(
       password
     )
 
-    // Debug log to verify exactly what is sent to the provider transfer endpoint.
-    console.log("Sending encrypted payload to provider:", encryptedRequest)
+    console.log("Sending encrypted push request to provider")
 
     const response = await sendPushToProvider(encryptedRequest, baseUrl, username, password)
 

@@ -12,6 +12,7 @@ import { withMerchantSecret } from "@/lib/merchant-secret"
 import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
+import { maskAccount, maskPhone } from "@/lib/utils"
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null
@@ -154,7 +155,12 @@ export async function POST(request: Request) {
       merchantName: result.merchant.name,
     })
     
-    console.log("Starting provider push request...", providerPayload)
+    console.log("Starting provider push request...", {
+      transactionRef: providerPayload.transactionRef,
+      amount: providerPayload.amount,
+      customerPhone: maskPhone(providerPayload.customerPhone),
+      creditAccount: maskAccount(providerPayload.creditAccount),
+    })
 
     const providerResponse = await sendProviderPushPayment(providerPayload)
     console.log("Provider push response status:", providerResponse.statusCode)

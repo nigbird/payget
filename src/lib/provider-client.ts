@@ -93,12 +93,7 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
     const cleanBaseUrl = PROVIDER_BASE_URL.endsWith('/') ? PROVIDER_BASE_URL.slice(0, -1) : PROVIDER_BASE_URL
     const url = `${cleanBaseUrl}/push-payment/transfer`
     
-    console.log('Sending legacy push request to provider:', {
-      url,
-      payload: encryptedData.payload,
-      cksum: encryptedData.cksum,
-      pubkey: encryptedData.pubkey
-    });
+    console.log('Sending legacy push request to provider:', { url });
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -112,7 +107,7 @@ export async function sendProviderPushRequest(request: PushPaymentRequest): Prom
     });
 
     const text = await response.text();
-    console.log('Provider raw response (legacy flow):', text);
+    console.log('Provider response status (legacy flow):', response.status);
     let data: any;
     try {
       data = safeJsonParse(text);
