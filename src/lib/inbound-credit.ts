@@ -25,7 +25,8 @@ import { publishPaymentEvent } from "@/lib/payment-events"
  *     "additionalData": {
  *       "bankCode": "CBE-01",
  *       "qrBillId": "QR-BILL-554433",
- *       "debitAccountNumber": "1000123456789"         // payer's account
+ *       "debitAccountNumber": "1000123456789",        // payer's account
+ *       "debitorName": "Abebe Kebede"                // payer's account holder
  *     }
  *   }
  *
@@ -47,6 +48,10 @@ export type InboundCredit = {
   currency: string
   payerPhone: string | null
   payerAccount: string | null
+  /** Payer's account holder (`additionalData.debitorName`). Only shown on the
+   * sound device under the amount — not stored on the transaction, so external
+   * rows stay consistent with the rest of the transaction records. */
+  payerName: string | null
   /** Payer's bank name (`institution`). */
   payerBank: string | null
   payerBankCode: string | null
@@ -105,6 +110,7 @@ export function normalizeInboundCredit(
       currency: (str(body.currency, 3) ?? "ETB").toUpperCase(),
       payerPhone: str(body.mobileNumber, 20),
       payerAccount: str(extra.debitAccountNumber, 40),
+      payerName: str(extra.debitorName, 80),
       payerBank: str(body.institution, 80),
       payerBankCode: str(extra.bankCode, 20),
       qrBillId: str(extra.qrBillId, 64),
@@ -131,7 +137,8 @@ function announce(merchantId: string, transactionId: string, credit: InboundCred
     transactionId,
     amount: credit.amount,
     currency: credit.currency,
-    payerName: null,
+    // Shown under the amount on the speaker: who paid.
+    payerName: credit.payerName,
     // Shown beside the amount on the speaker: which bank the customer paid from.
     channel: credit.payerBank,
     reference: credit.transactionId,
