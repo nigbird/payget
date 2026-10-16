@@ -2,6 +2,7 @@ import crypto from "crypto"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { publishPaymentEvent } from "@/lib/payment-events"
+import { runPostSettlementEffects } from "@/lib/payment-settlement"
 
 /**
  * Credits to a merchant's account that did not start in this system — a
@@ -251,5 +252,8 @@ export async function recordInboundCredit(credit: InboundCredit): Promise<Inboun
   }
 
   announce(merchantId, transactionId, credit)
+  // Cashback goes by the payer's phone on the merchant's cashback list; the
+  // processor credits the account listed there, not the payer's debit account.
+  await runPostSettlementEffects(transactionId, "inbound_credit")
   return { status: "recorded", transactionId, merchantId }
 }

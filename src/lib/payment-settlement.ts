@@ -19,6 +19,7 @@ export type SettlementSource =
   | "admin_status_check"
   | "manual_ft_reconciliation"
   | "yagout_return"
+  | "inbound_credit"
 
 export type SettlementResult =
   | { ok: true; alreadyTerminal: boolean }
@@ -100,9 +101,9 @@ export async function settleTransaction(options: {
  * Merchant notification is not wired in yet — when it is, call
  * deliverMerchantCallback here and every settlement path picks it up at once.
  *
- * Exported for the Yagout rail, which records its own
- * gateway detail and so settle outside settleTransaction; they must still call
- * this or their customers never receive cashback.
+ * Exported for the Yagout rail and inbound core-banking credits, which record
+ * their own detail and so settle outside settleTransaction; they must still
+ * call this or their customers never receive cashback.
  */
 export async function runPostSettlementEffects(transactionId: string, source: SettlementSource) {
   const { processCashbackForSettlement } = await import("@/lib/cashback/processor")

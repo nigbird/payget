@@ -132,6 +132,8 @@ export interface Transaction {
    * see why a payment was held for reconciliation. */
   providerStatusCode?: string | null;
   providerStatusDesc?: string | null;
+  /** EXTERNAL for credits reported by core banking that this system did not initiate. */
+  origin?: 'INTERNAL' | 'EXTERNAL';
   /** Only populated when explicitly included (e.g. getTransactionsByMerchant). */
   items?: TransactionItemLine[];
   /** Only populated when explicitly included (e.g. getTransactionsByMerchant). Null until a merchant edits table/shift for this order's print ticket. */

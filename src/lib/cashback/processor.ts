@@ -42,12 +42,17 @@ function extractCustomerFromTransaction(tx: {
 async function resolveCustomerAccount(
   merchantId: string,
   tx: {
+    origin?: string | null
     payerPhone?: string | null
     payerAccount?: string | null
     userCredentials: unknown
   }
 ): Promise<{ phone: string | null; account: string | null }> {
   const customer = extractCustomerFromTransaction(tx)
+  // An external credit's payer account is the debit account at the payer's
+  // own bank, which the cashback transfer can't credit. Only the account
+  // listed against their phone on the merchant's cashback list is used.
+  if (tx.origin === "EXTERNAL") customer.account = null
   if (customer.account) return customer
 
   if (!customer.phone) return customer
@@ -242,7 +247,10 @@ export async function processCashbackForSettlement(paymentTransactionId: string)
         cashbackAmount,
         cashbackPercent: evaluation.percent,
         status: "FAILED",
-        failureReason: "Customer account not available from payment callback.",
+        failureReason:
+          tx.origin === "EXTERNAL"
+            ? "No account number on the cashback list for this customer's phone."
+            : "Customer account not available from payment callback.",
         subsidiaryAccount: config.subsidiaryAccountNumber,
         idempotencyKey: `cb-${tx.id}`,
         processedAt: new Date(),
