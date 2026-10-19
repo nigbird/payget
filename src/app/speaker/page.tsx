@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { Loader2, Volume2, VolumeX, Wifi, WifiOff, BellRing, Unplug, BellOff } from "lucide-react"
+import { Loader2, Volume2, VolumeX, Wifi, WifiOff, BellRing, Unplug, BellOff, Download, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   announcePayment,
   currentVoiceSource,
@@ -75,6 +76,43 @@ function writeStorage(key: string, value: string | null) {
   }
 }
 
+/** Chrome's install prompt (not in the DOM typings). */
+type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }
+
+/**
+ * Token from a pasted pairing link (https://<this server>/speaker#t=sdv_…) or a
+ * bare token. On iPhone a home-screen app doesn't share Safari's storage, so a
+ * pairing opened in Safari never reaches it: pasting the link is how it pairs.
+ */
+function tokenFromPairingInput(input: string): { token: string } | { error: string } {
+  const text = input.trim()
+  if (/^sdv_[A-Za-z0-9_-]+$/.test(text)) return { token: text }
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    return { error: "That isn't a pairing link. Copy the whole link from the merchant portal." }
+  }
+  // The token only works on the server that issued it.
+  if (url.host !== window.location.host) {
+    return { error: `This link is for a different server (${url.host}).` }
+  }
+  const match = url.hash.match(/[#&]t=([^&]+)/)
+  const token = match ? decodeURIComponent(match[1]) : ""
+  return token.startsWith("sdv_") ? { token } : { error: "This link has no pairing code in it." }
+}
+
+function isInstalledApp() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  )
+}
+
+function isIos() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+}
+
 function formatAmount(amount: number, currency: string) {
   return `${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
 }
@@ -93,6 +131,10 @@ export default function SpeakerPage() {
   const [transport, setTransport] = useState<"stream" | "polling">("stream")
   const [keepAlive, setKeepAlive] = useState<KeepAliveState>("off")
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
+  const [installHint, setInstallHint] = useState<"ios" | null>(null)
+  const [pairingInput, setPairingInput] = useState("")
+  const [pairingError, setPairingError] = useState<string | null>(null)
 
   const speechRef = useRef(speech)
   speechRef.current = speech
@@ -110,6 +152,43 @@ export default function SpeakerPage() {
     setSpeech(readStorage(SPEECH_STORAGE_KEY) !== "off")
     setLoaded(true)
   }, [])
+
+  // Offer to install the speaker as its own app (speaker-manifest.json).
+  useEffect(() => {
+    if (isInstalledApp()) return
+    if (isIos()) setInstallHint("ios") // Safari has no install prompt; explain Add to Home Screen.
+    const onPrompt = (event: Event) => {
+      event.preventDefault()
+      setInstallPrompt(event as InstallPromptEvent)
+    }
+    const onInstalled = () => setInstallPrompt(null)
+    window.addEventListener("beforeinstallprompt", onPrompt)
+    window.addEventListener("appinstalled", onInstalled)
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt)
+      window.removeEventListener("appinstalled", onInstalled)
+    }
+  }, [])
+
+  const install = async () => {
+    if (!installPrompt) return
+    await installPrompt.prompt()
+    await installPrompt.userChoice
+    setInstallPrompt(null)
+  }
+
+  const pairFromInput = () => {
+    const result = tokenFromPairingInput(pairingInput)
+    if ("error" in result) {
+      setPairingError(result.error)
+      return
+    }
+    writeStorage(TOKEN_STORAGE_KEY, result.token)
+    setToken(result.token)
+    setPairingInput("")
+    setPairingError(null)
+    setConnection("connecting")
+  }
 
   const unpair = useCallback(() => {
     writeStorage(TOKEN_STORAGE_KEY, null)
@@ -410,6 +489,17 @@ export default function SpeakerPage() {
     )
   }
 
+  const installUi = installPrompt ? (
+    <Button variant="outline" onClick={() => void install()} className="h-12 rounded-xl border-[#754319]/30 text-[#5b371f]">
+      <Download className="mr-2 h-5 w-5" /> Install the Nibtera Speaker app
+    </Button>
+  ) : installHint === "ios" ? (
+    <p className="max-w-sm text-sm text-[#754319]/80">
+      To install it as an app: tap <Share className="inline h-4 w-4 align-text-bottom" /> <strong>Share</strong>, then{" "}
+      <strong>Add to Home Screen</strong>. Open the speaker from its new icon and pair it there.
+    </p>
+  ) : null
+
   if (!token) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#fdf7ea] px-6 text-center">
@@ -417,8 +507,32 @@ export default function SpeakerPage() {
         <h1 className="text-2xl font-bold text-[#5b371f]">This device isn&apos;t paired</h1>
         <p className="max-w-md text-[#754319]/80">
           In the merchant portal, go to <strong>Configuration → Sound Devices</strong>, add a device, and open its
-          pairing link or scan its QR code on this device.
+          pairing link or scan its QR code on this device. Or paste the pairing link here:
         </p>
+        <form
+          className="flex w-full max-w-md flex-col gap-2 sm:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault()
+            pairFromInput()
+          }}
+        >
+          <Input
+            value={pairingInput}
+            onChange={(event) => {
+              setPairingInput(event.target.value)
+              setPairingError(null)
+            }}
+            placeholder="https://…/speaker#t=…"
+            autoComplete="off"
+            aria-label="Pairing link"
+            className="h-12 bg-white"
+          />
+          <Button type="submit" disabled={!pairingInput.trim()} className="h-12 bg-[#754319] px-6 text-white">
+            Pair
+          </Button>
+        </form>
+        {pairingError && <p className="text-sm text-red-700">{pairingError}</p>}
+        {installUi}
       </main>
     )
   }
@@ -438,6 +552,7 @@ export default function SpeakerPage() {
         >
           <Volume2 className="mr-2 h-6 w-6" /> Start speaker
         </Button>
+        {installUi}
       </main>
     )
   }

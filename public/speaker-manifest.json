@@ -1,0 +1,17 @@
+{
+  "id": "/speaker",
+  "name": "Nibtera Speaker",
+  "short_name": "Nib Speaker",
+  "description": "Announces every payment your shop receives",
+  "start_url": "/speaker",
+  "scope": "/speaker",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdf7ea",
+  "theme_color": "#754319",
+  "icons": [
+    { "src": "/speaker-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/speaker-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/speaker-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
