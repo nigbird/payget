@@ -1,4 +1,5 @@
 import { EventEmitter } from "events"
+import { pushPaymentEvent } from "@/lib/sound-device-push"
 
 /**
  * In-process fan-out of "payment received" events to a merchant's connected
@@ -63,6 +64,8 @@ export function publishPaymentEvent(event: Omit<PaymentEvent, "id">): PaymentEve
   h.recent.set(event.merchantId, recent.slice(-REPLAY_MAX_EVENTS))
 
   h.emitter.emit(event.merchantId, full)
+  // Also reaches speakers whose page is asleep (see lib/sound-device-push).
+  void pushPaymentEvent(full)
   return full
 }
 

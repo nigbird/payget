@@ -8,12 +8,14 @@ import { generateSoundDeviceToken, SOUND_DEVICE_NAME_MAX_LENGTH } from "@/lib/so
 /** Plenty for one shop's counters; stops a scripted loop minting unlimited tokens. */
 const MAX_ACTIVE_DEVICES_PER_MERCHANT = 20
 
-function toDto(d: { id: string; name: string; createdAt: Date; lastSeenAt: Date | null }) {
+function toDto(d: { id: string; name: string; createdAt: Date; lastSeenAt: Date | null; pushSubscription: unknown }) {
   return {
     id: d.id,
     name: d.name,
     createdAt: d.createdAt.toISOString(),
     lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
+    // Whether the device is notified of payments even while asleep (lib/sound-device-push).
+    pushEnabled: d.pushSubscription != null,
   }
 }
 

@@ -881,6 +881,9 @@ model SoundDevice {
   createdAt   DateTime  @default(now())
   lastSeenAt  DateTime?
   revokedAt   DateTime?
+  /// Web Push subscription (PushSubscription.toJSON()) of the browser paired
+  /// as this device, so it is notified of payments while asleep. See lib/sound-device-push.
+  pushSubscription Json?
 
   @@index([merchantId])
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireAuthUser, canAccessMerchant, isMerchantAccountAdmin } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
@@ -23,7 +24,7 @@ export async function DELETE(
 
   const { count } = await prisma.soundDevice.updateMany({
     where: { id: deviceId, merchantId, revokedAt: null },
-    data: { revokedAt: new Date() },
+    data: { revokedAt: new Date(), pushSubscription: Prisma.DbNull },
   })
   if (count === 0) {
     return NextResponse.json({ error: "Device not found" }, { status: 404 })

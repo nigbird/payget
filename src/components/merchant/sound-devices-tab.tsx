@@ -24,6 +24,7 @@ type SoundDeviceDto = {
   name: string
   createdAt: string
   lastSeenAt: string | null
+  pushEnabled: boolean
 }
 
 type Props = { merchantId: string; canManage: boolean }
@@ -175,6 +176,7 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
                     <p className="text-xs text-[#754319]/70">
                       Paired {new Date(d.createdAt).toLocaleDateString()} ·{" "}
                       {d.lastSeenAt ? `last connected ${new Date(d.lastSeenAt).toLocaleString()}` : "never connected"}
+                      {d.pushEnabled && " · notifications on"}
                     </p>
                   </div>
                   {canManage && (

@@ -13,6 +13,16 @@ import {
   unlockAudio,
   type VoiceSource,
 } from "@/lib/payment-announcer"
+import {
+  keepAliveState,
+  onKeepAliveChange,
+  resumeKeepAlive,
+  setKeepAliveMetadata,
+  startKeepAlive,
+  stopKeepAlive,
+  type KeepAliveState,
+} from "@/lib/speaker-keepalive"
+import { enablePaymentPush, type PushStatus } from "@/lib/speaker-push"
 
 /**
  * Counter speaker: a phone, tablet or PC left on at the till that announces
@@ -81,6 +91,8 @@ export default function SpeakerPage() {
   const [voiceSource, setVoiceSource] = useState<VoiceSource | null>(null)
   const [audioBlocked, setAudioBlocked] = useState(false)
   const [transport, setTransport] = useState<"stream" | "polling">("stream")
+  const [keepAlive, setKeepAlive] = useState<KeepAliveState>("off")
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
 
   const speechRef = useRef(speech)
   speechRef.current = speech
@@ -103,6 +115,7 @@ export default function SpeakerPage() {
     writeStorage(TOKEN_STORAGE_KEY, null)
     setToken(null)
     setStarted(false)
+    stopKeepAlive()
     setConnection("unpaired")
   }, [])
 
@@ -136,6 +149,22 @@ export default function SpeakerPage() {
       seen.add(payment.id)
       handlePayment(payment)
     }
+
+    // The service worker hands over pushed payments (public/sw.js) and asks
+    // whether we announced them aloud; if we did, its notification stays silent.
+    // A push can overtake the stream, so it must not move lastEventId: a
+    // reconnect would then skip earlier payments still in the replay window.
+    const onWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "nibtera-payment") return
+      const payment = event.data.payment as StreamPayment
+      if (!seen.has(payment.id)) {
+        seen.add(payment.id)
+        handlePayment(payment)
+      }
+      event.ports[0]?.postMessage({ announced: isAudioRunning() })
+    }
+    navigator.serviceWorker?.addEventListener("message", onWorkerMessage)
+    navigator.serviceWorker?.startMessages()
 
     const onReady = (ready: { deviceName: string; merchantName: string; cursor?: number }) => {
       attempt = 0
@@ -274,6 +303,7 @@ export default function SpeakerPage() {
       clearInterval(health)
       controller?.abort()
       window.removeEventListener("online", reconnectNow)
+      navigator.serviceWorker?.removeEventListener("message", onWorkerMessage)
     }
   }, [started, token, unpair, handlePayment])
 
@@ -310,6 +340,7 @@ export default function SpeakerPage() {
     }
     void check()
     const offState = onAudioStateChange(() => void check())
+    const offKeepAlive = onKeepAliveChange(() => setKeepAlive(keepAliveState()))
     const timer = setInterval(() => void check(), HEALTH_CHECK_MS)
     const onVisible = () => {
       if (document.visibilityState === "visible") void check()
@@ -323,6 +354,7 @@ export default function SpeakerPage() {
     document.addEventListener("pointerdown", onTap)
     return () => {
       offState()
+      offKeepAlive()
       clearInterval(timer)
       document.removeEventListener("visibilitychange", onVisible)
       document.removeEventListener("pointerdown", onTap)
@@ -347,8 +379,19 @@ export default function SpeakerPage() {
     return () => clearTimeout(t)
   }, [flash])
 
+  // What the phone's media notification and lock screen show for the keep-alive track.
+  useEffect(() => {
+    if (!started) return
+    setKeepAliveMetadata({ title: "Listening for payments", artist: info?.merchantName ?? "Nibtera payment speaker" })
+  }, [started, info?.merchantName])
+
   const start = () => {
+    // Audio, the keep-alive track and the notification prompt all need this tap.
     unlockAudio()
+    void startKeepAlive({ title: "Listening for payments", artist: "Nibtera payment speaker" }).then(() =>
+      setKeepAlive(keepAliveState())
+    )
+    if (token) void enablePaymentPush(token).then(setPushStatus)
     setStarted(true)
     void currentVoiceSource().then(setVoiceSource)
   }
@@ -411,6 +454,7 @@ export default function SpeakerPage() {
             {info?.deviceName}
             {voiceSource && (voiceSource === "recorded" ? " · Recorded Amharic voice" : " · Device voice")}
             {transport === "polling" && connection === "live" && " · Compatibility mode"}
+            {pushStatus === "enabled" && " · Notifications on"}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -443,6 +487,28 @@ export default function SpeakerPage() {
           <BellOff className="h-4 w-4" />
           Sound was paused by the browser — tap here to turn it back on
         </button>
+      )}
+
+      {/* Not resumed automatically: another app (the merchant's music) may hold the sound. */}
+      {!audioBlocked && keepAlive !== "playing" && keepAlive !== "off" && (
+        <button
+          type="button"
+          onClick={() => void resumeKeepAlive().then(() => setKeepAlive(keepAliveState()))}
+          className="flex w-full items-center justify-center gap-2 bg-amber-500 px-4 py-3 text-sm font-semibold text-white"
+        >
+          <BellOff className="h-4 w-4 shrink-0" />
+          {keepAlive === "interrupted"
+            ? "Another app is using the sound. With the screen off, payments may only show as notifications. Tap to resume"
+            : "Background mode is paused. With the screen off, payments may only show as notifications. Tap to resume"}
+        </button>
+      )}
+
+      {(pushStatus === "denied" || pushStatus === "unsupported") && (
+        <p className="bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">
+          {pushStatus === "denied"
+            ? "Notifications are blocked for this site. Allow them in the browser's site settings so payments still alert this phone while it sleeps."
+            : "This browser can't alert you while the screen is off. On iPhone, add this page to the Home Screen and open it from there."}
+        </p>
       )}
 
       <section className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
