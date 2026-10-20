@@ -77,3 +77,23 @@ export async function enablePaymentPush(deviceToken: string): Promise<PushStatus
     return "error"
   }
 }
+
+/** Stops payment notifications on this device ("Payment notifications" switched off). */
+export async function disablePaymentPush(deviceToken: string): Promise<void> {
+  try {
+    await fetch("/api/devices/push-subscription", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${deviceToken}` },
+    })
+    const registration = await navigator.serviceWorker?.getRegistration("/")
+    await (await registration?.pushManager.getSubscription())?.unsubscribe()
+  } catch (err) {
+    console.warn("[speaker] Turning off push failed:", err)
+  }
+}
+
+/** Notification permission as the Setup card shows it. */
+export function notificationPermission(): NotificationPermission | "unsupported" {
+  if (typeof window === "undefined" || !("Notification" in window) || !("PushManager" in window)) return "unsupported"
+  return Notification.permission
+}

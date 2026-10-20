@@ -1,18 +1,16 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import Image from "next/image"
-import { Loader2, Volume2, VolumeX, Wifi, WifiOff, BellRing, Unplug, BellOff, Download, Share } from "lucide-react"
+import { Download, Loader2, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   announcePayment,
-  currentVoiceSource,
   ensureAudioRunning,
   isAudioRunning,
   onAudioStateChange,
+  playOfflineWarning,
   unlockAudio,
-  type VoiceSource,
+  voiceDescription,
 } from "@/lib/payment-announcer"
 import {
   keepAliveState,
@@ -23,7 +21,20 @@ import {
   stopKeepAlive,
   type KeepAliveState,
 } from "@/lib/speaker-keepalive"
-import { enablePaymentPush, type PushStatus } from "@/lib/speaker-push"
+import {
+  disablePaymentPush,
+  enablePaymentPush,
+  notificationPermission,
+  type PushStatus,
+} from "@/lib/speaker-push"
+import { getSpeakerSettings, updateSpeakerSettings, useSpeakerSettings } from "@/lib/speaker-settings"
+import { clearPin, hasPin } from "@/lib/speaker-pin"
+import { PairScreen } from "./_components/pair-screen"
+import { PinDialog, SetPinScreen } from "./_components/pin"
+import { SettingsScreen } from "./_components/settings-screen"
+import { SetupCard, SetupItems, type SetupState } from "./_components/setup"
+import { StatusScreen } from "./_components/status-screen"
+import type { ConnectionState, Payment } from "./_components/ui"
 
 /**
  * Counter speaker: a phone, tablet or PC left on at the till that announces
@@ -31,10 +42,14 @@ import { enablePaymentPush, type PushStatus } from "@/lib/speaker-push"
  * (Configuration → Sound Devices), which opens /speaker#t=<device token>.
  * The token lives in this browser's localStorage and is independent of any
  * merchant login, so the page keeps working through session timeouts.
+ *
+ * Same screens and behaviour as the Android app (nibtera_speaker): Pair, a PIN,
+ * Status, Settings. It starts by itself when opened; an installed app may play
+ * sound straight away, a browser tab after the first tap.
  */
 
 const TOKEN_STORAGE_KEY = "nibtera.soundDeviceToken"
-const SPEECH_STORAGE_KEY = "nibtera.soundDeviceSpeech"
+const RECENT_STORAGE_KEY = "nibtera.speakerRecent"
 const MAX_BACKOFF_MS = 30 * 1000
 const RECENT_LIMIT = 20
 /** The server pings every 20 s (api/devices/payment-stream). Silence for longer
@@ -46,18 +61,16 @@ const HEALTH_CHECK_MS = 10 * 1000
 const STREAM_READY_TIMEOUT_MS = 8 * 1000
 /** Polling interval when the stream can't get through. */
 const POLL_INTERVAL_MS = 3 * 1000
+/** Without a connection this long, the speaker shows "Offline" and warns once. */
+const OFFLINE_AFTER_MS = 30 * 1000
 
-type StreamPayment = {
-  id: number
-  type: "payment" | "test"
-  amount: number
-  currency: string
-  payerName: string | null
-  channel: string | null
-  occurredAt: string
-}
+type StreamPayment = Omit<Payment, "receivedAt">
 
-type ConnectionState = "connecting" | "live" | "reconnecting" | "unpaired"
+/** Chrome's install prompt (not in the DOM typings). */
+type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }
+
+/** A PIN-protected action waiting for the PIN. */
+type PinAction = { kind: "unpair" } | { kind: "change" } | { kind: "replace"; token: string }
 
 function readStorage(key: string): string | null {
   try {
@@ -76,8 +89,14 @@ function writeStorage(key: string, value: string | null) {
   }
 }
 
-/** Chrome's install prompt (not in the DOM typings). */
-type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }
+function readRecent(): Payment[] {
+  try {
+    const parsed = JSON.parse(readStorage(RECENT_STORAGE_KEY) ?? "[]")
+    return Array.isArray(parsed) ? parsed.slice(0, RECENT_LIMIT) : []
+  } catch {
+    return []
+  }
+}
 
 /**
  * Token from a pasted pairing link (https://<this server>/speaker#t=sdv_…) or a
@@ -113,55 +132,77 @@ function isIos() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
 }
 
-function formatAmount(amount: number, currency: string) {
-  return `${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
-}
-
 export default function SpeakerPage() {
+  const settings = useSpeakerSettings()
   const [token, setToken] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
-  const [started, setStarted] = useState(false)
-  const [speech, setSpeech] = useState(true)
-  const [connection, setConnection] = useState<ConnectionState>("connecting")
-  const [info, setInfo] = useState<{ deviceName: string; merchantName: string } | null>(null)
-  const [recent, setRecent] = useState<StreamPayment[]>([])
-  const [flash, setFlash] = useState<StreamPayment | null>(null)
-  const [voiceSource, setVoiceSource] = useState<VoiceSource | null>(null)
-  const [audioBlocked, setAudioBlocked] = useState(false)
+  const [pinSet, setPinSet] = useState(false)
+  const [pinAction, setPinAction] = useState<PinAction | null>(null)
+  const [view, setView] = useState<"status" | "settings">("status")
+  const [baseConnection, setBaseConnection] = useState<"connecting" | "live" | "reconnecting">("connecting")
   const [transport, setTransport] = useState<"stream" | "polling">("stream")
+  const [offline, setOffline] = useState(false)
+  const [info, setInfo] = useState<{ deviceName: string; merchantName: string } | null>(null)
+  const [recent, setRecent] = useState<Payment[]>([])
+  const [voice, setVoice] = useState<string | null>(null)
+  const [audioBlocked, setAudioBlocked] = useState(false)
   const [keepAlive, setKeepAlive] = useState<KeepAliveState>("off")
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default")
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
-  const [installHint, setInstallHint] = useState<"ios" | null>(null)
-  const [pairingInput, setPairingInput] = useState("")
+  const [env, setEnv] = useState({ installed: false, ios: false, samsung: false })
   const [pairingError, setPairingError] = useState<string | null>(null)
 
-  const speechRef = useRef(speech)
-  speechRef.current = speech
+  const active = !!token
 
   // Pick up a fresh pairing from the link's #fragment (never sent to the
   // server or written to access logs), then drop it from the address bar.
+  // Replacing an existing pairing needs the PIN, so a link someone else sends
+  // can't move the speaker to another merchant account.
   useEffect(() => {
+    const existing = readStorage(TOKEN_STORAGE_KEY)
     const match = window.location.hash.match(/[#&]t=([^&]+)/)
-    if (match) {
-      const fresh = decodeURIComponent(match[1])
+    if (match) history.replaceState(null, "", window.location.pathname)
+    const fresh = match ? decodeURIComponent(match[1]) : null
+
+    if (fresh && existing && fresh !== existing && hasPin()) {
+      setToken(existing)
+      setPinAction({ kind: "replace", token: fresh })
+    } else if (fresh && fresh !== existing) {
       writeStorage(TOKEN_STORAGE_KEY, fresh)
-      history.replaceState(null, "", window.location.pathname)
+      writeStorage(RECENT_STORAGE_KEY, null)
+      clearPin()
+      setToken(fresh)
+    } else {
+      setToken(existing)
     }
-    setToken(readStorage(TOKEN_STORAGE_KEY))
-    setSpeech(readStorage(SPEECH_STORAGE_KEY) !== "off")
+    setPinSet(hasPin())
+    setRecent(readRecent())
+    setPermission(notificationPermission())
+    setEnv({ installed: isInstalledApp(), ios: isIos(), samsung: /SM-|Samsung/i.test(navigator.userAgent) })
+    // Chrome hides the phone model from the user agent; ask for it (Samsung guide).
+    const uaData = (navigator as Navigator & {
+      userAgentData?: { getHighEntropyValues: (hints: string[]) => Promise<{ model?: string }> }
+    }).userAgentData
+    uaData
+      ?.getHighEntropyValues(["model"])
+      .then(({ model }) => {
+        if (model && /^SM-/i.test(model)) setEnv((e) => ({ ...e, samsung: true }))
+      })
+      .catch(() => {})
     setLoaded(true)
   }, [])
 
   // Offer to install the speaker as its own app (speaker-manifest.json).
   useEffect(() => {
-    if (isInstalledApp()) return
-    if (isIos()) setInstallHint("ios") // Safari has no install prompt; explain Add to Home Screen.
     const onPrompt = (event: Event) => {
       event.preventDefault()
       setInstallPrompt(event as InstallPromptEvent)
     }
-    const onInstalled = () => setInstallPrompt(null)
+    const onInstalled = () => {
+      setInstallPrompt(null)
+      setEnv((e) => ({ ...e, installed: true }))
+    }
     window.addEventListener("beforeinstallprompt", onPrompt)
     window.addEventListener("appinstalled", onInstalled)
     return () => {
@@ -177,41 +218,77 @@ export default function SpeakerPage() {
     setInstallPrompt(null)
   }
 
-  const pairFromInput = () => {
-    const result = tokenFromPairingInput(pairingInput)
-    if ("error" in result) {
-      setPairingError(result.error)
-      return
-    }
+  const forget = useCallback(() => {
+    writeStorage(TOKEN_STORAGE_KEY, null)
+    writeStorage(RECENT_STORAGE_KEY, null)
+    clearPin()
+    stopKeepAlive()
+    setToken(null)
+    setPinSet(false)
+    setRecent([])
+    setInfo(null)
+    setView("status")
+    setBaseConnection("connecting")
+  }, [])
+
+  /** The device was removed in the portal: forget everything, including the PIN. */
+  const onRevoked = useCallback(() => {
+    void navigator.serviceWorker
+      ?.getRegistration("/")
+      .then((r) => r?.pushManager.getSubscription())
+      .then((s) => s?.unsubscribe())
+      .catch(() => {})
+    forget()
+  }, [forget])
+
+  const pairWithLink = (link: string) => {
+    const result = tokenFromPairingInput(link)
+    if ("error" in result) return setPairingError(result.error)
     writeStorage(TOKEN_STORAGE_KEY, result.token)
-    setToken(result.token)
-    setPairingInput("")
+    clearPin()
+    setPinSet(false)
     setPairingError(null)
-    setConnection("connecting")
+    setToken(result.token)
   }
 
-  const unpair = useCallback(() => {
-    writeStorage(TOKEN_STORAGE_KEY, null)
-    setToken(null)
-    setStarted(false)
-    stopKeepAlive()
-    setConnection("unpaired")
+  const handlePayment = useCallback((payment: StreamPayment) => {
+    setRecent((prev) => {
+      if (prev.some((p) => p.id === payment.id)) return prev
+      const next = [{ ...payment, receivedAt: Date.now() }, ...prev].slice(0, RECENT_LIMIT)
+      writeStorage(RECENT_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+    const { paymentSound, soundOnly } = getSpeakerSettings()
+    void announcePayment(payment.amount, payment.currency, { sound: paymentSound, speech: !soundOnly })
   }, [])
 
-  const handlePayment = useCallback((payment: StreamPayment) => {
-    setRecent((prev) =>
-      prev.some((p) => p.id === payment.id) ? prev : [payment, ...prev].slice(0, RECENT_LIMIT)
+  // Start by itself whenever the page opens paired. Audio and the keep-alive
+  // track play straight away in an installed app; in a browser tab they wait
+  // for the first tap (see the tap handler below).
+  useEffect(() => {
+    if (!token) return
+    unlockAudio()
+    void startKeepAlive({ title: "Listening for payments", artist: "Nibtera Speaker" }).then(() =>
+      setKeepAlive(keepAliveState())
     )
-    setFlash(payment)
-    void announcePayment(payment.amount, payment.currency, { speech: speechRef.current })
-  }, [])
+    void voiceDescription().then(setVoice)
+    // Re-sync the push subscription; the permission prompt itself needs a tap (Setup card).
+    if (notificationPermission() === "granted" && getSpeakerSettings().paymentNotifications) {
+      void enablePaymentPush(token).then(setPushStatus)
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (!token) return
+    setKeepAliveMetadata({ title: "Listening for payments", artist: info?.merchantName ?? "Nibtera Speaker" })
+  }, [token, info?.merchantName])
 
   // Receiving payments. Prefer the live stream (instant); fall back to polling
   // when the network holds the stream back. fetch() rather than EventSource
   // because EventSource can't send an Authorization header, and the token must
   // not go in the URL.
   useEffect(() => {
-    if (!started || !token) return
+    if (!token) return
 
     let stopped = false
     let controller: AbortController | null = null
@@ -219,7 +296,7 @@ export default function SpeakerPage() {
     let attempt = 0
     let lastDataAt = Date.now()
     let usePolling = false
-    const seen = new Set<number>()
+    const seen = new Set<number>(readRecent().map((p) => p.id))
     const auth = { Authorization: `Bearer ${token}` }
 
     const deliver = (payment: StreamPayment) => {
@@ -247,7 +324,7 @@ export default function SpeakerPage() {
 
     const onReady = (ready: { deviceName: string; merchantName: string; cursor?: number }) => {
       attempt = 0
-      setConnection("live")
+      setBaseConnection("live")
       setInfo({ deviceName: ready.deviceName, merchantName: ready.merchantName })
       // Without a position, a speaker that drops before its first payment would
       // reconnect without Last-Event-ID and miss everything published while away.
@@ -337,16 +414,16 @@ export default function SpeakerPage() {
       while (!stopped) {
         controller = new AbortController()
         lastDataAt = Date.now()
-        if (attempt > 0) setConnection("reconnecting")
+        if (attempt > 0) setBaseConnection("reconnecting")
 
         if (!usePolling) {
           setTransport("stream")
-          if (!(await streamOnce())) return unpair()
+          if (!(await streamOnce())) return onRevoked()
           if (stopped) return
           if (usePolling) continue // stream was held back: go straight to polling
         } else {
           try {
-            if (!(await pollOnce())) return unpair()
+            if (!(await pollOnce())) return onRevoked()
             await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
             continue
           } catch {
@@ -355,7 +432,7 @@ export default function SpeakerPage() {
         }
 
         attempt += 1
-        setConnection("reconnecting")
+        setBaseConnection("reconnecting")
         const delay = Math.min(1000 * 2 ** Math.min(attempt, 5), MAX_BACKOFF_MS)
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
@@ -384,15 +461,40 @@ export default function SpeakerPage() {
       window.removeEventListener("online", reconnectNow)
       navigator.serviceWorker?.removeEventListener("message", onWorkerMessage)
     }
-  }, [started, token, unpair, handlePayment])
+  }, [token, onRevoked, handlePayment])
+
+  // "Offline" after 30 s without a connection, with one warning tone (Settings → Warn when offline).
+  const offlineSince = useRef<number | null>(null)
+  const warned = useRef(false)
+  useEffect(() => {
+    if (!token) return
+    if (baseConnection === "live") {
+      offlineSince.current = null
+      warned.current = false
+      setOffline(false)
+      return
+    }
+    offlineSince.current ??= Date.now()
+    const check = () => {
+      if (offlineSince.current === null || Date.now() - offlineSince.current < OFFLINE_AFTER_MS) return
+      setOffline(true)
+      if (!warned.current && getSpeakerSettings().offlineWarning) {
+        warned.current = true
+        void playOfflineWarning()
+      }
+    }
+    check()
+    const timer = setInterval(check, 5000)
+    return () => clearInterval(timer)
+  }, [token, baseConnection])
 
   // Keep the screen (and therefore the page) awake while running.
   useEffect(() => {
-    if (!started || !("wakeLock" in navigator)) return
-    let lock: any = null
+    if (!active || !("wakeLock" in navigator)) return
+    let lock: WakeLockSentinel | null = null
     const acquire = async () => {
       try {
-        lock = await (navigator as any).wakeLock.request("screen")
+        lock = await navigator.wakeLock.request("screen")
       } catch {
         // denied (battery saver etc.) — the stream still works while the screen is on
       }
@@ -404,18 +506,19 @@ export default function SpeakerPage() {
     document.addEventListener("visibilitychange", onVisible)
     return () => {
       document.removeEventListener("visibilitychange", onVisible)
-      void lock?.release?.()
+      void lock?.release()
     }
-  }, [started])
+  }, [active])
 
   // Keep audio alive. The browser can suspend it silently at any time; try to
   // resume on our own, and if it insists on a tap, say so on screen instead of
   // letting payments go unannounced.
   useEffect(() => {
-    if (!started) return
+    if (!active) return
     const check = async () => {
       const running = isAudioRunning() || (await ensureAudioRunning())
       setAudioBlocked(!running)
+      setKeepAlive(keepAliveState())
     }
     void check()
     const offState = onAudioStateChange(() => void check())
@@ -424,9 +527,12 @@ export default function SpeakerPage() {
     const onVisible = () => {
       if (document.visibilityState === "visible") void check()
     }
-    // Any tap on the page is a gesture the browser accepts for resuming audio.
+    // Any tap is a gesture the browser accepts for audio. It also starts the
+    // keep-alive track if the browser refused it without one, but never takes
+    // the sound back from another app (that needs the explicit banner).
     const onTap = () => {
       unlockAudio()
+      if (keepAliveState() === "blocked") void resumeKeepAlive()
       void check()
     }
     document.addEventListener("visibilitychange", onVisible)
@@ -438,63 +544,73 @@ export default function SpeakerPage() {
       document.removeEventListener("visibilitychange", onVisible)
       document.removeEventListener("pointerdown", onTap)
     }
-  }, [started])
+  }, [active])
 
   // Holding a Web Lock tells Chrome this page is doing live work, so its
   // Memory Saver / tab freezing leaves it alone. Released when the speaker stops.
   useEffect(() => {
-    if (!started || !("locks" in navigator)) return
+    if (!active || !("locks" in navigator)) return
     let release: () => void = () => {}
     const held = new Promise<void>((resolve) => {
       release = resolve
     })
     navigator.locks.request("nibtera-payment-speaker", () => held).catch(() => {})
     return () => release()
-  }, [started])
+  }, [active])
 
-  useEffect(() => {
-    if (!flash) return
-    const t = setTimeout(() => setFlash(null), 6000)
-    return () => clearTimeout(t)
-  }, [flash])
-
-  // What the phone's media notification and lock screen show for the keep-alive track.
-  useEffect(() => {
-    if (!started) return
-    setKeepAliveMetadata({ title: "Listening for payments", artist: info?.merchantName ?? "Nibtera payment speaker" })
-  }, [started, info?.merchantName])
-
-  const start = () => {
-    // Audio, the keep-alive track and the notification prompt all need this tap.
-    unlockAudio()
-    void startKeepAlive({ title: "Listening for payments", artist: "Nibtera payment speaker" }).then(() =>
-      setKeepAlive(keepAliveState())
-    )
-    if (token) void enablePaymentPush(token).then(setPushStatus)
-    setStarted(true)
-    void currentVoiceSource().then(setVoiceSource)
+  const allowNotifications = async () => {
+    if (!token) return
+    updateSpeakerSettings({ paymentNotifications: true })
+    setPushStatus(await enablePaymentPush(token))
+    setPermission(notificationPermission())
   }
 
-  const toggleSpeech = () => {
-    const next = !speech
-    setSpeech(next)
-    writeStorage(SPEECH_STORAGE_KEY, next ? "on" : "off")
+  const togglePaymentNotifications = async (on: boolean) => {
+    if (!token) return
+    if (on) return allowNotifications()
+    updateSpeakerSettings({ paymentNotifications: false })
+    await disablePaymentPush(token)
+    setPushStatus(null)
+  }
+
+  const runPinAction = async (action: PinAction) => {
+    setPinAction(null)
+    if (action.kind === "change") {
+      clearPin()
+      setPinSet(false) // the Set PIN screen takes over
+    } else if (action.kind === "unpair") {
+      if (token) await disablePaymentPush(token)
+      forget()
+    } else {
+      // Paired with another link: a new device, so a new PIN and history.
+      writeStorage(TOKEN_STORAGE_KEY, action.token)
+      writeStorage(RECENT_STORAGE_KEY, null)
+      clearPin()
+      setPinSet(false)
+      setRecent([])
+      setInfo(null)
+      setToken(action.token)
+    }
   }
 
   if (!loaded) {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-[#fdf7ea]">
+      <main className="flex min-h-dvh items-center justify-center bg-[#FFF9ED]">
         <Loader2 className="h-8 w-8 animate-spin text-[#754319]" />
       </main>
     )
   }
 
-  const installUi = installPrompt ? (
-    <Button variant="outline" onClick={() => void install()} className="h-12 rounded-xl border-[#754319]/30 text-[#5b371f]">
+  const installUi = env.installed ? null : installPrompt ? (
+    <Button
+      variant="outline"
+      onClick={() => void install()}
+      className="h-12 w-full rounded-[14px] border-[#CDBBA5] bg-white text-[#5B371F]"
+    >
       <Download className="mr-2 h-5 w-5" /> Install the Nibtera Speaker app
     </Button>
-  ) : installHint === "ios" ? (
-    <p className="max-w-sm text-sm text-[#754319]/80">
+  ) : env.ios ? (
+    <p className="text-sm text-[#8A7565]">
       To install it as an app: tap <Share className="inline h-4 w-4 align-text-bottom" /> <strong>Share</strong>, then{" "}
       <strong>Add to Home Screen</strong>. Open the speaker from its new icon and pair it there.
     </p>
@@ -502,176 +618,128 @@ export default function SpeakerPage() {
 
   if (!token) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#fdf7ea] px-6 text-center">
-        <Unplug className="h-12 w-12 text-[#754319]" />
-        <h1 className="text-2xl font-bold text-[#5b371f]">This device isn&apos;t paired</h1>
-        <p className="max-w-md text-[#754319]/80">
-          In the merchant portal, go to <strong>Configuration → Sound Devices</strong>, add a device, and open its
-          pairing link or scan its QR code on this device. Or paste the pairing link here:
-        </p>
-        <form
-          className="flex w-full max-w-md flex-col gap-2 sm:flex-row"
-          onSubmit={(event) => {
-            event.preventDefault()
-            pairFromInput()
-          }}
-        >
-          <Input
-            value={pairingInput}
-            onChange={(event) => {
-              setPairingInput(event.target.value)
-              setPairingError(null)
-            }}
-            placeholder="https://…/speaker#t=…"
-            autoComplete="off"
-            aria-label="Pairing link"
-            className="h-12 bg-white"
-          />
-          <Button type="submit" disabled={!pairingInput.trim()} className="h-12 bg-[#754319] px-6 text-white">
-            Pair
-          </Button>
-        </form>
-        {pairingError && <p className="text-sm text-red-700">{pairingError}</p>}
-        {installUi}
-      </main>
+      <PairScreen
+        onPair={pairWithLink}
+        error={pairingError}
+        onClearError={() => setPairingError(null)}
+        install={installUi}
+      />
     )
   }
 
-  if (!started) {
-    return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-[#fdf7ea] px-6 text-center">
-        <Image src="/niblogo.png" alt="" width={72} height={72} />
-        <h1 className="text-2xl font-bold text-[#5b371f]">Payment speaker</h1>
-        <p className="max-w-md text-[#754319]/80">
-          Tap start to begin announcing payments. Keep this page open and the volume up.
-        </p>
-        <Button
-          size="lg"
-          onClick={start}
-          className="h-16 rounded-2xl bg-gradient-to-r from-[#f8b513] to-[#754319] px-10 text-lg font-semibold text-white"
-        >
-          <Volume2 className="mr-2 h-6 w-6" /> Start speaker
-        </Button>
-        {installUi}
-      </main>
-    )
+  if (!pinSet) {
+    return <SetPinScreen onSaved={() => setPinSet(true)} />
   }
 
-  const statusLabel =
-    connection === "live" ? "Listening" : connection === "connecting" ? "Connecting…" : "Reconnecting…"
+  const notificationsState: SetupState["notifications"] = !settings.paymentNotifications
+    ? "off"
+    : permission === "unsupported"
+      ? "unsupported"
+      : permission === "denied"
+        ? "denied"
+        : permission === "granted" && pushStatus === "enabled"
+          ? "enabled"
+          : "allow"
+  const setupState: SetupState = {
+    installed: env.installed,
+    canInstall: !!installPrompt,
+    ios: env.ios,
+    samsung: env.samsung,
+    notifications: notificationsState,
+    backgroundGuideDone: settings.backgroundGuideDone,
+  }
+  const setupProps = {
+    state: setupState,
+    onInstall: () => void install(),
+    onAllowNotifications: () => void allowNotifications(),
+    onBackgroundDone: () => updateSpeakerSettings({ backgroundGuideDone: true }),
+  }
+
+  const connection: ConnectionState = offline
+    ? "offline"
+    : baseConnection === "live"
+      ? transport === "polling"
+        ? "polling"
+        : "live"
+      : baseConnection
+  const merchantName = info?.merchantName ?? ""
+  const deviceName = info?.deviceName ?? ""
+  const host = window.location.host
+
+  const pinDialog =
+    pinAction &&
+    (pinAction.kind === "unpair" ? (
+      <PinDialog
+        title="Unpair this phone?"
+        message={
+          `This phone will stop announcing payments for ${merchantName || "this merchant"}. ` +
+          "To pair again you'll need a new code from the merchant portal. To also remove it from the portal, " +
+          "delete it under Configuration → Sound Devices.\n\n" +
+          "Enter the PIN to unpair. Forgot it? Delete this device in the portal; the phone then unpairs itself."
+        }
+        confirmLabel="Unpair"
+        danger
+        onSuccess={() => void runPinAction(pinAction)}
+        onCancel={() => setPinAction(null)}
+      />
+    ) : pinAction.kind === "change" ? (
+      <PinDialog
+        title="Change PIN"
+        message="Enter the current PIN, then choose a new one."
+        confirmLabel="Next"
+        onSuccess={() => void runPinAction(pinAction)}
+        onCancel={() => setPinAction(null)}
+      />
+    ) : (
+      <PinDialog
+        title="Pair with a different link?"
+        message={
+          `This phone is paired to ${merchantName || "a merchant"}. Opening a new pairing link moves it to ` +
+          "another device in the portal, possibly another merchant.\n\nEnter the PIN to switch. Cancel keeps the current pairing."
+        }
+        confirmLabel="Switch"
+        danger
+        onSuccess={() => void runPinAction(pinAction)}
+        onCancel={() => setPinAction(null)}
+      />
+    ))
 
   return (
-    <main className="flex min-h-dvh flex-col bg-[#fdf7ea]">
-      <header className="flex items-center justify-between gap-3 border-b border-[#754319]/10 bg-white/70 px-4 py-3">
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-[#5b371f]">{info?.merchantName ?? "Payment speaker"}</p>
-          <p className="truncate text-xs text-[#754319]/70">
-            {info?.deviceName}
-            {voiceSource && (voiceSource === "recorded" ? " · Recorded Amharic voice" : " · Device voice")}
-            {transport === "polling" && connection === "live" && " · Compatibility mode"}
-            {pushStatus === "enabled" && " · Notifications on"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-              connection === "live" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-            }`}
-          >
-            {connection === "live" ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-            {statusLabel}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleSpeech}
-            title={speech ? "Chime and voice" : "Chime only"}
-            aria-label={speech ? "Switch to chime only" : "Switch to chime and voice"}
-          >
-            {speech ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          </Button>
-        </div>
-      </header>
-
-      {audioBlocked && (
-        <button
-          type="button"
-          onClick={() => unlockAudio()}
-          className="flex w-full items-center justify-center gap-2 bg-red-600 px-4 py-3 text-sm font-semibold text-white"
-        >
-          <BellOff className="h-4 w-4" />
-          Sound was paused by the browser — tap here to turn it back on
-        </button>
+    <>
+      {view === "settings" ? (
+        <SettingsScreen
+          settings={{ ...settings, paymentNotifications: notificationsState === "enabled" }}
+          onChange={updateSpeakerSettings}
+          onTogglePaymentNotifications={(on) => void togglePaymentNotifications(on)}
+          notificationsAvailable={permission !== "unsupported"}
+          voice={voice}
+          onTestSound={() => {
+            unlockAudio()
+            void announcePayment(1, "ETB", { sound: settings.paymentSound, speech: !settings.soundOnly })
+          }}
+          setup={<SetupItems {...setupProps} showDone />}
+          merchantName={merchantName}
+          deviceName={deviceName}
+          host={host}
+          onChangePin={() => setPinAction({ kind: "change" })}
+          onUnpair={() => setPinAction({ kind: "unpair" })}
+          onBack={() => setView("status")}
+        />
+      ) : (
+        <StatusScreen
+          merchantName={merchantName}
+          deviceName={deviceName}
+          host={host}
+          connection={connection}
+          soundBlocked={audioBlocked || keepAlive === "blocked"}
+          backgroundPaused={keepAlive === "paused" || keepAlive === "interrupted" ? keepAlive : null}
+          onResumeBackground={() => void resumeKeepAlive().then(() => setKeepAlive(keepAliveState()))}
+          setupCard={<SetupCard {...setupProps} />}
+          recent={recent}
+          onOpenSettings={() => setView("settings")}
+        />
       )}
-
-      {/* Not resumed automatically: another app (the merchant's music) may hold the sound. */}
-      {!audioBlocked && keepAlive !== "playing" && keepAlive !== "off" && (
-        <button
-          type="button"
-          onClick={() => void resumeKeepAlive().then(() => setKeepAlive(keepAliveState()))}
-          className="flex w-full items-center justify-center gap-2 bg-amber-500 px-4 py-3 text-sm font-semibold text-white"
-        >
-          <BellOff className="h-4 w-4 shrink-0" />
-          {keepAlive === "interrupted"
-            ? "Another app is using the sound. With the screen off, payments may only show as notifications. Tap to resume"
-            : "Background mode is paused. With the screen off, payments may only show as notifications. Tap to resume"}
-        </button>
-      )}
-
-      {(pushStatus === "denied" || pushStatus === "unsupported") && (
-        <p className="bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">
-          {pushStatus === "denied"
-            ? "Notifications are blocked for this site. Allow them in the browser's site settings so payments still alert this phone while it sleeps."
-            : "This browser can't alert you while the screen is off. On iPhone, add this page to the Home Screen and open it from there."}
-        </p>
-      )}
-
-      <section className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
-        {flash ? (
-          <div className="animate-in zoom-in-95 fade-in duration-300">
-            <BellRing className="mx-auto mb-4 h-14 w-14 text-emerald-600" />
-            <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
-              {flash.type === "test" ? "Test announcement" : "Payment received"}
-            </p>
-            <p className="mt-2 text-5xl font-bold tabular-nums text-[#5b371f] sm:text-6xl">
-              {formatAmount(flash.amount, flash.currency)}
-            </p>
-            {flash.payerName && <p className="mt-3 text-lg text-[#754319]/80">from {flash.payerName}</p>}
-          </div>
-        ) : (
-          <div className="text-[#754319]/60">
-            <Volume2 className="mx-auto mb-3 h-12 w-12" />
-            <p>Waiting for payments…</p>
-          </div>
-        )}
-      </section>
-
-      <section className="border-t border-[#754319]/10 bg-white/60 px-4 py-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[#5b371f]">Announced on this device</h2>
-          <Button variant="ghost" size="sm" onClick={() => announcePayment(1, "ETB", { speech })}>
-            Test sound
-          </Button>
-        </div>
-        {recent.length === 0 ? (
-          <p className="text-sm text-[#754319]/60">Nothing yet.</p>
-        ) : (
-          <ul className="max-h-60 divide-y divide-[#754319]/10 overflow-y-auto">
-            {recent.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span className="min-w-0 truncate text-[#754319]/80">
-                  {new Date(p.occurredAt).toLocaleTimeString()}
-                  {p.type === "test" ? " · test" : p.payerName ? ` · ${p.payerName}` : ""}
-                  {p.channel ? ` · ${p.channel}` : ""}
-                </span>
-                <span className="shrink-0 font-semibold tabular-nums text-[#5b371f]">
-                  {formatAmount(p.amount, p.currency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+      {pinDialog}
+    </>
   )
 }

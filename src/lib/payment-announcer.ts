@@ -6,15 +6,15 @@ import { AMHARIC_CLIP_DIR, AMHARIC_CLIPS, amharicAnnouncementClips } from "@/lib
  * Plays the "payment received" chime and speaks the amount on a sound device.
  *
  * Browsers refuse to play audio until the page has had a user gesture, so
- * unlockAudio() must be called from a click/tap handler before the first
- * announcement; the /speaker page does this with its Start button.
+ * the /speaker page calls unlockAudio() again on the first tap. An installed
+ * speaker app (Android home-screen app) may play without one.
  *
  * Speech, in order of preference:
- *  1. Recorded Amharic clips (public/sounds/am, see lib/amharic-voice-clips) —
- *     same voice on every browser, phone and soundbox.
+ *  1. Recorded Amharic clips (public/sounds/am/<name>.wav or .mp3, see
+ *     lib/amharic-voice-clips) — same voice on every browser, phone and soundbox.
  *  2. The device's text-to-speech: Amharic if it has a voice (Edge does,
  *     Chrome and most phones don't), otherwise English.
- * The chime is synthesised, so there is no asset to ship for it.
+ * The chime and the offline warning are synthesised, so there are no assets for them.
  */
 
 let audioContext: AudioContext | null = null
@@ -77,12 +77,16 @@ export function loadAmharicClips(): Promise<void> {
 
   clipsLoad = Promise.all(
     Object.keys(AMHARIC_CLIPS).map(async (name) => {
-      try {
-        const res = await fetch(`${AMHARIC_CLIP_DIR}/${name}.mp3`)
-        if (!res.ok) return
-        clipBuffers.set(name, await ctx.decodeAudioData(await res.arrayBuffer()))
-      } catch {
-        // missing or undecodable — covered by the device-voice fallback
+      // One file per word, WAV or MP3 (the same recordings as the Android app).
+      for (const ext of ["wav", "mp3"]) {
+        try {
+          const res = await fetch(`${AMHARIC_CLIP_DIR}/${name}.${ext}`)
+          if (!res.ok) continue
+          clipBuffers.set(name, await ctx.decodeAudioData(await res.arrayBuffer()))
+          return
+        } catch {
+          // missing or undecodable — covered by the device-voice fallback
+        }
       }
     })
   ).then(() => {
@@ -100,14 +104,25 @@ export async function currentVoiceSource(): Promise<VoiceSource> {
   return Object.keys(AMHARIC_CLIPS).every((n) => clipBuffers.has(n)) ? "recorded" : "device"
 }
 
-function playChime(): Promise<void> {
+/** Which voice announces amounts, for the Settings screen. */
+export async function voiceDescription(): Promise<string> {
+  await loadAmharicClips()
+  const total = Object.keys(AMHARIC_CLIPS).length
+  const recorded = Object.keys(AMHARIC_CLIPS).filter((n) => clipBuffers.has(n)).length
+  if (recorded >= total) return "Recorded Amharic voice"
+  if (recorded > 0) return `Recorded Amharic (${recorded} of ${total} words), otherwise the phone's voice`
+  return "The phone's voice"
+}
+
+/** Sine notes with a fast attack and an exponential decay (the same tones as the Android app). */
+function playTone(
+  notes: { freq: number; start: number }[],
+  attack: number,
+  decayEnd: number,
+  noteLength: number
+): Promise<void> {
   const ctx = audioContext
   if (!ctx) return Promise.resolve()
-
-  const notes = [
-    { freq: 880, start: 0 },
-    { freq: 1318.5, start: 0.16 },
-  ]
   const now = ctx.currentTime
   for (const { freq, start } of notes) {
     const osc = ctx.createOscillator()
@@ -115,13 +130,27 @@ function playChime(): Promise<void> {
     osc.type = "sine"
     osc.frequency.value = freq
     gain.gain.setValueAtTime(0.0001, now + start)
-    gain.gain.exponentialRampToValueAtTime(0.6, now + start + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + start + 0.6)
+    gain.gain.exponentialRampToValueAtTime(0.6, now + start + attack)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + start + decayEnd)
     osc.connect(gain).connect(ctx.destination)
     osc.start(now + start)
-    osc.stop(now + start + 0.65)
+    osc.stop(now + start + noteLength)
   }
-  return new Promise((resolve) => setTimeout(resolve, 750))
+  const end = Math.max(...notes.map((n) => n.start)) + noteLength
+  return new Promise((resolve) => setTimeout(resolve, end * 1000 + 100))
+}
+
+/** "Payment received": two rising notes. */
+function playChime(): Promise<void> {
+  return playTone(
+    [
+      { freq: 880, start: 0 },
+      { freq: 1318.5, start: 0.16 },
+    ],
+    0.02,
+    0.6,
+    0.65
+  )
 }
 
 /** Gap between words; recordings are trimmed tight, so a little air keeps it natural. */
@@ -215,11 +244,40 @@ async function speakAmount(amount: number, currency: string) {
 // one after the other instead of talking over each other.
 let queue: Promise<void> = Promise.resolve()
 
-export function announcePayment(amount: number, currency: string, options?: { speech?: boolean }) {
+export type PaymentSound = "chime" | "none"
+
+/**
+ * sound: the chime, or nothing before the voice. speech: false is "Sound only"
+ * (no spoken amount); ignored with sound "none", which would announce nothing.
+ */
+export function announcePayment(
+  amount: number,
+  currency: string,
+  options?: { sound?: PaymentSound; speech?: boolean }
+) {
+  const sound = options?.sound ?? "chime"
   queue = queue.then(async () => {
     await ensureAudioRunning()
-    await playChime()
-    if (options?.speech !== false) await speakAmount(amount, currency)
+    if (sound === "chime") await playChime()
+    if (options?.speech !== false || sound === "none") await speakAmount(amount, currency)
+  })
+  return queue
+}
+
+/** "Connection lost": three short falling beeps, unlike the rising chime. Queued with announcements. */
+export function playOfflineWarning() {
+  queue = queue.then(async () => {
+    await ensureAudioRunning()
+    await playTone(
+      [
+        { freq: 988, start: 0 },
+        { freq: 784, start: 0.25 },
+        { freq: 587, start: 0.5 },
+      ],
+      0.01,
+      0.22,
+      0.25
+    )
   })
   return queue
 }
