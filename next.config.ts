@@ -78,6 +78,18 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // The speaker scans the portal's pairing QR code with the camera.
+        // Same policy as above (this later entry overrides it), with the
+        // camera allowed for this page only.
+        source: '/speaker',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(), geolocation=(), usb=(), bluetooth=(), serial=()',
+          },
+        ],
+      },
+      {
         source: '/api/:path*',
         headers: [
           {

@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { QrCode } from "lucide-react"
+import { QrCode, ScanLine } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MUTED, NibCard, PRIMARY_BUTTON, Screen, TopBar } from "./ui"
+import { QrScanner } from "./qr-scanner"
+import { MUTED, NibCard, OUTLINE_BUTTON, PRIMARY_BUTTON, Screen, TopBar } from "./ui"
 
-/** Not paired yet: scan the portal's QR with the phone camera, or paste the link. */
+/** Not paired yet: scan the portal's QR code, or paste the link. */
 export function PairScreen({
   onPair,
   error,
@@ -20,6 +21,13 @@ export function PairScreen({
   install: React.ReactNode
 }) {
   const [link, setLink] = useState("")
+  const [scanning, setScanning] = useState(false)
+  const onScanned = (text: string) => {
+    setScanning(false)
+    onPair(text)
+  }
+
+  if (scanning) return <QrScanner onScanned={onScanned} onClose={() => setScanning(false)} />
 
   return (
     <Screen>
@@ -32,6 +40,15 @@ export function PairScreen({
         <p className={`mt-2 text-[15px] ${MUTED}`}>
           Scan the QR code in the merchant portal under Configuration → Sound Devices.
         </p>
+        <Button
+          onClick={() => {
+            onClearError()
+            setScanning(true)
+          }}
+          className={`mt-6 h-12 w-full text-base font-semibold ${PRIMARY_BUTTON}`}
+        >
+          <ScanLine className="mr-2 h-5 w-5" /> Scan QR code
+        </Button>
 
         <div className={`my-6 flex w-full items-center gap-3 text-xs ${MUTED}`}>
           <span className="h-px flex-1 bg-[#eddcc0]" />
@@ -59,8 +76,8 @@ export function PairScreen({
               inputMode="url"
               className="h-12 border-[#eddcc0] bg-white"
             />
-            <Button type="submit" disabled={!link.trim()} className={`h-12 text-base font-semibold ${PRIMARY_BUTTON}`}>
-              Pair
+            <Button type="submit" variant="outline" disabled={!link.trim()} className={`h-12 text-base font-semibold ${OUTLINE_BUTTON}`}>
+              Pair with link
             </Button>
           </form>
         </NibCard>
