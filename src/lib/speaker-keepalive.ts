@@ -6,9 +6,13 @@
  * Phones freeze a background tab, which stops the payment stream and every
  * announcement. A tab that is playing media is left running (it gets a media
  * notification, like a music app), so the speaker loops a near-silent track:
- * a 20 Hz tone at -50 dBFS (public/sounds/keepalive.wav). A fully silent track
- * would not do: Chrome treats digital silence as "not playing". Phone and
- * laptop speakers can't reproduce 20 Hz, so nobody hears it.
+ * a 30 Hz tone at about -53 dBFS (public/sounds/keepalive.mp3). A fully silent
+ * track would not do: Chrome treats digital silence as "not playing". Phone
+ * and laptop speakers can't reproduce 30 Hz, so nobody hears it.
+ *
+ * MP3 at 44.1 kHz, 20 s long: Chrome on Android refused the earlier 8 kHz WAV
+ * (NotSupportedError), and treats media under about 5 s as a short sound that
+ * gets no media notification.
  *
  * Best effort: aggressive battery managers can still kill the browser, and
  * iOS suspends the page anyway. Web Push (lib/speaker-push) covers those.
@@ -19,7 +23,7 @@
  * alerts while the track is off. (After a phone call Chrome resumes it itself.)
  */
 
-const KEEPALIVE_SRC = "/sounds/keepalive.wav"
+const KEEPALIVE_SRC = "/sounds/keepalive.mp3"
 
 /**
  * - paused: from the phone's media controls.
@@ -58,6 +62,8 @@ async function play(): Promise<boolean> {
     // Needs a tap (autoplay policy), another app holds the audio focus, or the
     // track failed to load. The name is shown on screen for diagnosis.
     lastError = err instanceof Error ? err.name : String(err)
+    // MediaError 4 = the file couldn't be loaded or decoded.
+    if (audio?.error) lastError += ` (media ${audio.error.code})`
     console.warn("[speaker] Keep-alive track didn't start:", err)
     setState("blocked")
     return false
