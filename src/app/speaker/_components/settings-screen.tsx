@@ -6,15 +6,15 @@ import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import type { PaymentSound } from "@/lib/payment-announcer"
 import type { SpeakerSettings } from "@/lib/speaker-settings"
-import { InfoRow, Screen, SectionTitle, SwitchRow, TopBar } from "./ui"
+import { InfoRow, MUTED, OUTLINE_BUTTON, PRIMARY_BUTTON, Screen, SectionTitle, SwitchRow, TopBar } from "./ui"
 
-const SOUND_OPTIONS: { value: PaymentSound; title: string; subtitle: string }[] = [
-  { value: "chime", title: "Nibtera chime", subtitle: "Two short notes" },
-  { value: "none", title: "No sound (voice only)", subtitle: "Only the spoken amount" },
+const SOUND_OPTIONS: { value: PaymentSound; title: string }[] = [
+  { value: "chime", title: "Chime, then the amount" },
+  { value: "none", title: "Amount only" },
 ]
 
 function Divider() {
-  return <hr className="my-3 border-[#EDE2CF]" />
+  return <hr className="my-3 border-[#eddcc0]" />
 }
 
 export function SettingsScreen({
@@ -27,7 +27,6 @@ export function SettingsScreen({
   setup,
   merchantName,
   deviceName,
-  host,
   onChangePin,
   onUnpair,
   onBack,
@@ -42,7 +41,6 @@ export function SettingsScreen({
   setup: ReactNode
   merchantName: string
   deviceName: string
-  host: string
   onChangePin: () => void
   onUnpair: () => void
   onBack: () => void
@@ -52,92 +50,73 @@ export function SettingsScreen({
       <TopBar
         title="Settings"
         left={
-          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
+          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back" className="text-[#754319]">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         }
       />
-      <div className="mx-auto flex max-w-xl flex-col gap-3 px-6 pb-12 pt-2">
+      <div className="mx-auto flex max-w-xl flex-col gap-3 px-6 pb-12 pt-4">
         <SectionTitle>Sound</SectionTitle>
-        <p className="text-sm text-[#8A7565]">
-          Announcements play at media volume: use the phone&apos;s volume buttons while this screen is open.
-        </p>
-
-        <p className="mt-1 text-sm font-medium">Payment sound</p>
         <RadioGroup
           value={settings.paymentSound}
           onValueChange={(value) => onChange({ paymentSound: value as PaymentSound })}
-          className="gap-1"
+          className="gap-2"
         >
           {SOUND_OPTIONS.map((option) => (
-            <label key={option.value} className="flex cursor-pointer items-center gap-3 py-1">
-              <RadioGroupItem value={option.value} />
-              <span>
-                <span className="block text-[15px]">{option.title}</span>
-                <span className="block text-xs text-[#8A7565]">{option.subtitle}</span>
-              </span>
+            <label key={option.value} className="flex cursor-pointer items-center gap-3">
+              <RadioGroupItem value={option.value} className="border-[#754319] text-[#754319]" />
+              <span className="text-[15px]">{option.title}</span>
             </label>
           ))}
         </RadioGroup>
 
         <SwitchRow
-          title="Sound only"
-          description={
-            settings.paymentSound === "none"
-              ? 'Not available with "No sound"'
-              : "Play the payment sound without speaking the amount"
-          }
+          title="Chime only"
+          description="Don't say the amount"
           checked={settings.soundOnly}
           onChange={(soundOnly) => onChange({ soundOnly })}
           disabled={settings.paymentSound === "none"}
         />
         <SwitchRow
           title="Warn when offline"
-          description="Play a warning tone once when the connection has been lost for 30 seconds"
+          description="Beep if the connection is lost"
           checked={settings.offlineWarning}
           onChange={(offlineWarning) => onChange({ offlineWarning })}
         />
         <SwitchRow
-          title="Payment notifications"
-          description={
-            notificationsAvailable
-              ? "A notification for each payment: silent while this screen announces it, with the phone's sound when the phone has stopped the speaker"
-              : "Not available in this browser"
-          }
-          checked={settings.paymentNotifications && notificationsAvailable}
+          title="Notifications"
+          description="A notification for each payment"
+          checked={settings.paymentNotifications}
           onChange={onTogglePaymentNotifications}
           disabled={!notificationsAvailable}
         />
+        {voice && <p className={`text-xs ${MUTED}`}>Voice: {voice}</p>}
 
-        {voice && <InfoRow label="Voice" value={voice} />}
-
-        <Button
-          onClick={onTestSound}
-          className="mt-1 h-12 rounded-[14px] bg-[#754319] text-base font-semibold text-white hover:bg-[#5B371F]"
-        >
+        <Button onClick={onTestSound} className={`mt-1 h-12 text-base font-semibold ${PRIMARY_BUTTON}`}>
           Test sound
         </Button>
 
         <Divider />
-        <SectionTitle>Keep running with the screen off</SectionTitle>
+        <SectionTitle>Setup</SectionTitle>
         {setup}
 
         <Divider />
         <SectionTitle>Paired to</SectionTitle>
         <InfoRow label="Merchant" value={merchantName} />
-        <InfoRow label="Device name" value={deviceName} />
-        <InfoRow label="Server" value={host} />
+        <InfoRow label="Device" value={deviceName} />
 
-        <Button variant="outline" onClick={onChangePin} className="mt-2 h-11 rounded-[14px] border-[#CDBBA5]">
-          Change PIN
-        </Button>
-        <Button
-          variant="outline"
-          onClick={onUnpair}
-          className="h-11 rounded-[14px] border-[#CDBBA5] text-[#C62828] hover:text-[#C62828]"
-        >
-          Unpair this phone
-        </Button>
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <Button variant="outline" onClick={onChangePin} className={`h-11 ${OUTLINE_BUTTON}`}>
+            Change PIN
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onUnpair}
+            className="h-11 rounded-xl border-[#F5C6C0] bg-white text-[#C62828] hover:bg-[#FDECEA] hover:text-[#C62828]"
+          >
+            Unpair
+          </Button>
+        </div>
       </div>
     </Screen>
   )

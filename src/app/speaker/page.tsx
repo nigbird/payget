@@ -51,7 +51,8 @@ import type { ConnectionState, Payment } from "./_components/ui"
 const TOKEN_STORAGE_KEY = "nibtera.soundDeviceToken"
 const RECENT_STORAGE_KEY = "nibtera.speakerRecent"
 const MAX_BACKOFF_MS = 30 * 1000
-const RECENT_LIMIT = 20
+/** Announcements kept on the phone: today's only (the portal's Transactions page is the record). */
+const RECENT_LIMIT = 200
 /** The server pings every 20 s (api/devices/payment-stream). Silence for longer
  * than this means the connection died without closing — common after Wi-Fi
  * drops or a laptop sleeping — so drop it and reconnect. */
@@ -89,10 +90,14 @@ function writeStorage(key: string, value: string | null) {
   }
 }
 
+function isToday(ms: number) {
+  return new Date(ms).toDateString() === new Date().toDateString()
+}
+
 function readRecent(): Payment[] {
   try {
     const parsed = JSON.parse(readStorage(RECENT_STORAGE_KEY) ?? "[]")
-    return Array.isArray(parsed) ? parsed.slice(0, RECENT_LIMIT) : []
+    return Array.isArray(parsed) ? parsed.filter((p: Payment) => isToday(p.receivedAt)).slice(0, RECENT_LIMIT) : []
   } catch {
     return []
   }
@@ -193,6 +198,14 @@ export default function SpeakerPage() {
     setLoaded(true)
   }, [])
 
+  // A new day starts with an empty list.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRecent((prev) => (prev.length && !isToday(prev[0].receivedAt) ? readRecent() : prev))
+    }, 60_000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Offer to install the speaker as its own app (speaker-manifest.json).
   useEffect(() => {
     const onPrompt = (event: Event) => {
@@ -254,7 +267,8 @@ export default function SpeakerPage() {
   const handlePayment = useCallback((payment: StreamPayment) => {
     setRecent((prev) => {
       if (prev.some((p) => p.id === payment.id)) return prev
-      const next = [{ ...payment, receivedAt: Date.now() }, ...prev].slice(0, RECENT_LIMIT)
+      const today = prev.filter((p) => isToday(p.receivedAt))
+      const next = [{ ...payment, receivedAt: Date.now() }, ...today].slice(0, RECENT_LIMIT)
       writeStorage(RECENT_STORAGE_KEY, JSON.stringify(next))
       return next
     })
@@ -527,22 +541,25 @@ export default function SpeakerPage() {
     const onVisible = () => {
       if (document.visibilityState === "visible") void check()
     }
-    // Any tap is a gesture the browser accepts for audio. It also starts the
-    // keep-alive track if the browser refused it without one, but never takes
-    // the sound back from another app (that needs the explicit banner).
+    // Any tap lets the browser play sound. It also starts the keep-alive track
+    // if the browser refused it without one, but never takes the sound back
+    // from another app (that needs the explicit banner). "click", not
+    // "pointerdown": on phones a touch only counts once the finger lifts.
     const onTap = () => {
       unlockAudio()
       if (keepAliveState() === "blocked") void resumeKeepAlive()
       void check()
     }
     document.addEventListener("visibilitychange", onVisible)
-    document.addEventListener("pointerdown", onTap)
+    document.addEventListener("click", onTap, true)
+    document.addEventListener("keydown", onTap, true)
     return () => {
       offState()
       offKeepAlive()
       clearInterval(timer)
       document.removeEventListener("visibilitychange", onVisible)
-      document.removeEventListener("pointerdown", onTap)
+      document.removeEventListener("click", onTap, true)
+      document.removeEventListener("keydown", onTap, true)
     }
   }, [active])
 
@@ -595,7 +612,7 @@ export default function SpeakerPage() {
 
   if (!loaded) {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-[#FFF9ED]">
+      <main className="flex min-h-dvh items-center justify-center bg-white">
         <Loader2 className="h-8 w-8 animate-spin text-[#754319]" />
       </main>
     )
@@ -605,14 +622,13 @@ export default function SpeakerPage() {
     <Button
       variant="outline"
       onClick={() => void install()}
-      className="h-12 w-full rounded-[14px] border-[#CDBBA5] bg-white text-[#5B371F]"
+      className="h-12 w-full rounded-xl border-[#eddcc0] bg-white text-[#754319] hover:bg-[#fff8ea]"
     >
-      <Download className="mr-2 h-5 w-5" /> Install the Nibtera Speaker app
+      <Download className="mr-2 h-5 w-5" /> Install the app
     </Button>
   ) : env.ios ? (
-    <p className="text-sm text-[#8A7565]">
-      To install it as an app: tap <Share className="inline h-4 w-4 align-text-bottom" /> <strong>Share</strong>, then{" "}
-      <strong>Add to Home Screen</strong>. Open the speaker from its new icon and pair it there.
+    <p className="text-sm text-[#754319]/70">
+      To install: <Share className="inline h-4 w-4 align-text-bottom" /> Share → <strong>Add to Home Screen</strong>
     </p>
   ) : null
 
@@ -664,19 +680,13 @@ export default function SpeakerPage() {
       : baseConnection
   const merchantName = info?.merchantName ?? ""
   const deviceName = info?.deviceName ?? ""
-  const host = window.location.host
 
   const pinDialog =
     pinAction &&
     (pinAction.kind === "unpair" ? (
       <PinDialog
         title="Unpair this phone?"
-        message={
-          `This phone will stop announcing payments for ${merchantName || "this merchant"}. ` +
-          "To pair again you'll need a new code from the merchant portal. To also remove it from the portal, " +
-          "delete it under Configuration → Sound Devices.\n\n" +
-          "Enter the PIN to unpair. Forgot it? Delete this device in the portal; the phone then unpairs itself."
-        }
+        message="Forgot the PIN? Remove this device in the merchant portal."
         confirmLabel="Unpair"
         danger
         onSuccess={() => void runPinAction(pinAction)}
@@ -685,18 +695,15 @@ export default function SpeakerPage() {
     ) : pinAction.kind === "change" ? (
       <PinDialog
         title="Change PIN"
-        message="Enter the current PIN, then choose a new one."
+        message="Enter the current PIN."
         confirmLabel="Next"
         onSuccess={() => void runPinAction(pinAction)}
         onCancel={() => setPinAction(null)}
       />
     ) : (
       <PinDialog
-        title="Pair with a different link?"
-        message={
-          `This phone is paired to ${merchantName || "a merchant"}. Opening a new pairing link moves it to ` +
-          "another device in the portal, possibly another merchant.\n\nEnter the PIN to switch. Cancel keeps the current pairing."
-        }
+        title="Pair with a new link?"
+        message={`This phone is paired to ${merchantName || "a merchant"}. Enter the PIN to switch.`}
         confirmLabel="Switch"
         danger
         onSuccess={() => void runPinAction(pinAction)}
@@ -720,7 +727,6 @@ export default function SpeakerPage() {
           setup={<SetupItems {...setupProps} showDone />}
           merchantName={merchantName}
           deviceName={deviceName}
-          host={host}
           onChangePin={() => setPinAction({ kind: "change" })}
           onUnpair={() => setPinAction({ kind: "unpair" })}
           onBack={() => setView("status")}
@@ -729,10 +735,11 @@ export default function SpeakerPage() {
         <StatusScreen
           merchantName={merchantName}
           deviceName={deviceName}
-          host={host}
           connection={connection}
           soundBlocked={audioBlocked || keepAlive === "blocked"}
-          backgroundPaused={keepAlive === "paused" || keepAlive === "interrupted" ? keepAlive : null}
+          // The tap itself unlocks sound (document click listener above); just re-check.
+          onTurnOnSound={() => setAudioBlocked(!isAudioRunning())}
+          backgroundPaused={keepAlive === "paused" || keepAlive === "interrupted"}
           onResumeBackground={() => void resumeKeepAlive().then(() => setKeepAlive(keepAliveState()))}
           setupCard={<SetupCard {...setupProps} />}
           recent={recent}

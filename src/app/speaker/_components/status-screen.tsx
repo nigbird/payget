@@ -1,10 +1,12 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { BellOff, CloudOff, Settings, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
+  MUTED,
   NibCard,
+  OUTLINE_BUTTON,
   Screen,
   StatusPill,
   TopBar,
@@ -19,93 +21,104 @@ import {
   type Tone,
 } from "./ui"
 
+const PAGE_SIZE = 10
+
 /** One line telling the merchant whether payments will be heard right now. */
-function Readiness({ connection, soundBlocked }: { connection: ConnectionState; soundBlocked: boolean }) {
-  let title: string
-  let detail: string
+function Readiness({
+  connection,
+  soundBlocked,
+  onTurnOnSound,
+}: {
+  connection: ConnectionState
+  soundBlocked: boolean
+  onTurnOnSound: () => void
+}) {
+  const live = connection === "live" || connection === "polling"
+  let title = "Connecting…"
+  let detail: string | null = null
   let tone: Tone = connectionTone(connection)
-  switch (connection) {
-    case "live":
-    case "polling":
-      if (soundBlocked) {
-        title = "Tap anywhere to turn on sound"
-        detail = "Connected, but the browser needs one tap before it plays sound"
-        tone = "waiting"
-      } else {
-        title = "Speaker is ready"
-        detail = "Connected and listening for payments"
-      }
-      break
-    case "reconnecting":
-      title = "Reconnecting…"
-      detail = "The connection dropped; trying again"
-      break
-    case "offline":
-      title = "Speaker is offline"
-      detail = "Payments won't be announced until the connection is back. It reconnects by itself; check Wi-Fi or mobile data."
-      break
-    default:
-      title = "Connecting…"
-      detail = "Getting ready to announce payments"
+  if (live && soundBlocked) {
+    title = "Tap here to turn on sound"
+    tone = "waiting"
+  } else if (live) {
+    title = "Speaker is ready"
+    detail = "Listening for payments"
+  } else if (connection === "reconnecting") {
+    title = "Reconnecting…"
+  } else if (connection === "offline") {
+    title = "Offline"
+    detail = "Check Wi-Fi or mobile data"
   }
   const Icon = connection === "offline" ? CloudOff : soundBlocked ? BellOff : Volume2
-  return (
-    <div className="flex items-center gap-3.5 px-1">
+
+  const body = (
+    <>
       <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${toneBg(tone)}`}>
         <Icon className={`h-[22px] w-[22px] ${toneText(tone)}`} />
       </span>
-      <div className="min-w-0">
-        <p className="text-base font-semibold">{title}</p>
-        <p className="text-sm text-[#8A7565]">{detail}</p>
-      </div>
-    </div>
+      <span className="min-w-0 text-left">
+        <span className="block text-base font-semibold">{title}</span>
+        {detail && <span className={`block text-sm ${MUTED}`}>{detail}</span>}
+      </span>
+    </>
+  )
+  // The tap itself is what the browser needs before it plays sound.
+  return live && soundBlocked ? (
+    <button
+      type="button"
+      onClick={onTurnOnSound}
+      className="flex items-center gap-3.5 rounded-2xl border border-[#B26A00]/30 bg-[#B26A00]/5 px-3 py-2.5"
+    >
+      {body}
+    </button>
+  ) : (
+    <div className="flex items-center gap-3.5 px-1">{body}</div>
   )
 }
 
-function LatestAnnouncement({ payment, merchantName }: { payment: Payment; merchantName: string }) {
+function LatestAnnouncement({ payment }: { payment: Payment }) {
   const test = payment.type === "test"
   return (
-    <NibCard>
+    <NibCard tone="gold">
       {/* key: replays the entrance animation for each new payment */}
       <div
         key={payment.id}
-        className="flex flex-col items-center bg-gradient-to-b from-[#FCEBC0] to-white px-4 py-5 text-center animate-in fade-in zoom-in-95 duration-300"
+        className="flex flex-col items-center px-4 py-5 text-center animate-in fade-in zoom-in-95 duration-300"
       >
-        <p className="text-[11px] font-semibold tracking-wider text-[#8A7565]">LATEST ANNOUNCEMENT</p>
-        <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-[#754319]">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-[#754319]">
           <Volume2 className="h-[18px] w-[18px]" />
           {test ? "Test payment" : "Payment received"}
         </p>
-        <p className="mt-1 text-4xl font-semibold tabular-nums">{formatAmount(payment.amount, payment.currency)}</p>
+        <p className="mt-1 text-4xl font-bold tabular-nums">{formatAmount(payment.amount, payment.currency)}</p>
         {payment.payerName && !test && <p className="mt-1 text-base">from {payment.payerName}</p>}
-        <p className="mt-1.5 text-xs text-[#8A7565]">
-          {[merchantName, formatTime(payment.receivedAt)].filter(Boolean).join(" · ")}
-        </p>
+        <p className={`mt-1.5 text-xs ${MUTED}`}>{formatTime(payment.receivedAt)}</p>
       </div>
     </NibCard>
   )
 }
 
 function RecentList({ recent }: { recent: Payment[] }) {
+  const [shown, setShown] = useState(PAGE_SIZE)
+  if (recent.length === 0) {
+    return (
+      <NibCard>
+        <p className={`px-6 py-6 text-center text-sm ${MUTED}`}>Waiting for payments…</p>
+      </NibCard>
+    )
+  }
   return (
-    <NibCard>
-      {recent.length === 0 ? (
-        <div className="px-6 py-6 text-center">
-          <p className="text-sm font-semibold">Waiting for payments…</p>
-          <p className="mt-1 text-xs text-[#8A7565]">Use the Test button in the merchant portal to check the sound.</p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-[#EDE2CF]">
-          {recent.map((payment) => {
+    <>
+      <NibCard>
+        <ul className="divide-y divide-[#eddcc0]/70">
+          {recent.slice(0, shown).map((payment) => {
             const test = payment.type === "test"
-            const details = [test ? null : payment.payerName, payment.channel].filter(Boolean).join(" · ")
+            const details = [test ? "Test" : payment.payerName, payment.channel].filter(Boolean).join(" · ")
             return (
               <li key={payment.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="text-sm tabular-nums text-[#8A7565]">{formatTime(payment.receivedAt)}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm">{test ? "Test" : "Payment"}</span>
-                  {details && <span className="block truncate text-xs text-[#8A7565]">{details}</span>}
+                <span className={`shrink-0 whitespace-nowrap text-sm tabular-nums ${MUTED}`}>
+                  {formatTime(payment.receivedAt)}
                 </span>
+                <span className={`min-w-0 flex-1 truncate text-sm ${MUTED}`}>{details}</span>
                 <span className="shrink-0 text-sm font-semibold tabular-nums">
                   {formatAmount(payment.amount, payment.currency)}
                 </span>
@@ -113,17 +126,22 @@ function RecentList({ recent }: { recent: Payment[] }) {
             )
           })}
         </ul>
+      </NibCard>
+      {recent.length > shown && (
+        <Button variant="outline" onClick={() => setShown((n) => n + PAGE_SIZE)} className={`h-10 ${OUTLINE_BUTTON}`}>
+          Show more ({recent.length - shown})
+        </Button>
       )}
-    </NibCard>
+    </>
   )
 }
 
 export function StatusScreen({
   merchantName,
   deviceName,
-  host,
   connection,
   soundBlocked,
+  onTurnOnSound,
   backgroundPaused,
   onResumeBackground,
   setupCard,
@@ -132,13 +150,14 @@ export function StatusScreen({
 }: {
   merchantName: string
   deviceName: string
-  host: string
   connection: ConnectionState
   soundBlocked: boolean
+  onTurnOnSound: () => void
   /** The keep-alive track was paused (by the user, or another app took the sound). */
-  backgroundPaused: "paused" | "interrupted" | null
+  backgroundPaused: boolean
   onResumeBackground: () => void
   setupCard: ReactNode
+  /** Today's announcements, newest first. */
   recent: Payment[]
   onOpenSettings: () => void
 }) {
@@ -147,23 +166,21 @@ export function StatusScreen({
       <TopBar
         title="Nibtera Speaker"
         right={
-          <Button variant="ghost" size="icon" onClick={onOpenSettings} aria-label="Settings" className="text-[#8A7565]">
+          <Button variant="ghost" size="icon" onClick={onOpenSettings} aria-label="Settings" className="text-[#754319]">
             <Settings className="h-5 w-5" />
           </Button>
         }
       />
-      <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 pb-10">
+      <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 pb-10 pt-4">
         <NibCard>
-          <div className="flex flex-col items-center px-4 py-[22px] text-center">
+          <div className="flex flex-col items-center px-4 py-5 text-center">
             <StatusPill label={connectionLabel(connection)} tone={connectionTone(connection)} />
-            {connection === "polling" && <p className="mt-1.5 text-[11px] text-[#8A7565]">Compatibility mode</p>}
-            <p className="mt-3.5 text-2xl font-semibold">{merchantName || "Paired"}</p>
-            {deviceName && <p className="text-base text-[#8A7565]">{deviceName}</p>}
-            <p className="mt-1.5 text-xs text-[#8A7565]/75">{host}</p>
+            <p className="mt-3 text-2xl font-bold">{merchantName || "Paired"}</p>
+            {deviceName && <p className={`text-sm ${MUTED}`}>{deviceName}</p>}
           </div>
         </NibCard>
 
-        <Readiness connection={connection} soundBlocked={soundBlocked} />
+        <Readiness connection={connection} soundBlocked={soundBlocked} onTurnOnSound={onTurnOnSound} />
 
         {backgroundPaused && !soundBlocked && (
           <button
@@ -172,17 +189,17 @@ export function StatusScreen({
             className="flex items-center gap-3 rounded-2xl bg-[#B26A00] px-4 py-3 text-left text-sm font-semibold text-white"
           >
             <BellOff className="h-5 w-5 shrink-0" />
-            {backgroundPaused === "interrupted"
-              ? "Another app is using the sound. With the screen off, payments may only show as notifications. Tap to resume."
-              : "Background mode is paused. With the screen off, payments may only show as notifications. Tap to resume."}
+            Sound paused by another app. Tap to resume.
           </button>
         )}
 
         {setupCard}
 
-        {recent[0] && <LatestAnnouncement payment={recent[0]} merchantName={merchantName} />}
+        {recent[0] && <LatestAnnouncement payment={recent[0]} />}
 
-        <h3 className="mt-1 text-sm font-semibold">Recent announcements</h3>
+        <h3 className="mt-1 text-sm font-bold">
+          Today{recent.length > 0 && <span className={`font-normal ${MUTED}`}> · {recent.length}</span>}
+        </h3>
         <RecentList recent={recent} />
       </div>
     </Screen>

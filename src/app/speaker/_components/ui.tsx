@@ -4,9 +4,17 @@ import type { ReactNode } from "react"
 import { Switch } from "@/components/ui/switch"
 
 /**
- * Building blocks of the speaker screens, matching the Android app
- * (nibtera_speaker: ui/Components.kt, ui/theme/Color.kt).
+ * Building blocks of the speaker screens: the Android app's layout in the
+ * merchant portal's look (white background, cream cards, gold-to-brown buttons).
  */
+
+/** The merchant portal's primary button. */
+export const PRIMARY_BUTTON =
+  "rounded-xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 disabled:opacity-60"
+/** The merchant portal's secondary (outline) button. */
+export const OUTLINE_BUTTON = "rounded-xl border border-[#eddcc0] bg-white text-[#754319] hover:bg-[#fff8ea]"
+/** Muted text, as in the portal. */
+export const MUTED = "text-[#754319]/70"
 
 export type Payment = {
   id: number
@@ -71,7 +79,7 @@ export function connectionLabel(state: ConnectionState) {
 /** Full-height screen on the cream background, clear of the phone's notch and home bar. */
 export function Screen({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-dvh bg-[#FFF9ED] text-[#3D291C] [padding-bottom:env(safe-area-inset-bottom)]">
+    <main className="min-h-dvh bg-white text-[#5b371f] [padding-bottom:env(safe-area-inset-bottom)]">
       {children}
     </main>
   )
@@ -79,10 +87,10 @@ export function Screen({ children }: { children: ReactNode }) {
 
 export function TopBar({ title, left, right }: { title: string; left?: ReactNode; right?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-10 bg-[#FFF9ED]/95 backdrop-blur [padding-top:env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-10 border-b border-[#eddcc0]/60 bg-white/85 backdrop-blur-md [padding-top:env(safe-area-inset-top)]">
       <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-3">
         {left}
-        <h1 className={`flex-1 truncate text-lg font-semibold ${left ? "text-[#3D291C]" : "pl-2 text-[#754319]"}`}>
+        <h1 className={`flex-1 truncate text-lg font-bold text-[#5b371f] ${left ? "" : "pl-2"}`}>
           {title}
         </h1>
         {right}
@@ -91,7 +99,7 @@ export function TopBar({ title, left, right }: { title: string; left?: ReactNode
   )
 }
 
-/** White card with a hairline border and a very soft shadow. */
+/** Portal card: white, or the cream gradient for highlights. */
 export function NibCard({
   children,
   className = "",
@@ -103,10 +111,10 @@ export function NibCard({
 }) {
   const colors =
     tone === "gold"
-      ? "bg-[#FCEBC0] border-[#F3D98F]"
+      ? "border-[#f8b513]/30 bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
       : tone === "danger"
-        ? "bg-[#FDECEA] border-[#F5C6C0] text-[#7A1C14]"
-        : "bg-white border-[#EDE2CF]"
+        ? "border-[#F5C6C0] bg-[#FDECEA] text-[#7A1C14]"
+        : "border-[#eddcc0] bg-white"
   return <div className={`overflow-hidden rounded-2xl border shadow-sm ${colors} ${className}`}>{children}</div>
 }
 
@@ -123,14 +131,14 @@ export function StatusPill({ label, tone }: { label: string; tone: Tone }) {
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-base font-semibold text-[#3D291C]">{children}</h2>
+  return <h2 className="text-base font-bold text-[#5b371f]">{children}</h2>
 }
 
 export function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <p className="text-xs font-medium text-[#8A7565]">{label}</p>
-      <p className="break-words text-[15px] text-[#3D291C]">{value || "—"}</p>
+      <p className={`text-xs font-medium ${MUTED}`}>{label}</p>
+      <p className="break-words text-[15px]">{value || "—"}</p>
     </div>
   )
 }
@@ -151,8 +159,8 @@ export function SwitchRow({
   return (
     <label className={`flex items-center gap-4 ${disabled ? "opacity-50" : "cursor-pointer"}`}>
       <span className="flex-1">
-        <span className="block text-[15px] text-[#3D291C]">{title}</span>
-        <span className="block text-xs text-[#8A7565]">{description}</span>
+        <span className="block text-[15px]">{title}</span>
+        <span className={`block text-xs ${MUTED}`}>{description}</span>
       </span>
       <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
     </label>
@@ -164,5 +172,5 @@ export function formatAmount(amount: number, currency: string) {
 }
 
 export function formatTime(ms: number) {
-  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,12 +10,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { NibCard } from "./ui"
+import { MUTED, NibCard, OUTLINE_BUTTON, PRIMARY_BUTTON } from "./ui"
 
 /**
- * The steps that keep the speaker alive with the screen off (the web version
- * of the Android app's BackgroundSetup): install it as an app, allow
- * notifications, and stop the phone putting the browser to sleep.
+ * The steps that keep the speaker alive with the screen off: install it as an
+ * app, allow notifications, and stop the phone putting the browser to sleep.
  */
 
 export type SetupState = {
@@ -29,72 +28,40 @@ export type SetupState = {
   backgroundGuideDone: boolean
 }
 
-export function setupComplete(state: SetupState) {
-  return state.installed && notificationsDone(state) && state.backgroundGuideDone
-}
-
 function notificationsDone(state: SetupState) {
   return state.notifications === "enabled" || state.notifications === "off"
 }
 
-type Guide = { title: string; steps: string[]; note?: string }
+export function setupComplete(state: SetupState) {
+  return state.installed && notificationsDone(state) && state.backgroundGuideDone
+}
+
+type Guide = { title: string; steps: string[] }
 
 function installGuide(state: SetupState): Guide {
-  if (state.ios) {
-    return {
-      title: "Install on iPhone",
-      steps: [
-        "Open this page in Safari.",
-        "Tap the Share button (the square with an arrow).",
-        "Tap Add to Home Screen, then Add.",
-        "Open Nibtera Speaker from its new icon and pair it there with the link.",
-      ],
-    }
-  }
-  return {
-    title: "Install the app",
-    steps: [
-      "Open this page in Chrome.",
-      "Tap the ⋮ menu at the top right.",
-      "Tap Install app (or Add to Home screen), then Install.",
-      "From now on, open Nibtera Speaker from its icon.",
-    ],
-  }
+  return state.ios
+    ? { title: "Install on iPhone", steps: ["In Safari, tap Share → Add to Home Screen.", "Open the speaker from its icon and pair it there."] }
+    : { title: "Install the app", steps: ["In Chrome, tap ⋮ → Install app.", "Open the speaker from its icon from now on."] }
 }
 
 function backgroundGuide(state: SetupState): Guide {
   if (state.ios) {
-    return {
-      title: "iPhone: keep the speaker on screen",
-      steps: [
-        "iPhone pauses web apps when the screen locks, so keep Nibtera Speaker open on screen.",
-        "Keep the phone on its charger at the counter.",
-        "Notifications still alert you when the speaker is paused.",
-      ],
-    }
+    return { title: "iPhone", steps: ["Keep the speaker open on screen, with the phone on its charger."] }
   }
+  // The speaker runs inside Chrome, so the battery settings are Chrome's.
   if (state.samsung) {
     return {
-      title: "Samsung: keep the speaker awake",
+      title: "Samsung",
       steps: [
-        "Open Settings → Apps → Chrome → Battery and choose Unrestricted.",
-        "Open Settings → Battery → Background usage limits.",
-        "Open Sleeping apps and Deep sleeping apps: if Chrome or Nibtera Speaker is listed, remove it.",
-        "Open Never sleeping apps and add Chrome (and Nibtera Speaker if it's listed).",
-        "Don't swipe Nibtera Speaker away in Recent apps.",
+        "Settings → Apps → Chrome → Battery → Unrestricted.",
+        "Settings → Battery → Background usage limits → Never sleeping apps → add Chrome.",
+        "Don't swipe the speaker away from recent apps.",
       ],
-      note: "The speaker runs inside Chrome, so these settings are for Chrome. Menu names vary between models.",
     }
   }
   return {
-    title: "Keep the speaker awake",
-    steps: [
-      "Open Settings → Apps → Chrome → Battery and choose Unrestricted (or allow background activity).",
-      "Tecno / Infinix / itel: in Phone Master → Auto-start, turn on Chrome. Don't let \"clean\" or \"accelerate\" close it.",
-      "Xiaomi / Redmi: in Security → Autostart, turn on Chrome; in Chrome's App info → Battery saver, choose No restrictions.",
-      "Don't swipe Nibtera Speaker away in Recent apps.",
-    ],
-    note: "The speaker runs inside Chrome, so these settings are for Chrome. Menu names vary between phones.",
+    title: "Keep it awake",
+    steps: ["Settings → Apps → Chrome → Battery → Unrestricted.", "Don't swipe the speaker away from recent apps."],
   }
 }
 
@@ -103,25 +70,22 @@ function GuideDialog({ guide, onDone, onClose }: { guide: Guide; onDone?: () => 
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-sm rounded-2xl bg-white">
         <DialogHeader>
-          <DialogTitle>{guide.title}</DialogTitle>
+          <DialogTitle className="text-[#5b371f]">{guide.title}</DialogTitle>
           <DialogDescription asChild>
-            <div className="space-y-2 text-left text-[#3D291C]">
-              <ol className="list-decimal space-y-2 pl-5">
-                {guide.steps.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
-              {guide.note && <p className="text-xs text-[#8A7565]">{guide.note}</p>}
-            </div>
+            <ol className="list-decimal space-y-2 pl-5 text-left text-[#5b371f]">
+              {guide.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="outline" className={OUTLINE_BUTTON} onClick={onClose}>
             Close
           </Button>
           {onDone && (
-            <Button className="bg-[#754319] text-white hover:bg-[#5B371F]" onClick={onDone}>
-              I&apos;ve done this
+            <Button className={PRIMARY_BUTTON} onClick={onDone}>
+              Done
             </Button>
           )}
         </DialogFooter>
@@ -134,40 +98,33 @@ function SetupItem({
   title,
   description,
   done,
+  doneLabel = "✓ Done",
   action,
   onAction,
-  doneLabel = "✓ Done",
 }: {
   title: string
-  description: ReactNode
+  description?: string
   done: boolean
+  doneLabel?: string
   action?: string
   onAction?: () => void
-  doneLabel?: string
 }) {
   return (
     <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold">{title}</p>
-        <p className="text-xs opacity-80">{description}</p>
+        {description && <p className={`text-xs ${MUTED}`}>{description}</p>}
       </div>
       {done ? (
-        onAction && action ? (
-          <button type="button" onClick={onAction} className="shrink-0 text-sm font-semibold text-[#3E7D4F]">
-            ✓ {action}
-          </button>
-        ) : (
-          <span className="shrink-0 text-sm font-semibold text-[#3E7D4F]">{doneLabel}</span>
+        <span className="shrink-0 text-sm font-semibold text-[#3E7D4F]">{doneLabel}</span>
+      ) : (
+        action &&
+        onAction && (
+          <Button size="sm" onClick={onAction} className={`h-9 shrink-0 px-4 ${PRIMARY_BUTTON}`}>
+            {action}
+          </Button>
         )
-      ) : action && onAction ? (
-        <Button
-          size="sm"
-          onClick={onAction}
-          className="h-9 shrink-0 rounded-[14px] bg-[#754319] px-4 text-white hover:bg-[#5B371F]"
-        >
-          {action}
-        </Button>
-      ) : null}
+      )}
     </div>
   )
 }
@@ -187,44 +144,39 @@ export function SetupItems({
 }) {
   const [guide, setGuide] = useState<"install" | "background" | null>(null)
 
-  const notificationText: Record<SetupState["notifications"], string> = {
-    enabled: "Payments also arrive as notifications, which still alert you if the phone stops the speaker.",
-    off: "Turned off in Settings.",
-    allow: "Alerts you even when the phone has stopped the speaker. Choose Allow when asked.",
-    denied: "Blocked for this site. Open the browser's site settings → Notifications → Allow, then come back.",
-    unsupported: state.ios
-      ? "On iPhone, notifications only work in the installed app. Install it first."
-      : "This browser can't show payment notifications. Use Chrome.",
+  const notificationNote: Partial<Record<SetupState["notifications"], string>> = {
+    denied: "Blocked: allow them in the browser's site settings",
+    unsupported: state.ios ? "Install the app first" : "Not available in this browser",
   }
 
   return (
     <div className="space-y-4">
       {(showDone || !state.installed) && (
         <SetupItem
-          title="Install the speaker app"
-          description="Opens straight into the speaker, and plays sound without a tap when it starts."
+          title="Install the app"
+          description="Opens straight into the speaker"
           done={state.installed}
-          action={state.canInstall ? "Install" : "Show steps"}
-          onAction={state.installed ? undefined : state.canInstall ? onInstall : () => setGuide("install")}
           doneLabel="✓ Installed"
+          action={state.canInstall ? "Install" : "How"}
+          onAction={state.canInstall ? onInstall : () => setGuide("install")}
         />
       )}
       {(showDone || !notificationsDone(state)) && (
         <SetupItem
           title="Notifications"
-          description={notificationText[state.notifications]}
+          description={notificationNote[state.notifications] ?? "Alerts you when the screen is off"}
           done={notificationsDone(state)}
-          action={state.notifications === "allow" ? "Allow" : undefined}
-          onAction={state.notifications === "allow" ? onAllowNotifications : undefined}
           doneLabel={state.notifications === "off" ? "Off" : "✓ Done"}
+          action={state.notifications === "allow" ? "Allow" : undefined}
+          onAction={onAllowNotifications}
         />
       )}
       {(showDone || !state.backgroundGuideDone) && (
         <SetupItem
-          title={state.samsung ? "Samsung settings" : "Run in the background"}
-          description="Phones put the browser to sleep on their own and close the speaker. Follow the steps once."
+          title="Battery settings"
+          description="Stops the phone closing the speaker"
           done={state.backgroundGuideDone}
-          action="Show steps"
+          action="How"
           onAction={() => setGuide("background")}
         />
       )}
@@ -250,9 +202,7 @@ export function SetupCard(props: Omit<Parameters<typeof SetupItems>[0], "showDon
   return (
     <NibCard tone={urgent ? "danger" : "gold"}>
       <div className="space-y-3 p-4">
-        <p className="text-base font-semibold">
-          {urgent ? "Payments may not be announced with the screen off" : "Finish setup"}
-        </p>
+        <p className="text-base font-bold">Finish setup</p>
         <SetupItems {...props} showDone={false} />
       </div>
     </NibCard>

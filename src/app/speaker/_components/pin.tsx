@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { MAX_PIN, MIN_PIN, checkPin, setPin } from "@/lib/speaker-pin"
-import { Screen, TopBar } from "./ui"
+import { MUTED, OUTLINE_BUTTON, PRIMARY_BUTTON, Screen, TopBar } from "./ui"
 
 function PinInput({
   value,
@@ -30,7 +30,7 @@ function PinInput({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-[#8A7565]">{label}</span>
+      <span className={`mb-1 block text-sm font-medium ${MUTED}`}>{label}</span>
       <Input
         type="password"
         inputMode="numeric"
@@ -39,7 +39,7 @@ function PinInput({
         value={value}
         onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, MAX_PIN))}
         aria-invalid={invalid}
-        className={`h-12 bg-white text-lg tracking-[0.4em] ${invalid ? "border-[#C62828]" : "border-[#EDE2CF]"}`}
+        className={`h-12 bg-white text-lg tracking-[0.4em] ${invalid ? "border-[#C62828]" : "border-[#eddcc0]"}`}
       />
     </label>
   )
@@ -76,9 +76,8 @@ export function SetPinScreen({ onSaved }: { onSaved: () => void }) {
           void save()
         }}
       >
-        <p className="text-[15px] text-[#3D291C]">
-          Choose a PIN of {MIN_PIN} to {MAX_PIN} digits. It&apos;s needed to unpair this phone or change the PIN, so
-          nobody at the counter can connect it to another account. Payments are announced while you set it.
+        <p className={`text-[15px] ${MUTED}`}>
+          {MIN_PIN} to {MAX_PIN} digits. Needed to unpair this phone.
         </p>
         <PinInput
           label="PIN"
@@ -103,7 +102,7 @@ export function SetPinScreen({ onSaved }: { onSaved: () => void }) {
         <Button
           type="submit"
           disabled={!pin || !confirm || saving}
-          className="h-14 rounded-[14px] bg-[#754319] text-base font-semibold text-white hover:bg-[#5B371F]"
+          className={`h-12 text-base font-semibold ${PRIMARY_BUTTON}`}
         >
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save PIN
@@ -158,7 +157,7 @@ export function PinDialog({
           className="space-y-4"
         >
           <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
+            <DialogTitle className="text-[#5b371f]">{title}</DialogTitle>
             <DialogDescription className="whitespace-pre-line text-left">{message}</DialogDescription>
           </DialogHeader>
           <PinInput
@@ -173,13 +172,13 @@ export function PinDialog({
           />
           {error && <p className="text-sm text-[#C62828]">{error}</p>}
           <DialogFooter className="gap-2">
-            <Button type="button" variant="ghost" onClick={onCancel}>
+            <Button type="button" variant="outline" className={OUTLINE_BUTTON} onClick={onCancel}>
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={pin.length < MIN_PIN || checking}
-              className={danger ? "bg-[#C62828] text-white hover:bg-[#A51F1F]" : "bg-[#754319] text-white hover:bg-[#5B371F]"}
+              className={danger ? "rounded-xl bg-[#C62828] text-white hover:bg-[#A51F1F]" : PRIMARY_BUTTON}
             >
               {checking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {confirmLabel}
