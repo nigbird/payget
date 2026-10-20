@@ -795,6 +795,7 @@ export default function SpeakerPage() {
           // The tap itself unlocks sound (document click listener above).
           onTurnOnSound={() => setTappedForSound(true)}
           background={backgroundIssue}
+          onInstall={installPrompt && !env.installed ? () => void install() : null}
           onResumeBackground={() => void resumeKeepAlive().then(() => setKeepAlive(keepAliveState()))}
           setupCard={<SetupCard {...setupProps} />}
           recent={recent}

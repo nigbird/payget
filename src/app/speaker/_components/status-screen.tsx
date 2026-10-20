@@ -36,7 +36,10 @@ const BACKGROUND_COPY: Record<BackgroundIssue, { title: string; detail: string; 
   paused: { title: "Background sound is paused", detail: "Amounts may not be spoken while the screen is off.", action: "Resume" },
   interrupted: { title: "Another app is playing sound", detail: "Amounts may not be spoken while the screen is off.", action: "Resume" },
   "needs-tap": { title: "Background sound is off", detail: "Amounts may not be spoken while the screen is off.", action: "Turn on" },
-  unavailable: { title: "Background sound isn't available", detail: "Notifications still alert you when the screen is off." },
+  unavailable: {
+    title: "This browser can't keep the speaker on in the background",
+    detail: "Keep this screen open, or install the app.",
+  },
 }
 
 /** Merchant, connection and readiness in one compact card. */
@@ -118,18 +121,30 @@ function StatusCard({
   )
 }
 
-function BackgroundNotice({ issue, onResume }: { issue: BackgroundIssue; onResume: () => void }) {
+/** Amber banner under the status card, only while background sound isn't playing. */
+function BackgroundNotice({
+  issue,
+  onResume,
+  onInstall,
+}: {
+  issue: BackgroundIssue
+  onResume: () => void
+  /** Offered when this browser can't keep the speaker running but can install the app. */
+  onInstall: (() => void) | null
+}) {
   const copy = BACKGROUND_COPY[issue]
+  // Only an action that can work here: resume / turn on, or install when that's the fix.
+  const action = copy.action ? { label: copy.action, run: onResume } : onInstall ? { label: "Install", run: onInstall } : null
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-[#B26A00]/25 bg-[#B26A00]/5 px-4 py-2.5">
-      <BellOff className="h-[18px] w-[18px] shrink-0 text-[#B26A00]" />
+    <div role="status" className="flex items-center gap-3 rounded-2xl border border-[#B26A00]/30 bg-[#B26A00]/10 px-4 py-3">
+      <BellOff className="h-5 w-5 shrink-0 text-[#B26A00]" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">{copy.title}</p>
-        <p className={`text-xs ${MUTED}`}>{copy.detail}</p>
+        <p className="text-xs text-[#5b371f]/80">{copy.detail}</p>
       </div>
-      {copy.action && (
-        <Button size="sm" variant="outline" onClick={onResume} className={`h-8 shrink-0 px-3 ${OUTLINE_BUTTON}`}>
-          {copy.action}
+      {action && (
+        <Button size="sm" variant="outline" onClick={action.run} className={`h-8 shrink-0 px-3 ${OUTLINE_BUTTON}`}>
+          {action.label}
         </Button>
       )}
     </div>
@@ -178,11 +193,11 @@ function PaymentHistory({ recent }: { recent: Payment[] }) {
   const total = paid.filter((p) => p.currency === currency).reduce((sum, p) => sum + p.amount, 0)
 
   return (
-    <NibCard>
-      <div className="flex items-baseline justify-between gap-3 border-b border-[#eddcc0]/70 px-4 py-3">
-        <h3 className="text-sm font-bold">
-          Today <span className={`font-normal ${MUTED}`}>· {recent.length}</span>
-        </h3>
+    <section className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-3 px-1 pt-1">
+        <h2 className="text-base font-bold">
+          Today <span className={`text-sm font-normal ${MUTED}`}>· {recent.length}</span>
+        </h2>
         {paid.length > 0 && (
           <p className="text-sm tabular-nums">
             <span className={MUTED}>Total </span>
@@ -190,6 +205,7 @@ function PaymentHistory({ recent }: { recent: Payment[] }) {
           </p>
         )}
       </div>
+    <NibCard>
 
       {/* Column headings on larger screens; phones show compact two-line rows. */}
       <div className={`hidden grid-cols-[4.5rem_minmax(0,1fr)_8rem_9rem] gap-4 border-b border-[#eddcc0]/70 px-4 py-2 text-xs font-medium md:grid ${MUTED}`}>
@@ -230,6 +246,7 @@ function PaymentHistory({ recent }: { recent: Payment[] }) {
         </div>
       )}
     </NibCard>
+    </section>
   )
 }
 
@@ -242,6 +259,7 @@ export function StatusScreen({
   onTurnOnSound,
   background,
   onResumeBackground,
+  onInstall,
   setupCard,
   recent,
   onOpenSettings,
@@ -254,6 +272,8 @@ export function StatusScreen({
   onTurnOnSound: () => void
   background: BackgroundIssue | null
   onResumeBackground: () => void
+  /** Chrome's install prompt, when available. */
+  onInstall: (() => void) | null
   setupCard: ReactNode
   /** Today's announcements, newest first. */
   recent: Payment[]
@@ -286,7 +306,7 @@ export function StatusScreen({
             soundDiagnosis={soundDiagnosis}
             onTurnOnSound={onTurnOnSound}
           />
-          {background && !soundBlocked && <BackgroundNotice issue={background} onResume={onResumeBackground} />}
+          {background && !soundBlocked && <BackgroundNotice issue={background} onResume={onResumeBackground} onInstall={onInstall} />}
           {setupCard}
         </div>
 
