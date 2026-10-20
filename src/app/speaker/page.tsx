@@ -306,15 +306,27 @@ export default function SpeakerPage() {
   useEffect(() => {
     if (!token) return
     unlockAudio()
-    void startKeepAlive({ title: "Listening for payments", artist: "Nibtera Speaker" }).then(() =>
-      setKeepAlive(keepAliveState())
-    )
     void voiceDescription().then(setVoice)
     // Re-sync the push subscription; the permission prompt itself needs a tap (Setup card).
     if (notificationPermission() === "granted" && getSpeakerSettings().paymentNotifications) {
       void enablePaymentPush(token).then(setPushStatus)
     }
   }, [token])
+
+  // The keep-alive track, unless "Speak amounts with the screen off" is switched off
+  // (a personal phone: no "Listening" chip, no interrupted music; notifications still alert).
+  useEffect(() => {
+    if (!token) return
+    if (!settings.backgroundSound) {
+      stopKeepAlive()
+      setKeepAlive("off")
+      return
+    }
+    void startKeepAlive({ title: "Listening for payments", artist: info?.merchantName ?? "Nibtera Speaker" }).then(() =>
+      setKeepAlive(keepAliveState())
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the name only labels the media notification (below)
+  }, [token, settings.backgroundSound])
 
   useEffect(() => {
     if (!token) return
@@ -573,7 +585,7 @@ export default function SpeakerPage() {
     // "pointerdown": on phones a touch only counts once the finger lifts.
     const onTap = () => {
       unlockAudio()
-      if (keepAliveState() === "blocked") void resumeKeepAlive()
+      if (keepAliveState() === "blocked" && getSpeakerSettings().backgroundSound) void resumeKeepAlive()
       void check()
     }
     document.addEventListener("visibilitychange", onVisible)
@@ -710,8 +722,9 @@ export default function SpeakerPage() {
       : baseConnection
   // Plain words for the background-sound notice. The browser's error name only
   // decides whether a tap can help (it's logged to the console, not shown).
-  const backgroundIssue: BackgroundIssue | null =
-    keepAlive === "paused" || keepAlive === "interrupted"
+  const backgroundIssue: BackgroundIssue | null = !settings.backgroundSound
+    ? null
+    : keepAlive === "paused" || keepAlive === "interrupted"
       ? keepAlive
       : keepAlive === "blocked"
         ? keepAliveError()?.startsWith("NotAllowedError")

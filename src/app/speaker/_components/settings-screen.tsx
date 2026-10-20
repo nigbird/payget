@@ -84,6 +84,12 @@ export function SettingsScreen({
           disabled={settings.paymentSound === "none"}
         />
         <SwitchRow
+          title="Speak amounts with the screen off"
+          description='Shows "Listening" and may pause your music. Turn off on a personal phone; notifications still alert you.'
+          checked={settings.backgroundSound}
+          onChange={(backgroundSound) => onChange({ backgroundSound })}
+        />
+        <SwitchRow
           title="Warn when offline"
           description="Beep if the connection is lost"
           checked={settings.offlineWarning}

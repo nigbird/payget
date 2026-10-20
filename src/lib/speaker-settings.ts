@@ -13,6 +13,8 @@ export type SpeakerSettings = {
   paymentSound: PaymentSound
   /** "Sound only": play the payment sound without speaking the amount. */
   soundOnly: boolean
+  /** Loop the keep-alive track so amounts are still spoken with the screen off (lib/speaker-keepalive). */
+  backgroundSound: boolean
   /** Play a warning tone once when the connection has been lost for 30 seconds. */
   offlineWarning: boolean
   /** Payments also arrive as notifications, which still alert when the phone has frozen the page. */
@@ -30,6 +32,7 @@ const LEGACY_SPEECH_KEY = "nibtera.soundDeviceSpeech"
 const DEFAULTS: SpeakerSettings = {
   paymentSound: "chime",
   soundOnly: false,
+  backgroundSound: true,
   offlineWarning: true,
   paymentNotifications: true,
   backgroundGuideDone: false,
