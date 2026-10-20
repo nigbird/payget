@@ -76,10 +76,10 @@ export function connectionLabel(state: ConnectionState) {
   }
 }
 
-/** Full-height screen on the cream background, clear of the phone's notch and home bar. */
+/** Full-height white screen, clear of the notch, the home bar and (in landscape) the side cut-outs. */
 export function Screen({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-dvh bg-white text-[#5b371f] [padding-bottom:env(safe-area-inset-bottom)]">
+    <main className="min-h-dvh overflow-x-hidden bg-white text-[#5b371f] [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)] [padding-right:env(safe-area-inset-right)]">
       {children}
     </main>
   )
@@ -88,7 +88,7 @@ export function Screen({ children }: { children: ReactNode }) {
 export function TopBar({ title, left, right }: { title: string; left?: ReactNode; right?: ReactNode }) {
   return (
     <header className="sticky top-0 z-10 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 [padding-top:env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-3 md:h-16 md:max-w-2xl lg:max-w-6xl lg:px-6">
+      <div className="mx-auto flex h-14 max-w-xl items-center gap-1 px-2 md:h-16 md:max-w-2xl md:px-3 lg:max-w-6xl lg:px-4">
         {left}
         <h1 className={`flex-1 truncate text-lg font-bold text-white ${left ? "" : "pl-2"}`}>
           {title}
@@ -122,9 +122,9 @@ export function NibCard({
 export function StatusPill({ label, tone }: { label: string; tone: Tone }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide ${TONE_BG[tone]} ${TONE_TEXT[tone]}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide ${TONE_BG[tone]} ${TONE_TEXT[tone]}`}
     >
-      <span className={`h-2 w-2 rounded-full ${TONE_DOT[tone]}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[tone]}`} />
       {label.toUpperCase()}
     </span>
   )
@@ -172,5 +172,5 @@ export function formatAmount(amount: number, currency: string) {
 }
 
 export function formatTime(ms: number) {
-  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
 }

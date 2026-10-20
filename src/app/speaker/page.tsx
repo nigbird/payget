@@ -35,7 +35,7 @@ import { PairScreen } from "./_components/pair-screen"
 import { PinDialog, SetPinScreen } from "./_components/pin"
 import { SettingsScreen } from "./_components/settings-screen"
 import { SetupCard, SetupItems, type SetupState } from "./_components/setup"
-import { StatusScreen } from "./_components/status-screen"
+import { StatusScreen, type BackgroundIssue } from "./_components/status-screen"
 import type { ConnectionState, Payment } from "./_components/ui"
 
 /**
@@ -52,6 +52,8 @@ import type { ConnectionState, Payment } from "./_components/ui"
 
 const TOKEN_STORAGE_KEY = "nibtera.soundDeviceToken"
 const RECENT_STORAGE_KEY = "nibtera.speakerRecent"
+/** Last known merchant and device name, shown straight away while reconnecting. */
+const INFO_STORAGE_KEY = "nibtera.speakerInfo"
 const MAX_BACKOFF_MS = 30 * 1000
 /** Announcements kept on the phone: today's only (the portal's Transactions page is the record). */
 const RECENT_LIMIT = 200
@@ -161,7 +163,7 @@ export default function SpeakerPage() {
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default")
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
-  const [env, setEnv] = useState({ installed: false, ios: false, mobile: true, samsung: false })
+  const [env, setEnv] = useState({ installed: false, ios: false, mobile: true, chromeAndroid: false, samsung: false })
   const [pairingError, setPairingError] = useState<string | null>(null)
 
   const active = !!token
@@ -182,6 +184,7 @@ export default function SpeakerPage() {
     } else if (fresh && fresh !== existing) {
       writeStorage(TOKEN_STORAGE_KEY, fresh)
       writeStorage(RECENT_STORAGE_KEY, null)
+      writeStorage(INFO_STORAGE_KEY, null)
       clearPin()
       setToken(fresh)
     } else {
@@ -189,11 +192,20 @@ export default function SpeakerPage() {
     }
     setPinSet(hasPin())
     setRecent(readRecent())
+    try {
+      const cached = JSON.parse(readStorage(INFO_STORAGE_KEY) ?? "null")
+      if (cached?.merchantName) setInfo(cached)
+    } catch {}
     setPermission(notificationPermission())
     setEnv({
       installed: isInstalledApp(),
       ios: isIos(),
       mobile: isIos() || /Android|Mobile/i.test(navigator.userAgent),
+      // Chrome's own menu has "Install app"; Samsung Internet, Firefox etc. don't offer ours.
+      chromeAndroid:
+        /Android/i.test(navigator.userAgent) &&
+        /Chrome\//.test(navigator.userAgent) &&
+        !/SamsungBrowser|Firefox|OPR|EdgA/i.test(navigator.userAgent),
       samsung: /SM-|Samsung/i.test(navigator.userAgent),
     })
     // Chrome hides the phone model from the user agent; ask for it (Samsung guide).
@@ -245,6 +257,7 @@ export default function SpeakerPage() {
   const forget = useCallback(() => {
     writeStorage(TOKEN_STORAGE_KEY, null)
     writeStorage(RECENT_STORAGE_KEY, null)
+    writeStorage(INFO_STORAGE_KEY, null)
     clearPin()
     stopKeepAlive()
     setToken(null)
@@ -350,7 +363,9 @@ export default function SpeakerPage() {
     const onReady = (ready: { deviceName: string; merchantName: string; cursor?: number }) => {
       attempt = 0
       setBaseConnection("live")
-      setInfo({ deviceName: ready.deviceName, merchantName: ready.merchantName })
+      const next = { deviceName: ready.deviceName, merchantName: ready.merchantName }
+      setInfo(next)
+      writeStorage(INFO_STORAGE_KEY, JSON.stringify(next))
       // Without a position, a speaker that drops before its first payment would
       // reconnect without Last-Event-ID and miss everything published while away.
       if (!lastEventId && typeof ready.cursor === "number") lastEventId = ready.cursor
@@ -613,6 +628,7 @@ export default function SpeakerPage() {
       // Paired with another link: a new device, so a new PIN and history.
       writeStorage(TOKEN_STORAGE_KEY, action.token)
       writeStorage(RECENT_STORAGE_KEY, null)
+      writeStorage(INFO_STORAGE_KEY, null)
       clearPin()
       setPinSet(false)
       setRecent([])
@@ -670,6 +686,7 @@ export default function SpeakerPage() {
   const setupState: SetupState = {
     installed: env.installed || settings.installDone,
     canInstall: !!installPrompt,
+    installable: !!installPrompt || env.ios || env.chromeAndroid,
     ios: env.ios,
     mobile: env.mobile,
     samsung: env.samsung,
@@ -691,6 +708,16 @@ export default function SpeakerPage() {
         ? "polling"
         : "live"
       : baseConnection
+  // Plain words for the background-sound notice. The browser's error name only
+  // decides whether a tap can help (it's logged to the console, not shown).
+  const backgroundIssue: BackgroundIssue | null =
+    keepAlive === "paused" || keepAlive === "interrupted"
+      ? keepAlive
+      : keepAlive === "blocked"
+        ? keepAliveError()?.startsWith("NotAllowedError")
+          ? "needs-tap"
+          : "unavailable"
+        : null
   const merchantName = info?.merchantName ?? ""
   const deviceName = info?.deviceName ?? ""
 
@@ -754,8 +781,7 @@ export default function SpeakerPage() {
           soundDiagnosis={tappedForSound && audioBlocked ? `Still blocked (audio: ${audioState()})` : null}
           // The tap itself unlocks sound (document click listener above).
           onTurnOnSound={() => setTappedForSound(true)}
-          background={keepAlive === "paused" || keepAlive === "interrupted" || keepAlive === "blocked" ? keepAlive : null}
-          backgroundError={keepAlive === "blocked" ? keepAliveError() : null}
+          background={backgroundIssue}
           onResumeBackground={() => void resumeKeepAlive().then(() => setKeepAlive(keepAliveState()))}
           setupCard={<SetupCard {...setupProps} />}
           recent={recent}

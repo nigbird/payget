@@ -21,6 +21,8 @@ export type SetupState = {
   installed: boolean
   /** Chrome's install prompt is available. */
   canInstall: boolean
+  /** This browser can install the app at all (prompt, iPhone's Add to Home Screen, or Chrome's menu). */
+  installable: boolean
   ios: boolean
   /** A phone or tablet; battery settings don't apply on a computer. */
   mobile: boolean
@@ -34,8 +36,13 @@ function notificationsDone(state: SetupState) {
   return state.notifications === "enabled" || state.notifications === "off"
 }
 
+/** Steps that apply here: no install step where the browser can't install, no battery step on a computer. */
+function installStepShown(state: SetupState) {
+  return !state.installed && state.installable
+}
+
 export function setupComplete(state: SetupState) {
-  return state.installed && notificationsDone(state) && (state.backgroundGuideDone || !state.mobile)
+  return !installStepShown(state) && notificationsDone(state) && (state.backgroundGuideDone || !state.mobile)
 }
 
 type Guide = { title: string; steps: string[] }
@@ -155,7 +162,7 @@ export function SetupItems({
 
   return (
     <div className="space-y-4">
-      {(showDone || !state.installed) && (
+      {(installStepShown(state) || (showDone && state.installed)) && (
         <SetupItem
           title="Install the app"
           description="Opens straight into the speaker"
