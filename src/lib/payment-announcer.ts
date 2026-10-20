@@ -58,6 +58,11 @@ export function isAudioRunning() {
   return audioContext?.state === "running"
 }
 
+/** The AudioContext's state ("none" before it exists), shown on screen when sound is blocked. */
+export function audioState(): string {
+  return audioContext?.state ?? "none"
+}
+
 export function onAudioStateChange(listener: () => void): () => void {
   const ctx = audioContext
   if (!ctx) return () => {}

@@ -32,6 +32,7 @@ let audio: HTMLAudioElement | null = null
 /** Set when the user pauses from the media notification. */
 let pausedByUser = false
 let state: KeepAliveState = "off"
+let lastError: string | null = null
 const listeners = new Set<() => void>()
 
 function setState(next: KeepAliveState) {
@@ -49,14 +50,23 @@ async function play(): Promise<boolean> {
   try {
     await audio.play()
     pausedByUser = false
+    lastError = null
     setPlaybackState(true)
     setState("playing")
     return true
-  } catch {
-    // Needs a tap (autoplay policy) or another app holds the audio focus.
+  } catch (err) {
+    // Needs a tap (autoplay policy), another app holds the audio focus, or the
+    // track failed to load. The name is shown on screen for diagnosis.
+    lastError = err instanceof Error ? err.name : String(err)
+    console.warn("[speaker] Keep-alive track didn't start:", err)
     setState("blocked")
     return false
   }
+}
+
+/** Why the track last failed to start (e.g. NotAllowedError), for the status screen. */
+export function keepAliveError(): string | null {
+  return lastError
 }
 
 /** Starts the keep-alive track. Call from a tap: browsers only allow it then. */

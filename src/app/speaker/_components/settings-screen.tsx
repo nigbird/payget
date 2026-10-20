@@ -50,7 +50,7 @@ export function SettingsScreen({
       <TopBar
         title="Settings"
         left={
-          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back" className="text-[#754319]">
+          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back" className="text-white hover:bg-white/15 hover:text-white">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         }

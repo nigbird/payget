@@ -27,10 +27,13 @@ const PAGE_SIZE = 10
 function Readiness({
   connection,
   soundBlocked,
+  soundDiagnosis,
   onTurnOnSound,
 }: {
   connection: ConnectionState
   soundBlocked: boolean
+  /** Shown under the prompt once a tap didn't help, so a screenshot says why. */
+  soundDiagnosis: string | null
   onTurnOnSound: () => void
 }) {
   const live = connection === "live" || connection === "polling"
@@ -39,6 +42,7 @@ function Readiness({
   let tone: Tone = connectionTone(connection)
   if (live && soundBlocked) {
     title = "Tap here to turn on sound"
+    detail = soundDiagnosis
     tone = "waiting"
   } else if (live) {
     title = "Speaker is ready"
@@ -141,8 +145,10 @@ export function StatusScreen({
   deviceName,
   connection,
   soundBlocked,
+  soundDiagnosis,
   onTurnOnSound,
-  backgroundPaused,
+  background,
+  backgroundError,
   onResumeBackground,
   setupCard,
   recent,
@@ -152,9 +158,11 @@ export function StatusScreen({
   deviceName: string
   connection: ConnectionState
   soundBlocked: boolean
+  soundDiagnosis: string | null
   onTurnOnSound: () => void
-  /** The keep-alive track was paused (by the user, or another app took the sound). */
-  backgroundPaused: boolean
+  /** The keep-alive track isn't playing: paused by the user, taken by another app, or refused. */
+  background: "paused" | "interrupted" | "blocked" | null
+  backgroundError: string | null
   onResumeBackground: () => void
   setupCard: ReactNode
   /** Today's announcements, newest first. */
@@ -166,7 +174,7 @@ export function StatusScreen({
       <TopBar
         title="Nibtera Speaker"
         right={
-          <Button variant="ghost" size="icon" onClick={onOpenSettings} aria-label="Settings" className="text-[#754319]">
+          <Button variant="ghost" size="icon" onClick={onOpenSettings} aria-label="Settings" className="text-white hover:bg-white/15 hover:text-white">
             <Settings className="h-5 w-5" />
           </Button>
         }
@@ -180,16 +188,28 @@ export function StatusScreen({
           </div>
         </NibCard>
 
-        <Readiness connection={connection} soundBlocked={soundBlocked} onTurnOnSound={onTurnOnSound} />
+        <Readiness
+          connection={connection}
+          soundBlocked={soundBlocked}
+          soundDiagnosis={soundDiagnosis}
+          onTurnOnSound={onTurnOnSound}
+        />
 
-        {backgroundPaused && !soundBlocked && (
+        {background && !soundBlocked && (
           <button
             type="button"
             onClick={onResumeBackground}
-            className="flex items-center gap-3 rounded-2xl bg-[#B26A00] px-4 py-3 text-left text-sm font-semibold text-white"
+            className="flex items-center gap-3 rounded-2xl border border-[#B26A00]/30 bg-[#B26A00]/5 px-4 py-3 text-left text-sm"
           >
-            <BellOff className="h-5 w-5 shrink-0" />
-            Sound paused by another app. Tap to resume.
+            <BellOff className="h-5 w-5 shrink-0 text-[#B26A00]" />
+            <span>
+              <span className="block font-semibold">
+                {background === "interrupted" ? "Another app is using the sound" : "Background mode is off"}
+              </span>
+              <span className={`block text-xs ${MUTED}`}>
+                Tap to turn it on{backgroundError ? ` · ${backgroundError}` : ""}
+              </span>
+            </span>
           </button>
         )}
 

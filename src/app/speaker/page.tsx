@@ -5,6 +5,7 @@ import { Download, Loader2, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   announcePayment,
+  audioState,
   ensureAudioRunning,
   isAudioRunning,
   onAudioStateChange,
@@ -13,6 +14,7 @@ import {
   voiceDescription,
 } from "@/lib/payment-announcer"
 import {
+  keepAliveError,
   keepAliveState,
   onKeepAliveChange,
   resumeKeepAlive,
@@ -151,6 +153,7 @@ export default function SpeakerPage() {
   const [recent, setRecent] = useState<Payment[]>([])
   const [voice, setVoice] = useState<string | null>(null)
   const [audioBlocked, setAudioBlocked] = useState(false)
+  const [tappedForSound, setTappedForSound] = useState(false)
   const [keepAlive, setKeepAlive] = useState<KeepAliveState>("off")
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default")
@@ -736,10 +739,13 @@ export default function SpeakerPage() {
           merchantName={merchantName}
           deviceName={deviceName}
           connection={connection}
-          soundBlocked={audioBlocked || keepAlive === "blocked"}
-          // The tap itself unlocks sound (document click listener above); just re-check.
-          onTurnOnSound={() => setAudioBlocked(!isAudioRunning())}
-          backgroundPaused={keepAlive === "paused" || keepAlive === "interrupted"}
+          // Only the sound that plays announcements; the keep-alive track has its own notice.
+          soundBlocked={audioBlocked}
+          soundDiagnosis={tappedForSound && audioBlocked ? `Still blocked (audio: ${audioState()})` : null}
+          // The tap itself unlocks sound (document click listener above).
+          onTurnOnSound={() => setTappedForSound(true)}
+          background={keepAlive === "paused" || keepAlive === "interrupted" || keepAlive === "blocked" ? keepAlive : null}
+          backgroundError={keepAlive === "blocked" ? keepAliveError() : null}
           onResumeBackground={() => void resumeKeepAlive().then(() => setKeepAlive(keepAliveState()))}
           setupCard={<SetupCard {...setupProps} />}
           recent={recent}
