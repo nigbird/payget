@@ -10,7 +10,7 @@ import { AMHARIC_CLIP_DIR, AMHARIC_CLIPS, amharicAnnouncementClips } from "@/lib
  * speaker app (Android home-screen app) may play without one.
  *
  * Speech, in order of preference:
- *  1. Recorded Amharic clips (public/sounds/am/<name>.wav or .mp3, see
+ *  1. Recorded Amharic clips (public/sounds/am/<name>.mp3, see
  *     lib/amharic-voice-clips) — same voice on every browser, phone and soundbox.
  *  2. The device's text-to-speech: Amharic if it has a voice (Edge does,
  *     Chrome and most phones don't), otherwise English.
@@ -77,16 +77,12 @@ export function loadAmharicClips(): Promise<void> {
 
   clipsLoad = Promise.all(
     Object.keys(AMHARIC_CLIPS).map(async (name) => {
-      // One file per word, WAV or MP3 (the same recordings as the Android app).
-      for (const ext of ["wav", "mp3"]) {
-        try {
-          const res = await fetch(`${AMHARIC_CLIP_DIR}/${name}.${ext}`)
-          if (!res.ok) continue
-          clipBuffers.set(name, await ctx.decodeAudioData(await res.arrayBuffer()))
-          return
-        } catch {
-          // missing or undecodable — covered by the device-voice fallback
-        }
+      try {
+        const res = await fetch(`${AMHARIC_CLIP_DIR}/${name}.mp3`)
+        if (!res.ok) return
+        clipBuffers.set(name, await ctx.decodeAudioData(await res.arrayBuffer()))
+      } catch {
+        // missing or undecodable — covered by the device-voice fallback
       }
     })
   ).then(() => {
