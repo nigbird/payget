@@ -88,7 +88,7 @@ export function Screen({ children }: { children: ReactNode }) {
 export function TopBar({ title, left, right }: { title: string; left?: ReactNode; right?: ReactNode }) {
   return (
     <header className="sticky top-0 z-10 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 [padding-top:env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-3">
+      <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-3 md:h-16 md:max-w-2xl lg:max-w-6xl lg:px-6">
         {left}
         <h1 className={`flex-1 truncate text-lg font-bold text-white ${left ? "" : "pl-2"}`}>
           {title}

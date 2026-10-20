@@ -128,9 +128,12 @@ function tokenFromPairingInput(input: string): { token: string } | { error: stri
   return token.startsWith("sdv_") ? { token } : { error: "This link has no pairing code in it." }
 }
 
+/** Running in an app window: the speaker's own, or the merchant portal's app opened on /speaker. */
 function isInstalledApp() {
   return (
-    window.matchMedia("(display-mode: standalone)").matches ||
+    ["standalone", "minimal-ui", "fullscreen", "window-controls-overlay"].some(
+      (mode) => window.matchMedia(`(display-mode: ${mode})`).matches
+    ) ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
   )
 }
@@ -158,7 +161,7 @@ export default function SpeakerPage() {
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default")
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
-  const [env, setEnv] = useState({ installed: false, ios: false, samsung: false })
+  const [env, setEnv] = useState({ installed: false, ios: false, mobile: true, samsung: false })
   const [pairingError, setPairingError] = useState<string | null>(null)
 
   const active = !!token
@@ -187,7 +190,12 @@ export default function SpeakerPage() {
     setPinSet(hasPin())
     setRecent(readRecent())
     setPermission(notificationPermission())
-    setEnv({ installed: isInstalledApp(), ios: isIos(), samsung: /SM-|Samsung/i.test(navigator.userAgent) })
+    setEnv({
+      installed: isInstalledApp(),
+      ios: isIos(),
+      mobile: isIos() || /Android|Mobile/i.test(navigator.userAgent),
+      samsung: /SM-|Samsung/i.test(navigator.userAgent),
+    })
     // Chrome hides the phone model from the user agent; ask for it (Samsung guide).
     const uaData = (navigator as Navigator & {
       userAgentData?: { getHighEntropyValues: (hints: string[]) => Promise<{ model?: string }> }
@@ -660,9 +668,10 @@ export default function SpeakerPage() {
           ? "enabled"
           : "allow"
   const setupState: SetupState = {
-    installed: env.installed,
+    installed: env.installed || settings.installDone,
     canInstall: !!installPrompt,
     ios: env.ios,
+    mobile: env.mobile,
     samsung: env.samsung,
     notifications: notificationsState,
     backgroundGuideDone: settings.backgroundGuideDone,
@@ -672,6 +681,7 @@ export default function SpeakerPage() {
     onInstall: () => void install(),
     onAllowNotifications: () => void allowNotifications(),
     onBackgroundDone: () => updateSpeakerSettings({ backgroundGuideDone: true }),
+    onInstallDone: () => updateSpeakerSettings({ installDone: true }),
   }
 
   const connection: ConnectionState = offline

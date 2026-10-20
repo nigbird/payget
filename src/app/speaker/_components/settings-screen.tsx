@@ -13,8 +13,14 @@ const SOUND_OPTIONS: { value: PaymentSound; title: string }[] = [
   { value: "none", title: "Amount only" },
 ]
 
-function Divider() {
-  return <hr className="my-3 border-[#eddcc0]" />
+/** A settings group: plain on phones, a card on larger screens. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 border-b border-[#eddcc0] py-5 first:pt-0 last:border-0 md:rounded-2xl md:border md:bg-white md:p-6 md:shadow-sm md:first:pt-6 md:last:border">
+      <SectionTitle>{title}</SectionTitle>
+      {children}
+    </section>
+  )
 }
 
 export function SettingsScreen({
@@ -55,8 +61,8 @@ export function SettingsScreen({
           </Button>
         }
       />
-      <div className="mx-auto flex max-w-xl flex-col gap-3 px-6 pb-12 pt-4">
-        <SectionTitle>Sound</SectionTitle>
+      <div className="mx-auto max-w-xl px-6 pb-12 pt-4 md:max-w-2xl md:space-y-5 md:px-5 md:pt-6 lg:grid lg:max-w-6xl lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0 lg:px-6 lg:pt-8">
+        <Section title="Sound">
         <RadioGroup
           value={settings.paymentSound}
           onValueChange={(value) => onChange({ paymentSound: value as PaymentSound })}
@@ -95,13 +101,12 @@ export function SettingsScreen({
         <Button onClick={onTestSound} className={`mt-1 h-12 text-base font-semibold ${PRIMARY_BUTTON}`}>
           Test sound
         </Button>
+        </Section>
 
-        <Divider />
-        <SectionTitle>Setup</SectionTitle>
-        {setup}
+        <div className="md:space-y-5 lg:space-y-6">
+        <Section title="Setup">{setup}</Section>
 
-        <Divider />
-        <SectionTitle>Paired to</SectionTitle>
+        <Section title="Paired to">
         <InfoRow label="Merchant" value={merchantName} />
         <InfoRow label="Device" value={deviceName} />
 
@@ -116,6 +121,8 @@ export function SettingsScreen({
           >
             Unpair
           </Button>
+        </div>
+        </Section>
         </div>
       </div>
     </Screen>

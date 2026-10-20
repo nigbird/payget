@@ -19,6 +19,8 @@ export type SpeakerSettings = {
   paymentNotifications: boolean
   /** The user confirmed the phone's background / battery settings (can't be detected). */
   backgroundGuideDone: boolean
+  /** The user said the app is installed (some app windows can't be detected). */
+  installDone: boolean
 }
 
 const STORAGE_KEY = "nibtera.speakerSettings"
@@ -31,6 +33,7 @@ const DEFAULTS: SpeakerSettings = {
   offlineWarning: true,
   paymentNotifications: true,
   backgroundGuideDone: false,
+  installDone: false,
 }
 
 let current: SpeakerSettings | null = null

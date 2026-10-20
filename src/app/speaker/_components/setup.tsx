@@ -22,6 +22,8 @@ export type SetupState = {
   /** Chrome's install prompt is available. */
   canInstall: boolean
   ios: boolean
+  /** A phone or tablet; battery settings don't apply on a computer. */
+  mobile: boolean
   /** Phone maker, when the browser tells us (Samsung guide). */
   samsung: boolean
   notifications: "enabled" | "off" | "allow" | "denied" | "unsupported"
@@ -33,7 +35,7 @@ function notificationsDone(state: SetupState) {
 }
 
 export function setupComplete(state: SetupState) {
-  return state.installed && notificationsDone(state) && state.backgroundGuideDone
+  return state.installed && notificationsDone(state) && (state.backgroundGuideDone || !state.mobile)
 }
 
 type Guide = { title: string; steps: string[] }
@@ -135,12 +137,14 @@ export function SetupItems({
   onInstall,
   onAllowNotifications,
   onBackgroundDone,
+  onInstallDone,
 }: {
   state: SetupState
   showDone: boolean
   onInstall: () => void
   onAllowNotifications: () => void
   onBackgroundDone: () => void
+  onInstallDone: () => void
 }) {
   const [guide, setGuide] = useState<"install" | "background" | null>(null)
 
@@ -171,7 +175,7 @@ export function SetupItems({
           onAction={onAllowNotifications}
         />
       )}
-      {(showDone || !state.backgroundGuideDone) && (
+      {state.mobile && (showDone || !state.backgroundGuideDone) && (
         <SetupItem
           title="Battery settings"
           description="Stops the phone closing the speaker"
@@ -180,7 +184,16 @@ export function SetupItems({
           onAction={() => setGuide("background")}
         />
       )}
-      {guide === "install" && <GuideDialog guide={installGuide(state)} onClose={() => setGuide(null)} />}
+      {guide === "install" && (
+        <GuideDialog
+          guide={installGuide(state)}
+          onClose={() => setGuide(null)}
+          onDone={() => {
+            onInstallDone()
+            setGuide(null)
+          }}
+        />
+      )}
       {guide === "background" && (
         <GuideDialog
           guide={backgroundGuide(state)}

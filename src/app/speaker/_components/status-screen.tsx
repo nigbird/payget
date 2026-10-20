@@ -87,14 +87,14 @@ function LatestAnnouncement({ payment }: { payment: Payment }) {
       {/* key: replays the entrance animation for each new payment */}
       <div
         key={payment.id}
-        className="flex flex-col items-center px-4 py-5 text-center animate-in fade-in zoom-in-95 duration-300"
+        className="flex flex-col items-center px-4 py-5 text-center animate-in fade-in zoom-in-95 duration-300 md:py-8"
       >
         <p className="flex items-center gap-1.5 text-sm font-semibold text-[#754319]">
           <Volume2 className="h-[18px] w-[18px]" />
           {test ? "Test payment" : "Payment received"}
         </p>
-        <p className="mt-1 text-4xl font-bold tabular-nums">{formatAmount(payment.amount, payment.currency)}</p>
-        {payment.payerName && !test && <p className="mt-1 text-base">from {payment.payerName}</p>}
+        <p className="mt-1 text-4xl font-bold tabular-nums md:text-5xl lg:text-6xl">{formatAmount(payment.amount, payment.currency)}</p>
+        {payment.payerName && !test && <p className="mt-1 text-base md:text-lg">from {payment.payerName}</p>}
         <p className={`mt-1.5 text-xs ${MUTED}`}>{formatTime(payment.receivedAt)}</p>
       </div>
     </NibCard>
@@ -179,7 +179,8 @@ export function StatusScreen({
           </Button>
         }
       />
-      <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 pb-10 pt-4">
+      <div className="mx-auto max-w-xl px-5 pb-10 pt-4 md:max-w-2xl md:pt-6 lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-8 lg:px-6 lg:pt-8">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-24">
         <NibCard>
           <div className="flex flex-col items-center px-4 py-5 text-center">
             <StatusPill label={connectionLabel(connection)} tone={connectionTone(connection)} />
@@ -214,13 +215,16 @@ export function StatusScreen({
         )}
 
         {setupCard}
+        </div>
 
-        {recent[0] && <LatestAnnouncement payment={recent[0]} />}
+        <div className="mt-4 flex flex-col gap-4 lg:mt-0">
+          {recent[0] && <LatestAnnouncement payment={recent[0]} />}
 
-        <h3 className="mt-1 text-sm font-bold">
-          Today{recent.length > 0 && <span className={`font-normal ${MUTED}`}> · {recent.length}</span>}
-        </h3>
-        <RecentList recent={recent} />
+          <h3 className="mt-1 text-sm font-bold lg:mt-0">
+            Today{recent.length > 0 && <span className={`font-normal ${MUTED}`}> · {recent.length}</span>}
+          </h3>
+          <RecentList recent={recent} />
+        </div>
       </div>
     </Screen>
   )
