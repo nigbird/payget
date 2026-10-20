@@ -11,6 +11,7 @@ import {
   parsePeriod,
   parseTransactionFilters,
   pctChange,
+  runDashboardQueries,
 } from "@/lib/dashboard-period"
 
 /** A non-terminal payment older than this is reported as stuck. */
@@ -18,10 +19,9 @@ const STUCK_AFTER_MS = 30 * 60 * 1000
 const IN_FLIGHT = ["INITIATED", "PENDING", "AWAITING_PIN", "PROCESSING"] as const
 
 async function periodTotals(where: Prisma.TransactionWhereInput) {
-  const [byStatus, payingMerchants] = await Promise.all([
-    prisma.transaction.groupBy({ by: ["status"], where, _sum: { amount: true }, _count: { _all: true } }),
-    prisma.transaction.groupBy({ by: ["merchantId"], where: { ...where, status: "SUCCESS" } }),
-  ])
+  // One after the other: the caller already runs several of these at once.
+  const byStatus = await prisma.transaction.groupBy({ by: ["status"], where, _sum: { amount: true }, _count: { _all: true } })
+  const payingMerchants = await prisma.transaction.groupBy({ by: ["merchantId"], where: { ...where, status: "SUCCESS" } })
   const success = byStatus.find((s) => s.status === "SUCCESS")
   const volume = success?._sum.amount ?? 0
   const successCount = success?._count._all ?? 0
@@ -85,10 +85,10 @@ export async function GET(request: Request) {
       newMerchants,
       prevNewMerchants,
       merchants,
-    ] = await Promise.all([
-      periodTotals(where),
-      periodTotals({ ...txFilter, timestamp: { gte: period.prevFrom, lt: period.from } }),
-      prisma.$queryRaw<{ bucket: Date; volume: number | null; success: bigint; failed: bigint; total: bigint }[]>`
+    ] = await runDashboardQueries([
+      () => periodTotals(where),
+      () => periodTotals({ ...txFilter, timestamp: { gte: period.prevFrom, lt: period.from } }),
+      () => prisma.$queryRaw<{ bucket: Date; volume: number | null; success: bigint; failed: bigint; total: bigint }[]>`
         SELECT date_trunc(${period.bucket}, "timestamp" + ${TZ_INTERVAL}::interval) AS bucket,
                SUM(CASE WHEN status = 'SUCCESS' THEN amount ELSE 0 END) AS volume,
                COUNT(*) FILTER (WHERE status = 'SUCCESS') AS success,
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
         FROM "Transaction"
         WHERE "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${txSql}
         GROUP BY 1`,
-      prisma.$queryRaw<{ hour: number; count: bigint; failed: bigint; volume: number | null }[]>`
+      () => prisma.$queryRaw<{ hour: number; count: bigint; failed: bigint; volume: number | null }[]>`
         SELECT EXTRACT(HOUR FROM "timestamp" + ${TZ_INTERVAL}::interval)::int AS hour,
                COUNT(*) FILTER (WHERE status = 'SUCCESS') AS count,
                COUNT(*) FILTER (WHERE status = 'FAILED') AS failed,
@@ -105,23 +105,23 @@ export async function GET(request: Request) {
         FROM "Transaction"
         WHERE "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${txSql}
         GROUP BY 1`,
-      prisma.transaction.groupBy({ by: ["paymentMethod", "status"], where, _sum: { amount: true }, _count: { _all: true } }),
-      prisma.transaction.groupBy({
+      () => prisma.transaction.groupBy({ by: ["paymentMethod", "status"], where, _sum: { amount: true }, _count: { _all: true } }),
+      () => prisma.transaction.groupBy({
         by: ["origin"],
         where: { ...where, status: "SUCCESS" },
         _sum: { amount: true },
         _count: { _all: true },
       }),
-      prisma.transaction.groupBy({ by: ["merchantId", "status"], where, _sum: { amount: true }, _count: { _all: true } }),
-      prisma.transaction.groupBy({
+      () => prisma.transaction.groupBy({ by: ["merchantId", "status"], where, _sum: { amount: true }, _count: { _all: true } }),
+      () => prisma.transaction.groupBy({
         by: ["providerStatusCode", "providerStatusDesc"],
         where: { ...where, status: "FAILED" },
         _count: { _all: true },
         orderBy: { _count: { id: "desc" } },
         take: 10,
       }),
-      prisma.transaction.count({ where: stuckWhere }),
-      prisma.transaction.findMany({
+      () => prisma.transaction.count({ where: stuckWhere }),
+      () => prisma.transaction.findMany({
         where: stuckWhere,
         orderBy: { timestamp: "asc" },
         take: 8,
@@ -135,27 +135,27 @@ export async function GET(request: Request) {
           merchant: { select: { name: true } },
         },
       }),
-      prisma.merchantCallbackQueue.groupBy({ by: ["status"], where: merchantWhere, _count: { _all: true } }),
-      prisma.paymentReconciliationRequest.count({
+      () => prisma.merchantCallbackQueue.groupBy({ by: ["status"], where: merchantWhere, _count: { _all: true } }),
+      () => prisma.paymentReconciliationRequest.count({
         where: { status: "PENDING", ...(merchantId || paymentMethod ? { transaction: txFilter } : {}) },
       }),
-      prisma.mpgsReconciliationRequest.count({
+      () => prisma.mpgsReconciliationRequest.count({
         where: { status: "PENDING", ...(merchantId || paymentMethod ? { transaction: txFilter } : {}) },
       }),
-      prisma.cashbackTransaction.groupBy({
+      () => prisma.cashbackTransaction.groupBy({
         by: ["status"],
         where: { ...merchantWhere, createdAt: { gte: period.from, lt: period.to } },
         _sum: { cashbackAmount: true },
         _count: { _all: true },
       }),
-      prisma.activeSession.count({ where: { revokedAt: null, expiresAt: { gt: now } } }),
-      prisma.ipLockout.count({ where: { lockoutUntil: { gt: now } } }),
-      prisma.loginIdentifierLockout.count({ where: { lockoutUntil: { gt: now } } }),
-      prisma.merchant.groupBy({ by: ["status"], _count: { _all: true } }),
-      prisma.user.count({ where: { status: "ACTIVE" } }),
-      prisma.merchant.count({ where: { createdAt: { gte: period.from, lt: period.to } } }),
-      prisma.merchant.count({ where: { createdAt: { gte: period.prevFrom, lt: period.from } } }),
-      merchantOptions(),
+      () => prisma.activeSession.count({ where: { revokedAt: null, expiresAt: { gt: now } } }),
+      () => prisma.ipLockout.count({ where: { lockoutUntil: { gt: now } } }),
+      () => prisma.loginIdentifierLockout.count({ where: { lockoutUntil: { gt: now } } }),
+      () => prisma.merchant.groupBy({ by: ["status"], _count: { _all: true } }),
+      () => prisma.user.count({ where: { status: "ACTIVE" } }),
+      () => prisma.merchant.count({ where: { createdAt: { gte: period.from, lt: period.to } } }),
+      () => prisma.merchant.count({ where: { createdAt: { gte: period.prevFrom, lt: period.from } } }),
+      () => merchantOptions(),
     ])
 
     // Time series, zero-filled.

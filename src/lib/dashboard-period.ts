@@ -126,3 +126,28 @@ export async function merchantOptions() {
     orderBy: { name: "asc" },
   })
 }
+
+/**
+ * The dashboard queries, at most this many at a time. Each in-flight query holds
+ * its own database connection; firing a whole dashboard at once made Prisma open
+ * a burst of new connections, and the dashboard was the first page to fail when
+ * Postgres was near its connection limit.
+ */
+const DASHBOARD_QUERY_CONCURRENCY = 3
+
+/** Like `Promise.all`, but takes thunks and runs at most DASHBOARD_QUERY_CONCURRENCY at once. */
+export async function runDashboardQueries<T extends readonly unknown[] | []>(tasks: {
+  [K in keyof T]: () => Promise<T[K]>
+}): Promise<{ -readonly [K in keyof T]: T[K] }> {
+  const thunks = tasks as unknown as (() => Promise<unknown>)[]
+  const results: unknown[] = new Array(thunks.length)
+  let next = 0
+  const worker = async () => {
+    while (next < thunks.length) {
+      const i = next++
+      results[i] = await thunks[i]()
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(DASHBOARD_QUERY_CONCURRENCY, thunks.length) }, worker))
+  return results as { -readonly [K in keyof T]: T[K] }
+}

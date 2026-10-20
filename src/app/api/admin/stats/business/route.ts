@@ -11,6 +11,7 @@ import {
   parsePeriod,
   parseTransactionFilters,
   pctChange,
+  runDashboardQueries,
 } from "@/lib/dashboard-period"
 
 /** Upper bound on transaction rows returned for an Excel export. */
@@ -20,10 +21,9 @@ const DETAIL_LIMIT = 20000
 // abandoned payments belong to the technical view.
 
 async function totals(where: Prisma.TransactionWhereInput) {
-  const [sum, merchantsWithSales] = await Promise.all([
-    prisma.transaction.aggregate({ where, _sum: { amount: true }, _count: { _all: true } }),
-    prisma.transaction.groupBy({ by: ["merchantId"], where }),
-  ])
+  // One after the other: the caller already runs several of these at once.
+  const sum = await prisma.transaction.aggregate({ where, _sum: { amount: true }, _count: { _all: true } })
+  const merchantsWithSales = await prisma.transaction.groupBy({ by: ["merchantId"], where })
   return {
     amount: sum._sum.amount ?? 0,
     successCount: sum._count._all,
@@ -73,18 +73,18 @@ export async function GET(request: Request) {
       })
     }
 
-    const [current, previous, seriesRows, perMerchant, merchants] = await Promise.all([
-      totals(where),
-      totals({ ...txFilter, status: "SUCCESS", timestamp: { gte: period.prevFrom, lt: period.from } }),
-      prisma.$queryRaw<{ bucket: Date; amount: number | null; count: bigint }[]>`
+    const [current, previous, seriesRows, perMerchant, merchants] = await runDashboardQueries([
+      () => totals(where),
+      () => totals({ ...txFilter, status: "SUCCESS", timestamp: { gte: period.prevFrom, lt: period.from } }),
+      () => prisma.$queryRaw<{ bucket: Date; amount: number | null; count: bigint }[]>`
         SELECT date_trunc(${period.bucket}, "timestamp" + ${TZ_INTERVAL}::interval) AS bucket,
                SUM(amount) AS amount,
                COUNT(*) AS count
         FROM "Transaction"
         WHERE status = 'SUCCESS' AND "timestamp" >= ${period.from} AND "timestamp" < ${period.to} ${txSql}
         GROUP BY 1`,
-      prisma.transaction.groupBy({ by: ["merchantId"], where, _sum: { amount: true }, _count: { _all: true } }),
-      merchantOptions(),
+      () => prisma.transaction.groupBy({ by: ["merchantId"], where, _sum: { amount: true }, _count: { _all: true } }),
+      () => merchantOptions(),
     ])
 
     const rowsByKey = new Map(seriesRows.map((r) => [localDateKey(r.bucket), r]))
