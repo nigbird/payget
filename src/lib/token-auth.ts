@@ -20,7 +20,8 @@ export type AccessTokenClaims = {
   district?: string | null
   branch?: string | null
   assignedMerchantIds?: string[]
-  assignedMerchants?: { id: string; name: string }[]
+  /** For SALES sessions, `role` is the person's team role in that merchant (UI only — the server re-checks it). */
+  assignedMerchants?: { id: string; name: string; role?: string }[]
   sessionVersion?: number
   /** Actual MerchantTeamMember role (account_admin/sales_admin/payment_initiator) for OTP-based SALES sessions. */
   teamRole?: string | null

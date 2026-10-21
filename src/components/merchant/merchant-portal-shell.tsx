@@ -37,8 +37,11 @@ export default function MerchantPortalShell({
   const [assignedMerchants, setAssignedMerchants] = React.useState<{ id: string; name: string }[]>([])
 
   const isSalesUser = sessionUser?.role === "SALES"
+  // A team member's role differs per merchant, so use the role for the merchant
+  // on screen (older tokens without per-merchant roles fall back to teamRole).
+  const roleForThisMerchant = sessionUser?.assignedMerchants?.find((m) => m.id === merchantId)?.role
   const activeRole: MerchantTeamRole = isSalesUser
-    ? ((sessionUser?.teamRole as MerchantTeamRole | undefined) ?? "payment_initiator")
+    ? (((roleForThisMerchant ?? sessionUser?.teamRole) as MerchantTeamRole | undefined) ?? "payment_initiator")
     : "account_admin"
   const isAccountAdmin = activeRole === "account_admin"
 

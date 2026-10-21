@@ -351,13 +351,16 @@ function mapToPrismaTeamMemberStatus(s: MerchantTeamMemberStatus): any {
 }
 
 function mapTeamMember(tm: any): MerchantTeamMember {
+  // Never expose the login OTP: it is written to every membership sharing a
+  // phone, so returning it to one merchant's team would hand that merchant a
+  // working code for the person's other merchants too.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { otp: _otp, otpExpires: _otpExpires, ...rest } = tm;
   return {
-    ...tm,
+    ...rest,
     role: mapTeamRole(tm.role),
     status: mapTeamMemberStatus(tm.status),
     createdAt: tm.createdAt.toISOString(),
-    otp: tm.otp ?? undefined,
-    otpExpires: tm.otpExpires ? tm.otpExpires.toISOString() : undefined
   };
 }
 

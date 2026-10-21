@@ -91,6 +91,18 @@ export async function PATCH(
     delete body.mpgsPassword;
     delete body.yagoutEncryptionKey;
 
+    // Server-owned: the setup token and maker-checker markers are set below by
+    // this route itself, never by the caller (a caller-set setup token is a way
+    // to activate a merchant without approval; caller-set markers defeat the
+    // maker-checker checks).
+    delete body.id;
+    delete body.password;
+    delete body.passwordResetToken;
+    delete body.passwordResetExpires;
+    delete body.approvedBy;
+    delete body.limitsSetBy;
+    delete body.createdBy;
+
     const currentMerchant = await db.getMerchantById(id);
     if (!currentMerchant) {
       return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });

@@ -4,6 +4,13 @@ import bcrypt from 'bcryptjs';
 import { requireCsrf } from '@/lib/request-security';
 import { validatePassword } from '@/lib/password-policy';
 import { getPwnedCount } from '@/lib/pwned-password.server';
+import crypto from 'crypto';
+
+function safeEqual(a: string, b: string) {
+  const aa = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
+}
 
 export async function POST(
   request: Request,
@@ -37,12 +44,39 @@ export async function POST(
       }
     });
 
-    if (!merchant || merchant.passwordResetToken !== token) {
+    if (
+      !merchant ||
+      typeof token !== 'string' ||
+      !merchant.passwordResetToken ||
+      !safeEqual(merchant.passwordResetToken, token)
+    ) {
       return NextResponse.json({ error: 'Invalid or expired setup link' }, { status: 400 });
     }
 
-    if (merchant.passwordResetExpires && new Date() > merchant.passwordResetExpires) {
+    // Activation is only the last step after a checker approved the application.
+    // The approval route is the only thing that issues this link (with an expiry);
+    // a token on a merchant in any other state did not come from it.
+    if (merchant.status !== 'APPROVED') {
+      return NextResponse.json({ error: 'Invalid or expired setup link' }, { status: 400 });
+    }
+
+    if (!merchant.passwordResetExpires || new Date() > merchant.passwordResetExpires) {
       return NextResponse.json({ error: 'Setup link has expired' }, { status: 400 });
+    }
+
+    // The login is keyed on contactUsername. If that identifier already belongs to
+    // a different account (staff, or another merchant's login), refuse instead of
+    // overwriting that account's password and re-homing it to this merchant.
+    const existingLogin = await prisma.user.findUnique({
+      where: { email: merchant.contactUsername },
+      select: { role: true, merchantId: true },
+    });
+    if (existingLogin && !(existingLogin.role === 'MERCHANT' && existingLogin.merchantId === merchant.id)) {
+      console.error('[setup-password] contactUsername of merchant %s already belongs to another account', merchant.id);
+      return NextResponse.json(
+        { error: 'This contact is already linked to another account. Please contact the bank.' },
+        { status: 409 }
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

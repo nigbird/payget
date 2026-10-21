@@ -124,7 +124,11 @@ export async function POST(request: Request) {
       )
       const assignedMerchants = activeMemberships
         .filter((m) => (m as any).merchant)
-        .map((m) => ({ id: m.merchantId, name: (m as any).merchant.name as string }))
+        .map((m) => ({
+          id: m.merchantId,
+          name: (m as any).merchant.name as string,
+          role: String(m.role).toLowerCase(),
+        }))
 
       expiresIn = SALES_ACCESS_TOKEN_TTL_SECONDS
       accessToken = await signAccessToken(

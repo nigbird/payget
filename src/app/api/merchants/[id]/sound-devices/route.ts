@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user || !canAccessMerchant(user, merchantId)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  if (!isMerchantAccountAdmin(user)) {
+  if (!(await isMerchantAccountAdmin(user, merchantId))) {
     return NextResponse.json({ error: "Only an account admin can pair sound devices" }, { status: 403 })
   }
 

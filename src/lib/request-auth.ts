@@ -15,7 +15,7 @@ export type ResolvedAuthUser = {
   district?: string | null
   branch?: string | null
   assignedMerchantIds?: string[]
-  assignedMerchants?: { id: string; name: string }[]
+  assignedMerchants?: { id: string; name: string; role?: string }[]
   /** Actual MerchantTeamMember role (account_admin/sales_admin/payment_initiator) for OTP-based SALES sessions. */
   teamRole?: string | null
   teamMemberId?: string | null
@@ -165,13 +165,36 @@ export function canAccessMerchant(user: ResolvedAuthUser | null, targetMerchantI
 }
 
 /**
- * Whether this session has Account Admin-level control over its merchant:
- * the merchant's own password login, or an OTP session for a team member
- * whose MerchantTeamMember.role is account_admin.
+ * Whether this session has Account Admin-level control over `merchantId`:
+ * that merchant's own password login, or an OTP session whose person holds an
+ * ACTIVE account_admin membership in *that* merchant.
+ *
+ * A team member's session spans every merchant their phone belongs to, but the
+ * token's single `teamRole` only describes the membership they logged in with.
+ * Checking it here would let an account admin of merchant A act as one in
+ * merchant B where they are only a payment initiator, so the role is looked up
+ * per merchant instead (which also makes role changes take effect immediately).
  */
-export function isMerchantAccountAdmin(user: ResolvedAuthUser | null) {
+export async function isMerchantAccountAdmin(user: ResolvedAuthUser | null, merchantId: string) {
   if (!user) return false
-  if (user.role === "MERCHANT") return true
-  if (user.role === "SALES") return user.teamRole === "account_admin"
-  return false
+  if (user.role === "MERCHANT") return user.merchantId === merchantId
+  if (user.role !== "SALES" || !user.teamMemberId) return false
+
+  const self = await prisma.merchantTeamMember.findUnique({
+    where: { id: user.teamMemberId },
+    select: { phone: true },
+  })
+  if (!self) return false
+
+  const membership = await prisma.merchantTeamMember.findFirst({
+    where: {
+      merchantId,
+      role: "ACCOUNT_ADMIN",
+      status: "ACTIVE",
+      merchant: { status: "ACTIVE" },
+      OR: [{ id: user.teamMemberId }, ...(self.phone ? [{ phone: self.phone }] : [])],
+    },
+    select: { id: true },
+  })
+  return !!membership
 }

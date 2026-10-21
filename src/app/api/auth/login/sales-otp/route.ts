@@ -108,7 +108,11 @@ export async function POST(request: Request) {
     const assignedMerchantIds = Array.from(new Set(activeMembers.map((m) => m.merchantId))) as string[]
     const assignedMerchants = activeMembers
       .filter((m) => m.merchant)
-      .map((m) => ({ id: m.merchantId as string, name: m.merchant.name as string }))
+      .map((m) => ({
+        id: m.merchantId as string,
+        name: m.merchant.name as string,
+        role: String(m.role).toLowerCase(),
+      }))
 
     // Virtual user ID — not a real User row. The session itself is a real
     // ActiveSession row keyed by teamMemberId, so it can be revoked and refreshed.

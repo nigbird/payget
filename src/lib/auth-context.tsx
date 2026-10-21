@@ -23,7 +23,8 @@ export type AuthUser = {
   district?: string | null
   branch?: string | null
   assignedMerchantIds?: string[]
-  assignedMerchants?: { id: string; name: string }[]
+  /** For SALES sessions, `role` is the person's team role in that merchant. */
+  assignedMerchants?: { id: string; name: string; role?: string }[]
   teamMemberId?: string
   teamRole?: string
 }

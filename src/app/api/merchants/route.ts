@@ -3,13 +3,54 @@ import { db } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { normalizePhoneNumber, isValidEmail, isValidPhoneNumber } from '@/lib/utils';
 import { validateUrl } from '@/lib/url-validation';
 import { generateJweSecret } from '@/lib/jwe';
 import { encryptMerchantSecretAtRest } from '@/lib/merchant-secret';
 import { writeAuditLog } from '@/lib/audit-log';
 import { validateAccountNumberField } from '@/lib/account-number';
+
+/** Defaults the public registration form has always submitted; branch review sets the real limits. */
+const SELF_SERVICE_LIMITS = { dailyLimit: 10000, transactionLimit: 1000, dailyCountLimit: 100 };
+
+const UPLOADED_DOC_ID = /^[a-zA-Z0-9-]+\.(png|jpg|webp|pdf)$/;
+const DOC_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf']);
+
+function isSafeLogoUrl(value: unknown): value is string {
+  return typeof value === 'string' && /^\/api\/uploads\/merchant-logos\/[a-zA-Z0-9._-]+$/.test(value);
+}
+
+function parseLimit(value: unknown, fallback: number) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+/**
+ * Documents must be files our upload endpoint produced. The URL is rebuilt from
+ * the id rather than trusted, so a registrant can't plant an arbitrary link in
+ * front of the reviewer. Returns null when the input is malformed.
+ */
+function parseRegistrationDocuments(input: unknown) {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input) || input.length > 10) return null;
+  const docs = [];
+  for (const doc of input as any[]) {
+    if (!doc || typeof doc.id !== 'string' || !UPLOADED_DOC_ID.test(doc.id)) return null;
+    if (typeof doc.type !== 'string' || !DOC_MIME_TYPES.has(doc.type)) return null;
+    const size = Number(doc.size);
+    const uploadedAt = new Date(doc.uploadedAt);
+    docs.push({
+      id: doc.id,
+      name: typeof doc.name === 'string' ? doc.name.slice(0, 255) : doc.id,
+      type: doc.type,
+      size: Number.isFinite(size) && size >= 0 ? size : 0,
+      url: `/api/uploads/compliance-docs/${doc.id}`,
+      uploadedAt: Number.isNaN(uploadedAt.getTime()) ? new Date() : uploadedAt,
+    });
+  }
+  return docs;
+}
 
 export async function GET(request: Request) {
   const user = await requireAuthUser(request);
@@ -124,39 +165,65 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Validation failed', errors }, { status: 400 });
     }
 
-    // Generate a unique merchant ID if not provided (e.g., m12345)
-    const merchantId = data.id || `m${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Hash the password before saving (if any provided, though we usually won't at this stage)
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
+    // Server-generated — a caller-chosen id could collide with lookups that
+    // match merchants by id (e.g. findMerchantByIdentifier at login/reset).
+    const merchantId = `m${crypto.randomBytes(6).toString('hex')}`;
+
+    const documents = parseRegistrationDocuments(data.documents);
+    if (documents === null) {
+      return NextResponse.json({ error: 'Validation failed', errors: { documents: 'Invalid documents' } }, { status: 400 });
     }
-    
+
+    // Build the row from an explicit allowlist. This route is open to the public,
+    // so anything else in the body (passwordResetToken, status, qrEnabled,
+    // approvedBy, gateway URLs, secrets, ...) must never reach the database —
+    // a self-chosen passwordResetToken let a registrant activate their own
+    // merchant through setup-password without approval.
+    const merchantData = {
+      name: String(data.name).trim(),
+      email: String(data.email).trim(),
+      accountNumber: data.accountNumber,
+      contactName: String(data.contactName).trim(),
+      contactUsername: String(data.contactUsername).trim(),
+      category: String(data.category),
+      businessType: String(data.businessType),
+      businessDescription: typeof data.businessDescription === 'string' ? data.businessDescription.trim() : null,
+      websiteUrl: typeof data.websiteUrl === 'string' && data.websiteUrl.trim() ? data.websiteUrl.trim() : null,
+      callbackUrl: typeof data.callbackUrl === 'string' && data.callbackUrl.trim() ? data.callbackUrl.trim() : null,
+      logoUrl: isSafeLogoUrl(data.logoUrl) ? data.logoUrl : null,
+      riskFactors: Array.isArray(data.riskFactors)
+        ? data.riskFactors.filter((r: unknown): r is string => typeof r === 'string').slice(0, 20).map((r: string) => r.slice(0, 200))
+        : [],
+      // Branch and limits are bank-side decisions: staff onboarding may set them,
+      // a public self-registration always gets the self-service defaults.
+      ...(sessionUser
+        ? {
+            branchName: typeof data.branchName === 'string' && data.branchName.trim() ? data.branchName.trim() : 'Head Office',
+            district: typeof data.district === 'string' && data.district.trim() ? data.district.trim() : 'Head Office',
+            dailyLimit: parseLimit(data.dailyLimit, SELF_SERVICE_LIMITS.dailyLimit),
+            transactionLimit: parseLimit(data.transactionLimit, SELF_SERVICE_LIMITS.transactionLimit),
+            dailyCountLimit: parseLimit(data.dailyCountLimit, SELF_SERVICE_LIMITS.dailyCountLimit),
+          }
+        : {
+            branchName: 'Self-Service',
+            district: 'Self-Service',
+            ...SELF_SERVICE_LIMITS,
+          }),
+    };
+
     // Create merchant record in a transaction
     const merchant = await prisma.$transaction(async (tx) => {
-      // Create the merchant record
-      const { documents, id, ...rest } = data;
-      const rawSecret = rest.jweSecret || generateJweSecret();
-      const encryptedSecret = encryptMerchantSecretAtRest(rawSecret);
+      const encryptedSecret = encryptMerchantSecretAtRest(generateJweSecret());
 
       const m = await tx.merchant.create({
         data: {
-          ...rest,
+          ...merchantData,
           id: merchantId,
           jweSecret: encryptedSecret.ciphertext,
           createdBy: sessionUser?.id ?? null,
           status: 'PENDING', // Always start as pending
-          documents: documents ? {
-            create: documents.map((doc: any) => ({
-              id: doc.id,
-              name: doc.name,
-              type: doc.type,
-              size: doc.size,
-              url: doc.url,
-              uploadedAt: new Date(doc.uploadedAt)
-            }))
-          } : undefined
-        } as any
+          documents: documents.length > 0 ? { create: documents } : undefined
+        }
       });
       
       // We do NOT create a user record at this stage. 

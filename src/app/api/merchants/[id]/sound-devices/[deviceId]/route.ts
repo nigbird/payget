@@ -18,7 +18,7 @@ export async function DELETE(
   if (!user || !canAccessMerchant(user, merchantId)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  if (!isMerchantAccountAdmin(user)) {
+  if (!(await isMerchantAccountAdmin(user, merchantId))) {
     return NextResponse.json({ error: "Only an account admin can remove sound devices" }, { status: 403 })
   }
 
