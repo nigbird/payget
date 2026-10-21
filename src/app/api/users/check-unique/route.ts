@@ -2,11 +2,22 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db'; // Assuming you have a db utility
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
+import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 
 export async function POST(request: Request) {
   try {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
+
+    // Staff onboarding tool only: anonymous callers could otherwise use it to
+    // test which emails/phones have accounts.
+    const authUser = await requireAuthUser(request);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!userHasPermission(authUser, 'MERCHANT_REGISTER')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { username } = await request.json();
 

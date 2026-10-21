@@ -52,6 +52,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   const [paymentMethod, setPaymentMethod] = useState("BANK")
   const [copied, setCopied] = useState(false)
   const [transaction, setTransaction] = useState<any>(null)
+  // Issued by the checkout POST; required to read this payment's status/receipt.
+  const [payerToken, setPayerToken] = useState<string | null>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
 
@@ -169,7 +171,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       const res = await fetch("/api/receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId: id }),
+        body: JSON.stringify({ transactionId: id, payerToken }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -259,7 +261,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       if (response.ok) {
         const data = await response.json()
         setTransaction(data)
-        startPolling(data.transactionId)
+        setPayerToken(data.payerToken ?? null)
+        startPolling(data.transactionId, data.payerToken ?? null)
       } else {
         const err = await response.json()
         toast({ variant: "destructive", title: "Payment Failed", description: err.error || "Could not initiate payment." })
@@ -273,7 +276,8 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
     }
   }
 
-  const startPolling = (txId: string) => {
+  const startPolling = (txId: string, token: string | null) => {
+    const authHeaders = token ? { "x-payer-token": token } : undefined
     let pollCount = 0
     const maxPolls = 100
 
@@ -290,17 +294,17 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
       try {
         // This endpoint actively queries the provider when status is awaiting_pin,
         // catching missed callbacks in real time during the polling window.
-        const response = await fetch(`/api/pay/status/${txId}`)
+        const response = await fetch(`/api/pay/status/${txId}`, { headers: authHeaders })
         if (response.ok) {
           const data = await response.json()
           if (data.status === "success") {
             clearInterval(interval)
-            const txRes = await fetch(`/api/transactions/${txId}`)
+            const txRes = await fetch(`/api/transactions/${txId}`, { headers: authHeaders })
             if (txRes.ok) setTransaction(await txRes.json())
             setView("success")
           } else if (data.status === "failed") {
             clearInterval(interval)
-            const txRes = await fetch(`/api/transactions/${txId}`)
+            const txRes = await fetch(`/api/transactions/${txId}`, { headers: authHeaders })
             if (txRes.ok) setTransaction(await txRes.json())
             setView("failed")
           }

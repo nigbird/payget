@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { checkTransactionStatusAtProvider } from "@/lib/provider-encryption"
+import { canReadTransaction } from "@/lib/payer-token"
 
 // In-memory rate limit: only call provider once per 10s per transaction ID.
 // Prevents hammering the provider on every 3s poll from the customer page.
@@ -8,13 +9,15 @@ const lastProviderCheck = new Map<string, number>()
 const PROVIDER_CHECK_INTERVAL_MS = 10_000
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
 
   const tx = await db.getTransactionById(id)
-  if (!tx) {
+  // Payer token (or merchant/staff login) required: this also triggers provider
+  // status calls, so it must not be callable for arbitrary ids.
+  if (!tx || !(await canReadTransaction(request, tx))) {
     return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
   }
 

@@ -1,3 +1,4 @@
+import crypto from "crypto"
 import { z } from "zod"
 import { db, type Merchant, type Transaction } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
@@ -146,7 +147,9 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
   const exists = await db.getTransactionById(input.transactionId)
   if (exists) return { ok: false as const, error: "Transaction ID already exists" }
 
-  const transactionReference = `ref${Math.random().toString(36).substr(2, 9)}`
+  // Same "ref" + 9 base-36 chars shape as before (callbacks match on it), from a CSPRNG.
+  const REF_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
+  const transactionReference = `ref${Array.from(crypto.randomBytes(9), (b) => REF_ALPHABET[b % 36]).join("")}`
   const createdAt = new Date().toISOString()
   const ttlMinutes = Number(process.env.PAYMENT_LINK_TTL_MINUTES ?? 10)
   const expiresAt = new Date(Date.now() + ttlMinutes * 60_000).toISOString()
@@ -156,7 +159,10 @@ export async function createGatewayTransactionAndToken(input: PaymentInitiate, o
     merchantId: input.merchantId,
     amount: input.amount,
     status: "initiated",
-    callbackUrl: merchant.callbackUrl,
+    // The column is required but a callback URL is optional for merchants; without
+    // this, every payment for a merchant with no callback URL failed with a 500.
+    // Delivery reads the merchant's current URL, never this snapshot.
+    callbackUrl: merchant.callbackUrl ?? "",
     description: input.serviceDescription,
     timestamp: input.timestamp,
     payerPhone: input.payerPhone,

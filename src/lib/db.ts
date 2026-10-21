@@ -632,6 +632,8 @@ export const db = {
   },
 
   findMerchantByResetToken: async (token: string, options?: { includeSecret?: boolean }) => {
+    // An undefined/empty token would make the where clause match every merchant.
+    if (typeof token !== 'string' || !token) return null
     const m = await prisma.merchant.findFirst({
       where: { passwordResetToken: token },
       include: { documents: true }

@@ -11,6 +11,10 @@ import { normalizeLoginIdentifierForLockout } from '@/lib/login-identifier-norma
 import { validatePassword } from '@/lib/password-policy';
 import { getPwnedCount } from '@/lib/pwned-password.server';
 import crypto from 'crypto';
+import { getClientIp } from '@/lib/client-ip';
+import { hitRateLimits } from '@/lib/memory-rate-limit';
+
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
 function generateSecureToken(length: number = 12): string {
   const randomBytes = crypto.randomBytes(Math.ceil(length * 3 / 4));
@@ -25,8 +29,35 @@ export async function POST(request: Request) {
 
     const { identifier: rawIdentifier, action, token, password } = await request.json();
     const identifier = typeof rawIdentifier === 'string' ? rawIdentifier.trim() : rawIdentifier;
+    const ip = getClientIp(request);
+
+    // Each request sends an email/SMS; token checks are guesses at a secret.
+    const limit =
+      action === 'request'
+        ? hitRateLimits([
+            { key: `reset-request:id:${String(identifier ?? '').toLowerCase()}`, limit: 3, windowMs: FIFTEEN_MINUTES },
+            { key: `reset-request:ip:${ip}`, limit: 20, windowMs: FIFTEEN_MINUTES },
+          ])
+        : hitRateLimits([{ key: `reset-token:ip:${ip}`, limit: 30, windowMs: FIFTEEN_MINUTES }]);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: `Too many requests. Try again in ${Math.ceil(limit.retryAfterSeconds / 60)} minute(s).` },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+      );
+    }
+
+    // A missing token must never reach the lookups below: Prisma treats
+    // `where: { passwordResetToken: undefined }` as "no filter" and would return
+    // the first merchant/user in the table — letting a token-less "reset" change
+    // an arbitrary account's password.
+    if ((action === 'check' || action === 'reset') && (typeof token !== 'string' || token.length < 8)) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
+    }
 
     if (action === 'request') {
+      if (typeof identifier !== 'string' || !identifier) {
+        return NextResponse.json({ error: 'Enter your email or phone number.' }, { status: 400 });
+      }
       // First check if it's a merchant
       let entityType: 'MERCHANT' | 'USER' = 'MERCHANT';
       let entityId: string | null = null;
@@ -65,13 +96,14 @@ export async function POST(request: Request) {
           newValue: { result: 'failed', reason: 'NOT_FOUND', identifier: maskIdentifier(identifier) },
         });
 
-        // Use a generic success message even if account not found to prevent user enumeration
-        return NextResponse.json({ success: true, notificationSent: true, entityType: 'MERCHANT' });
+        // Same response as a real account, so accounts can't be enumerated.
+        return NextResponse.json({ success: true });
       }
 
       const config = await db.getSystemConfig();
       const resetTimeoutSeconds = config?.resetTimeoutSeconds ?? PASSWORD_RESET_TIMEOUT_SECONDS;
-      const resetToken = generateSecureToken(12);
+      // 32 base64url chars = 192 bits (was 12 chars / 72 bits).
+      const resetToken = generateSecureToken(32);
       const expiryDate = new Date(Date.now() + resetTimeoutSeconds * 1000);
       const expiry = expiryDate.toISOString();
 
@@ -130,7 +162,9 @@ export async function POST(request: Request) {
 
       console.log('[RESET-PASSWORD] Notification sent status:', notificationSent);
       
-      return NextResponse.json({ success: true, notificationSent, entityType });
+      // Identical to the not-found reply: whether the account exists, which kind
+      // it is (merchant vs staff) and whether delivery worked stay server-side.
+      return NextResponse.json({ success: true });
     }
 
     if (action === 'check') {
@@ -165,7 +199,7 @@ export async function POST(request: Request) {
         expiryDate = user.passwordResetExpires;
       }
 
-      if (expiryDate && expiryDate < new Date()) {
+      if (!expiryDate || expiryDate < new Date()) { // no expiry = not a valid issued token
         await writeAuditLog({
           request,
           userId: actorUserId,
@@ -225,7 +259,7 @@ export async function POST(request: Request) {
         expiryDate = user.passwordResetExpires;
       }
 
-      if (expiryDate && expiryDate < new Date()) {
+      if (!expiryDate || expiryDate < new Date()) { // no expiry = not a valid issued token
         await writeAuditLog({
           request,
           userId: actorUserId,

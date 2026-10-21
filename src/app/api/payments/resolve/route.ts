@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { resolveEncryptedToken } from "@/app/api/payments/_shared"
 import { encryptSessionToken } from "@/lib/jwe"
 import { withMerchantSecret } from "@/lib/merchant-secret"
+import { issuePayerToken } from "@/lib/payer-token"
 
 export async function GET(request: Request) {
   try {
@@ -53,6 +54,9 @@ export async function GET(request: Request) {
       transactionTimestamp: tx.transactionTimestamp,
       payerPhone: payload.userCredentials.phone,
       merchantSessionToken,
+      // The link token proved this caller is the payer; this lets them poll
+      // status and fetch the receipt for this one transaction.
+      payerToken: issuePayerToken(tx.id),
     })
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 400 })

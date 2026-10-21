@@ -9,28 +9,13 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // No remote image hosts: every image is served by this app (uploads go through
+  // /api/uploads/*). The old placeholder hosts were unused template leftovers.
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**',
-      },
-    ],
+    remotePatterns: [],
   },
+  // Don't advertise the framework in response headers.
+  poweredByHeader: false,
   async headers() {
     return [
       {
@@ -53,8 +38,14 @@ const nextConfig: NextConfig = {
             value: 'DENY',
           },
           {
+            // The legacy XSS auditor is removed from browsers and could itself be
+            // abused; current guidance (OWASP) is to disable it and rely on CSP.
             key: 'X-XSS-Protection',
-            value: '1; mode=block',
+            value: '0',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
           },
           {
             //  Disable browser features not used by this payment app
@@ -179,7 +170,9 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/reset-password',
+        // The real page is /reset-password/<token>; the old exact '/reset-password'
+        // match never applied to it.
+        source: '/reset-password/:path*',
         headers: [
           {
             key: 'Cache-Control',

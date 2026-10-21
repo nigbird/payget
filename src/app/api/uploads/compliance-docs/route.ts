@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getClientIp } from "@/lib/client-ip"
+import { hitRateLimit } from "@/lib/memory-rate-limit"
 import { requireAuthUser, userHasAnyPermission } from "@/lib/request-auth"
 import { requireCsrf } from '@/lib/request-security';
 import crypto from "crypto"
@@ -75,6 +76,17 @@ export async function POST(request: Request) {
     const windowStart = new Date(now.getTime() - UPLOAD_RATE_LIMIT_WINDOW_MS)
 
     const user = await requireAuthUser(request)
+
+    // Guests (self-registration) can mint any number of registration ids, each
+    // with a fresh per-registration quota — so also cap them per IP. Same key
+    // as merchant-logo uploads.
+    if (!user) {
+      const guestLimit = hitRateLimit(`guest-upload:${ip}`, 40, 60 * 60 * 1000)
+      if (!guestLimit.allowed) {
+        return NextResponse.json({ error: "Upload limit exceeded. Please try again later." }, { status: 429 })
+      }
+    }
+
     if (user) {
       actorUserId = user.id
 

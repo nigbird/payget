@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { canReadTransaction } from "@/lib/payer-token"
 
 // Bank returns "YYMMDDHHMM ..." — parse first token into YYYY-MM-DD
 function parseValueDate(raw: string): string {
@@ -20,18 +21,23 @@ function parseAmount(raw: string): number {
 
 export async function POST(request: Request) {
   try {
-    const { transactionId } = await request.json()
-    if (!transactionId) {
+    const { transactionId, payerToken } = await request.json().catch(() => ({}))
+    if (!transactionId || typeof transactionId !== "string") {
       return NextResponse.json({ error: "Missing transactionId" }, { status: 400 })
     }
 
     console.log("[receipt] transactionId:", transactionId)
 
-    // Look up the transaction to get the FT number (cbsreference)
+    // Look up the transaction to get the FT number (cbsreference). The receipt
+    // shows both parties' names and account numbers, so only the payer (payer
+    // token) or a user who can access the merchant may fetch it.
     const tx = await db.getTransactionById(transactionId)
-    if (!tx) {
-      console.error("[receipt] transaction not found:", transactionId)
+    if (!tx || !(await canReadTransaction(request, tx, payerToken))) {
+      console.error("[receipt] transaction not found or not permitted:", transactionId)
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+    }
+    if (tx.status !== "success") {
+      return NextResponse.json({ error: "A receipt is available once the payment succeeds" }, { status: 409 })
     }
 
     const creds = tx.userCredentials as any

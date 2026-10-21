@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { writeAuditLog } from '@/lib/audit-log';
 import { deliverMerchantCallback } from '@/lib/merchant-callback';
 import { classifyProviderOutcome } from '@/lib/provider-outcome';
+import { checkTransactionStatusAtProvider } from '@/lib/provider-encryption';
 
 const TERMINAL_STATUSES = new Set(['success', 'failed']);
 
@@ -274,11 +275,46 @@ export async function POST(request: Request) {
     // "processing" is deliberately non-terminal: the provider status poll, a
     // later corrective callback, and manual FT reconciliation can all still
     // resolve it, none of which is possible once a payment is marked failed.
-    const finalStatus: "success" | "failed" | "processing" =
+    let finalStatus: "success" | "failed" | "processing" =
       classification.outcome === "indeterminate" ? "processing" : classification.outcome;
 
-    const indeterminateReason =
+    let indeterminateReason: string | null =
       classification.outcome === "indeterminate" ? classification.reason : null;
+
+    // The provider must report the amount we asked it to collect. A different
+    // amount is never settled automatically — it goes to reconciliation.
+    const reportedAmountRaw = decryptedData.amount;
+    if (finalStatus === "success" && reportedAmountRaw !== undefined && reportedAmountRaw !== null && reportedAmountRaw !== "") {
+      const reportedAmount =
+        typeof reportedAmountRaw === "number"
+          ? reportedAmountRaw
+          : parseFloat(String(reportedAmountRaw).replace(/[^0-9.]/g, ""));
+      if (!Number.isFinite(reportedAmount) || Math.abs(reportedAmount - Number(tx.amount)) > 0.005) {
+        console.error(
+          `[CALLBACK] Amount mismatch for ${tx.transactionReference}: expected ${tx.amount}, provider reported ${String(reportedAmountRaw)}`
+        );
+        finalStatus = "processing";
+        indeterminateReason = "AMOUNT_MISMATCH";
+      }
+    }
+
+    // When the key came from the caller-supplied pubkey (no per-transaction
+    // secret), decrypting proves nothing about who sent it — anyone can derive
+    // that key from our public key. Don't settle on its word: confirm with the
+    // provider's status API, and hold for reconciliation if that can't confirm.
+    if (finalStatus === "success" && sharedSecretSource === "server_private_key") {
+      const txSecret = tx.userCredentials?.providerSharedSecret;
+      const confirmation = txSecret
+        ? await checkTransactionStatusAtProvider(tx.transactionReference, txSecret).catch(() => null)
+        : null;
+      if (!confirmation?.ok || confirmation.paymentStatus !== "PAID") {
+        console.error(
+          `[CALLBACK] Unconfirmed success via pubkey callback for ${tx.transactionReference}; holding for reconciliation`
+        );
+        finalStatus = "processing";
+        indeterminateReason = "UNCONFIRMED_PUBKEY_CALLBACK";
+      }
+    }
 
     const payerAccount: string | null =
       (decryptedData.payerAccount ?? 

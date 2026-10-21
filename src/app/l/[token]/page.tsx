@@ -29,6 +29,8 @@ type ResolvedPayment = {
   status: string
   transactionTimestamp: string
   payerPhone: string
+  /** Proof for the status/receipt endpoints that this browser holds the payment link. */
+  payerToken?: string
 }
 
 
@@ -358,7 +360,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
       const res = await fetch("/api/receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId }),
+        body: JSON.stringify({ transactionId, payerToken: payment?.payerToken }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -404,7 +406,9 @@ function PayLinkPageStandalone({ token }: { token: string }) {
         pollCount++
         if (pollCount > maxPolls) { clearInterval(interval); setView("pending"); return }
         try {
-          const res = await fetch(`/api/pay/status/${payment?.transactionId}`)
+          const res = await fetch(`/api/pay/status/${payment?.transactionId}`, {
+            headers: payment?.payerToken ? { "x-payer-token": payment.payerToken } : undefined,
+          })
           const data = await res.json().catch(() => ({}))
           if (res.ok) {
             if (data?.status === "success") {
@@ -423,7 +427,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
       }, 3000)
     }
     return () => { if (interval) clearInterval(interval) }
-  }, [pushSent, view, token, payment?.transactionId])
+  }, [pushSent, view, token, payment?.transactionId, payment?.payerToken])
 
   const handleExecute = async () => {
     if (!payment) return

@@ -12,6 +12,12 @@ import {
 import { writeAuditLog } from "@/lib/audit-log"
 import { QR_CUSTOMER_INITIATOR_ID } from "@/lib/transaction-initiator"
 import { itemCurrencyForMethod } from "@/lib/transaction-currency"
+import { issuePayerToken } from "@/lib/payer-token"
+import { getClientIp } from "@/lib/client-ip"
+import { hitRateLimits } from "@/lib/memory-rate-limit"
+
+/** Mirrors the checkout page's check (includes +2517 / Safaricom numbers). */
+const QR_PHONE_PATTERN = /^(?:\+251|251|09)\d{7,10}$/
 
 const CartItemSchema = z.object({
   itemId: z.string().optional(),
@@ -71,12 +77,38 @@ export async function POST(
 ) {
   try {
     const { token } = await params
-    const body = await request.json()
-    const { phone, amount, description } = body
+    const body = await request.json().catch(() => ({}))
+    const { description } = body
+    const phone = typeof body.phone === "string" ? body.phone.trim() : ""
+    const amount = typeof body.amount === "number" ? body.amount : parseFloat(String(body.amount ?? ""))
     const rawItems = body.items
 
-    if (!phone || !amount) {
+    if (!phone || !body.amount) {
       return NextResponse.json({ error: "Phone and amount are required" }, { status: 400 })
+    }
+    // Same rules as the checkout page enforces client-side.
+    if (!QR_PHONE_PATTERN.test(phone)) {
+      return NextResponse.json({ error: "Enter a valid Ethiopian phone number" }, { status: 400 })
+    }
+    if (!Number.isFinite(amount) || amount < 1) {
+      return NextResponse.json({ error: "Enter a valid amount" }, { status: 400 })
+    }
+    if (description !== undefined && (typeof description !== "string" || description.length > 255)) {
+      return NextResponse.json({ error: "Invalid description" }, { status: 400 })
+    }
+
+    // Each request sends a USSD PIN prompt to `phone`: cap per phone (so nobody
+    // can flood a person with prompts) and, generously, per caller IP (carrier
+    // NAT puts many real customers behind one address).
+    const limit = hitRateLimits([
+      { key: `qr-push:phone:${phone}`, limit: 3, windowMs: 5 * 60 * 1000 },
+      { key: `qr-push:ip:${getClientIp(request)}`, limit: 60, windowMs: 10 * 60 * 1000 },
+    ])
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: `Too many payment requests. Please wait ${Math.ceil(limit.retryAfterSeconds / 60)} minute(s) and try again.` },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+      )
     }
 
     let validatedItems: Array<{ itemId?: string; name: string; price: number; quantity: number }> | undefined
@@ -112,7 +144,7 @@ export async function POST(
         phone,
         authToken: "QR_PAYMENT_BYPASS"
       },
-      amount: parseFloat(amount),
+      amount,
       serviceDescription: description || `QR Payment to ${qrCode.merchant.name}`,
       timestamp: new Date().toISOString(),
       method: "BANK" as const,
@@ -175,7 +207,9 @@ export async function POST(
     return NextResponse.json({
       transactionId: result.tx.id,
       transactionReference: result.transactionReference,
-      status: "awaiting_pin"
+      status: "awaiting_pin",
+      // Lets this customer (and only them) poll status and fetch the receipt.
+      payerToken: issuePayerToken(result.tx.id),
     })
 
   } catch (error) {

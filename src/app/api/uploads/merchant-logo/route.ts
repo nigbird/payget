@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getClientIp } from "@/lib/client-ip"
+import { hitRateLimit } from "@/lib/memory-rate-limit"
 import { requireAuthUser, userHasAnyPermission } from "@/lib/request-auth"
 import { requireCsrf } from '@/lib/request-security';
 import crypto from "crypto"
@@ -18,6 +19,8 @@ import {
 const MAX_BYTES = 5 * 1024 * 1024 // 5MB
 const UPLOAD_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 const MAX_UPLOADS_PER_WINDOW = 10
+/** Shared with compliance-docs (same key): logo + documents for several registrations. */
+const GUEST_UPLOADS_PER_HOUR = 40
 
 const allowedMimeToExt: Record<string, string> = {
   "image/png": "png",
@@ -68,18 +71,17 @@ export async function POST(request: Request) {
     const now = new Date()
     const windowStart = new Date(now.getTime() - UPLOAD_RATE_LIMIT_WINDOW_MS)
     
-    const uploadCount = await prisma.auditLog.count({
-      where: {
-        action: "MERCHANT_LOGO_UPLOAD",
-        createdAt: { gte: windowStart },
-        request: {
-          path: { contains: ip } // Audit log stores IP in request field usually, but let's check structure
-        }
-      }
-    }).catch(() => 0)
-
-    // Fallback: check by actorUserId if available
     const user = await requireAuthUser(request)
+
+    // Guests (self-registration) have no account to count against, and a new
+    // registration id is free to mint — so cap them per IP. Generous enough for
+    // a few registrations from one office/NAT.
+    if (!user) {
+      const guestLimit = hitRateLimit(`guest-upload:${ip}`, GUEST_UPLOADS_PER_HOUR, 60 * 60 * 1000)
+      if (!guestLimit.allowed) {
+        return NextResponse.json({ error: "Upload limit exceeded. Please try again later." }, { status: 429 })
+      }
+    }
     if (user) {
       actorUserId = user.id
       

@@ -84,9 +84,9 @@ export async function middleware(req: NextRequest) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https://placehold.co https://images.unsplash.com https://picsum.photos;
+    img-src 'self' blob: data:;
     font-src 'self' data: https://fonts.gstatic.com;
-    connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.provider.com;
+    connect-src 'self';
     worker-src 'self';
     object-src 'none';
     base-uri 'self';
