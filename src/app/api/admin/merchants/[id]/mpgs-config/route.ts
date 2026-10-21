@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getClientIp } from "@/lib/client-ip"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
@@ -109,7 +110,7 @@ export async function POST(
     action: "MERCHANT_MPGS_CONFIG_UPDATED",
     merchantId: id,
     userId: user.id,
-    ipAddress: request.headers.get("x-forwarded-for"),
+    ipAddress: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
     detail: {
       mpgsMerchantId: parsed.data.mpgsMerchantId,
@@ -149,7 +150,7 @@ export async function DELETE(
     action: "MERCHANT_MPGS_CONFIG_CLEARED",
     merchantId: id,
     userId: user.id,
-    ipAddress: request.headers.get("x-forwarded-for"),
+    ipAddress: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
   })
 

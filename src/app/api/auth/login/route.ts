@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getClientIp } from "@/lib/client-ip"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
@@ -64,8 +65,7 @@ export async function POST(request: Request) {
     const csrfError = await requireCsrf(request);
     if (csrfError) return csrfError;
 
-    const xForwardedFor = request.headers.get("x-forwarded-for")
-    const ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : "127.0.0.1"
+    const ip = getClientIp(request)
     const ipLockout = await checkIpLockout(ip)
     if (ipLockout.locked) {
       console.log('[Login] IP %s is currently locked', ip)

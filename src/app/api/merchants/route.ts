@@ -129,13 +129,13 @@ export async function POST(request: Request) {
     }
 
     // Website URL validation
-    const websiteUrlValidation = validateUrl(data.websiteUrl, 'website');
+    const websiteUrlValidation = validateUrl(typeof data.websiteUrl === 'string' ? data.websiteUrl : '', 'website');
     if (!websiteUrlValidation.valid) {
       errors.websiteUrl = websiteUrlValidation.error;
     }
 
     // Callback URL validation
-    const callbackUrlValidation = validateUrl(data.callbackUrl, 'callback');
+    const callbackUrlValidation = validateUrl(typeof data.callbackUrl === 'string' ? data.callbackUrl : '', 'callback');
     if (!callbackUrlValidation.valid) {
       errors.callbackUrl = callbackUrlValidation.error;
     }

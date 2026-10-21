@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getClientIp } from "@/lib/client-ip"
 import { requireAuthUser, userHasAnyPermission } from "@/lib/request-auth"
 import { requireCsrf } from '@/lib/request-security';
 import crypto from "crypto"
@@ -54,7 +55,7 @@ function looksLikeWebp(buf: Buffer) {
 
 export async function POST(request: Request) {
   let actorUserId: string | null = null
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1"
+  const ip = getClientIp(request)
 
   try {
     const csrfError = await requireCsrf(request);

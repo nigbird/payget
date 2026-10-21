@@ -101,33 +101,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Permission denied: USER_CREATE required' }, { status: 403 });
     }
 
-    const { 
-      email, 
-      name, 
-      password, 
-      customRoleId, 
-      role: legacyRole, 
-      merchantId,
+    // `role` and `merchantId` are deliberately not read from the body: this
+    // creates back-office staff only. Accepting them let a user manager mint a
+    // MERCHANT login attached to any merchant (merchant logins come from the
+    // onboarding → setup-password flow).
+    const {
+      email,
+      name,
+      password,
+      customRoleId,
       isHeadOffice,
       district,
       branch
     } = await request.json();
 
-    // Enforce boundary: Admin management users (those with custom roles) 
-    // must NOT be tied to a specific merchant.
-    let finalMerchantId = merchantId;
-    if (customRoleId) {
-      finalMerchantId = null;
+    if (!customRoleId || typeof customRoleId !== 'string') {
+      return NextResponse.json({ error: 'A role is required.' }, { status: 400 });
     }
+    const finalMerchantId = null;
 
     // Privilege escalation check: cannot assign a role with permissions you don't have
-    if (customRoleId) {
+    {
       const targetRole = await prisma.role.findUnique({
         where: { id: customRoleId },
         include: { permissions: { include: { permission: true } } }
       });
 
-      if (targetRole) {
+      if (!targetRole) {
+        return NextResponse.json({ error: 'Role not found.' }, { status: 400 });
+      }
+
+      {
         const targetPerms = targetRole.permissions.map(p => p.permission.name);
         const canAssign = userCanAssignPermissions(authUser, targetPerms);
         if (!canAssign) {
@@ -160,7 +164,7 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const finalRole = legacyRole || (customRoleId ? 'ADMIN' : 'MERCHANT');
+    const finalRole = 'ADMIN';
     
     const createdUser = await prisma.user.create({
       data: {
@@ -173,7 +177,8 @@ export async function POST(request: Request) {
         isHeadOffice: !!isHeadOffice,
         district: isHeadOffice ? null : district,
         branch: isHeadOffice ? null : branch,
-        firstLogin: finalRole !== 'MERCHANT'
+        // Staff must replace the admin-chosen initial password on first login.
+        firstLogin: true
       },
       include: {
         customRole: true

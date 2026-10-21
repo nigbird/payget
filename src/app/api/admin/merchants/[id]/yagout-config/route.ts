@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getClientIp } from "@/lib/client-ip"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
@@ -120,7 +121,7 @@ export async function POST(
     action: "MERCHANT_YAGOUT_CONFIG_UPDATED",
     merchantId: id,
     userId: user.id,
-    ipAddress: request.headers.get("x-forwarded-for"),
+    ipAddress: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
     detail: {
       yagoutMeId: parsed.data.yagoutMeId,
@@ -159,7 +160,7 @@ export async function DELETE(
     action: "MERCHANT_YAGOUT_CONFIG_CLEARED",
     merchantId: id,
     userId: user.id,
-    ipAddress: request.headers.get("x-forwarded-for"),
+    ipAddress: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
   })
 

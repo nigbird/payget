@@ -1,11 +1,33 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
-import { requireAuthUser, userHasPermission, userHasAnyPermission, canAccessMerchant } from '@/lib/request-auth';
+import { requireAuthUser, userHasPermission, userHasAnyPermission, canAccessMerchant, isMerchantAccountAdmin } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { sendNotification, generatePasswordSetupLink, generateMerchantRegisterLink } from '@/lib/notifications';
 import crypto from 'crypto';
 import { validateAccountNumberField } from '@/lib/account-number';
+import { validateUrl } from '@/lib/url-validation';
+import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '@/lib/utils';
+
+const STAFF_ROLES = ['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE'];
+
+/** What the merchant portal's configuration page edits. */
+const MERCHANT_EDITABLE_FIELDS = ['name', 'callbackUrl', 'logoUrl'];
+
+/** The onboarding form fields plus the review actions (status/limits, checked separately below). */
+const STAFF_EDITABLE_FIELDS = [
+  'name', 'email', 'accountNumber', 'businessDescription', 'logoUrl', 'websiteUrl', 'callbackUrl',
+  'contactName', 'contactUsername', 'branchName', 'district', 'category', 'businessType', 'riskFactors',
+  'dailyLimit', 'transactionLimit', 'dailyCountLimit', 'status', 'rejectionReason',
+];
+
+const STATUS_AND_LIMIT_FIELDS = new Set(['status', 'rejectionReason', 'dailyLimit', 'transactionLimit', 'dailyCountLimit']);
+
+/**
+ * Review actions only. pending / rejected_with_update / resubmitted are set by
+ * their own flows (registration, request-update, resubmit), never through here.
+ */
+const PATCHABLE_STATUSES = new Set(['branch_approved', 'approved', 'rejected', 'active']);
 
 function isSafeLogoUrl(value: unknown) {
   if (typeof value !== "string") return false
@@ -83,25 +105,71 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const rawBody = await request.json().catch(() => ({}));
 
-    // Secrets are only ever written through their own encrypt-on-write endpoints
-    // (rotate-secret, mpgs-config, yagout-config) — never accepted as plaintext on this generic route.
-    delete body.jweSecret;
-    delete body.mpgsPassword;
-    delete body.yagoutEncryptionKey;
+    // Allowlist. Everything else on the row is either a secret (written only by
+    // the encrypt-on-write endpoints), a gateway setting (admin config endpoints),
+    // QR state (the /qr endpoint), or server-owned: the setup token and the
+    // maker-checker markers are set further down by this route itself.
+    const isStaff = STAFF_ROLES.includes(user.role || '');
+    const allowedFields = isStaff ? STAFF_EDITABLE_FIELDS : MERCHANT_EDITABLE_FIELDS;
+    const body: Record<string, any> = {};
+    for (const key of allowedFields) {
+      if (rawBody?.[key] !== undefined) body[key] = rawBody[key];
+    }
 
-    // Server-owned: the setup token and maker-checker markers are set below by
-    // this route itself, never by the caller (a caller-set setup token is a way
-    // to activate a merchant without approval; caller-set markers defeat the
-    // maker-checker checks).
-    delete body.id;
-    delete body.password;
-    delete body.passwordResetToken;
-    delete body.passwordResetExpires;
-    delete body.approvedBy;
-    delete body.limitsSetBy;
-    delete body.createdBy;
+    const profileFields = Object.keys(body).filter((k) => !STATUS_AND_LIMIT_FIELDS.has(k));
+    if (profileFields.length > 0) {
+      const canEditProfile = isStaff
+        ? userHasAnyPermission(user, ["MERCHANT_REGISTER", "MERCHANT_APPROVE"])
+        : await isMerchantAccountAdmin(user, id);
+      if (!canEditProfile) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    if (Object.keys(body).length === 0) {
+      return NextResponse.json({ error: 'No changes provided' }, { status: 400 });
+    }
+
+    if (body.status !== undefined && !PATCHABLE_STATUSES.has(String(body.status).toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    const fieldErrors: Record<string, string> = {};
+    for (const [key, type] of [['callbackUrl', 'callback'], ['websiteUrl', 'website']] as const) {
+      if (body[key] === undefined) continue;
+      if (body[key] !== null && typeof body[key] !== 'string') {
+        fieldErrors[key] = 'Invalid URL';
+        continue;
+      }
+      const result = validateUrl(body[key] ?? '', type);
+      if (!result.valid) fieldErrors[key] = result.error;
+      else body[key] = body[key]?.trim() ? body[key].trim() : null;
+    }
+    if (body.email !== undefined && (typeof body.email !== 'string' || !isValidEmail(body.email))) {
+      fieldErrors.email = 'Invalid email format';
+    }
+    if (body.contactUsername !== undefined) {
+      const cu = typeof body.contactUsername === 'string' ? body.contactUsername.trim() : '';
+      if (isValidEmail(cu)) body.contactUsername = cu;
+      else if (isValidPhoneNumber(cu)) body.contactUsername = normalizePhoneNumber(cu);
+      else fieldErrors.contactUsername = 'Please enter a valid email or phone number';
+    }
+    for (const key of ['dailyLimit', 'transactionLimit', 'dailyCountLimit']) {
+      if (body[key] === undefined) continue;
+      const n = Number(body[key]);
+      if (!Number.isFinite(n) || n < 0) fieldErrors[key] = 'Must be a non-negative number';
+      else body[key] = n;
+    }
+    if (body.riskFactors !== undefined) {
+      body.riskFactors = Array.isArray(body.riskFactors)
+        ? body.riskFactors.filter((r: unknown): r is string => typeof r === 'string').slice(0, 20)
+        : [];
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      return NextResponse.json({ error: 'Validation failed', errors: fieldErrors }, { status: 400 });
+    }
 
     const currentMerchant = await db.getMerchantById(id);
     if (!currentMerchant) {
@@ -132,7 +200,9 @@ export async function PATCH(
     // Restrict logo updates:
     // - merchant can update their own logo
     // - staff can update if they have merchant permissions
-    if (body.logoUrl !== undefined) {
+    if (body.logoUrl === "" || body.logoUrl === null) {
+      body.logoUrl = null
+    } else if (body.logoUrl !== undefined) {
       if (!isSafeLogoUrl(body.logoUrl)) {
         return NextResponse.json({ error: "Invalid logoUrl" }, { status: 400 })
       }
@@ -255,9 +325,12 @@ export async function PATCH(
         !["status", "approvedBy", "passwordResetToken", "passwordResetExpires", "rejectionReason"].includes(key)
       )
 
+      // Team-member (SALES) sessions have a virtual id with no User row, so it
+      // can't go in the userId foreign key; record who acted in newValue instead.
+      const isTeamMemberActor = user.role === 'SALES';
       await prisma.auditLog.create({
         data: {
-          userId: user.id,
+          userId: isTeamMemberActor ? null : user.id,
           action: body.status
             ? `MERCHANT_STATUS_${String(body.status).toUpperCase()}`
             : nonStatusFieldsUpdated
@@ -266,7 +339,13 @@ export async function PATCH(
           entityType: 'MERCHANT',
           entityId: id,
           oldValue: currentMerchant as any,
-          newValue: body as any
+          // The setup token is a live credential (it activates the merchant) — never persist it in the log.
+          newValue: {
+            ...body,
+            passwordResetToken: undefined,
+            passwordResetExpires: undefined,
+            ...(isTeamMemberActor ? { actorTeamMemberId: user.teamMemberId } : {}),
+          } as any
         }
       });
     }

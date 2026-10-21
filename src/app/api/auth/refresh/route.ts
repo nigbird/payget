@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getClientIp } from "@/lib/client-ip"
 import { prisma } from "@/lib/prisma"
 import { setAccessTokenCookie } from "@/lib/access-token-cookie"
 import {
@@ -177,7 +178,7 @@ export async function POST(request: Request) {
           familyId: existing.familyId,
           expiresAt: newExpiresAt,
           userAgent: request.headers.get("user-agent") ?? undefined,
-          ipAddress: request.headers.get("x-forwarded-for") ?? undefined
+          ipAddress: getClientIp(request)
         }
       })
 

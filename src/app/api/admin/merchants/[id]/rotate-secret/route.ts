@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getClientIp } from "@/lib/client-ip"
 import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { generateJweSecret } from "@/lib/jwe"
@@ -35,7 +36,7 @@ export async function POST(
     action: "MERCHANT_SECRET_ROTATED",
     merchantId: id,
     userId: user.id,
-    ipAddress: request.headers.get("x-forwarded-for"),
+    ipAddress: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
     detail: { rotatedByRole: user.role },
   })

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getClientIp } from "@/lib/client-ip"
 import { db } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
 import { verifySalesOtp } from "@/lib/otp"
@@ -19,7 +20,13 @@ import {
 } from "@/lib/session-manager"
 import { setRefreshTokenCookie } from "@/lib/refresh-token-cookie"
 import { requireCsrf } from "@/lib/request-security"
-import { checkIpLockout, recordFailedLoginAttempt, resetIpLockout } from "@/lib/rate-limit"
+import {
+  checkIpLockout,
+  checkLoginIdentifierLockout,
+  recordFailedLoginAttempt,
+  resetIpLockout,
+  resetLoginIdentifierLockout,
+} from "@/lib/rate-limit"
 import crypto from "crypto"
 
 export async function POST(request: Request) {
@@ -27,8 +34,7 @@ export async function POST(request: Request) {
     const csrfError = await requireCsrf(request)
     if (csrfError) return csrfError
 
-    const xForwardedFor = request.headers.get("x-forwarded-for")
-    const ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : "127.0.0.1"
+    const ip = getClientIp(request)
 
     const ipLockout = await checkIpLockout(ip)
     if (ipLockout.locked) {
@@ -55,6 +61,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "phone and otp are required" }, { status: 400 })
     }
 
+    // Per-phone lockout: the IP lockout alone can't stop guesses spread across
+    // many addresses, and a 6-digit code must not get unlimited tries.
+    const phoneLockout = await checkLoginIdentifierLockout(phone)
+    if (phoneLockout.locked) {
+      return NextResponse.json(
+        {
+          error: "Too many incorrect codes. Request a new code and try again shortly.",
+          code: "IDENTIFIER_LOCKOUT",
+          retryAfterSeconds: phoneLockout.retryAfterSeconds,
+        },
+        { status: 429 }
+      )
+    }
+
     const validOtp = await verifySalesOtp(phone, otp)
     if (!validOtp) {
       await writeAuditLog({
@@ -69,9 +89,19 @@ export async function POST(request: Request) {
           phone: phone.substring(0, 10) + "...",
         },
       })
-      await recordFailedLoginAttempt(ip, phone)
+      const { identifier } = await recordFailedLoginAttempt(ip, phone)
+      if (identifier.locked) {
+        // Burn the outstanding code: the next attempt needs a freshly sent one,
+        // so guesses can't continue against the same code after the cooldown.
+        await prisma.merchantTeamMember.updateMany({
+          where: { phone },
+          data: { otp: null, otpExpires: null },
+        })
+      }
       return NextResponse.json({ error: "Invalid or expired OTP" }, { status: 401 })
     }
+
+    await resetLoginIdentifierLockout(phone)
 
     const members = (await db.findMerchantTeamMembersByPhone(phone)) as any[]
     const activeMembers = members.filter(

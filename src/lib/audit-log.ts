@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getClientIp } from "@/lib/client-ip";
 import { isValidEmail, isValidPhoneNumber, maskEmail, maskIdentifier, maskPhone } from "@/lib/utils";
 
 /** JSON keys whose string values are treated as PII and masked before persistence. */
@@ -66,17 +67,16 @@ export type AuditLogSearchParams = {
   endDate?: string;
 };
 
-function getClientIp(request?: Request): string | null {
+function auditClientIp(request?: Request): string | null {
   if (!request) return null;
-  const xForwardedFor = request.headers.get("x-forwarded-for");
-  const xRealIp = request.headers.get("x-real-ip");
-  const forwarded = xForwardedFor?.split(",")[0]?.trim();
-  return (forwarded || xRealIp || null) as string | null;
+  // No proxy headers at all (local / internal call): record nothing rather than a placeholder.
+  if (!request.headers.get("x-forwarded-for") && !request.headers.get("x-real-ip")) return null;
+  return getClientIp(request);
 }
 
 export async function writeAuditLog(payload: AuditLogPayload) {
   const userAgent = payload.request?.headers.get("user-agent") || null;
-  const ipAddress = getClientIp(payload.request);
+  const ipAddress = auditClientIp(payload.request);
 
   // Don't block the request if audit logging fails
   try {
