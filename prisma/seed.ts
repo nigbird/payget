@@ -8,7 +8,16 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Start seeding...')
 
-  const hashedDefaultPassword = await bcrypt.hash('password123', 10)
+  // No hard-coded credential: take the initial password from the environment,
+  // or generate a random one and print it once for the operator. Seeded staff
+  // must change it at first login.
+  const defaultPassword =
+    process.env.SEED_DEFAULT_PASSWORD ||
+    `Seed-${crypto.randomBytes(9).toString('base64url')}!9a`
+  if (!process.env.SEED_DEFAULT_PASSWORD) {
+    console.log('Generated initial password for seeded accounts (shown once):', defaultPassword)
+  }
+  const hashedDefaultPassword = await bcrypt.hash(defaultPassword, 10)
 
   // 1. System Configuration
   const systemConfig = await prisma.systemConfig.upsert({
@@ -149,8 +158,8 @@ async function main() {
   const usersToSeed = [
     { email: 'admin@nibteramerchant', name: 'Super Admin', role: UserRole.ADMIN, customRoleName: 'Super Admin' },
     // Merchant login for TechGear Solutions (m1). Log in at /login/merchant
-    // using the merchant's contactUsername ("0934567890") as the identifier,
-    // password "password123".
+    // using the merchant's contactUsername ("0934567890") as the identifier and
+    // the seed password (SEED_DEFAULT_PASSWORD, or the one printed when seeding).
     { email: 'merchant@techgear.io', name: 'TechGear Solutions', role: UserRole.MERCHANT, merchantId: 'm1' },
 ]
 
