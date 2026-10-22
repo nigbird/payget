@@ -11,7 +11,6 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import {
   Loader2,
-  Sparkles,
   Store,
   Globe,
   Building2,
@@ -56,7 +55,6 @@ export default function MerchantSelfRegistration() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   
   const [registrationId] = useState(() => crypto.randomUUID())
-  const [isAiLoading, setIsAiLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [isLogoUploading, setIsLogoUploading] = useState(false)
@@ -84,7 +82,6 @@ export default function MerchantSelfRegistration() {
   })
   
   const [documents, setDocuments] = useState<MerchantDocument[]>([])
-  const [riskFactors, setRiskFactors] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null)
 
@@ -237,46 +234,6 @@ export default function MerchantSelfRegistration() {
     }
   }
 
-  const handleAiAssistant = async () => {
-    if (!formData.websiteUrl && !formData.businessDescription) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please provide a website URL or business description for AI analysis."
-      })
-      return
-    }
-
-    setIsAiLoading(true)
-    try {
-      const result = await aiMerchantOnboardingAssistant({
-        businessDescription: formData.businessDescription,
-        websiteUrl: formData.websiteUrl
-      })
-
-      setFormData(prev => ({
-        ...prev,
-        name: result.prefilledFields.companyName || prev.name,
-        businessType: result.prefilledFields.businessType || prev.businessType,
-        category: result.suggestedCategories[0] || prev.category
-      }))
-      setRiskFactors(result.riskFactors)
-
-      toast({
-        title: "AI Analysis Complete",
-        description: "Suggested details have been populated."
-      })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "AI Analysis Failed",
-        description: "Could not process information at this time."
-      })
-    } finally {
-      setIsAiLoading(false)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrors({})
@@ -358,7 +315,6 @@ export default function MerchantSelfRegistration() {
           dailyCountLimit: 100,
           status: 'pending',
           documents,
-          riskFactors,
           createdAt: new Date().toISOString()
         })
       })

@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   Loader2,
-  Sparkles,
   UserPlus,
   Globe,
   Building2,
@@ -100,7 +99,6 @@ function MerchantOnboardingContent() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [registrationId] = useState(() => crypto.randomUUID())
-  const [isAiLoading, setIsAiLoading] = useState(false)
   const [systemConfig, setSystemConfig] = useState<any>({
     districts: [],
     branches: [],
@@ -492,47 +490,6 @@ function MerchantOnboardingContent() {
     }
   }
 
-  const handleAiAssist = async () => {
-    if (!formData.name && !formData.businessDescription) {
-      toast({
-        variant: "destructive",
-        title: "More Info Needed",
-        description: "Please provide at least a business name or description for AI assistance."
-      })
-      return
-    }
-
-    setIsAiLoading(true)
-    try {
-      const result = await aiMerchantOnboardingAssistant({
-        name: formData.name,
-        description: formData.businessDescription
-      })
-
-      if (result) {
-        setFormData(prev => ({
-          ...prev,
-          category: result.suggestedCategory || prev.category,
-          businessType: result.suggestedBusinessType || prev.businessType,
-          businessDescription: result.refinedDescription || prev.businessDescription
-        }))
-        setRiskFactors(result.potentialRiskFactors || [])
-        toast({
-          title: "AI Analysis Complete",
-          description: "Merchant profile has been refined based on industry patterns."
-        })
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "AI Assistant Error",
-        description: "Failed to analyze merchant data. Please continue manually."
-      })
-    } finally {
-      setIsAiLoading(false)
-    }
-  }
-
   const handleSubmit = async () => {
     setErrors({})
     
@@ -876,7 +833,7 @@ function MerchantOnboardingContent() {
                                   <Textarea
                                     id="businessDescription"
                                     placeholder="Describe the nature of business and products sold..."
-                                    className={`min-h-[120px] rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all pr-12 ${errors.businessDescription ? "border-red-500" : ""}`}
+                                    className={`min-h-[120px] rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all ${errors.businessDescription ? "border-red-500" : ""}`}
                                     value={formData.businessDescription}
                                     maxLength={500}
                                     onChange={(e) => {
@@ -887,15 +844,6 @@ function MerchantOnboardingContent() {
                                       }
                                     }}
                                   />
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute right-3 top-3 text-primary hover:bg-[#fff8ea] rounded-lg h-8 w-8"
-                                    onClick={handleAiAssist}
-                                    disabled={isAiLoading}
-                                  >
-                                    {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                  </Button>
                                 </div>
                                 {errors.businessDescription && <p className="text-[10px] text-red-500 font-medium">{errors.businessDescription}</p>}
                               </div>
