@@ -181,9 +181,9 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
       <div className="min-h-screen relative overflow-hidden bg-white">
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+          <div className="absolute top-20 left-20 w-96 h-96 bg-linear-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-20 right-20 w-80 h-80 bg-linear-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
           
           <div className="absolute inset-0 opacity-5">
             <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -201,8 +201,8 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
 
         <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
           <div className="w-full max-w-md animate-fade-in-up">
-            <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
-              <div className="text-center space-y-2">
+            <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 stack-y-8">
+              <div className="text-center stack-y-2">
                 <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
                   <CheckCircle2 className="text-green-600 w-6 h-6" />
                 </div>
@@ -211,13 +211,13 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
                   Your account has been successfully approved and activated.
                 </p>
               </div>
-              <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#E5E7EB] text-left space-y-3">
+              <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#E5E7EB] text-left stack-y-3">
                 <p className="text-sm leading-relaxed text-[#374151]">
                   You can now log in to the merchant portal using your registered Username (Email/Phone) and the password you just created.
                 </p>
               </div>
               <Button 
-                className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
+                className="w-full h-12 text-base font-bold rounded-xl bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300" 
                 onClick={() => router.push('/login/merchant')}
               >
                 Continue to Login
@@ -233,9 +233,9 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
     <div className="min-h-screen relative overflow-hidden bg-white">
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+        <div className="absolute top-20 left-20 w-96 h-96 bg-linear-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-linear-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
         
         <div className="absolute inset-0 opacity-5">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -253,8 +253,8 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
         <div className="w-full max-w-md animate-fade-in-up">
-          <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
-            <div className="text-center space-y-2">
+          <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 stack-y-8">
+            <div className="text-center stack-y-2">
               <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">
                 Set Up Your Password
               </h1>
@@ -263,15 +263,15 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2.5">
+            <form onSubmit={handleSubmit} className="stack-y-6">
+              <div className="stack-y-2.5">
                 <Label htmlFor="password" className="text-sm font-semibold text-[#374151]">New Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
                   <Input 
                     id="password" 
                     type={showPassword ? "text" : "password"} 
-                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-xs focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-xs"
                     placeholder="••••••••"
                     required
                     value={password}
@@ -289,14 +289,14 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
                 <PasswordStrength password={password} />
               </div>
               
-              <div className="space-y-2.5">
+              <div className="stack-y-2.5">
                 <Label htmlFor="confirmPassword" className="text-sm font-semibold text-[#374151]">Confirm Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
                   <Input 
                     id="confirmPassword" 
                     type={showConfirmPassword ? "text" : "password"} 
-                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-xs focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-xs"
                     placeholder="••••••••"
                     required
                     value={confirmPassword}
@@ -315,7 +315,7 @@ function SetupPasswordFormStandalone({ merchantId, token }: { merchantId: string
               
               <Button 
                 type="submit" 
-                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
+                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -465,7 +465,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
   // ── Error ──────────────────────────────────────────────────────────────────
   if (error || !payment) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center stack-y-4">
         <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2 border border-rose-100">
           <XCircle className="w-8 h-8" />
         </div>
@@ -486,7 +486,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
 
     return (
       <div className="min-h-screen flex flex-col bg-gray-100">
-        <div className="relative bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 px-6 pt-14 pb-24 flex flex-col items-center text-center overflow-hidden">
+        <div className="relative bg-linear-to-br from-amber-400 via-amber-500 to-orange-500 px-6 pt-14 pb-24 flex flex-col items-center text-center overflow-hidden">
           <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-orange-400/40" />
           <div className="absolute top-4 right-0 w-20 h-20 rounded-full bg-amber-300/30" />
           <div className="absolute -bottom-2 right-8 w-14 h-14 rounded-full bg-orange-600/20" />
@@ -503,7 +503,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
 
         <div className="flex-1 flex flex-col pb-4">
           <div className="-mt-12 mx-4 bg-white rounded-3xl shadow-lg overflow-hidden">
-            <div className="px-5 pt-6 space-y-3">
+            <div className="px-5 pt-6 stack-y-3">
               {[
                 { label: "From", value: payment.payerPhone },
                 { label: "To", value: payment.merchantName },
@@ -554,7 +554,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
             </div>
 
             <div className="flex items-center justify-center gap-3 px-5 pb-6">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-900 border-2 border-amber-700 flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-900 border-2 border-amber-700 flex items-center justify-center shadow-xs">
                 <img src="/niblogo.png" alt="NIB" className="w-7 h-7 object-contain" />
               </div>
               <div className="text-left">
@@ -573,11 +573,11 @@ function PayLinkPageStandalone({ token }: { token: string }) {
     return (
       <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
+          <div className="max-w-md mx-auto p-4 pb-10 stack-y-4">
             {/* Branding header */}
-            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-xs border border-slate-100">
               <div className="flex items-center gap-2 shrink-0">
-                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-xs">
                   <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
                 </div>
                 <div>
@@ -587,7 +587,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
               </div>
               <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-xs shrink-0">
                   {payment.merchantLogoUrl ? (
                     <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
                   ) : (
@@ -605,11 +605,11 @@ function PayLinkPageStandalone({ token }: { token: string }) {
             </div>
 
             {/* Failure card */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 py-8 text-center space-y-5 animate-in zoom-in-95 duration-500">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xs px-6 py-8 text-center stack-y-5 animate-in zoom-in-95 duration-500">
               <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mx-auto border border-rose-100">
                 <XCircle className="w-10 h-10 text-rose-500" />
               </div>
-              <div className="space-y-1.5">
+              <div className="stack-y-1.5">
                 <h2 className="text-2xl font-black text-slate-800">Payment Failed</h2>
                 <p className="text-sm text-slate-500">We couldn&apos;t process your payment at this time.</p>
               </div>
@@ -637,11 +637,11 @@ function PayLinkPageStandalone({ token }: { token: string }) {
     return (
       <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
+          <div className="max-w-md mx-auto p-4 pb-10 stack-y-4">
             {/* Branding header */}
-            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-xs border border-slate-100">
               <div className="flex items-center gap-2 shrink-0">
-                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-xs">
                   <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
                 </div>
                 <div>
@@ -651,7 +651,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
               </div>
               <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-xs shrink-0">
                   {payment.merchantLogoUrl ? (
                     <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
                   ) : (
@@ -669,11 +669,11 @@ function PayLinkPageStandalone({ token }: { token: string }) {
             </div>
 
             {/* Pending card */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 py-8 text-center space-y-5 animate-in zoom-in-95 duration-500">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xs px-6 py-8 text-center stack-y-5 animate-in zoom-in-95 duration-500">
               <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mx-auto border border-amber-100">
                 <Clock className="w-10 h-10 text-amber-500" />
               </div>
-              <div className="space-y-1.5">
+              <div className="stack-y-1.5">
                 <h2 className="text-2xl font-black text-slate-800">Payment Pending</h2>
                 <p className="text-sm text-slate-500">
                   We haven&apos;t received a confirmation yet. If your PIN was accepted, the payment will be reflected shortly.
@@ -700,12 +700,12 @@ function PayLinkPageStandalone({ token }: { token: string }) {
   return (
     <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
+        <div className="max-w-md mx-auto p-4 pb-10 stack-y-4">
 
           {/* Merchant card */}
-          <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+          <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-xs border border-slate-100">
             <div className="flex items-center gap-2 shrink-0">
-              <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+              <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-xs">
                 <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
               </div>
               <div>
@@ -715,7 +715,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
             </div>
             <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-xs shrink-0">
                 {payment.merchantLogoUrl ? (
                   <img src={payment.merchantLogoUrl} alt={payment.merchantName} className="w-full h-full object-contain" />
                 ) : (
@@ -734,16 +734,16 @@ function PayLinkPageStandalone({ token }: { token: string }) {
 
           {/* Awaiting PIN */}
           {pushSent ? (
-            <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 text-center space-y-6">
+            <div className="stack-y-4 animate-in fade-in zoom-in-95 duration-500">
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-xs p-8 text-center stack-y-6">
                 <div className="relative mx-auto w-24 h-24">
                   <div className="absolute inset-0 rounded-full bg-amber-200/60 animate-ping" style={{ animationDuration: "1.6s" }} />
                   <div className="absolute inset-2 rounded-full bg-amber-100/80 animate-ping" style={{ animationDuration: "1.6s", animationDelay: "0.3s" }} />
-                  <div className="relative w-full h-full rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center shadow-sm">
+                  <div className="relative w-full h-full rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center shadow-xs">
                     <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="stack-y-2">
                   <h2 className="text-xl font-black text-slate-800">Pushing USSD Request</h2>
                   <p className="text-sm text-slate-500 leading-relaxed max-w-[270px] mx-auto">
                     Please check your phone{" "}
@@ -773,7 +773,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
             </div>
           ) : (
             /* Payment details + Pay Now */
-            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="stack-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
               {/* Amount */}
               <div className="text-center py-4">
@@ -787,7 +787,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
               </div>
 
               {/* Phone */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Phone Number</p>
                 <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
                   <Phone className="w-4 h-4 text-amber-500 shrink-0" />
@@ -796,7 +796,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
               </div>
 
               {/* Payment Method */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Payment Method</p>
                 <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
                   <Building className="w-4 h-4 text-amber-500 shrink-0" />
@@ -805,7 +805,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
               </div>
 
               {/* Account Number */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Merchant Account Number</p>
                 <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
                   <CreditCard className="w-4 h-4 text-amber-500 shrink-0" />
@@ -823,7 +823,7 @@ function PayLinkPageStandalone({ token }: { token: string }) {
 
               {/* Description */}
               {payment.serviceDescription && (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Payment Description</p>
                   <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
                     <FileText className="w-4 h-4 text-amber-500 shrink-0" />

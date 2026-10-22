@@ -80,7 +80,7 @@ export function SidebarNav() {
           asChild
           isActive={pathname === item.href}
           tooltip={item.name}
-          className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium tracking-[0.01em] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
+          className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium tracking-[0.01em] group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-12! group-data-[collapsible=icon]:justify-center! group-data-[collapsible=icon]:rounded-[14px]! group-data-[collapsible=icon]:p-0! [&>svg]:hidden"
         >
           <Link href={item.href} className="flex min-w-0 items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
             <span className="sidebar-hex-icon">
@@ -116,9 +116,9 @@ export function SidebarNav() {
       <SidebarSeparator className="mx-4 bg-[#754319]/10" />
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-[#754319]/52 group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-inherit group-data-[collapsible=icon]:hidden">Core Management</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1 px-2">
+            <SidebarMenu className="stack-y-1 px-2">
               {renderSection(filteredMenuItems)}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -126,15 +126,15 @@ export function SidebarNav() {
 
         {merchantId && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-[#754319]/52 group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-inherit group-data-[collapsible=icon]:hidden">Merchant Portal</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="space-y-1 px-2">
+              <SidebarMenu className="stack-y-1 px-2">
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === `/merchant/${merchantId}`}
                     tooltip="My Dashboard"
-                    className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium tracking-[0.01em] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
+                    className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium tracking-[0.01em] group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-12! group-data-[collapsible=icon]:justify-center! group-data-[collapsible=icon]:rounded-[14px]! group-data-[collapsible=icon]:p-0! [&>svg]:hidden"
                   >
                     <Link href={`/merchant/${merchantId}`} className="flex min-w-0 items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
                       <span className="sidebar-hex-icon">
@@ -151,16 +151,16 @@ export function SidebarNav() {
 
         {filteredAdminItems.length > 0 && (
           <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-[#754319]/52 group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-3 text-[11px] uppercase tracking-[0.11em] text-inherit group-data-[collapsible=icon]:hidden">Governance</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="space-y-1 px-2">
+              <SidebarMenu className="stack-y-1 px-2">
                 {renderSection(filteredAdminItems)}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className="space-y-4 p-4">
+      <SidebarFooter className="stack-y-4 p-4">
         {user && (
           <div className="sidebar-profile-chip sidebar-proportional flex items-center gap-2.5 px-2.5 py-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <div className="sidebar-hex-icon">
@@ -175,7 +175,7 @@ export function SidebarNav() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium text-[#754319] group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-12 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-[14px] group-data-[collapsible=icon]:!p-0 [&>svg]:hidden"
+              className="sidebar-menu-item sidebar-proportional min-h-[46px] rounded-[14px] px-2.5 py-1.5 text-[13px] font-medium text-[#754319] group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-12! group-data-[collapsible=icon]:justify-center! group-data-[collapsible=icon]:rounded-[14px]! group-data-[collapsible=icon]:p-0! [&>svg]:hidden"
               onClick={() => logout("/login")}
             >
               <span className="sidebar-hex-icon">

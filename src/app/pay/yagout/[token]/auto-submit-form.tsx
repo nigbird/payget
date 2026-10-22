@@ -49,7 +49,7 @@ export function YagoutAutoSubmitForm({ postUrl, meId, merchantRequest, hash }: P
 
       <button
         type="submit"
-        className="w-full rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] px-6 py-3 font-semibold text-white shadow-sm transition-all hover:shadow-md"
+        className="w-full rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] px-6 py-3 font-semibold text-white shadow-xs transition-all hover:shadow-md"
       >
         {stalled ? "Continue to payment" : "Continue"}
       </button>

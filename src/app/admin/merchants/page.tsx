@@ -153,12 +153,12 @@ export default function MerchantManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-y-6">
 
-      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
         <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
+            <div className="stack-y-1">
               <CardTitle className="text-base tracking-tight">Merchant List</CardTitle>
               <CardDescription className="text-slate-600">
                 Manage all registered merchants' QR codes.
@@ -213,7 +213,7 @@ export default function MerchantManagementPage() {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+              <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm supports-backdrop-filter:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
                 <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Merchant</TableHead>
                 <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Status</TableHead>
                 <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">QR Config</TableHead>
@@ -225,7 +225,7 @@ export default function MerchantManagementPage() {
               {paginatedMerchants.map((m) => (
                 <TableRow
                   key={m.id}
-                  className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm"
+                  className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-xs"
                 >
                   <TableCell className="pl-6 py-5 align-middle">
                     <div className="flex items-center gap-3">
@@ -310,7 +310,7 @@ export default function MerchantManagementPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               
-              <div className="flex items-center px-3 h-8 rounded-xl border border-black/5 bg-white text-xs font-bold text-amber-900 shadow-sm">
+              <div className="flex items-center px-3 h-8 rounded-xl border border-black/5 bg-white text-xs font-bold text-amber-900 shadow-xs">
                 {currentPage} / {totalPages}
               </div>
 

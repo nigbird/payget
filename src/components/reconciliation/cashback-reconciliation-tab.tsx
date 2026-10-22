@@ -136,14 +136,14 @@ function MetricCard({
   return (
     <Card
       className={cn(
-        'relative overflow-hidden rounded-[20px] border border-[#F1E7D0] shadow-sm shadow-black/5',
+        'relative overflow-hidden rounded-[20px] border border-[#F1E7D0] shadow-xs shadow-black/5',
         highlight ? 'card-liquid-honey' : 'card-soft-cream',
         'transition-all duration-200',
         'hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10'
       )}
     >
       <CardHeader className='relative flex flex-row items-start justify-between gap-3 pb-2'>
-        <div className='space-y-1'>
+        <div className='stack-y-1'>
           <CardTitle className='text-xs font-semibold tracking-wide text-[#6B7280]'>
             {title}
           </CardTitle>
@@ -153,7 +153,7 @@ function MetricCard({
         </div>
         <div
           className={cn(
-            'rounded-[18px] border p-2 text-[#754319] shadow-sm shadow-black/5',
+            'rounded-[18px] border p-2 text-[#754319] shadow-xs shadow-black/5',
             highlight
               ? 'border-[#754319]/10 bg-white/70 text-[#4e2a12]'
               : 'border-[#F1E7D0] bg-[#FFFDF7]'
@@ -591,7 +591,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
 
   return (
     <>
-      <div className='space-y-6'>
+      <div className='stack-y-6'>
         {/* The merchant filter dropdown already shows the selection, so the
             header only exists on the standalone page. */}
         {!embedded && (
@@ -1008,7 +1008,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                 Complete lifecycle view and processing history
               </DialogDescription>
             </DialogHeader>
-            <div className='mt-6 space-y-6'>
+            <div className='mt-6 stack-y-6'>
               {/* Core Info */}
               <div className='grid grid-cols-2 gap-4'>
                 <div>
@@ -1055,7 +1055,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
               {selectedItem.requests && selectedItem.requests.length > 0 && (
                 <div>
                   <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3'>Request History</div>
-                  <div className='space-y-3'>
+                  <div className='stack-y-3'>
                     {selectedItem.requests.map((req, i) => (
                       <div key={i} className='rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4'>
                         <div className='flex items-center justify-between mb-2'>
@@ -1064,7 +1064,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                           </div>
                           <RequestStatusBadge status={req.status} />
                         </div>
-                        <div className='text-xs text-slate-600 space-y-1'>
+                        <div className='text-xs text-slate-600 stack-y-1'>
                           <div><span className='font-semibold'>Reason:</span> {req.reason}</div>
                           <div><span className='font-semibold'>Created by:</span> {req.maker.name || req.maker.email}</div>
                           {req.comments && <div><span className='font-semibold'>Comments:</span> {req.comments}</div>}
@@ -1086,7 +1086,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
               {/* Processing Timeline */}
               <div>
                 <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3'>Processing Timeline</div>
-                <div className='space-y-3'>
+                <div className='stack-y-3'>
                   <div className='flex gap-3'>
                     <div className='mt-1 w-2 h-2 rounded-full bg-emerald-500' />
                     <div className='flex-1'>
@@ -1162,8 +1162,8 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                           Submit a request for approval
                         </DialogDescription>
                       </DialogHeader>
-                      <div className='space-y-4 py-4'>
-                        <div className='space-y-2'>
+                      <div className='stack-y-4 py-4'>
+                        <div className='stack-y-2'>
                           <Label>Request Type</Label>
                           <Select
                             value={requestType}
@@ -1180,7 +1180,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                           </Select>
                         </div>
                         {requestType === 'REFERENCE_UPDATE' && (
-                          <div className='space-y-2'>
+                          <div className='stack-y-2'>
                             <Label>New Transaction Reference</Label>
                             <Input
                               value={newTransactionReference}
@@ -1190,7 +1190,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                           </div>
                         )}
                         {requestType === 'MANUAL_SETTLE' && (
-                          <div className='space-y-2'>
+                          <div className='stack-y-2'>
                             <Label>FT Number</Label>
                             <Input
                               value={ftNumber}
@@ -1203,7 +1203,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                             </p>
                           </div>
                         )}
-                        <div className='space-y-2'>
+                        <div className='stack-y-2'>
                           <Label>Reason</Label>
                           <Textarea
                             value={requestReason}
@@ -1261,7 +1261,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                 Review the request and associated cashback transaction
               </DialogDescription>
             </DialogHeader>
-            <div className='mt-6 space-y-6'>
+            <div className='mt-6 stack-y-6'>
               {/* Request Info */}
               <div className='rounded-[18px] border border-amber-200 bg-amber-50/30 p-4'>
                 <div className='grid grid-cols-2 gap-4'>
@@ -1299,7 +1299,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
               </div>
 
               {/* Transaction Details */}
-              <div className='space-y-3'>
+              <div className='stack-y-3'>
                 <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Associated Transaction</div>
                 <div className='rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4'>
                   <div className='grid grid-cols-2 gap-4'>
@@ -1317,8 +1317,8 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
 
               {/* Review Section */}
               {selectedRequest.status === 'PENDING' && canManage && user?.id !== selectedRequest.maker.id && (
-                <div className='space-y-4 pt-4 border-t border-[#F1E7D0]'>
-                  <div className='space-y-2'>
+                <div className='stack-y-4 pt-4 border-t border-[#F1E7D0]'>
+                  <div className='stack-y-2'>
                     <Label htmlFor='comments'>Review Comments (Optional)</Label>
                     <Textarea
                       id='comments'
@@ -1360,7 +1360,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
               )}
 
               {selectedRequest.status !== 'PENDING' && selectedRequest.comments && (
-                <div className='space-y-2 pt-4 border-t border-[#F1E7D0]'>
+                <div className='stack-y-2 pt-4 border-t border-[#F1E7D0]'>
                   <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide'>Reviewer Comments</div>
                   <div className='text-sm text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 italic'>
                     &quot;{selectedRequest.comments}&quot;

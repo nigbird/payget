@@ -64,7 +64,7 @@ function SetupPasswordForm() {
 
   if (isSuccess) {
     return (
-      <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
+      <Card className="max-w-md w-full shadow-xs border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
         <div className="p-8 text-center border-b border-slate-50">
           <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
             <CheckCircle2 className="w-6 h-6 text-emerald-600" />
@@ -72,7 +72,7 @@ function SetupPasswordForm() {
           <h3 className="text-xl font-medium text-slate-800 tracking-tight">Account Activated</h3>
           <p className="text-slate-500 mt-1 text-sm">Setup complete</p>
         </div>
-        <CardContent className="py-6 px-8 text-center space-y-4">
+        <CardContent className="py-6 px-8 text-center stack-y-4">
           <div className="bg-slate-50 rounded-xl p-5 text-center">
             <p className="text-sm text-slate-600 leading-relaxed">
               Your account has been successfully approved and activated.
@@ -83,7 +83,7 @@ function SetupPasswordForm() {
           </div>
         </CardContent>
         <CardFooter className="px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" onClick={() => router.push('/login/merchant')}>
+            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" onClick={() => router.push('/login/merchant')}>
               Continue to Login
             </Button>
           </CardFooter>
@@ -126,8 +126,8 @@ function SetupPasswordForm() {
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4 py-6">
-          <div className="space-y-2">
+        <CardContent className="stack-y-4 py-6">
+          <div className="stack-y-2">
             <Label htmlFor="password">New Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -153,7 +153,7 @@ function SetupPasswordForm() {
             </div>
             <PasswordStrength password={password} />
           </div>
-          <div className="space-y-2">
+          <div className="stack-y-2">
             <Label htmlFor="confirmPassword">Confirm Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -180,7 +180,7 @@ function SetupPasswordForm() {
           </div>
         ) : null}
         <CardFooter>
-          <Button type="submit" className="w-full h-11 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={isSubmitting}>
+          <Button type="submit" className="w-full h-11 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Activate & Set Password"}
           </Button>
         </CardFooter>

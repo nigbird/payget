@@ -27,7 +27,7 @@ export function FilterToolbar({
 }) {
   return (
     <Card>
-      <CardContent className="space-y-3 p-4">
+      <CardContent className="stack-y-3 p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="min-w-0 flex-1">{search}</div>
           {actions && <div className="flex flex-wrap items-center gap-2 md:justify-end">{actions}</div>}

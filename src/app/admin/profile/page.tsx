@@ -81,8 +81,8 @@ export default function AdminProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[24px] border border-[#F1E7D0] bg-gradient-to-br from-[#FFFDF7] to-white p-6 shadow-sm">
+    <div className="stack-y-6">
+      <section className="rounded-[24px] border border-[#F1E7D0] bg-linear-to-br from-[#FFFDF7] to-white p-6 shadow-xs">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#754319]/70">Account</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#1F2937]">Profile settings</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6B7280]">
@@ -103,7 +103,7 @@ export default function AdminProfilePage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="stack-y-5">
             <div className="rounded-[20px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#754319]/60">Full name</div>
               <div className="mt-2 text-sm font-medium text-slate-900">{user?.name || "Not available"}</div>
@@ -143,8 +143,8 @@ export default function AdminProfilePage() {
             </div>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
+            <form onSubmit={handleSubmit} className="stack-y-5">
+              <div className="stack-y-2">
                 <Label htmlFor="currentPassword">Current password</Label>
                 <div className="relative">
                   <Input
@@ -172,7 +172,7 @@ export default function AdminProfilePage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <Label htmlFor="newPassword">New password</Label>
                 <div className="relative">
                   <Input
@@ -201,7 +201,7 @@ export default function AdminProfilePage() {
                 <PasswordStrength password={form.newPassword} className="pt-1" />
               </div>
 
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <Label htmlFor="confirmPassword">Confirm new password</Label>
                 <div className="relative">
                   <Input
@@ -244,7 +244,7 @@ export default function AdminProfilePage() {
                 </p>
               ) : null}
 
-              <Button type="submit" className="h-11 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={isSubmitting}>
+              <Button type="submit" className="h-11 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />

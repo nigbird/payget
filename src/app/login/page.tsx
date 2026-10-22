@@ -61,9 +61,9 @@ export default function AdminLogin() {
     <div className="min-h-screen relative overflow-hidden bg-white">
       {signingIn ? <SigningInOverlay message="Signing you in…" subMessage="Preparing your admin workspace" /> : null}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+        <div className="absolute top-20 left-20 w-96 h-96 bg-linear-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-linear-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
         <div className="absolute inset-0 opacity-5">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -80,20 +80,20 @@ export default function AdminLogin() {
 
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-6 sm:p-8">
         <div className="w-full max-w-md animate-fade-in-up">
-          <div className="backdrop-blur-md bg-white/70 rounded-2xl shadow-2xl px-5 py-6 sm:p-8 space-y-5 sm:space-y-8">
+          <div className="backdrop-blur-md bg-white/70 rounded-2xl shadow-2xl px-5 py-6 sm:p-8 stack-y-5 sm:stack-y-8">
             <div className="flex justify-center">
               <div className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center">
                 <img src="/niblogo.png" alt="Nib Bank Logo" className="max-w-full max-h-full object-contain" />
               </div>
             </div>
 
-            <div className="text-center space-y-1.5 sm:space-y-2">
+            <div className="text-center stack-y-1.5 sm:stack-y-2">
               <h1 className="text-2xl sm:text-3xl font-bold text-[#1F2937] tracking-tight">Admin Login</h1>
               <p className="text-sm sm:text-base text-[#6B7280] font-medium">Please login to your admin account</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-4 sm:space-y-6">
-              <div className="space-y-2">
+            <form onSubmit={handleLogin} className="stack-y-4 sm:stack-y-6">
+              <div className="stack-y-2">
                 <Label htmlFor="email" className="text-sm font-semibold text-[#374151]">Email or Phone</Label>
                 <div className="relative group transition-all">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
@@ -101,7 +101,7 @@ export default function AdminLogin() {
                     id="email"
                     type="text"
                     placeholder="enter your email or phone number"
-                    className="h-11 sm:h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-11 sm:h-12 pl-10 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-xs focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-xs"
                     required
                     value={credentials.email}
                     onChange={(e) => {
@@ -119,7 +119,7 @@ export default function AdminLogin() {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-sm font-semibold text-[#374151]">Password</Label>
                 </div>
@@ -128,7 +128,7 @@ export default function AdminLogin() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    className="h-11 sm:h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-11 sm:h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/85 backdrop-blur-xs focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-xs"
                     placeholder="Enter your password"
                     required
                     value={credentials.password}
@@ -169,7 +169,7 @@ export default function AdminLogin() {
 
               <Button
                 type="submit"
-                className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300"
+                className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300"
                 disabled={isLoading || lockout.submitBlockedFor(credentials.email)}
               >
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Login"}

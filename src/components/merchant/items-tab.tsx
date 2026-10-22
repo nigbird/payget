@@ -407,7 +407,7 @@ export function ItemsTab({ merchantId }: Props) {
   const pagedGroups = groups.slice(safeGroupsPage * GROUPS_PAGE_SIZE, safeGroupsPage * GROUPS_PAGE_SIZE + GROUPS_PAGE_SIZE)
 
   return (
-    <div className="space-y-6">
+    <div className="stack-y-6">
       <AlertDialog
         open={bulkDeleteTargetIds !== null}
         onOpenChange={(open) => {
@@ -434,7 +434,7 @@ export function ItemsTab({ merchantId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
+      <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs">
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
@@ -478,9 +478,9 @@ export function ItemsTab({ merchantId }: Props) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="stack-y-4">
 
-          <div className="space-y-2 rounded-xl border border-black/5 bg-slate-50/60 p-3">
+          <div className="stack-y-2 rounded-xl border border-black/5 bg-slate-50/60 p-3">
             <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Main categories (optional)
             </Label>
@@ -537,7 +537,7 @@ export function ItemsTab({ merchantId }: Props) {
           </div>
 
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-black/5 bg-slate-50/60 p-3">
-            <div className="min-w-[180px] flex-1 space-y-1.5">
+            <div className="min-w-[180px] flex-1 stack-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 New category (optional)
               </Label>
@@ -556,7 +556,7 @@ export function ItemsTab({ merchantId }: Props) {
               />
             </div>
             {mainCategories.length > 0 && (
-              <div className="min-w-[160px] space-y-1.5">
+              <div className="min-w-[160px] stack-y-1.5">
                 <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Main category</Label>
                 <Select value={newCategoryMainCategoryId} onValueChange={setNewCategoryMainCategoryId}>
                   <SelectTrigger className="h-9 rounded-xl bg-white">
@@ -588,8 +588,8 @@ export function ItemsTab({ merchantId }: Props) {
             </Button>
           </div>
 
-          <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3 sm:grid-cols-[1fr,120px,100px,160px,auto]">
-            <div className="space-y-1.5">
+          <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3 sm:grid-cols-[1fr_120px_100px_160px_auto]">
+            <div className="stack-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Item name</Label>
               <Input
                 value={itemForm.name}
@@ -599,7 +599,7 @@ export function ItemsTab({ merchantId }: Props) {
                 maxLength={60}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Price</Label>
               <Input
                 value={itemForm.price}
@@ -612,7 +612,7 @@ export function ItemsTab({ merchantId }: Props) {
                 className="h-9 rounded-xl bg-white"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Currency</Label>
               <Select
                 value={itemForm.currency}
@@ -630,7 +630,7 @@ export function ItemsTab({ merchantId }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</Label>
               <Select
                 value={itemForm.categoryId}
@@ -653,7 +653,7 @@ export function ItemsTab({ merchantId }: Props) {
               <Button
                 onClick={handleAddItem}
                 disabled={addingItem || !itemForm.name.trim() || !itemForm.price}
-                className="h-9 w-full rounded-xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 sm:w-auto sm:px-4"
+                className="h-9 w-full rounded-xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95 sm:w-auto sm:px-4"
               >
                 {addingItem ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
               </Button>
@@ -665,7 +665,7 @@ export function ItemsTab({ merchantId }: Props) {
               No items configured yet. Add one above — it&apos;s optional.
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="stack-y-4">
               {pagedGroups.map(({ category, items: groupItems }) => {
                 return (
                   <div key={category?.id ?? "uncategorized"} className="overflow-hidden rounded-xl border border-black/5">

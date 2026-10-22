@@ -115,15 +115,15 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="rounded-2xl border-[#f8b513]/30 bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4] shadow-sm">
+    <div className="stack-y-6">
+      <Card className="rounded-2xl border-[#f8b513]/30 bg-linear-to-br from-[#fff9ef] to-[#fdf1d4] shadow-xs">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
             <Speaker className="h-5 w-5 text-[#754319]" />
             Payment Sound Devices
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm text-[#754319]/80">
+        <CardContent className="stack-y-4 text-sm text-[#754319]/80">
           <p>
             A sound device is a phone, tablet or PC at your counter that announces every payment you receive, including
             payments customers make from other banks and wallets. Add a device, open its pairing link on it, and leave
@@ -131,7 +131,7 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
           </p>
           {canManage && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="flex-1 space-y-1.5">
+              <div className="flex-1 stack-y-1.5">
                 <Label htmlFor="sound-device-name">Device name</Label>
                 <Input
                   id="sound-device-name"
@@ -154,7 +154,7 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
+      <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs">
         <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
           <CardTitle className="text-lg text-[#5b371f]">Paired devices</CardTitle>
           <Button variant="outline" size="sm" onClick={sendTest} disabled={testing || devices.length === 0}>

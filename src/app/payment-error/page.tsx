@@ -32,15 +32,15 @@ export default async function PaymentErrorPage({
 
   return (
     <main className="min-h-svh bg-white flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-4">
+      <div className="w-full max-w-md stack-y-6">
+        <div className="text-center stack-y-4">
           <div className="relative inline-block">
             <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mx-auto">
               <AlertCircle className="w-10 h-10 text-rose-600" />
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="stack-y-2">
             <h1 className="text-2xl font-bold text-[#5b371f] tracking-tight">
               Payment not completed
             </h1>
@@ -50,13 +50,13 @@ export default async function PaymentErrorPage({
           </div>
         </div>
 
-        <Card className="rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-sm">
-          <CardContent className="p-5 space-y-4">
+        <Card className="rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-xs">
+          <CardContent className="p-5 stack-y-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-800/60 mb-2">
                 What you can do
               </p>
-              <ul className="space-y-2.5">
+              <ul className="stack-y-2.5">
                 <li className="flex gap-2.5">
                   <RefreshCcw className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                   <span className="text-xs text-slate-600 leading-relaxed">

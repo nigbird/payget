@@ -368,7 +368,7 @@ export default function MerchantSelfRegistration() {
             <h3 className="text-xl font-medium text-slate-800 tracking-tight">Application Submitted</h3>
             <p className="text-slate-500 mt-1 text-sm">In review</p>
           </div>
-          <CardContent className="py-6 px-6 sm:px-8 space-y-6">
+          <CardContent className="py-6 px-6 sm:px-8 stack-y-6">
             <div className="bg-slate-50 rounded-xl p-5 text-center">
               <p className="text-sm text-slate-600 leading-relaxed">
                 Thank you for applying. Your application is currently <span className="font-medium text-slate-900">Pending Review</span>.
@@ -379,7 +379,7 @@ export default function MerchantSelfRegistration() {
             </div>
           </CardContent>
           <CardFooter className="px-6 sm:px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" asChild>
+            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" asChild>
               <Link href="/login/merchant">Return to Login</Link>
             </Button>
           </CardFooter>
@@ -410,7 +410,7 @@ export default function MerchantSelfRegistration() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
-        <div className="space-y-10">
+        <div className="stack-y-10">
           {/* New Premium Header Section */}
           <div className="relative overflow-hidden">
             {/* Subtle Brand Accent - Faint Honeycomb Pattern */}
@@ -423,16 +423,16 @@ export default function MerchantSelfRegistration() {
             </div>
 
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#eadcc4]/40">
-              <div className="space-y-4">
+              <div className="stack-y-4">
                 {/* Soft Pill Badge */}
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30 shadow-sm">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-linear-to-r from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30 shadow-xs">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#f8b513] animate-pulse" />
                   <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#754319]/80">
                     Merchant Onboarding
                   </span>
                 </div>
 
-                <div className="space-y-1">
+                <div className="stack-y-1">
                   <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-gray-900 font-headline">
                     Register Your Business
                   </h2>
@@ -443,11 +443,11 @@ export default function MerchantSelfRegistration() {
               </div>
 
               {/* Context Indicator */}
-              <div className="flex items-center gap-4 bg-white/50 backdrop-blur-sm px-4 py-2.5 rounded-2xl border border-[#eadcc4]/30 shadow-sm self-start md:self-auto">
-                <div className="flex -space-x-2">
+              <div className="flex items-center gap-4 bg-white/50 backdrop-blur-xs px-4 py-2.5 rounded-2xl border border-[#eadcc4]/30 shadow-xs self-start md:self-auto">
+                <div className="flex -stack-x-2">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center overflow-hidden">
-                      <div className="w-full h-full bg-gradient-to-br from-[#f4db9f] to-[#f8b513] opacity-60" />
+                      <div className="w-full h-full bg-linear-to-br from-[#f4db9f] to-[#f8b513] opacity-60" />
                     </div>
                   ))}
                 </div>
@@ -462,14 +462,14 @@ export default function MerchantSelfRegistration() {
             </div>
 
             {/* Thin Accent Line */}
-            <div className="absolute bottom-0 left-0 h-[2px] w-24 bg-gradient-to-r from-[#f8b513] to-transparent" />
+            <div className="absolute bottom-0 left-0 h-[2px] w-24 bg-linear-to-r from-[#f8b513] to-transparent" />
           </div>
 
           <Card className="overflow-hidden rounded-[20px] sm:rounded-[26px] border-0 bg-white/95 shadow-[0_18px_55px_rgba(117,67,25,0.08)]">
             <CardContent className="p-0">
               <form onSubmit={handleSubmit} className="divide-y divide-gray-100">
                 {/* Section 1: Company Profile */}
-                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
+                <div className="px-5 py-6 sm:p-8 stack-y-5 sm:stack-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <Building2 className="h-5 w-5 text-[#754319]" />
@@ -481,7 +481,7 @@ export default function MerchantSelfRegistration() {
                   </div>
 
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="name" className="text-xs sm:text-sm font-medium text-gray-700">Business Name</Label>
                       <Input 
                         id="name" 
@@ -494,7 +494,7 @@ export default function MerchantSelfRegistration() {
                       />
                       {errors.name && <p className="text-[11px] text-red-500 font-medium">{errors.name}</p>}
                     </div>
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="email" className="text-xs sm:text-sm font-medium text-gray-700">Business Email</Label>
                       <Input 
                         id="email" 
@@ -509,7 +509,7 @@ export default function MerchantSelfRegistration() {
                       {errors.email && <p className="text-[11px] text-red-500 font-medium">{errors.email}</p>}
                     </div>
 
-                    <div className="space-y-2 sm:col-span-2">
+                    <div className="stack-y-2 sm:col-span-2">
                       <Label htmlFor="accountNumber" className="text-xs sm:text-sm font-medium text-gray-700">Settlement Account Number</Label>
                       <Input
                         id="accountNumber"
@@ -533,7 +533,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 {/* Section 2: Authorized Contact */}
-                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
+                <div className="px-5 py-6 sm:p-8 stack-y-5 sm:stack-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <User className="h-5 w-5 text-[#754319]" />
@@ -545,7 +545,7 @@ export default function MerchantSelfRegistration() {
                   </div>
 
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="contactName" className="text-xs sm:text-sm font-medium text-gray-700">Full Name</Label>
                       <Input 
                         id="contactName" 
@@ -558,7 +558,7 @@ export default function MerchantSelfRegistration() {
                       />
                       {errors.contactName && <p className="text-[11px] text-red-500 font-medium">{errors.contactName}</p>}
                     </div>
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="contactUsername" className="text-xs sm:text-sm font-medium text-gray-700">Email or Phone Number</Label>
                       <div className="relative group">
                         <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -578,7 +578,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 {/* Section 3: Business Details */}
-                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
+                <div className="px-5 py-6 sm:p-8 stack-y-5 sm:stack-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <Store className="h-5 w-5 text-[#754319]" />
@@ -590,14 +590,14 @@ export default function MerchantSelfRegistration() {
                   </div>
 
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2 sm:col-span-2">
+                    <div className="stack-y-2 sm:col-span-2">
                       <Label className="text-xs sm:text-sm font-medium text-gray-700">Business Logo (Optional)</Label>
                       <div
                         className="relative border-2 border-dashed border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-1 bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group"
                         onClick={() => logoInputRef.current?.click()}
                       >
                         {formData.logoUrl ? (
-                          <div className="relative w-32 h-32 rounded-xl overflow-hidden shadow-sm border border-gray-200">
+                          <div className="relative w-32 h-32 rounded-xl overflow-hidden shadow-xs border border-gray-200">
                             <img 
                               src={formData.logoUrl} 
                               alt="Business Logo" 
@@ -609,7 +609,7 @@ export default function MerchantSelfRegistration() {
                           </div>
                         ) : (
                           <>
-                            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 mb-2 group-hover:scale-110 transition-transform">
+                            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-xs border border-gray-100 mb-2 group-hover:scale-110 transition-transform">
                               {isLogoUploading ? (
                                 <Loader2 className="w-5 h-5 text-primary animate-spin" />
                               ) : (
@@ -650,7 +650,7 @@ export default function MerchantSelfRegistration() {
                       )}
                     </div>
 
-                    <div className="space-y-2 sm:col-span-2">
+                    <div className="stack-y-2 sm:col-span-2">
                       <Label htmlFor="businessDescription" className="text-xs sm:text-sm font-medium text-gray-700">
                         Business Description 
                         <span className="text-[10px] ml-2 font-bold text-slate-400">
@@ -674,7 +674,7 @@ export default function MerchantSelfRegistration() {
                       />
                       {errors.businessDescription && <p className="text-[11px] text-red-500 font-medium">{errors.businessDescription}</p>}
                     </div>
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="websiteUrl" className="text-xs sm:text-sm font-medium text-gray-700">Website URL (Optional)</Label>
                       <div className="relative group">
                         <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -690,7 +690,7 @@ export default function MerchantSelfRegistration() {
                       </div>
                       {errors.websiteUrl && <p className="text-[11px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                     </div>
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="callbackUrl" className="text-xs sm:text-sm font-medium text-gray-700">Callback URL (Optional)</Label>
                       <div className="relative group">
                         <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -707,7 +707,7 @@ export default function MerchantSelfRegistration() {
                       {errors.callbackUrl && <p className="text-[11px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="category" className="text-xs sm:text-sm font-medium text-gray-700">Industry Category</Label>
                       <Select onValueChange={(v) => setFormData({...formData, category: v})} value={formData.category}>
                         <SelectTrigger className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.category ? 'border-red-500' : ''}`}>
@@ -721,7 +721,7 @@ export default function MerchantSelfRegistration() {
                       </Select>
                       {errors.category && <p className="text-[11px] text-red-500 font-medium">{errors.category}</p>}
                     </div>
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="businessType" className="text-xs sm:text-sm font-medium text-gray-700">Business Type</Label>
                       <Select onValueChange={(v) => setFormData({...formData, businessType: v})} value={formData.businessType}>
                         <SelectTrigger className={`h-11 rounded-xl border-gray-200 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300 ${errors.businessType ? 'border-red-500' : ''}`}>
@@ -739,7 +739,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 {/* Section 4: Compliance Documents */}
-                <div className="px-5 py-6 sm:p-8 space-y-5 sm:space-y-6">
+                <div className="px-5 py-6 sm:p-8 stack-y-5 sm:stack-y-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                       <FileText className="h-5 w-5 text-[#754319]" />
@@ -754,7 +754,7 @@ export default function MerchantSelfRegistration() {
                     className={`border-2 border-dashed border-gray-100 rounded-2xl p-10 flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-50 hover:border-primary/30 transition-all cursor-pointer group ${errors.documents ? 'border-red-500' : ''}`}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 mb-4 group-hover:scale-110 transition-transform">
+                    <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-xs border border-gray-100 mb-4 group-hover:scale-110 transition-transform">
                       <Upload className="w-6 h-6 text-primary" />
                     </div>
                     <p className="text-sm font-semibold text-gray-900">Upload KYC Documents</p>
@@ -775,7 +775,7 @@ export default function MerchantSelfRegistration() {
 
                   <div className="grid gap-3">
                     {documents.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-1">
+                      <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-xs animate-in fade-in slide-in-from-top-1">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-100">
                             {doc.type.startsWith('image/') ? (
@@ -825,7 +825,7 @@ export default function MerchantSelfRegistration() {
                 </div>
 
                 <div className="px-5 py-6 sm:p-8 bg-gray-50/50">
-                  <Button type="submit" className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all" disabled={isSubmitting}>
+                  <Button type="submit" className="w-full h-11 sm:h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />

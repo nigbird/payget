@@ -54,7 +54,7 @@ export function AdminTopbar({ className }: { className?: string }) {
       className={cn(
         "sticky top-0 z-40",
         "border-b border-[#F1E7D0]",
-        "bg-white/95 supports-[backdrop-filter]:backdrop-blur-sm",
+        "bg-white/95 supports-backdrop-filter:backdrop-blur-xs",
         className
       )}
     >
@@ -78,7 +78,7 @@ export function AdminTopbar({ className }: { className?: string }) {
               className={cn(
                 "h-10 pl-9",
                 "rounded-2xl border-[#F1E7D0] bg-white",
-                "shadow-sm shadow-black/5",
+                "shadow-xs shadow-black/5",
                 "focus-visible:ring-2 focus-visible:ring-[#f8b513]/25"
               )}
             />
@@ -111,7 +111,7 @@ export function AdminTopbar({ className }: { className?: string }) {
                 className={cn(
                   "group flex items-center gap-2 rounded-2xl",
                   "bg-white px-2 py-1.5 hover:bg-amber-50/50",
-                  "border border-[#F1E7D0] shadow-sm shadow-black/5",
+                  "border border-[#F1E7D0] shadow-xs shadow-black/5",
                   "transition-colors"
                 )}
                 aria-label="Profile"

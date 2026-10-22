@@ -115,8 +115,8 @@ export default async function YagoutResultPage({ searchParams }: PageProps) {
   const transactionsHref = tx ? `/merchant/${tx.merchantId}/transactions` : null
 
   return (
-    <main className="min-h-svh bg-gradient-to-b from-[#FFFDF7] to-amber-50/40 px-4 py-8">
-      <div className="mx-auto w-full max-w-md space-y-6">
+    <main className="min-h-svh bg-linear-to-b from-[#FFFDF7] to-amber-50/40 px-4 py-8">
+      <div className="mx-auto w-full max-w-md stack-y-6">
         <header className="flex items-center gap-3">
           <Image src="/niblogo.png" alt="" width={36} height={36} className="rounded-lg" />
           <div>
@@ -174,7 +174,7 @@ export default async function YagoutResultPage({ searchParams }: PageProps) {
         <div className="flex flex-col gap-3 sm:flex-row">
           <Link
             href={dashboardHref}
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 px-4 text-sm font-semibold text-white shadow-md hover:opacity-95"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-linear-to-r from-amber-500 to-amber-700 px-4 text-sm font-semibold text-white shadow-md hover:opacity-95"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to dashboard

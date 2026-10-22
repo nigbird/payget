@@ -727,13 +727,13 @@ function MerchantReviewContent() {
     count > 0 ? <Badge className="h-5 px-1.5 rounded-full bg-amber-500">{count}</Badge> : null
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
+    <div className="stack-y-6">
+      <div className="stack-y-1">
         <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Review & approvals</h2>
         <p className="text-sm text-amber-800/60 font-medium">Approve registrations, adjust limits, and perform final audits.</p>
       </div>
 
-      <Tabs defaultValue="onboarding" className="space-y-4">
+      <Tabs defaultValue="onboarding" className="stack-y-4">
         <TabsList>
           <TabsTrigger value="onboarding" className="gap-1.5">
             Merchant Onboarding
@@ -758,13 +758,13 @@ function MerchantReviewContent() {
           )}
         </TabsList>
 
-        <TabsContent value="onboarding" className="space-y-4">
+        <TabsContent value="onboarding" className="stack-y-4">
       <div className="rounded-2xl">
         <div className="relative overflow-hidden rounded-2xl">
-          <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+          <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
             <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-1">
+                <div className="stack-y-1">
                   <CardTitle className="text-base tracking-tight">Review queue</CardTitle>
                   <CardDescription className="text-slate-600">
                     Search, filter, and inspect merchant applications quickly.
@@ -825,7 +825,7 @@ function MerchantReviewContent() {
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+                  <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm supports-backdrop-filter:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
                     <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Merchant</TableHead>
                     <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Review Stage</TableHead>
                     <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Submitted By</TableHead>
@@ -837,7 +837,7 @@ function MerchantReviewContent() {
                     {paginatedMerchants.map((m) => (
                       <TableRow
                         key={m.id}
-                        className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm hover:-translate-y-[1px]"
+                        className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-xs hover:-translate-y-px"
                       >
                         <TableCell className="pl-6 py-5 align-middle">
                           <div className="flex flex-col">
@@ -914,7 +914,7 @@ function MerchantReviewContent() {
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   
-                  <div className="flex items-center px-3 h-8 rounded-xl border border-black/5 bg-white text-xs font-bold text-amber-900 shadow-sm">
+                  <div className="flex items-center px-3 h-8 rounded-xl border border-black/5 bg-white text-xs font-bold text-amber-900 shadow-xs">
                     {currentPage} / {totalPages}
                   </div>
 
@@ -945,7 +945,7 @@ function MerchantReviewContent() {
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader className="border-b border-slate-50 pb-6 pt-2 flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3 border border-slate-100 shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3 border border-slate-100 shadow-xs">
                 <Building2 className="w-6 h-6 text-slate-600" />
               </div>
               <DialogTitle className="text-xl font-medium text-slate-800">
@@ -963,9 +963,9 @@ function MerchantReviewContent() {
               </div>
             ) : selectedMerchant && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-6">
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 stack-y-6">
                   {/* Header Info with Logo */}
-                  <div className="flex items-start gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="flex items-start gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-xs">
                     <div className="relative group shrink-0">
                       <div className="w-24 h-24 rounded-2xl bg-white border border-slate-200 shadow-inner flex items-center justify-center overflow-hidden">
                         {selectedMerchant.logoUrl ? (
@@ -987,13 +987,13 @@ function MerchantReviewContent() {
                         </button>
                       )}
                     </div>
-                    <div className="flex-1 space-y-3">
+                    <div className="flex-1 stack-y-3">
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
+                        <div className="stack-y-1">
                           <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Merchant ID</Label>
                           <p className="text-sm font-mono font-bold text-slate-950">{selectedMerchant.id}</p>
                         </div>
-                        <div className="space-y-1">
+                        <div className="stack-y-1">
                           <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Business Email</Label>
                             <p className="text-sm font-medium text-slate-950 flex items-center gap-2">
                               <Mail className="w-3.5 h-3.5 text-slate-400" /> {selectedMerchant.email}
@@ -1001,13 +1001,13 @@ function MerchantReviewContent() {
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Contact Name</Label>
                             <p className="text-sm font-medium text-slate-950 flex items-center gap-2">
                               <User className="w-3.5 h-3.5 text-slate-400" /> {selectedMerchant.contactName || "—"}
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Contact Username</Label>
                             <p className="text-sm font-medium text-slate-950 flex items-center gap-2">
                               <Hash className="w-3.5 h-3.5 text-slate-400" /> {selectedMerchant.contactUsername || "—"}
@@ -1017,11 +1017,11 @@ function MerchantReviewContent() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="stack-y-4">
                       <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <Store className="w-4 h-4" /> Business Profile
                       </h4>
-                      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                         <div className="p-4 bg-slate-50/50 border-b border-slate-100">
                           <Label className="text-[10px] uppercase text-slate-500 font-bold">Nature of Business</Label>
                           <p className="mt-1 text-sm text-slate-700 leading-relaxed italic">
@@ -1029,7 +1029,7 @@ function MerchantReviewContent() {
                           </p>
                         </div>
                         <div className="grid grid-cols-2 divide-x divide-slate-100">
-                          <div className="p-4 space-y-3">
+                          <div className="p-4 stack-y-3">
                             <div className="flex justify-between items-center text-xs">
                               <span className="text-slate-500">Industry:</span>
                               <Badge variant="outline" className="font-bold border-slate-200">{selectedMerchant.category}</Badge>
@@ -1043,7 +1043,7 @@ function MerchantReviewContent() {
                               <span className="font-bold text-slate-900">{selectedMerchant.branchName} / {selectedMerchant.district}</span>
                             </div>
                           </div>
-                          <div className="p-4 space-y-3">
+                          <div className="p-4 stack-y-3">
                             <div className="flex justify-between items-center text-xs">
                               <span className="text-slate-500 flex items-center gap-1"><Globe className="w-3 h-3" /> Website:</span>
                               <a href={selectedMerchant.websiteUrl || "#"} target="_blank" className="font-bold text-blue-600 hover:underline truncate max-w-[120px]">
@@ -1065,7 +1065,7 @@ function MerchantReviewContent() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="stack-y-4">
                       <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <FileText className="w-4 h-4" /> Compliance Documentation
                       </h4>
@@ -1099,7 +1099,7 @@ function MerchantReviewContent() {
                               <a 
                                 href={doc.url} 
                                 download={doc.name}
-                                className="flex-1 inline-flex items-center justify-center h-8 text-[10px] font-bold uppercase tracking-wider rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                                className="flex-1 inline-flex items-center justify-center h-8 text-[10px] font-bold uppercase tracking-wider rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
                               >
                                 <Download className="w-3 h-3 mr-1.5" /> Download
                               </a>
@@ -1110,7 +1110,7 @@ function MerchantReviewContent() {
                     </div>
 
                     {selectedMerchant.riskFactors?.length > 0 && (
-                      <div className="space-y-4">
+                      <div className="stack-y-4">
                         <h4 className="text-xs font-black uppercase tracking-widest text-red-600 flex items-center gap-2">
                           <ShieldAlert className="w-4 h-4" /> Compliance Risk Assessment
                         </h4>
@@ -1126,15 +1126,15 @@ function MerchantReviewContent() {
                     )}
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="stack-y-6">
                     {/* Action Panel */}
                     <Card className="border-primary/10 bg-primary/5 shadow-none">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm">Compliance Actions</CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="stack-y-4">
                         {selectedMerchant.createdBy && (
-                          <div className="space-y-2">
+                          <div className="stack-y-2">
                             <Label className="text-xs font-bold uppercase text-primary flex items-center gap-2">
                               <Edit2 className="w-3 h-3" /> Application Edit
                             </Label>
@@ -1153,8 +1153,8 @@ function MerchantReviewContent() {
                         )}
 
                         {(selectedMerchant.status === 'pending' || selectedMerchant.status === 'resubmitted') && (
-                          <div className="space-y-4">
-                            <div className="space-y-3">
+                          <div className="stack-y-4">
+                            <div className="stack-y-3">
                               <Label className="text-xs font-bold uppercase text-primary flex items-center gap-2">
                                 <TrendingUp className="w-3 h-3" /> {selectedMerchant.status === 'resubmitted' ? 'Review & Assign Limits' : 'Assign Limits'}
                               </Label>
@@ -1166,7 +1166,7 @@ function MerchantReviewContent() {
                                   </p>
                                 </div>
                               )}
-                              <div className="space-y-2">
+                              <div className="stack-y-2">
                                 <div className="grid gap-1">
                                   <Label htmlFor="dailyLimit" className="text-[10px]">Daily Volume (ETB)</Label>
                                   <Input 
@@ -1213,7 +1213,7 @@ function MerchantReviewContent() {
                             </div>
                             
                             <Button 
-                              className="w-full h-12 text-sm font-medium rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300" 
+                              className="w-full h-12 text-sm font-medium rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'initial_approve')}
                               disabled={!canSetLimits || !selectedMerchant._permissions?.canSetLimits || submittingAction !== null}
                             >
@@ -1230,7 +1230,7 @@ function MerchantReviewContent() {
                         )}
 
                         {selectedMerchant.status === 'branch_approved' && (
-                          <div className="space-y-4">
+                          <div className="stack-y-4">
                             <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
                               <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
                                 Initial review complete. Ready for final system activation.
@@ -1249,7 +1249,7 @@ function MerchantReviewContent() {
                               </div>
                             )}
                             <Button 
-                              className="w-full h-12 text-sm font-medium rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300" 
+                              className="w-full h-12 text-sm font-medium rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all duration-300" 
                               onClick={() => handleAction(selectedMerchant.id, 'final_approve')}
                               disabled={!canApprove || !selectedMerchant._permissions?.canApprove || submittingAction !== null}
                             >
@@ -1270,7 +1270,7 @@ function MerchantReviewContent() {
                         {!isRequestingUpdate ? (
                           <Button 
                             variant="outline" 
-                            className="w-full h-9 text-amber-700 hover:bg-amber-50 rounded-xl transition-colors border-slate-200 shadow-sm"
+                            className="w-full h-9 text-amber-700 hover:bg-amber-50 rounded-xl transition-colors border-slate-200 shadow-xs"
                             onClick={() => {
                               setIsRequestingUpdate(true)
                               setIsRejecting(false)
@@ -1279,7 +1279,7 @@ function MerchantReviewContent() {
                             Request Update
                           </Button>
                         ) : (
-                          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                          <div className="stack-y-3 animate-in fade-in slide-in-from-top-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs font-medium text-amber-900">Update Request Comments</Label>
                               <span className={`text-[10px] font-medium ${updateComments.general.length > 500 ? 'text-rose-600' : 'text-slate-400'}`}>
@@ -1297,7 +1297,7 @@ function MerchantReviewContent() {
                             <div className="flex gap-2">
                               <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRequestingUpdate(false)} disabled={submittingAction !== null}>Cancel</Button>
                               <Button 
-                                className="flex-1 text-xs h-8 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" 
+                                className="flex-1 text-xs h-8 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" 
                                 onClick={handleRequestUpdate}
                                 disabled={submittingAction !== null}
                               >
@@ -1326,7 +1326,7 @@ function MerchantReviewContent() {
                             Reject Application
                           </Button>
                         ) : (
-                          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                          <div className="stack-y-3 animate-in fade-in slide-in-from-top-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs font-medium text-rose-900">Reason for Rejection</Label>
                               <span className={`text-[10px] font-medium ${rejectionReason.length > 500 ? 'text-rose-600' : 'text-slate-400'}`}>
@@ -1344,7 +1344,7 @@ function MerchantReviewContent() {
                               <Button variant="outline" className="flex-1 text-xs h-8 rounded-lg border-slate-200 bg-white hover:bg-slate-50 transition-colors" onClick={() => setIsRejecting(false)} disabled={submittingAction !== null}>Cancel</Button>
                               <Button 
                                 variant="destructive" 
-                                className="flex-1 text-xs h-8 rounded-lg shadow-sm" 
+                                className="flex-1 text-xs h-8 rounded-lg shadow-xs" 
                                 onClick={() => handleAction(selectedMerchant.id, 'reject')}
                                 disabled={submittingAction !== null}
                               >
@@ -1364,9 +1364,9 @@ function MerchantReviewContent() {
                     </Card>
 
                     {/* Audit Visibility */}
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label className="text-[10px] uppercase text-muted-foreground">Action History</Label>
-                      <div className="space-y-2">
+                      <div className="stack-y-2">
                         <div className="flex gap-3 text-[10px]">
                           <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-0.5">
                             <Plus className="w-2 h-2" />
@@ -1445,8 +1445,8 @@ function MerchantReviewContent() {
         </TabsContent>
 
         {(canRequestSubsidiary || canApproveSubsidiary) && (
-          <TabsContent value="subsidiary" className="space-y-4">
-            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+          <TabsContent value="subsidiary" className="stack-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
               <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
                 <div className="flex items-center gap-2">
                   <Landmark className="w-4 h-4 text-primary" />
@@ -1477,7 +1477,7 @@ function MerchantReviewContent() {
                       const isActing = subsidiaryActionId === req.id
                       return (
                         <div key={req.id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
-                          <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex-1 min-w-0 stack-y-1">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
                               {getRequestStatusBadge(req.status)}
@@ -1531,8 +1531,8 @@ function MerchantReviewContent() {
         )}
 
         {canApproveEligibility && (
-          <TabsContent value="eligibility" className="space-y-4">
-            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+          <TabsContent value="eligibility" className="stack-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
               <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
                 <div className="flex items-center gap-2">
                   <ListChecks className="w-4 h-4 text-primary" />
@@ -1563,7 +1563,7 @@ function MerchantReviewContent() {
                       const isActing = eligibilityActionId === req.id
                       return (
                         <div key={req.id} className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
-                          <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex-1 min-w-0 stack-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-semibold text-slate-900">{req.merchant.name}</p>
                               {getRequestStatusBadge(req.status)}
@@ -1634,8 +1634,8 @@ function MerchantReviewContent() {
         )}
 
         {canViewCashbackEligible && (
-          <TabsContent value="cashback-eligible" className="space-y-4">
-            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+          <TabsContent value="cashback-eligible" className="stack-y-4">
+            <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
               <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
                 <div className="flex items-center gap-2">
                   <Coins className="w-4 h-4 text-primary" />
@@ -1674,7 +1674,7 @@ function MerchantReviewContent() {
                         key={merchant.id}
                         className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6"
                       >
-                        <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex-1 min-w-0 stack-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold text-slate-900">{merchant.name}</p>
                             {merchant.cashbackEnabled ? (
@@ -2042,7 +2042,7 @@ function MerchantReviewContent() {
               entries and resubmit them for approval.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="stack-y-2">
             <Label htmlFor="eligibility-reject-reason">Rejection reason (required)</Label>
             <Textarea
               id="eligibility-reject-reason"

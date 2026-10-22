@@ -159,7 +159,7 @@ function FilterMultiSelect({
             </button>
           )}
         </div>
-        <div className="max-h-[220px] space-y-0.5 overflow-auto">
+        <div className="max-h-[220px] stack-y-0.5 overflow-auto">
           {options.map((option) => (
             <label
               key={option.value}
@@ -688,7 +688,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto stack-y-6 pb-12 px-4 sm:px-6">
       {/* Minimal Header */}
       <header className="flex flex-col gap-4 pt-6 md:flex-row md:items-center md:justify-between">
         <div>
@@ -712,7 +712,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search order ID or customer phone..."
-              className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-amber-500/20"
+              className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-xs focus:ring-amber-500/20"
             />
           </div>
 
@@ -721,7 +721,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             variant="outline"
             title="Export current summary"
             onClick={exportSummaryToCSV}
-            className="h-10 w-10 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-sm"
+            className="h-10 w-10 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-xs"
           >
             <Download className="h-4 w-4" />
           </Button>
@@ -731,7 +731,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
               <Button
                 variant="outline"
                 className={cn(
-                  "h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm gap-2",
+                  "h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-xs gap-2",
                   hasActiveFilters && "border-amber-200 bg-amber-50 text-amber-700"
                 )}
               >
@@ -745,7 +745,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[calc(100vw-40px)] max-w-[400px] p-0 rounded-2xl shadow-2xl border-slate-100" align="end">
-              <div className="p-5 space-y-6">
+              <div className="p-5 stack-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-900">Filters & Reports</h3>
                   <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50">
@@ -753,14 +753,14 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   </Button>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
+                <div className="stack-y-4">
+                  <div className="stack-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date Range</Label>
                     <DateRangePicker value={dateRange} onChange={setDateRange} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</Label>
                       <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
                         <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
@@ -775,7 +775,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sales User</Label>
                       <Select value={salesUserFilter} onValueChange={setSalesUserFilter}>
                         <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
@@ -792,7 +792,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Method</Label>
                     <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
                       <SelectTrigger className="h-9 rounded-lg border-slate-100 text-xs font-semibold">
@@ -809,7 +809,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item</Label>
                     <FilterMultiSelect
                       label="Item"
@@ -822,7 +822,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Main Category</Label>
                       <FilterMultiSelect
                         label="Main Category"
@@ -834,7 +834,7 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</Label>
                       <FilterMultiSelect
                         label="Category"
@@ -849,17 +849,17 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
                 </div>
 
                 {/* Sales Summary Report Section */}
-                <div className="pt-4 border-t border-slate-50 space-y-3">
+                <div className="pt-4 border-t border-slate-50 stack-y-3">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sales Summary</Label>
 
-                  <div className="space-y-2 max-h-[160px] overflow-auto pr-1">
+                  <div className="stack-y-2 max-h-[160px] overflow-auto pr-1">
                     {salesSummary.length === 0 ? (
                       <p className="text-[11px] text-slate-400 italic text-center py-2">No data for this period</p>
                     ) : (
                       salesSummary.map((data) => (
                         <div key={data.uid}className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 border border-slate-100">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-sm">
+                            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-xs">
                               <UserIcon className="w-3 h-3 text-slate-400" />
                             </div>
                             <span className="text-[11px] font-bold text-slate-700 truncate max-w-[100px]">{data.name}</span>
@@ -885,24 +885,24 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
           a category, a status, or "All Sales" by default); the other two report
           how many sold and how much that came to under the same scope. */}
       <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-        <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
+        <div className="rounded-2xl border border-amber-200/70 bg-linear-to-br from-amber-50/80 to-white p-3.5 shadow-xs transition-shadow duration-200 hover:shadow-md sm:p-4">
           <div className="flex items-start justify-between gap-2 mb-1">
             <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-amber-700/70">Showing</p>
             <p className="shrink-0 text-[9px] font-bold text-amber-700/50">{summaryDateLabel}</p>
           </div>
-          <p className="break-words text-sm font-black leading-tight text-[#5b371f] sm:text-base">
+          <p className="wrap-break-word text-sm font-black leading-tight text-[#5b371f] sm:text-base sm:leading-6">
             {summaryLabel}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
+        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-xs transition-shadow duration-200 hover:shadow-md sm:p-4">
           <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-1">Sold</p>
-          <p className="truncate text-lg font-black leading-tight text-slate-900 sm:text-xl">{summaryCards.count}</p>
+          <p className="truncate text-lg font-black leading-tight text-slate-900 sm:text-xl sm:leading-7">{summaryCards.count}</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-4">
+        <div className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-xs transition-shadow duration-200 hover:shadow-md sm:p-4">
           <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-1">Total</p>
-          <p className="truncate text-lg font-black leading-tight text-[#5b371f] sm:text-xl">
+          <p className="truncate text-lg font-black leading-tight text-[#5b371f] sm:text-xl sm:leading-7">
             {(summaryCards.totals.length > 0
               ? summaryCards.totals
               : ([{ currency: "ETB", total: 0 }] as CurrencyTotal[])
@@ -916,9 +916,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
       </div>
 
       {/* Transaction List */}
-      <main className="space-y-3">
+      <main className="stack-y-3">
         {pageItems.items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-xs">
             <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
               <FileText className="w-8 h-8 text-slate-200" />
             </div>
@@ -926,9 +926,9 @@ export default function MerchantTransactionsPage({ params }: { params: Promise<{
             <p className="text-xs text-slate-300 mt-1">Try adjusting your filters</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="stack-y-3">
             {pageItems.items.map((tx) => (
-              <Card key={tx.id} className="group rounded-[20px] border-slate-100 bg-white hover:border-amber-100 hover:shadow-md transition-all duration-300 overflow-hidden shadow-sm">
+              <Card key={tx.id} className="group rounded-[20px] border-slate-100 bg-white hover:border-amber-100 hover:shadow-md transition-all duration-300 overflow-hidden shadow-xs">
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">

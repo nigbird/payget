@@ -337,7 +337,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
   }
 
   return (
-    <div className={embedded ? 'space-y-4' : 'space-y-6 p-6'}>
+    <div className={embedded ? 'stack-y-4' : 'stack-y-6 p-6'}>
       {!embedded && (
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Card (MPGS) Reconciliation</h1>
@@ -356,7 +356,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
           onKeyDown={(e) => e.key === 'Enter' && setViewFilter('open')}
           className={`cursor-pointer transition-colors hover:bg-muted/40 ${viewFilter === 'open' ? 'border-amber-400 ring-1 ring-amber-400' : ''}`}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between stack-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Open card transactions</CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
@@ -372,7 +372,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
           onKeyDown={(e) => e.key === 'Enter' && setViewFilter('pending')}
           className={`cursor-pointer transition-colors hover:bg-muted/40 ${viewFilter === 'pending' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between stack-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Awaiting approval</CardTitle>
             <AlertCircle className="h-4 w-4 text-blue-500" />
           </CardHeader>
@@ -388,7 +388,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
           onKeyDown={(e) => e.key === 'Enter' && setViewFilter('reconciled')}
           className={`cursor-pointer transition-colors hover:bg-muted/40 ${viewFilter === 'reconciled' ? 'border-emerald-400 ring-1 ring-emerald-400' : ''}`}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between stack-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Reconciled</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </CardHeader>
@@ -412,7 +412,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
           </TabsList>
         )}
 
-        <TabsContent value="open" className="space-y-4">
+        <TabsContent value="open" className="stack-y-4">
           {viewFilter === 'reconciled' ? (
             <Card>
               <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -738,7 +738,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
           </DialogHeader>
 
           {selectedTx && (
-            <div className="space-y-4">
+            <div className="stack-y-4">
               <div className="rounded-md border bg-muted/40 p-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Reference</span>
@@ -764,7 +764,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <Label htmlFor="mpgs-reason">Reason</Label>
                 <Textarea
                   id="mpgs-reason"
@@ -800,7 +800,7 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
           </DialogHeader>
 
           {reviewRequest && (
-            <div className="space-y-4">
+            <div className="stack-y-4">
               <div className="rounded-md border bg-muted/40 p-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Reference</span>
@@ -818,12 +818,12 @@ export function MpgsReconciliationTab({ embedded = false }: { embedded?: boolean
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="stack-y-1">
                 <Label className="text-muted-foreground">Maker&apos;s reason</Label>
                 <p className="rounded-md border p-3 text-sm">{reviewRequest.reason}</p>
               </div>
 
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <Label htmlFor="mpgs-comments">Comments (optional)</Label>
                 <Textarea
                   id="mpgs-comments"

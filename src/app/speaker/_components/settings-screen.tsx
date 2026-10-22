@@ -16,7 +16,7 @@ const SOUND_OPTIONS: { value: PaymentSound; title: string }[] = [
 /** A settings group: plain on phones, a card on larger screens. */
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 border-b border-[#eddcc0] py-5 first:pt-0 last:border-0 md:rounded-2xl md:border md:bg-white md:p-6 md:shadow-sm md:first:pt-6 md:last:border">
+    <section className="flex flex-col gap-3 border-b border-[#eddcc0] py-5 first:pt-0 last:border-0 md:rounded-2xl md:border md:bg-white md:p-6 md:shadow-xs md:first:pt-6 md:last:border">
       <SectionTitle>{title}</SectionTitle>
       {children}
     </section>
@@ -61,7 +61,7 @@ export function SettingsScreen({
           </Button>
         }
       />
-      <div className="mx-auto max-w-xl px-6 pb-12 pt-4 md:max-w-2xl md:space-y-5 md:px-5 md:pt-6 lg:grid lg:max-w-6xl lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0 lg:px-6 lg:pt-8">
+      <div className="mx-auto max-w-xl px-6 pb-12 pt-4 md:max-w-2xl md:stack-y-5 md:px-5 md:pt-6 lg:grid lg:max-w-6xl lg:grid-cols-2 lg:items-start lg:gap-6 lg:stack-y-0 lg:px-6 lg:pt-8">
         <Section title="Sound">
         <RadioGroup
           value={settings.paymentSound}
@@ -109,7 +109,7 @@ export function SettingsScreen({
         </Button>
         </Section>
 
-        <div className="md:space-y-5 lg:space-y-6">
+        <div className="md:stack-y-5 lg:stack-y-6">
         <Section title="Setup">{setup}</Section>
 
         <Section title="Paired to">

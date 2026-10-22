@@ -201,21 +201,21 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div className="stack-y-1">
           <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Audit Logs</h2>
           <p className="text-sm text-amber-800/60 font-medium">Comprehensive audit trail of all system activities.</p>
         </div>
         <Button 
           onClick={handleExport}
-          className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+          className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
         >
           <Download className="w-4 h-4 mr-2" /> Export Logs
         </Button>
       </div>
 
-      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
         <CardHeader className="bg-[#FFFDF7] border-b border-black/5 p-6 pb-0">
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
@@ -285,7 +285,7 @@ export default function AuditLogsPage() {
               <div className="flex gap-2">
                 <Button 
                   onClick={handleFilter}
-                  className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                  className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
                 >
                   <Filter className="w-4 h-4 mr-2" /> Apply Filters
                 </Button>
@@ -305,7 +305,7 @@ export default function AuditLogsPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+                <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm supports-backdrop-filter:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
                   <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Timestamp</TableHead>
                   <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">User</TableHead>
                   <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Action</TableHead>
@@ -315,7 +315,7 @@ export default function AuditLogsPage() {
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
-                  <TableRow key={log.id} className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm">
+                  <TableRow key={log.id} className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-xs">
                     <TableCell className="pl-6 py-5 align-middle">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-semibold text-slate-900">
@@ -425,7 +425,7 @@ export default function AuditLogsPage() {
                         size="sm"
                         className={`h-8 min-w-[32px] rounded-2xl border-black/10 text-xs font-bold transition-all ${
                           currentPage === pageNum 
-                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-sm shadow-amber-950/15" 
+                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-xs shadow-amber-950/15" 
                             : "bg-white text-slate-600 hover:bg-amber-50/50"
                         }`}
                         onClick={() => setCurrentPage(pageNum)}
@@ -462,7 +462,7 @@ export default function AuditLogsPage() {
 
       {/* Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm max-h-[80vh]">
+        <DialogContent className="sm:max-w-[600px] border border-slate-100 bg-white p-0 rounded-2xl shadow-xs max-h-[80vh]">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800 flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-600" />
@@ -477,13 +477,13 @@ export default function AuditLogsPage() {
             <ScrollArea className="max-h-[60vh]">
               <div className="grid gap-4 px-6 py-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
+                  <div className="stack-y-1">
                     <Label className="text-xs font-medium text-slate-500">Timestamp</Label>
                     <div className="text-sm text-slate-800">
                       {new Date(selectedLog.createdAt).toLocaleString()}
                     </div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="stack-y-1">
                     <Label className="text-xs font-medium text-slate-500">Action</Label>
                     <Badge className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${getActionColor(selectedLog.action)}`}>
                       {formatAction(selectedLog.action)}
@@ -491,7 +491,7 @@ export default function AuditLogsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="stack-y-1">
                   <Label className="text-xs font-medium text-slate-500">User</Label>
                   <div className="text-sm text-slate-800">
                     {selectedLog.user ? (
@@ -506,23 +506,23 @@ export default function AuditLogsPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
+                  <div className="stack-y-1">
                     <Label className="text-xs font-medium text-slate-500">Entity Type</Label>
                     <div className="text-sm text-slate-800">{selectedLog.entityType}</div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="stack-y-1">
                     <Label className="text-xs font-medium text-slate-500">Entity ID</Label>
                     <div className="text-sm font-mono text-slate-600">{selectedLog.entityId || "-"}</div>
                   </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="stack-y-1">
                   <Label className="text-xs font-medium text-slate-500">Log ID</Label>
                   <div className="text-sm font-mono text-slate-600">{selectedLog.id}</div>
                 </div>
 
                 {selectedLog.oldValue && (
-                  <div className="space-y-1">
+                  <div className="stack-y-1">
                     <Label className="text-xs font-medium text-slate-500 flex items-center gap-1">
                       <Code2 className="w-3.5 h-3.5" /> Old Value
                     </Label>
@@ -533,7 +533,7 @@ export default function AuditLogsPage() {
                 )}
 
                 {selectedLog.newValue && (
-                  <div className="space-y-1">
+                  <div className="stack-y-1">
                     <Label className="text-xs font-medium text-slate-500 flex items-center gap-1">
                       <Code2 className="w-3.5 h-3.5" /> New Value
                     </Label>

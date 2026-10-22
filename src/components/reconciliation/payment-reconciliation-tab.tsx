@@ -406,7 +406,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
   }
 
   return (
-    <div className={embedded ? 'space-y-4' : 'space-y-6 p-6'}>
+    <div className={embedded ? 'stack-y-4' : 'stack-y-6 p-6'}>
       {!embedded && (
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Payment Reconciliation</h1>
@@ -422,7 +422,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           className={`cursor-pointer transition-colors hover:bg-muted/40 ${view === 'unresolved' ? 'border-amber-400 ring-1 ring-amber-400' : ''}`}
           onClick={() => switchView('unresolved')}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between stack-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Unresolved payments</CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
@@ -432,7 +432,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between stack-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Awaiting approval</CardTitle>
             <AlertCircle className="h-4 w-4 text-blue-500" />
           </CardHeader>
@@ -445,7 +445,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           className={`cursor-pointer transition-colors hover:bg-muted/40 ${view === 'history' ? 'border-emerald-400 ring-1 ring-emerald-400' : ''}`}
           onClick={() => switchView('history')}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between stack-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Settled by FT</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </CardHeader>
@@ -468,7 +468,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           </TabsList>
         )}
 
-        <TabsContent value="unresolved" className="space-y-4">
+        <TabsContent value="unresolved" className="stack-y-4">
           <FilterToolbar
             search={
               <SearchInput
@@ -833,7 +833,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
               ['cbsreference', selectedTx.cbsreference, true],
             ]
             return (
-              <div className="mt-6 space-y-6">
+              <div className="mt-6 stack-y-6">
                 {/* Core Info */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -884,7 +884,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                     <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       FT Request History
                     </div>
-                    <div className="space-y-3">
+                    <div className="stack-y-3">
                       {selectedTx.reconciliationRequests.map((r) => (
                         <div key={r.id} className="rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4">
                           <div className="mb-2 flex items-center justify-between">
@@ -893,7 +893,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                               {r.status === 'EXECUTED' ? 'Settled' : r.status === 'REJECTED' ? 'Rejected' : 'Pending'}
                             </Badge>
                           </div>
-                          <div className="space-y-1 text-xs text-slate-600">
+                          <div className="stack-y-1 text-xs text-slate-600">
                             <div><span className="font-semibold">Reason:</span> {r.reason}</div>
                             <div>
                               <span className="font-semibold">Created by:</span> {r.maker?.name || r.maker?.email} ·{' '}
@@ -921,7 +921,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                   </div>
                 )}
                 {isUnresolved && !hasPending && canRequest && (
-                  <div className="space-y-4 border-t border-[#F1E7D0] pt-4">
+                  <div className="stack-y-4 border-t border-[#F1E7D0] pt-4">
                     <div>
                       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Settle by FT</div>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -929,7 +929,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                         must approve before the status changes.
                       </p>
                     </div>
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="ft">FT number</Label>
                       <Input
                         id="ft"
@@ -938,7 +938,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                         placeholder="FT from the bank receipt"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label htmlFor="reason">Reason</Label>
                       <Textarea
                         id="reason"
@@ -989,7 +989,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           </DialogHeader>
 
           {reviewRequest && (
-            <div className="space-y-4">
+            <div className="stack-y-4">
               <div className="rounded-md border bg-muted/40 p-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Reference</span>
@@ -1011,12 +1011,12 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="stack-y-1">
                 <Label className="text-muted-foreground">Maker&apos;s reason</Label>
                 <p className="rounded-md border p-3 text-sm">{reviewRequest.reason}</p>
               </div>
 
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <Label htmlFor="comments">Comments (optional)</Label>
                 <Textarea
                   id="comments"

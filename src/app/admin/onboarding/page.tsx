@@ -659,12 +659,12 @@ function MerchantOnboardingContent() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-white/25 bg-white/30 backdrop-blur-xl shadow-sm shadow-amber-950/10">
+    <div className="stack-y-6">
+      <div className="rounded-2xl border border-white/25 bg-white/30 backdrop-blur-xl shadow-xs shadow-amber-950/10">
         <div className="relative overflow-hidden rounded-2xl px-5 py-4">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(244,219,159,0.55),rgba(248,181,19,0.28),rgba(117,67,25,0.18))]" />
           <div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 stack-y-1">
               <div className="flex items-center gap-2 text-xs text-slate-700">
                 <Link href="/admin" className="hover:text-slate-900 transition-colors">Admin</Link>
                 <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
@@ -686,7 +686,7 @@ function MerchantOnboardingContent() {
             >
               <DialogTrigger asChild>
                 <Button
-                  className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                  className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Register merchant
@@ -702,7 +702,7 @@ function MerchantOnboardingContent() {
                       </div>
 
                       <div className="flex flex-col gap-4 relative z-10">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30 shadow-sm w-fit">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-linear-to-r from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30 shadow-xs w-fit">
                           <div className="w-1.5 h-1.5 rounded-full bg-[#f8b513] animate-pulse" />
                           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#754319]/80">
                             {editingMerchantId ? "Merchant Application Edit" : "Merchant Registration"}
@@ -725,9 +725,9 @@ function MerchantOnboardingContent() {
 
                     <div className="p-8">
                     {!canRegister ? (
-                      <Card className="border-rose-100 bg-rose-50/50 shadow-sm rounded-3xl">
+                      <Card className="border-rose-100 bg-rose-50/50 shadow-xs rounded-3xl">
                         <CardContent className="pt-8 flex flex-col items-center text-center gap-4">
-                          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-rose-100">
+                          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-xs border border-rose-100">
                             <Lock className="w-8 h-8 text-rose-600" />
                           </div>
                           <div>
@@ -740,9 +740,9 @@ function MerchantOnboardingContent() {
                       </Card>
                     ) : (
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 space-y-8">
+                        <div className="lg:col-span-2 stack-y-8">
                           {/* Business Information Section */}
-                          <div className="space-y-6">
+                          <div className="stack-y-6">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                                 <Building2 className="h-5 w-5 text-[#754319]" />
@@ -754,7 +754,7 @@ function MerchantOnboardingContent() {
                             </div>
 
                             <div className="grid gap-6">
-                              <div className="space-y-2">
+                              <div className="stack-y-2">
                                 <Label className="text-sm font-medium text-gray-700">Merchant Logo</Label>
                                 <div className="flex items-center gap-4">
                                   <div 
@@ -777,7 +777,7 @@ function MerchantOnboardingContent() {
                                     />
                                   </div>
                                   {formData.logoUrl && (
-                                    <div className="relative group w-16 h-16 rounded-xl border border-[#eadcc4] overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm">
+                                    <div className="relative group w-16 h-16 rounded-xl border border-[#eadcc4] overflow-hidden bg-white flex items-center justify-center p-2 shadow-xs">
                                       <img src={formData.logoUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
                                       <button 
                                         onClick={(e) => {
@@ -795,7 +795,7 @@ function MerchantOnboardingContent() {
                               </div>
 
                               <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
+                                <div className="stack-y-2">
                                   <Label htmlFor="name" className="text-sm font-medium text-gray-700">Business Name</Label>
                                   <Input 
                                     id="name" 
@@ -807,7 +807,7 @@ function MerchantOnboardingContent() {
                                   />
                                   {errors.name && <p className="text-[10px] text-red-500 font-medium">{errors.name}</p>}
                                 </div>
-                                <div className="space-y-2">
+                                <div className="stack-y-2">
                                   <Label htmlFor="email" className="text-sm font-medium text-gray-700">Business Email</Label>
                                   <Input 
                                     id="email" 
@@ -822,7 +822,7 @@ function MerchantOnboardingContent() {
                                 </div>
                               </div>
 
-                              <div className="space-y-2">
+                              <div className="stack-y-2">
                                 <Label htmlFor="businessDescription" className="text-sm font-medium text-gray-700">
                                   Business Description 
                                   <span className="text-[10px] ml-2 font-bold text-slate-400">
@@ -849,7 +849,7 @@ function MerchantOnboardingContent() {
                               </div>
 
                               <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
+                                <div className="stack-y-2">
                                   <Label className="text-sm font-medium text-gray-700">Industry Category</Label>
                                   <Select onValueChange={(v) => handleSelectChange('category', v)} value={formData.category}>
                                     <SelectTrigger className={`h-11 rounded-xl border-gray-200 ${errors.category ? "border-red-500" : ""}`}>
@@ -863,7 +863,7 @@ function MerchantOnboardingContent() {
                                   </Select>
                                   {errors.category && <p className="text-[10px] text-red-500 font-medium">{errors.category}</p>}
                                 </div>
-                                <div className="space-y-2">
+                                <div className="stack-y-2">
                                   <Label className="text-sm font-medium text-gray-700">Business Type</Label>
                                   <Select onValueChange={(v) => handleSelectChange('businessType', v)} value={formData.businessType}>
                                     <SelectTrigger className={`h-11 rounded-xl border-gray-200 ${errors.businessType ? "border-red-500" : ""}`}>
@@ -884,7 +884,7 @@ function MerchantOnboardingContent() {
                           <Separator className="bg-[#eadcc4]/40" />
 
                           {/* Primary Contact Section */}
-                          <div className="space-y-6">
+                          <div className="stack-y-6">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                                 <User className="h-5 w-5 text-[#754319]" />
@@ -896,7 +896,7 @@ function MerchantOnboardingContent() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-2">
+                              <div className="stack-y-2">
                                 <Label htmlFor="contactName" className="text-sm font-medium text-gray-700">Full Name</Label>
                                 <Input 
                                   id="contactName" 
@@ -908,7 +908,7 @@ function MerchantOnboardingContent() {
                                 />
                                 {errors.contactName && <p className="text-[10px] text-red-500 font-medium">{errors.contactName}</p>}
                               </div>
-                              <div className="space-y-2">
+                              <div className="stack-y-2">
                                 <Label htmlFor="contactUsername" className="text-sm font-medium text-gray-700">Email or Phone</Label>
                                 <Input 
                                   id="contactUsername" 
@@ -926,7 +926,7 @@ function MerchantOnboardingContent() {
                           <Separator className="bg-[#eadcc4]/40" />
 
                           {/* Technical & Financial Section */}
-                          <div className="space-y-6">
+                          <div className="stack-y-6">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                                 <Globe className="h-5 w-5 text-[#754319]" />
@@ -939,7 +939,7 @@ function MerchantOnboardingContent() {
 
                             <div className="grid gap-6">
                               <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
+                                <div className="stack-y-2">
                                   <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">Payout Account #</Label>
                                   <div className="relative">
                                     <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -956,7 +956,7 @@ function MerchantOnboardingContent() {
                                   {errors.accountNumber && <p className="text-[10px] text-red-500 font-medium">{errors.accountNumber}</p>}
                                   <p className="text-[10px] text-gray-400">Must start with 7000, digits only, exactly 13 characters.</p>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="stack-y-2">
                                   <Label htmlFor="websiteUrl" className="text-sm font-medium text-gray-700">Website URL (Optional)</Label>
                                   <div className="relative">
                                     <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -972,7 +972,7 @@ function MerchantOnboardingContent() {
                                   {errors.websiteUrl && <p className="text-[10px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                                 </div>
                               </div>
-                              <div className="space-y-2">
+                              <div className="stack-y-2">
                                 <Label htmlFor="callbackUrl" className="text-sm font-medium text-gray-700">Webhook Callback URL (Optional)</Label>
                                 <div className="relative">
                                   <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -991,9 +991,9 @@ function MerchantOnboardingContent() {
                           </div>
                         </div>
 
-                        <div className="space-y-8">
+                        <div className="stack-y-8">
                           {/* Organization Section */}
-                          <div className="space-y-6">
+                          <div className="stack-y-6">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                                 <MapPin className="h-5 w-5 text-[#754319]" />
@@ -1004,33 +1004,33 @@ function MerchantOnboardingContent() {
                               </div>
                             </div>
 
-                            <Card className="border-[#eddcc0] bg-white/50 rounded-2xl overflow-hidden shadow-sm">
-                              <CardContent className="p-5 space-y-4">
+                            <Card className="border-[#eddcc0] bg-white/50 rounded-2xl overflow-hidden shadow-xs">
+                              <CardContent className="p-5 stack-y-4">
                                 {formData.district === "Head Office" ? (
-                                  <div className="space-y-2">
+                                  <div className="stack-y-2">
                                     <Label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Processing Center</Label>
-                                    <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-br from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30">
-                                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                                    <div className="flex items-center gap-3 p-3.5 rounded-xl bg-linear-to-br from-[#fff8ea] to-[#fdf2d9] border border-[#f4db9f]/30">
+                                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs">
                                         <Building2 className="h-4 w-4 text-[#754319]" />
                                       </div>
                                       <span className="text-sm font-bold text-[#754319]">Head Office</span>
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="space-y-4">
-                                    <div className="space-y-2">
+                                  <div className="stack-y-4">
+                                    <div className="stack-y-2">
                                       <Label className="text-xs font-bold text-gray-500 uppercase tracking-tight">District</Label>
                                       <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 border border-gray-100">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs">
                                           <Globe className="h-4 w-4 text-gray-400" />
                                         </div>
                                         <span className="text-sm font-bold text-gray-700">{formData.district}</span>
                                       </div>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="stack-y-2">
                                       <Label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Branch</Label>
                                       <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 border border-gray-100">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs">
                                           <Building2 className="h-4 w-4 text-gray-400" />
                                         </div>
                                         <span className="text-sm font-bold text-gray-700">{formData.branchName}</span>
@@ -1046,7 +1046,7 @@ function MerchantOnboardingContent() {
                           </div>
 
                           {/* Documentation Section */}
-                          <div className="space-y-6">
+                          <div className="stack-y-6">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                                 <FileText className="h-5 w-5 text-[#754319]" />
@@ -1061,7 +1061,7 @@ function MerchantOnboardingContent() {
                               className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer hover:bg-[#fffcf5] transition-all group ${errors.documents ? 'border-red-500 bg-red-50/10' : 'border-[#eadcc4]'}`}
                               onClick={() => fileInputRef.current?.click()}
                             >
-                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#eadcc4] mx-auto mb-3 group-hover:scale-110 transition-transform">
+                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xs border border-[#eadcc4] mx-auto mb-3 group-hover:scale-110 transition-transform">
                                 <Upload className="w-6 h-6 text-gray-400" />
                               </div>
                               <p className="text-sm font-bold text-gray-700">Upload documents</p>
@@ -1081,7 +1081,7 @@ function MerchantOnboardingContent() {
                             {documents.length > 0 && (
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {documents.map(doc => (
-                                  <div key={doc.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 text-xs shadow-sm hover:border-[#f8b513]/30 transition-all">
+                                  <div key={doc.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 text-xs shadow-xs hover:border-[#f8b513]/30 transition-all">
                                     <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden border border-gray-100">
                                       {doc.type?.startsWith('image/') && doc.url ? (
                                         <img src={doc.url} alt="" className="w-full h-full object-cover" />
@@ -1120,12 +1120,12 @@ function MerchantOnboardingContent() {
                           </div>
 
                           {riskFactors.length > 0 && (
-                            <div className="p-5 rounded-2xl bg-rose-50 border border-rose-100 space-y-3">
+                            <div className="p-5 rounded-2xl bg-rose-50 border border-rose-100 stack-y-3">
                               <div className="flex items-center gap-2">
                                 <ShieldAlert className="w-4 h-4 text-rose-600" />
                                 <span className="text-xs font-bold uppercase tracking-wider text-rose-800">Risk Analysis</span>
                               </div>
-                              <div className="space-y-1.5">
+                              <div className="stack-y-1.5">
                                 {riskFactors.map((rf, idx) => (
                                   <div key={idx} className="text-[10px] text-rose-700 flex items-center gap-2 font-medium">
                                     <div className="w-1 h-1 rounded-full bg-rose-400" />
@@ -1160,10 +1160,10 @@ function MerchantOnboardingContent() {
         </div>
       </div>
 
-      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
         <CardHeader className="bg-[#FFFDF7] border-b border-black/5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
+            <div className="stack-y-1">
               <CardTitle className="text-base tracking-tight">Onboarding queue</CardTitle>
               <CardDescription className="text-slate-600">
                 Search, filter, and inspect merchant submissions quickly.
@@ -1216,7 +1216,7 @@ function MerchantOnboardingContent() {
         <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+                    <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm supports-backdrop-filter:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
                       <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Merchant</TableHead>
                       <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Hub / District</TableHead>
                       <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Status</TableHead>
@@ -1228,7 +1228,7 @@ function MerchantOnboardingContent() {
                     {paginatedSubmissions.map((s) => (
                       <TableRow
                         key={s.id}
-                        className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm hover:-translate-y-[1px]"
+                        className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-xs hover:-translate-y-px"
                       >
                         <TableCell className="pl-6 py-5 align-middle">
                           <div className="flex flex-col">
@@ -1368,7 +1368,7 @@ function MerchantOnboardingContent() {
                         size="sm"
                         className={`h-8 min-w-[32px] rounded-2xl border-black/10 text-xs font-bold transition-all ${
                           currentPage === pageNum 
-                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-sm shadow-amber-950/15" 
+                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-xs shadow-amber-950/15" 
                             : "bg-white text-slate-600 hover:bg-amber-50/50"
                         }`}
                         onClick={() => setCurrentPage(pageNum)}
@@ -1419,8 +1419,8 @@ function MerchantOnboardingContent() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-6">
                   {/* Left Column: Core Info & Logo */}
-                  <div className="space-y-8">
-                    <div className="space-y-3">
+                  <div className="stack-y-8">
+                    <div className="stack-y-3">
                       <Label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Business Logo</Label>
                       <div className="relative group w-full aspect-square max-w-[200px] mx-auto rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
                         {selectedMerchant?.logoUrl ? (
@@ -1446,17 +1446,17 @@ function MerchantOnboardingContent() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
-                        <div className="space-y-1">
+                    <div className="stack-y-4">
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 stack-y-4">
+                        <div className="stack-y-1">
                           <Label className="text-[10px] uppercase text-slate-500 font-bold">Merchant ID</Label>
                           <p className="text-sm font-mono font-bold text-slate-900">{selectedMerchant?.id ?? "—"}</p>
                         </div>
-                        <div className="space-y-1">
+                        <div className="stack-y-1">
                           <Label className="text-[10px] uppercase text-slate-500 font-bold">Status</Label>
                           <div>{selectedMerchant?.status ? getStatusBadge(selectedMerchant.status) : <Badge variant="secondary">—</Badge>}</div>
                         </div>
-                        <div className="space-y-1">
+                        <div className="stack-y-1">
                           <Label className="text-[10px] uppercase text-slate-500 font-bold">Registration Path</Label>
                           <p className="text-xs font-bold text-slate-700">{selectedMerchant?.branchName === "Self-Service" ? "Self-Registration Portal" : `Staff: ${selectedMerchant?.branchName}`}</p>
                         </div>
@@ -1465,23 +1465,23 @@ function MerchantOnboardingContent() {
                   </div>
 
                   {/* Middle & Right Columns: Business Details */}
-                  <div className="md:col-span-2 space-y-8">
+                  <div className="md:col-span-2 stack-y-8">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                       {/* Section: Identifiers */}
-                      <div className="space-y-4">
+                      <div className="stack-y-4">
                         <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                           <User className="w-3.5 h-3.5" /> Primary Contact
                         </h4>
-                        <div className="space-y-3">
-                          <div className="space-y-1">
+                        <div className="stack-y-3">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Full Name</Label>
                             <p className="text-sm font-bold text-slate-900">{selectedMerchant?.contactName || "—"}</p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Username / Login</Label>
                             <p className="text-sm font-bold text-slate-900">{selectedMerchant?.contactUsername || "—"}</p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Business Email</Label>
                             <p className="text-sm font-bold text-slate-900">{selectedMerchant?.email || "—"}</p>
                           </div>
@@ -1489,20 +1489,20 @@ function MerchantOnboardingContent() {
                       </div>
 
                       {/* Section: Professional Info */}
-                      <div className="space-y-4">
+                      <div className="stack-y-4">
                         <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                           <Store className="w-3.5 h-3.5" /> Industry Info
                         </h4>
-                        <div className="space-y-3">
-                          <div className="space-y-1">
+                        <div className="stack-y-3">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Industry Category</Label>
                             <p className="text-sm font-bold text-slate-900">{selectedMerchant?.category || "—"}</p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Business Type</Label>
                             <p className="text-sm font-bold text-slate-900">{selectedMerchant?.businessType || "—"}</p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Hub / Location</Label>
                             <p className="text-sm font-bold text-slate-900">{selectedMerchant?.district || "—"}</p>
                           </div>
@@ -1514,12 +1514,12 @@ function MerchantOnboardingContent() {
 
                     {/* Section: Technical & Financial */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                      <div className="space-y-4">
+                      <div className="stack-y-4">
                         <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                           <Globe className="w-3.5 h-3.5" /> Online Presence
                         </h4>
-                        <div className="space-y-3">
-                          <div className="space-y-1">
+                        <div className="stack-y-3">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Website URL</Label>
                             <p className="text-sm font-bold text-blue-600 truncate">
                               <a href={selectedMerchant?.websiteUrl || "#"} target="_blank" className="hover:underline">
@@ -1527,7 +1527,7 @@ function MerchantOnboardingContent() {
                               </a>
                             </p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Webhook Callback</Label>
                             <p className="text-sm font-mono text-slate-700 truncate" title={selectedMerchant?.callbackUrl}>
                               {selectedMerchant?.callbackUrl || "—"}
@@ -1536,16 +1536,16 @@ function MerchantOnboardingContent() {
                         </div>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="stack-y-4">
                         <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                           <CreditCard className="w-3.5 h-3.5" /> Financial Setup
                         </h4>
-                        <div className="space-y-3">
-                          <div className="space-y-1">
+                        <div className="stack-y-3">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Settlement Account</Label>
                             <p className="text-sm font-mono font-bold text-slate-900">{selectedMerchant?.accountNumber || "—"}</p>
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <Label className="text-[10px] uppercase text-slate-400 font-bold">Configured Limits</Label>
                             <div className="flex gap-4">
                               <div className="text-center p-2 rounded-lg bg-slate-50 border border-slate-100 flex-1">
@@ -1566,7 +1566,7 @@ function MerchantOnboardingContent() {
                       </div>
                     </div>
 
-                    <div className="space-y-2 p-4 rounded-2xl bg-amber-50/30 border border-amber-100">
+                    <div className="stack-y-2 p-4 rounded-2xl bg-amber-50/30 border border-amber-100">
                       <Label className="text-[10px] uppercase text-amber-700 font-bold">Business Description</Label>
                       <p className="text-sm text-slate-700 italic leading-relaxed">
                         "{selectedMerchant?.businessDescription || "No description provided."}"
@@ -1574,7 +1574,7 @@ function MerchantOnboardingContent() {
                     </div>
 
                     {/* Section: Documents */}
-                    <div className="space-y-4">
+                    <div className="stack-y-4">
                       <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <FileText className="w-4 h-4" /> Uploaded Documents
                       </h4>
@@ -1696,7 +1696,7 @@ function MerchantOnboardingContent() {
                   </DialogDescription>
                 </DialogHeader>
                 
-                <div className="space-y-4 py-4">
+                <div className="stack-y-4 py-4">
                   <div className="grid gap-2">
                     <Label htmlFor="dailyLimit">Daily Transaction Volume (ETB)</Label>
                     <Input 
@@ -1784,8 +1784,8 @@ function MerchantOnboardingContent() {
                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="space-y-4 py-2">
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg space-y-1">
+                  <div className="stack-y-4 py-2">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg stack-y-1">
                       <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Current subsidiary account</p>
                       <p className="text-sm font-mono font-semibold text-slate-900">
                         {subsidiaryCurrent || "Not yet configured"}
@@ -1803,7 +1803,7 @@ function MerchantOnboardingContent() {
                       </div>
                     ) : (
                       <>
-                        <div className="space-y-1.5">
+                        <div className="stack-y-1.5">
                           <Label>New subsidiary account number</Label>
                           <Input
                             value={subsidiaryForm.accountNumber}
@@ -1815,7 +1815,7 @@ function MerchantOnboardingContent() {
                             <p className="text-[10px] text-red-500 font-medium">{subsidiaryFieldErrors.requestedAccountNumber}</p>
                           )}
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="stack-y-1.5">
                           <Label>Reason <span className="text-muted-foreground font-normal">(optional)</span></Label>
                           <Textarea
                             value={subsidiaryForm.reason}

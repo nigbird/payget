@@ -32,8 +32,8 @@ export function PairScreen({
   return (
     <Screen>
       <TopBar title="Nibtera Speaker" />
-      <div className="mx-auto flex max-w-xl flex-col items-center px-5 pb-10 pt-8 text-center md:mt-12 md:max-w-md md:rounded-3xl md:border md:border-[#eddcc0] md:p-8 md:shadow-sm">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#f8b513]/25 to-[#754319]/15">
+      <div className="mx-auto flex max-w-xl flex-col items-center px-5 pb-10 pt-8 text-center md:mt-12 md:max-w-md md:rounded-3xl md:border md:border-[#eddcc0] md:p-8 md:shadow-xs">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-[#f8b513]/25 to-[#754319]/15">
           <QrCode className="h-11 w-11 text-[#754319]" />
         </div>
         <h2 className="mt-5 text-2xl font-bold">Pair this device</h2>

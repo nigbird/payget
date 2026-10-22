@@ -76,9 +76,9 @@ function ConfigCheckResults({ report }: { report: ConfigCheckReport }) {
   }[report.status]
 
   return (
-    <div className={`rounded-xl border p-4 space-y-2 ${tone}`}>
+    <div className={`rounded-xl border p-4 stack-y-2 ${tone}`}>
       <p className="text-[11px] text-slate-500">{REPORT_SOURCE_LABEL[report.source]}</p>
-      <ul className="space-y-1.5">
+      <ul className="stack-y-1.5">
         {report.checks.map((check, i) => (
           <li key={i} className="flex items-start gap-2 text-xs">
             {check.status === "pass" && <CheckCircle2 className="w-4 h-4 mt-px shrink-0 text-emerald-600" />}
@@ -597,21 +597,21 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.push('/admin/merchants')} className="rounded-full">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="space-y-1">
+        <div className="stack-y-1">
           <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Configuration: {merchant?.name}</h2>
           <p className="text-sm text-amber-800/60 font-medium">Manage payment settings and branded assets.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 stack-y-6">
           {/* QR Code Configuration Section */}
-          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10 overflow-hidden">
+          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10 overflow-hidden">
             <CardHeader className="bg-amber-50/30 border-b border-black/5">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
@@ -620,10 +620,10 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 <CardTitle className="text-base">QR Code Configuration</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-8">
+            <CardContent className="p-6 stack-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <div className="space-y-4">
+                <div className="stack-y-6">
+                  <div className="stack-y-4">
                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">QR Branding Assets</Label>
                     <div className="flex items-center gap-4">
                       <div className="w-20 h-20 rounded-2xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center overflow-hidden">
@@ -633,7 +633,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           <ImageIcon className="w-8 h-8 text-amber-200" />
                         )}
                       </div>
-                      <div className="flex-1 space-y-2">
+                      <div className="flex-1 stack-y-2">
                         <p className="text-xs text-slate-500">Upload a branded logo to display in the center of the QR code. Recommended: Square PNG, max 2MB.</p>
                         <div className="flex gap-2">
                           <Button 
@@ -668,7 +668,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     <Button 
                       onClick={qrConfig?.activeQr ? handleRegenerateQr : handleSaveQrConfig}
                       disabled={qrConfig?.activeQr ? isRegenerating : isSaving}
-                      className="w-full rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-10 px-8"
+                      className="w-full rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-10 px-8"
                     >
                       {qrConfig?.activeQr ? (
                         isRegenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCw className="w-4 h-4 mr-2" />
@@ -713,7 +713,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                       </Button>
                     </div>
                   ) : (
-                    <div className="text-center space-y-3">
+                    <div className="text-center stack-y-3">
                       <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto border border-dashed border-slate-200">
                         <QrCode className="w-8 h-8 text-slate-200" />
                       </div>
@@ -726,7 +726,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           </Card>
 
           {/* Mastercard Gateway (MPGS) Configuration */}
-          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10 overflow-hidden">
+          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10 overflow-hidden">
             <CardHeader className="bg-amber-50/30 border-b border-black/5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -746,9 +746,9 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 Mastercard account instead.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-6 stack-y-4">
               <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">MPGS Merchant ID</Label>
                   <Input
                     placeholder="e.g. TESTNIB12345"
@@ -756,7 +756,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsMerchantId: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                     MPGS Password
                     {mpgsConfig?.configured && (
@@ -782,7 +782,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     </button>
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Settlement Currency</Label>
                   <Input
                     placeholder="USD"
@@ -791,7 +791,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     onChange={(e) => setMpgsForm({ ...mpgsForm, mpgsCurrency: e.target.value.toUpperCase() })}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Gateway Base URL (optional)</Label>
                   <Input
                     placeholder="https://na-gateway.mastercard.com"
@@ -836,7 +836,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 <Button
                   onClick={handleSaveMpgsConfig}
                   disabled={isSavingMpgs}
-                  className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                  className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
                 >
                   {isSavingMpgs ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -850,7 +850,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           </Card>
 
           {/* YagoutPay Configuration */}
-          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10 overflow-hidden">
+          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10 overflow-hidden">
             <CardHeader className="bg-amber-50/30 border-b border-black/5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -869,9 +869,9 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 instead.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-6 stack-y-4">
               <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Merchant ID (me_id)</Label>
                   <Input
                     placeholder="e.g. 202505060003"
@@ -879,7 +879,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     onChange={(e) => setYagoutForm({ ...yagoutForm, yagoutMeId: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                     Encryption Key
                     {yagoutConfig?.configured && (
@@ -908,7 +908,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                     Paste exactly as Yagout issued it, including any trailing &quot;=&quot;.
                   </p>
                 </div>
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Post URL (optional)</Label>
                   <Input
                     placeholder="https://checkout.yagoutpay.com/..."
@@ -957,7 +957,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 <Button
                   onClick={handleSaveYagoutConfig}
                   disabled={isSavingYagout}
-                  className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+                  className="rounded-xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
                 >
                   {isSavingYagout ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -971,12 +971,12 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+        <div className="stack-y-6">
+          <Card className="rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Merchant Profile</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="stack-y-4">
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
                 <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
                   {merchant?.logoUrl ? (
@@ -991,7 +991,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="stack-y-3">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-500">Account Status:</span>
                   <Badge className="bg-emerald-500">{merchant?.status}</Badge>

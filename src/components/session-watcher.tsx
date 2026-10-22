@@ -280,7 +280,7 @@ export function SessionWatcher() {
               </Button>
               <Button
                 onClick={handleStayLoggedIn}
-                className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white shadow-lg shadow-amber-200/50"
+                className="w-full sm:flex-1 rounded-xl bg-linear-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white shadow-lg shadow-amber-200/50"
               >
                 Stay Logged In
               </Button>
@@ -288,7 +288,7 @@ export function SessionWatcher() {
           ) : (
             <Button
               onClick={handleLoginAgain}
-              className="w-full rounded-xl bg-gradient-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white shadow-lg shadow-amber-200/50 flex items-center justify-center gap-2"
+              className="w-full rounded-xl bg-linear-to-r from-[#f8b513] to-[#754319] hover:opacity-90 text-white shadow-lg shadow-amber-200/50 flex items-center justify-center gap-2"
             >
               <LogIn className="w-4 h-4" />
               Log In Again

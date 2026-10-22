@@ -76,7 +76,7 @@ export function TablePagination({
               size="sm"
               className={`h-8 min-w-[32px] rounded-2xl border-[#F1E7D0] text-xs font-bold transition-all ${
                 n === page
-                  ? 'border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15'
+                  ? 'border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15'
                   : 'bg-white text-slate-600 hover:bg-amber-50/50'
               }`}
               onClick={() => onPageChange(n)}

@@ -1,5 +1,20 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
+
+const isSpacingNumber = (value: string) => /^\d+(\.\d+)?$/.test(value)
+
+// stack-x-N / stack-y-N are our Tailwind-3-compatible `space-*` utilities (see
+// globals.css). Registering them lets an override such as
+// <CardHeader className="stack-y-0"> replace the component default, the way
+// `space-y-*` overrides did.
+const twMerge = extendTailwindMerge<"stack-x" | "stack-y">({
+  extend: {
+    classGroups: {
+      "stack-x": [{ "stack-x": [isSpacingNumber] }],
+      "stack-y": [{ "stack-y": [isSpacingNumber] }],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

@@ -771,15 +771,15 @@ export function EligibleCustomersTab({ merchantId }: Props) {
         : "Rejected list"
 
   return (
-    <div className="space-y-6">
-      <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
+    <div className="stack-y-6">
+      <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
             <ListChecks className="h-5 w-5 text-[#754319]" />
             Payment eligibility
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="stack-y-4">
           <p className="text-sm text-muted-foreground">
             Import a phone-number allowlist to restrict Push, Payment Link, and QR payments to only these
             customers. Once you have at least one admin-approved entry, payments to any other number will be
@@ -813,7 +813,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
           {isRejected && activeRequest && (
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex gap-3">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-              <div className="text-sm text-rose-900 space-y-1">
+              <div className="text-sm text-rose-900 stack-y-1">
                 <p className="font-semibold">Rejected by admin</p>
                 <p className="whitespace-pre-wrap text-rose-800">
                   <span className="font-medium">Reason: </span>
@@ -1017,7 +1017,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               </div>
 
               {isEditable && (
-                <div className="p-3 bg-slate-50 border-t border-black/5 space-y-3">
+                <div className="p-3 bg-slate-50 border-t border-black/5 stack-y-3">
                   <div className="flex gap-2">
                     <Input
                       value={newPhone}
@@ -1043,7 +1043,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
                   <Button
                     onClick={handleSubmitDraft}
                     disabled={submitting || activeRequest.totalRows === 0}
-                    className="w-full rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                    className="w-full rounded-2xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95"
                   >
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     {isRejected ? "Resubmit for Approval" : "Submit for Approval"}
@@ -1068,7 +1068,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               <Button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importing}
-                className="rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                className="rounded-2xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95"
               >
                 {importing ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1113,7 +1113,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               Add new numbers
             </Button>
           ) : (
-            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/40 p-3">
+            <div className="stack-y-3 rounded-2xl border border-amber-200 bg-amber-50/40 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-bold uppercase tracking-wide text-amber-800/70">
                   Add new numbers
@@ -1181,7 +1181,7 @@ export function EligibleCustomersTab({ merchantId }: Props) {
               <Button
                 onClick={handleRequestAddition}
                 disabled={hasActiveRequest || submittingAdd || pendingAddPhones.length === 0}
-                className="w-full rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                className="w-full rounded-2xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95"
               >
                 {submittingAdd ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Request Addition ({pendingAddPhones.length})

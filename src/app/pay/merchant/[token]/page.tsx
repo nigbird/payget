@@ -326,7 +326,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
   if (view === "failed" && !merchant) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center stack-y-4">
         <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 mb-2">
           <XCircle className="w-8 h-8" />
         </div>
@@ -346,7 +346,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
     return (
       <div className="min-h-screen flex flex-col bg-gray-100">
-        <div className="relative bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 px-6 pt-14 pb-24 flex flex-col items-center text-center overflow-hidden">
+        <div className="relative bg-linear-to-br from-amber-400 via-amber-500 to-orange-500 px-6 pt-14 pb-24 flex flex-col items-center text-center overflow-hidden">
           <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-orange-400/40" />
           <div className="absolute top-4 right-0 w-20 h-20 rounded-full bg-amber-300/30" />
           <div className="absolute -bottom-2 right-8 w-14 h-14 rounded-full bg-orange-600/20" />
@@ -363,7 +363,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
         <div className="flex-1 flex flex-col pb-4">
           <div className="-mt-12 mx-4 bg-white rounded-3xl shadow-lg overflow-hidden">
-            <div className="px-5 pt-6 space-y-3">
+            <div className="px-5 pt-6 stack-y-3">
               {[
                 { label: "From", value: phone },
                 { label: "To", value: merchant?.name || "N/A" },
@@ -416,7 +416,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
             </div>
 
             <div className="flex items-center justify-center gap-3 px-5 pb-6">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-900 border-2 border-amber-700 flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-900 border-2 border-amber-700 flex items-center justify-center shadow-xs">
                 <img src="/niblogo.png" alt="NIB" className="w-7 h-7 object-contain" />
               </div>
               <div className="text-left">
@@ -446,14 +446,14 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
   return (
     <div className="min-h-screen bg-[#F7F5F0] flex flex-col">
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-md mx-auto p-4 pb-10 space-y-4">
+        <div className="max-w-md mx-auto p-4 pb-10 stack-y-4">
 
           {/* ── Merchant card: NIB branding + merchant info ── */}
           {merchant && (view === "input" || view === "processing") && (
-            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+            <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-xs border border-slate-100">
               {/* NIB Bank */}
               <div className="flex items-center gap-2 shrink-0">
-                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-xs">
                   <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
                 </div>
                 <div>
@@ -466,7 +466,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
               {/* Merchant */}
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-xs shrink-0">
                   {merchant.logoUrl ? (
                     <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
                   ) : (
@@ -486,12 +486,12 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
           {/* ── INPUT VIEW ── */}
           {view === "input" && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="stack-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-              <form onSubmit={handlePayment} className="space-y-3">
+              <form onSubmit={handlePayment} className="stack-y-3">
 
                 {/* Phone Number */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Phone Number</p>
                   <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
                     <Phone className="w-4 h-4 text-amber-500 shrink-0" />
@@ -504,7 +504,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                         if (val.length <= 13) setPhone(val)
                       }}
                       required
-                      className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/30"
+                      className="flex-1 bg-transparent border-none outline-hidden font-medium text-slate-800 text-sm placeholder:text-slate-400/30"
                     />
                     {phone && (
                       <button
@@ -520,7 +520,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 </div>
 
                 {/* Payment Method */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Payment Method</p>
                   <div className="flex items-center px-3 pb-3 pt-2">
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -548,7 +548,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
                 {/* Merchant Account Number */}
                 {merchant?.accountNumber && (
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-3.5 pb-0">Merchant Account Number</p>
                     <div className="flex items-center px-3 pb-3 pt-2 gap-2.5">
                       <CreditCard className="w-4 h-4 text-amber-500 shrink-0" />
@@ -566,7 +566,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 )}
 
                 {/* Description — pill-based cart + note + item search (matching dashboard modal) */}
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Description</p>
 
                   {catalogItems.length > 0 ? (
@@ -574,13 +574,13 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                       <div
                         ref={descriptionFieldRef}
                         onClick={() => itemSearchInputRef.current?.focus()}
-                        className="flex min-h-[46px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-sm cursor-text"
+                        className="flex min-h-[46px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-xs cursor-text"
                       >
                         {cart.map((line) => (
                           <div
                             key={line.itemId}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 py-0.5 pl-2 pr-1 text-[11px] text-amber-900 shadow-sm"
+                            className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 py-0.5 pl-2 pr-1 text-[11px] text-amber-900 shadow-xs"
                           >
                             <span className="max-w-[90px] truncate font-medium">{line.name}</span>
                             <button
@@ -616,7 +616,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                             ref={itemSearchInputRef}
                             type="text"
                             placeholder={cart.length === 0 ? "Order #1022, or search your items…" : "Add more…"}
-                            className="h-6 min-w-0 flex-1 border-0 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+                            className="h-6 min-w-0 flex-1 border-0 bg-transparent text-xs text-slate-700 outline-hidden placeholder:text-slate-400"
                             value={itemQuery}
                             onChange={(e) => {
                               const val = e.target.value
@@ -735,28 +735,28 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                         )}
                     </>
                   ) : (
-                    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-xs">
                       <FileText className="w-4 h-4 text-amber-500 shrink-0" />
                       <input
                         type="text"
                         placeholder="Order #1022"
                         value={description}
                         onChange={(e) => { if (e.target.value.length <= DESCRIPTION_MAX_LENGTH) setDescription(e.target.value) }}
-                        className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/60"
+                        className="flex-1 bg-transparent border-none outline-hidden font-medium text-slate-800 text-sm placeholder:text-slate-400/60"
                       />
                     </div>
                   )}
                 </div>
 
                 {/* Amount — matched to description sizing, readonly when items configured */}
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <div className="flex items-center justify-between px-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</p>
                     {catalogItems.length > 0 && (
                       <span className="text-[9px] font-medium text-slate-400">Calculated from items</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                  <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-xs">
                     <Wallet className="w-4 h-4 text-amber-500 shrink-0" />
                     <input
                       autoFocus={catalogItems.length === 0}
@@ -770,7 +770,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                         const val = e.target.value
                         if (val === "" || /^([1-9]\d{0,5})(\.\d{0,2})?$/.test(val)) setAmount(val)
                       }}
-                      className={`flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-sm placeholder:text-slate-400/60 ${catalogItems.length > 0 ? "text-slate-500 cursor-not-allowed" : ""}`}
+                      className={`flex-1 bg-transparent border-none outline-hidden font-medium text-slate-800 text-sm placeholder:text-slate-400/60 ${catalogItems.length > 0 ? "text-slate-500 cursor-not-allowed" : ""}`}
                     />
                     <span className="text-xs font-semibold text-slate-400/80 shrink-0">ETB</span>
                   </div>
@@ -796,19 +796,19 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
           {/* ── PROCESSING VIEW ── */}
           {view === "processing" && (
-            <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 text-center space-y-6">
+            <div className="stack-y-4 animate-in fade-in zoom-in-95 duration-500">
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-xs p-8 text-center stack-y-6">
 
                 {/* Animated spinner */}
                 <div className="relative mx-auto w-24 h-24">
                   <div className="absolute inset-0 rounded-full bg-amber-200/60 animate-ping" style={{ animationDuration: "1.6s" }} />
                   <div className="absolute inset-2 rounded-full bg-amber-100/80 animate-ping" style={{ animationDuration: "1.6s", animationDelay: "0.3s" }} />
-                  <div className="relative w-full h-full rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center shadow-sm">
+                  <div className="relative w-full h-full rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center shadow-xs">
                     <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="stack-y-2">
                   <h2 className="text-xl font-black text-slate-800">Pushing USSD Request</h2>
                   <p className="text-sm text-slate-500 leading-relaxed max-w-[270px] mx-auto">
                     Please check your phone{" "}
@@ -845,11 +845,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
           {/* ── FAILED VIEW ── */}
           {view === "failed" && merchant && (
-            <div className="animate-in zoom-in-95 duration-500 space-y-4">
+            <div className="animate-in zoom-in-95 duration-500 stack-y-4">
               {/* Branding header */}
-              <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+              <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-xs border border-slate-100">
                 <div className="flex items-center gap-2 shrink-0">
-                  <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-xs">
                     <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
                   </div>
                   <div>
@@ -859,7 +859,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 </div>
                 <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-xs shrink-0">
                     {merchant.logoUrl ? (
                       <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
                     ) : (
@@ -877,11 +877,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
               </div>
 
               {/* Failure card */}
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 py-8 text-center space-y-5">
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-xs px-6 py-8 text-center stack-y-5">
                 <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mx-auto border border-rose-100">
                   <XCircle className="w-10 h-10 text-rose-500" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <h2 className="text-2xl font-black text-slate-800">Payment Failed</h2>
                   <p className="text-sm text-slate-500">We couldn&apos;t process your payment at this time.</p>
                 </div>
@@ -909,11 +909,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
 
           {/* ── PENDING VIEW — shown when polling times out without a confirmed result ── */}
           {view === "pending" && merchant && (
-            <div className="animate-in zoom-in-95 duration-500 space-y-4">
+            <div className="animate-in zoom-in-95 duration-500 stack-y-4">
               {/* Branding header */}
-              <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-slate-100">
+              <div className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-xs border border-slate-100">
                 <div className="flex items-center gap-2 shrink-0">
-                  <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-sm">
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-900 border border-amber-800 flex items-center justify-center shadow-xs">
                     <img src="/niblogo.png" alt="NIB" className="w-6 h-6 object-contain" />
                   </div>
                   <div>
@@ -923,7 +923,7 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
                 </div>
                 <div className="h-9 w-px bg-slate-100 mx-1 shrink-0" />
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-sm shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center overflow-hidden border border-amber-100 shadow-xs shrink-0">
                     {merchant.logoUrl ? (
                       <img src={merchant.logoUrl} alt={merchant.name} className="w-full h-full object-contain" />
                     ) : (
@@ -941,11 +941,11 @@ export default function MerchantQrPaymentPage({ params }: { params: Promise<{ to
               </div>
 
               {/* Pending card */}
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 py-8 text-center space-y-5">
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-xs px-6 py-8 text-center stack-y-5">
                 <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mx-auto border border-amber-100">
                   <Clock className="w-10 h-10 text-amber-500" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="stack-y-1.5">
                   <h2 className="text-2xl font-black text-slate-800">Payment Pending</h2>
                   <p className="text-sm text-slate-500">
                     We haven&apos;t received a confirmation yet. If your PIN was accepted, the payment will be reflected shortly.

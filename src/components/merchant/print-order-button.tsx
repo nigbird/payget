@@ -86,8 +86,8 @@ export function PrintOrderButton({ transaction, merchantName, onSaved }: Props) 
                 Edit table & shift
               </AccordionTrigger>
               <AccordionContent className="px-4">
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
+                <div className="stack-y-3">
+                  <div className="stack-y-1.5">
                     <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                       Table No (defaults to 0)
                     </Label>
@@ -99,7 +99,7 @@ export function PrintOrderButton({ transaction, merchantName, onSaved }: Props) 
                       maxLength={20}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="stack-y-1.5">
                     <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                       Shift (defaults to Shift 1)
                     </Label>
@@ -114,7 +114,7 @@ export function PrintOrderButton({ transaction, merchantName, onSaved }: Props) 
                   <Button
                     onClick={handleSaveAndPrint}
                     disabled={saving}
-                    className="h-9 w-full rounded-xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                    className="h-9 w-full rounded-xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95"
                   >
                     {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Printer className="mr-1.5 h-3.5 w-3.5" />}
                     Save & Print

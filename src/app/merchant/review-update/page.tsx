@@ -401,9 +401,9 @@ function ReviewUpdateForm() {
       <div className="min-h-screen relative overflow-hidden bg-white">
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+          <div className="absolute top-20 left-20 w-96 h-96 bg-linear-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-20 right-20 w-80 h-80 bg-linear-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
           
           <div className="absolute inset-0 opacity-5">
             <svg className="w-full h-full min-w-full min-h-full" xmlns="http://www.w3.org/2000/svg">
@@ -421,22 +421,22 @@ function ReviewUpdateForm() {
 
         <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
           <div className="w-full max-w-md animate-fade-in-up">
-            <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
-              <div className="text-center space-y-2">
+            <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 stack-y-8">
+              <div className="text-center stack-y-2">
                 <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">Verify Identity</h1>
                 <p className="text-[#6B7280] font-medium">
                   Security check
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <div className="stack-y-6">
                 <div className="bg-slate-50 rounded-xl p-5 text-center">
                   <p className="text-sm text-slate-600 leading-relaxed">
                     Enter the code sent to your {merchant.contactType}: <span className="font-bold text-slate-900">{merchant.contactUsername}</span>
                   </p>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="stack-y-4">
                   <div className="flex justify-end">
                     <Button
                       variant="link"
@@ -447,7 +447,7 @@ function ReviewUpdateForm() {
                       {submittingAction === 'send_otp' ? <Loader2 className="animate-spin mr-2" /> : "Send OTP"}
                     </Button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label className="text-[11px] font-medium uppercase tracking-widest text-amber-800/60">OTP Code</Label>
                     <div className="flex items-center justify-center gap-2">
                       {Array.from({ length: 6 }).map((_, index) => {
@@ -468,7 +468,7 @@ function ReviewUpdateForm() {
                             }}
                             onKeyDown={(event) => handleOtpKeyDown(index, event)}
                             onPaste={handleOtpPaste}
-                            className="w-12 h-14 rounded-2xl border border-[#E5E7EB] bg-white/80 text-center text-xl font-semibold tracking-[0.35em] focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/20 outline-none transition shadow-sm"
+                            className="w-12 h-14 rounded-2xl border border-[#E5E7EB] bg-white/80 text-center text-xl font-semibold tracking-[0.35em] focus:border-[#f8b513] focus:ring-2 focus:ring-[#f8b513]/20 outline-hidden transition shadow-xs"
                           />
                         )
                       })}
@@ -476,7 +476,7 @@ function ReviewUpdateForm() {
                     <p className="text-xs text-[#6B7280] mt-1 text-center">Code expires in 5 minutes.</p>
                   </div>
                   <Button 
-                    className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
+                    className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300" 
                     onClick={handleVerifyOtp} 
                     disabled={submittingAction !== null || otp.length < 6}
                   >
@@ -502,17 +502,17 @@ function ReviewUpdateForm() {
   if (step === 'review') {
     return (<>
       <div className="min-h-screen bg-white flex items-start justify-center p-4">
-        <div className="max-w-5xl w-full py-8 space-y-10">
+        <div className="max-w-5xl w-full py-8 stack-y-10">
         <div className="relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#eadcc4]/40">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 shadow-sm">
+            <div className="stack-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 shadow-xs">
                 <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
                 <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">
                   Correction Required
                 </span>
               </div>
-              <div className="space-y-1">
+              <div className="stack-y-1">
                 <h2 className="text-4xl font-black tracking-tight text-gray-900">Update Your Application</h2>
                 <p className="text-sm text-gray-500 font-medium max-w-xl">
                   Review the feedback from our compliance team and resubmit your corrected information.
@@ -530,7 +530,7 @@ function ReviewUpdateForm() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-amber-900 font-medium leading-relaxed break-words">
+            <p className="text-sm text-amber-900 font-medium leading-relaxed wrap-break-word">
               {merchant.updateComments?.general || "Please review all fields and documents for accuracy."}
             </p>
           </CardContent>
@@ -539,7 +539,7 @@ function ReviewUpdateForm() {
         <Card className="overflow-hidden rounded-[26px] border border-[#eddcc0] bg-white/90 shadow-xl">
           <CardContent className="p-0">
             <form onSubmit={handleResubmit} className="divide-y divide-gray-100">
-              <div className="p-8 space-y-6">
+              <div className="p-8 stack-y-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                     <Building2 className="h-5 w-5 text-[#754319]" />
@@ -547,7 +547,7 @@ function ReviewUpdateForm() {
                   <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Company Profile</h3>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Business Name</Label>
                     <Input 
                       maxLength={50}
@@ -556,7 +556,7 @@ function ReviewUpdateForm() {
                       onChange={e => setFormData({...formData, name: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Business Email</Label>
                     <Input 
                       maxLength={50}
@@ -565,7 +565,7 @@ function ReviewUpdateForm() {
                       onChange={e => setFormData({...formData, email: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2 sm:col-span-2">
+                  <div className="stack-y-2 sm:col-span-2">
                     <Label>Settlement Account Number</Label>
                     <Input
                       id="accountNumber"
@@ -586,7 +586,7 @@ function ReviewUpdateForm() {
                 </div>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-8 stack-y-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                     <User className="h-5 w-5 text-[#754319]" />
@@ -594,7 +594,7 @@ function ReviewUpdateForm() {
                   <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Authorized Contact</h3>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Full Name</Label>
                     <Input 
                       maxLength={50}
@@ -603,7 +603,7 @@ function ReviewUpdateForm() {
                       onChange={e => setFormData({...formData, contactName: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Email or Phone Number</Label>
                     <Input 
                       maxLength={50}
@@ -615,7 +615,7 @@ function ReviewUpdateForm() {
                 </div>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-8 stack-y-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                     <Store className="h-5 w-5 text-[#754319]" />
@@ -623,11 +623,11 @@ function ReviewUpdateForm() {
                   <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Business Details</h3>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
+                  <div className="stack-y-2 sm:col-span-2">
                     <Label>Business Logo (Optional)</Label>
                     <div className="flex items-center gap-4">
                       {formData.logoUrl ? (
-                        <div className="relative group w-20 h-20 rounded-xl border border-[#eadcc4] overflow-hidden bg-white flex-shrink-0 shadow-sm">
+                        <div className="relative group w-20 h-20 rounded-xl border border-[#eadcc4] overflow-hidden bg-white shrink-0 shadow-xs">
                           <img src={formData.logoUrl} alt="Business logo" className="w-full h-full object-contain p-1" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                           <button
                             type="button"
@@ -638,7 +638,7 @@ function ReviewUpdateForm() {
                           </button>
                         </div>
                       ) : (
-                        <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0">
+                        <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
                           <Building2 className="w-7 h-7 text-gray-300" />
                         </div>
                       )}
@@ -649,7 +649,7 @@ function ReviewUpdateForm() {
                       <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0])} />
                     </div>
                   </div>
-                  <div className="space-y-2 sm:col-span-2">
+                  <div className="stack-y-2 sm:col-span-2">
                     <Label>Business Description</Label>
                     <Textarea 
                       rows={3}
@@ -659,7 +659,7 @@ function ReviewUpdateForm() {
                       onChange={e => setFormData({...formData, businessDescription: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Website URL (Optional)</Label>
                     <Input 
                       className={`h-11 rounded-xl ${errors.websiteUrl ? 'border-red-500' : ''}`}
@@ -669,7 +669,7 @@ function ReviewUpdateForm() {
                     />
                     {errors.websiteUrl && <p className="text-[11px] text-red-500 font-medium">{errors.websiteUrl}</p>}
                   </div>
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Callback URL (Optional)</Label>
                     <Input 
                       className={`h-11 rounded-xl ${errors.callbackUrl ? 'border-red-500' : ''}`}
@@ -679,7 +679,7 @@ function ReviewUpdateForm() {
                     />
                     {errors.callbackUrl && <p className="text-[11px] text-red-500 font-medium">{errors.callbackUrl}</p>}
                   </div>
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Industry Category</Label>
                     <Select onValueChange={v => setFormData({...formData, category: v})} value={formData.category}>
                       <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
@@ -688,7 +688,7 @@ function ReviewUpdateForm() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <Label>Business Type</Label>
                     <Select onValueChange={v => setFormData({...formData, businessType: v})} value={formData.businessType}>
                       <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
@@ -700,7 +700,7 @@ function ReviewUpdateForm() {
                 </div>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-8 stack-y-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#eddcc0] bg-[#fff8ea]">
                     <FileText className="h-5 w-5 text-[#754319]" />
@@ -723,7 +723,7 @@ function ReviewUpdateForm() {
                 </div>
                 <div className="grid gap-3">
                   {documents.map(doc => (
-                    <div key={doc.id} className="group flex items-center justify-between p-3 border rounded-xl bg-white shadow-sm hover:border-[#f8b513]/40 transition-all">
+                    <div key={doc.id} className="group flex items-center justify-between p-3 border rounded-xl bg-white shadow-xs hover:border-[#f8b513]/40 transition-all">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden border border-gray-100">
                           {doc.type?.startsWith('image/') && doc.url ? (
@@ -753,7 +753,7 @@ function ReviewUpdateForm() {
               </div>
 
               <div className="p-8 bg-slate-50/50">
-                <Button type="submit" className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={submittingAction !== null}>
+                <Button type="submit" className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all" disabled={submittingAction !== null}>
                   {submittingAction === 'resubmit' ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="w-5 h-5 mr-2" />}
                   Resubmit Application
                 </Button>
@@ -815,7 +815,7 @@ function ReviewUpdateForm() {
   if (step === 'success') {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <Card className="max-w-md w-full shadow-sm border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
+        <Card className="max-w-md w-full shadow-xs border border-slate-100 animate-in zoom-in-95 rounded-2xl overflow-hidden bg-white">
           <div className="p-8 text-center border-b border-slate-50">
             <div className="mx-auto w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
               <CheckCircle2 className="w-6 h-6 text-emerald-600" />
@@ -823,7 +823,7 @@ function ReviewUpdateForm() {
             <h3 className="text-xl font-medium text-slate-800 tracking-tight">Application Resubmitted</h3>
             <p className="text-slate-500 mt-1 text-sm">Update received</p>
           </div>
-          <CardContent className="py-8 px-8 space-y-6">
+          <CardContent className="py-8 px-8 stack-y-6">
             <div className="bg-slate-50 rounded-xl p-5 text-center">
               <p className="text-sm text-slate-600 leading-relaxed">
                 Your corrections have been successfully received. Our compliance team will <span className="font-medium text-slate-900">Review Them Shortly</span>.
@@ -834,7 +834,7 @@ function ReviewUpdateForm() {
             </div>
           </CardContent>
           <CardFooter className="px-8 pb-8 pt-2">
-            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" asChild>
+            <Button className="w-full h-12 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 font-medium transition-all" asChild>
               <Link href="/">Return to Home</Link>
             </Button>
           </CardFooter>

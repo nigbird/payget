@@ -625,17 +625,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   if (merchant.status !== 'approved' && merchant.status !== 'active') {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-6 p-4">
-        <div className="max-w-md w-full text-center space-y-6">
+        <div className="max-w-md w-full text-center stack-y-6">
           <div className="relative inline-block">
             <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
               <ShieldAlert className="w-10 h-10 text-orange-600" />
             </div>
-            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm">
+            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-xs">
               <Clock className="w-6 h-6 text-orange-500 animate-pulse" />
             </div>
           </div>
           
-          <div className="space-y-2">
+          <div className="stack-y-2">
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Portal Access Restricted</h2>
             <p className="text-slate-500">
               Your merchant account is currently <span className="font-semibold text-orange-600 uppercase text-sm">{merchant.status.replace('_', ' ')}</span>.
@@ -1128,9 +1128,9 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   const formContent = (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
-        <div className="px-5 py-3 space-y-4">
-          <div className={`space-y-4 ${isFormLocked ? "pointer-events-none opacity-60" : ""}`}>
-            <div className="space-y-2">
+        <div className="px-5 py-3 stack-y-4">
+          <div className={`stack-y-4 ${isFormLocked ? "pointer-events-none opacity-60" : ""}`}>
+            <div className="stack-y-2">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Payment Method</Label>
               <RadioGroup
                 defaultValue="BANK"
@@ -1157,7 +1157,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   />
                   <Label
                       htmlFor="bank"
-                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 has-data-[state=checked]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
                     >
                       <div className="w-10 h-10 flex items-center justify-center">
                         <img 
@@ -1180,7 +1180,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   />
                   <Label
                     htmlFor="mpgs"
-                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 has-data-[state=checked]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
                   >
                     <div className="w-10 h-10 flex items-center justify-center">
                       <img
@@ -1203,7 +1203,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   />
                   <Label
                     htmlFor="yagout"
-                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 has-data-[state=checked]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
                   >
                     <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-50 border border-slate-200">
                       <Wallet className="h-5 w-5 text-slate-600" />
@@ -1223,7 +1223,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   />
                   <Label
                     htmlFor="telebirr"
-                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[80px]"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 has-data-[state=checked]:border-amber-600 cursor-pointer opacity-70 transition-all min-h-[80px]"
                   >
                     <span className="flex items-center justify-center w-10 h-10 mb-1 rounded-lg bg-white border border-slate-200">
                       <img
@@ -1241,7 +1241,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             </div>
 
             {isYagout && (
-              <div className="space-y-1.5">
+              <div className="stack-y-1.5">
                 <Label htmlFor="yagoutEmail" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Email</Label>
                 <div className="relative group transition-all duration-200">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
@@ -1251,7 +1251,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     inputMode="email"
                     autoComplete="email"
                     placeholder="customer@example.com"
-                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-xs"
                     required
                     disabled={isFormLocked}
                     value={requestForm.customerEmail}
@@ -1265,7 +1265,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             )}
 
             {isMpgs ? (
-              <div className="space-y-1.5">
+              <div className="stack-y-1.5">
                 <Label htmlFor="customerEmail" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Email</Label>
                 <div className="relative group transition-all duration-200">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
@@ -1275,7 +1275,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     inputMode="email"
                     autoComplete="email"
                     placeholder="customer@example.com"
-                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-xs"
                     required
                     disabled={isFormLocked}
                     value={requestForm.customerEmail}
@@ -1287,7 +1287,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 </p>
               </div>
             ) : (
-              <div className="space-y-1.5">
+              <div className="stack-y-1.5">
                 <Label htmlFor="phone" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer Phone</Label>
                 <div className="relative group transition-all duration-200">
                   <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
@@ -1295,7 +1295,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                     id="phone"
                     type="tel"
                     placeholder="0912345678"
-                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm"
+                    className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-xs"
                     required
                     disabled={isFormLocked}
                     value={requestForm.payerPhone}
@@ -1309,14 +1309,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             )}
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description</Label>
 
               {catalogItems.length > 0 ? (
                 <>
                   <div
                     ref={itemFieldRef}
-                    className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-sm"
+                    className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 transition-all focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-200 shadow-xs"
                   >
                     {cart.map((line) => (
                       <div
@@ -1361,7 +1361,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                         type="text"
                         disabled={isFormLocked}
                         placeholder={cart.length === 0 ? "Order #1022, or search your items…" : "Add more…"}
-                        className="h-6 min-w-0 flex-1 border-0 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400 disabled:opacity-50"
+                        className="h-6 min-w-0 flex-1 border-0 bg-transparent text-xs text-slate-700 outline-hidden placeholder:text-slate-400 disabled:opacity-50"
                         value={itemSearch}
                         onChange={(e) => {
                           const val = e.target.value
@@ -1481,7 +1481,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <Textarea
                     id="description"
                     placeholder="Order #1022"
-                    className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-sm"
+                    className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all resize-none shadow-xs"
                     disabled={isFormLocked}
                     value={requestForm.description}
                     onChange={(e) => {
@@ -1494,7 +1494,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount ({cartCurrency})</Label>
                 {catalogItems.length > 0 && (
@@ -1508,7 +1508,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   type="text"
                   inputMode="decimal"
                   placeholder="0.00"
-                  className={`h-10 rounded-lg border-slate-200 pl-9 font-medium text-sm text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-sm ${catalogItems.length > 0 ? "bg-slate-50 cursor-not-allowed" : "bg-white"}`}
+                  className={`h-10 rounded-lg border-slate-200 pl-9 font-medium text-sm text-slate-800 focus-visible:ring-slate-200 focus-visible:border-slate-300 transition-all shadow-xs ${catalogItems.length > 0 ? "bg-slate-50 cursor-not-allowed" : "bg-white"}`}
                   required
                   disabled={isFormLocked}
                   readOnly={catalogItems.length > 0}
@@ -1532,7 +1532,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <Button
               type="button"
               onClick={() => handleMpgsAction("qr")}
-              className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-sm transition-all"
+              className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-xs transition-all"
               disabled={isFormLocked || !isApproved}
             >
               {mpgsBusy === "qr" ? (
@@ -1545,7 +1545,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <Button
               type="button"
               onClick={() => handleMpgsAction("send")}
-              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
+              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
               disabled={isFormLocked || !isApproved}
             >
               {mpgsBusy === "send" ? (
@@ -1563,7 +1563,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <Button
               type="button"
               onClick={() => handleRequestPayment("link")}
-              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
+              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
               disabled={isFormLocked || !isApproved}
             >
               {isLinkSubmitting ? (
@@ -1579,7 +1579,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <Button
               type="button"
               onClick={() => handleRequestPayment("push")}
-              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
+              className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all text-xs font-bold"
               disabled={isFormLocked || !isApproved}
             >
               {isPushSubmitting ? (
@@ -1592,7 +1592,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             <Button
               type="button"
               onClick={() => handleRequestPayment("link")}
-              className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-sm transition-all"
+              className="h-10 rounded-xl bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 text-xs font-bold shadow-xs transition-all"
               disabled={isFormLocked || !isApproved}
             >
               {isLinkSubmitting ? (
@@ -1639,14 +1639,14 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="space-y-4 pb-24 md:pb-4">
+    <div className="stack-y-4 pb-24 md:pb-4">
       <section className="rounded-3xl border border-amber-200/30 bg-white/80 p-4 sm:p-5 md:p-6 shadow-xl backdrop-blur-md">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-3">
+          <div className="stack-y-3">
             <div>
               <p className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-amber-700/70">Merchant Dashboard</p>
               <div className="mt-1.5 md:mt-2 flex items-center gap-2 md:gap-3">
-                <h1 className="text-xl md:text-3xl leading-tight font-bold text-[#5b371f]">
+                <h1 className="text-xl md:text-3xl leading-tight font-bold text-[#5b371f] md:leading-9">
                   Welcome back, {merchant.name}
                 </h1>
                 <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full bg-emerald-50 border border-emerald-100/50">
@@ -1689,7 +1689,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
           <div className="flex items-center gap-2">
             <Button
               disabled={!isApproved}
-              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all px-3 md:px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all px-3 md:px-6"
               onClick={() => setIsRequestPanelOpen(true)}
             >
               <Sparkles className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -1725,7 +1725,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   onClick={() => setTimeRange(range)}
                   className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                     timeRange === range
-                      ? "bg-white text-amber-900 shadow-sm"
+                      ? "bg-white text-amber-900 shadow-xs"
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
@@ -1795,7 +1795,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="mt-4 grid grid-cols-1 gap-4">
-        <Card className="rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-sm">
+        <Card className="rounded-3xl border-amber-200/30 bg-white/80 shadow-xl backdrop-blur-xs">
           <CardContent className="p-4 sm:p-5">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1809,12 +1809,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 View All Transactions <ArrowUpRight className="ml-1 h-4 w-4" />
               </Link>
             </div>
-            <div className="space-y-2">
+            <div className="stack-y-2">
               {recentTransactions.map((tx) => (
-                <div key={tx.id} className="group flex flex-col gap-3 rounded-2xl border border-amber-200/30 bg-gradient-to-r from-amber-50/50 to-white/50 p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/20 sm:flex-row sm:items-center sm:justify-between">
+                <div key={tx.id} className="group flex flex-col gap-3 rounded-2xl border border-amber-200/30 bg-linear-to-r from-amber-50/50 to-white/50 p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/20 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-[#5b371f] break-words">{tx.description}</p>
-                    <p className="text-xs leading-5 text-amber-800/60 break-words">{tx.payerPhone || "Web checkout"} • {paymentMethodLabel(tx.paymentMethod)} • {new Date(tx.timestamp).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium text-[#5b371f] wrap-break-word">{tx.description}</p>
+                    <p className="text-xs leading-5 text-amber-800/60 wrap-break-word">{tx.payerPhone || "Web checkout"} • {paymentMethodLabel(tx.paymentMethod)} • {new Date(tx.timestamp).toLocaleDateString()}</p>
                   </div>
                   <div className="text-left sm:text-right flex items-center gap-3">
                     <div>
@@ -1908,7 +1908,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
 
       <Dialog open={!isMobile && isRequestPanelOpen} onOpenChange={handleRequestPanelOpenChange}>
         <DialogContent
-          className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[90vh]"
+          className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-xs overflow-hidden flex flex-col max-h-[90vh]"
           onInteractOutside={preventLockedModalDismiss}
           onEscapeKeyDown={preventLockedModalDismiss}
         >
@@ -1934,7 +1934,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
       {/* Success Modal (Link or Push) */}
       <Dialog open={isSuccessModalOpen} onOpenChange={handleSuccessModalOpenChange}>
         <DialogContent 
-          className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm overflow-hidden max-h-[90vh]"
+          className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-xs overflow-hidden max-h-[90vh]"
           onInteractOutside={preventSuccessModalDismiss}
           onEscapeKeyDown={preventSuccessModalDismiss}
         >
@@ -2016,12 +2016,12 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
             )}
           </div>
           
-          <div className="p-5 space-y-4 bg-slate-50/50 overflow-y-auto">
+          <div className="p-5 stack-y-4 bg-slate-50/50 overflow-y-auto">
             {lastMode === "link" && generatedResult?.method === "MPGS" ? (
               <>
                 {currentTxStatus === "success" ? (
                   <div className="flex flex-col items-center gap-2 p-5 rounded-xl bg-emerald-50/50 border border-emerald-100">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-xs">
                       <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                     </div>
                     <p className="text-xs font-bold text-emerald-800 text-center leading-snug">
@@ -2035,7 +2035,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   </div>
                 ) : currentTxStatus === "failed" ? (
                   <div className="flex flex-col items-center gap-2 p-5 rounded-xl bg-rose-50/50 border border-rose-100">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-xs">
                       <ShieldAlert className="w-5 h-5 text-rose-600" />
                     </div>
                     <p className="text-xs font-bold text-rose-800 text-center leading-snug">
@@ -2051,7 +2051,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <>
                     {mpgsView === "qr" ? (
                       <div className="flex flex-col items-center gap-3">
-                        <div className="p-4 bg-white rounded-2xl border border-amber-200/60 shadow-sm">
+                        <div className="p-4 bg-white rounded-2xl border border-amber-200/60 shadow-xs">
                           <QRCodeCanvas
                             value={mpgsLink?.paymentUrl ?? ""}
                             size={180}
@@ -2082,7 +2082,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2.5 p-3 rounded-xl border shadow-sm bg-slate-100/50 border-slate-200">
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl border shadow-xs bg-slate-100/50 border-slate-200">
                       <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shrink-0">
                         <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin" />
                       </div>
@@ -2098,17 +2098,17 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
               </>
             ) : lastMode === "link" ? (
               <>
-                <div className="space-y-2">
+                <div className="stack-y-2">
                   <Label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Shareable Payment Link</Label>
                   <div className="relative group">
                     <Input 
                       readOnly
                       value={generatedResult?.paymentUrl || ""}
-                      className="h-10 pr-20 rounded-xl bg-white border-slate-200 font-mono text-[10px] text-slate-600 focus-visible:ring-0 shadow-sm"
+                      className="h-10 pr-20 rounded-xl bg-white border-slate-200 font-mono text-[10px] text-slate-600 focus-visible:ring-0 shadow-xs"
                     />
                     <Button 
                       onClick={() => generatedResult?.paymentUrl && copyText(generatedResult.paymentUrl, "modalCopy")}
-                      className="absolute right-1 top-1 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm transition-all px-2"
+                      className="absolute right-1 top-1 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-xs transition-all px-2"
                     >
                       {copied === "modalCopy" ? (
                         <span className="flex items-center gap-1 text-emerald-600 font-bold text-[10px]">
@@ -2126,7 +2126,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Button 
                     onClick={handleShare}
-                    className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all flex items-center justify-center gap-2 text-xs font-bold"
+                    className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all flex items-center justify-center gap-2 text-xs font-bold"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     Share Link
@@ -2134,7 +2134,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                   <Button
                     variant="outline"
                     asChild
-                    className="h-10 rounded-xl border-amber-200 bg-white hover:bg-amber-50 flex items-center justify-center gap-2 shadow-sm transition-all text-amber-900 text-xs font-bold"
+                    className="h-10 rounded-xl border-amber-200 bg-white hover:bg-amber-50 flex items-center justify-center gap-2 shadow-xs transition-all text-amber-900 text-xs font-bold"
                   >
                     <Link href={generatedResult?.paymentUrl || "#"} target="_blank">
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -2144,8 +2144,8 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 </div>
               </>
             ) : (
-              <div className="space-y-4">
-                <div className={`flex flex-col items-center justify-center gap-1.5 p-5 rounded-xl border shadow-sm ${
+              <div className="stack-y-4">
+                <div className={`flex flex-col items-center justify-center gap-1.5 p-5 rounded-xl border shadow-xs ${
                   currentTxStatus === 'success' ? 'bg-emerald-50/50 border-emerald-100' : 
                   currentTxStatus === 'failed' ? 'bg-rose-50/50 border-rose-100' : 
                   'bg-white border-slate-200'
@@ -2220,7 +2220,7 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
                 )}
 
                 {currentTxStatus !== 'success' && currentTxStatus !== 'failed' && (
-                  <div className="space-y-2">
+                  <div className="stack-y-2">
                     <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-100/50 border border-slate-200">
                       <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                         <Clock className="w-3.5 h-3.5 text-blue-600 animate-pulse" />

@@ -29,7 +29,7 @@ function Calendar({
       className={cn("p-3", className)}
       classNames={{
         months: "relative flex flex-col gap-4 sm:flex-row",
-        month: "space-y-3",
+        month: "stack-y-3",
         month_caption: "flex h-8 items-center justify-center",
         caption_label: "text-sm font-semibold",
         nav: "absolute inset-x-0 top-0 z-10 flex h-8 items-center justify-between",
@@ -46,9 +46,9 @@ function Calendar({
         ),
         selected: "bg-primary/15",
         range_start:
-          "rounded-l-md [&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary [&>button]:hover:text-primary-foreground",
+          "rounded-l-md [&>button]:bg-primary [&>button]:text-primary-foreground hover:[&>button]:bg-primary hover:[&>button]:text-primary-foreground",
         range_end:
-          "rounded-r-md [&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary [&>button]:hover:text-primary-foreground",
+          "rounded-r-md [&>button]:bg-primary [&>button]:text-primary-foreground hover:[&>button]:bg-primary hover:[&>button]:text-primary-foreground",
         range_middle: "[&>button]:rounded-none",
         today: "[&>button]:font-bold [&>button]:underline [&>button]:underline-offset-4",
         outside: "text-muted-foreground opacity-50",

@@ -98,7 +98,7 @@ export function QrScanner({ onScanned, onClose }: { onScanned: (text: string) =>
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      <div className="flex items-center justify-between px-3 [padding-top:calc(env(safe-area-inset-top)+0.5rem)]">
+      <div className="flex items-center justify-between px-3 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
         <p className="pl-2 text-base font-semibold text-white">Scan the pairing QR code</p>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close" className="text-white hover:bg-white/15 hover:text-white">
           <X className="h-6 w-6" />

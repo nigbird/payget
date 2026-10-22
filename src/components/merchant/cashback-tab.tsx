@@ -96,7 +96,7 @@ function setDateRangeParams(params: URLSearchParams, { from, to }: DateRangeValu
 }
 
 const THEME_BTN =
-  "rounded-xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 hover:shadow-md transition-all"
+  "rounded-xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95 hover:shadow-md transition-all"
 const THEME_BTN_SM = `${THEME_BTN} h-9 px-4 text-sm font-semibold`
 const THEME_BTN_MD = `${THEME_BTN} h-11 px-6 font-semibold`
 
@@ -755,7 +755,7 @@ export function CashbackTab({ merchantId }: Props) {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-8">
+    <div className="stack-y-6 p-4 md:p-8">
       <AlertDialog
         open={!!confirmState}
         onOpenChange={(open) => {
@@ -829,14 +829,14 @@ export function CashbackTab({ merchantId }: Props) {
               error={customerFieldErrors.accountNumber}
               onChange={(v) => setCustomerForm((p) => ({ ...p, accountNumber: v }))}
             />
-            <div className="space-y-2">
+            <div className="stack-y-2">
               <Label className="text-xs font-medium text-slate-700">Cashback group</Label>
               <Select
                 value={customerForm.categoryId}
                 onValueChange={(v) => setCustomerForm((p) => ({ ...p, categoryId: v }))}
               >
                 <SelectTrigger
-                  className={`h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-sm ${customerFieldErrors.categoryId ? "border-rose-500 focus:ring-rose-500/20" : ""}`}
+                  className={`h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-xs ${customerFieldErrors.categoryId ? "border-rose-500 focus:ring-rose-500/20" : ""}`}
                 >
                   <SelectValue placeholder="Select a category…" />
                 </SelectTrigger>
@@ -872,10 +872,10 @@ export function CashbackTab({ merchantId }: Props) {
         </div>
       </div>
 
-      <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+      <Card className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="stack-y-0.5">
               <Label htmlFor="cashback-enabled" className="text-base font-semibold text-[#5b371f]">
                 Enable Cashback Program
               </Label>
@@ -901,41 +901,41 @@ export function CashbackTab({ merchantId }: Props) {
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 rounded-xl h-12 bg-amber-50/50 p-1 border border-amber-100/60">
             <TabsTrigger
               value="settings"
-              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70"
+              className="rounded-lg data-[state=active]:bg-linear-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-xs data-[state=inactive]:text-[#754319]/70"
             >
               <Settings2 className="h-4 w-4 mr-2" /> Settings
             </TabsTrigger>
             <TabsTrigger
               value="categories"
               disabled={form.mode !== "CATEGORY_ELIGIBLE"}
-              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70 disabled:opacity-40"
+              className="rounded-lg data-[state=active]:bg-linear-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-xs data-[state=inactive]:text-[#754319]/70 disabled:opacity-40"
             >
               <Plus className="h-4 w-4 mr-2" /> Categories
             </TabsTrigger>
             <TabsTrigger
               value="customers"
               disabled={form.mode !== "CATEGORY_ELIGIBLE"}
-              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70 disabled:opacity-40"
+              className="rounded-lg data-[state=active]:bg-linear-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-xs data-[state=inactive]:text-[#754319]/70 disabled:opacity-40"
             >
               <Users className="h-4 w-4 mr-2" /> Customers
             </TabsTrigger>
             <TabsTrigger
               value="history"
-              className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:text-[#754319]/70"
+              className="rounded-lg data-[state=active]:bg-linear-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-xs data-[state=inactive]:text-[#754319]/70"
             >
               <History className="h-4 w-4 mr-2" /> History
             </TabsTrigger>
           </TabsList>
 
-          <div className="mt-6 space-y-6">
-            <TabsContent value="settings" className="space-y-6">
-              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+          <div className="mt-6 stack-y-6">
+            <TabsContent value="settings" className="stack-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base text-[#5b371f]">General configuration</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="stack-y-6">
                   <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label className="text-sm font-medium">Operation mode</Label>
                       <Select
                         value={form.mode}
@@ -946,7 +946,7 @@ export function CashbackTab({ merchantId }: Props) {
                           }))
                         }
                       >
-                        <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm text-[#5b371f] shadow-sm focus:ring-2 focus:ring-amber-500/25">
+                        <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm text-[#5b371f] shadow-xs focus:ring-2 focus:ring-amber-500/25">
                           <SelectValue placeholder="Select mode" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
@@ -960,7 +960,7 @@ export function CashbackTab({ merchantId }: Props) {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="stack-y-2">
                       <Label className="text-sm font-medium">Subsidiary funding account</Label>
                       <div className="h-11 rounded-xl border border-amber-200/80 bg-amber-50/40 flex items-center px-3 font-mono text-sm text-[#5b371f]">
                         {form.subsidiaryAccountNumber || (
@@ -1016,8 +1016,8 @@ export function CashbackTab({ merchantId }: Props) {
               </Card>
             </TabsContent>
 
-            <TabsContent value="categories" className="space-y-6">
-              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+            <TabsContent value="categories" className="stack-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base text-[#5b371f]">Management categories</CardTitle>
                   <Dialog
@@ -1093,7 +1093,7 @@ export function CashbackTab({ merchantId }: Props) {
                       </DialogContent>
                     </Dialog>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="stack-y-6">
                     <div className="grid gap-4">
                       {config?.categories.map((cat) => (
                         <CategoryRow
@@ -1116,8 +1116,8 @@ export function CashbackTab({ merchantId }: Props) {
               </Card>
             </TabsContent>
 
-            <TabsContent value="customers" className="space-y-6">
-              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+            <TabsContent value="customers" className="stack-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
                 <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-6">
                     <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
@@ -1132,7 +1132,7 @@ export function CashbackTab({ merchantId }: Props) {
                         value={customerFilterCategoryId}
                         onValueChange={setCustomerFilterCategoryId}
                       >
-                        <SelectTrigger className="h-9 min-w-[140px] rounded-xl border-amber-200/80 bg-white text-xs font-semibold text-[#754319] shadow-sm">
+                        <SelectTrigger className="h-9 min-w-[140px] rounded-xl border-amber-200/80 bg-white text-xs font-semibold text-[#754319] shadow-xs">
                           <SelectValue placeholder="All groups" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
@@ -1197,7 +1197,7 @@ export function CashbackTab({ merchantId }: Props) {
                       </DialogHeader>
                       
                       <div className="grid gap-6 py-6">
-                        <div className="space-y-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="stack-y-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
                           <div className="flex items-center justify-between">
                             <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">1. Get Template</p>
                             <Button
@@ -1219,15 +1219,15 @@ export function CashbackTab({ merchantId }: Props) {
                           </p>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="stack-y-4">
                           <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">2. Select Destination Group</p>
-                          <div className="space-y-2">
+                          <div className="stack-y-2">
                             <Label className="text-xs text-slate-500 ml-1">Target category</Label>
                             <Select
                               value={selectedCategoryId || undefined}
                               onValueChange={setSelectedCategoryId}
                             >
-                              <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-sm">
+                              <SelectTrigger className="h-11 rounded-xl border-amber-200/80 bg-white text-sm font-medium text-[#5b371f] shadow-xs">
                                 <SelectValue placeholder="Select a category…" />
                               </SelectTrigger>
                               <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
@@ -1241,7 +1241,7 @@ export function CashbackTab({ merchantId }: Props) {
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="stack-y-3">
                           <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">3. Upload File</p>
                           <label className={`flex flex-col items-center justify-center w-full h-32 rounded-2xl border-2 border-dashed transition-all ${
                             selectedCategoryId 
@@ -1349,8 +1349,8 @@ export function CashbackTab({ merchantId }: Props) {
               </Card>
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-6">
-              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
+            <TabsContent value="history" className="stack-y-6">
+              <Card className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
                     <History className="h-4 w-4" /> Transaction history
@@ -1370,7 +1370,7 @@ export function CashbackTab({ merchantId }: Props) {
                     Export CSV
                   </Button>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="stack-y-4">
                   {/* Filters */}
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="relative flex-1 min-w-[200px]">
@@ -1415,11 +1415,11 @@ export function CashbackTab({ merchantId }: Props) {
                   </div>
 
                   {/* Transactions List */}
-                  <div className="space-y-3">
+                  <div className="stack-y-3">
                     {transactions.map((tx) => (
                       <div key={tx.id} className="rounded-xl border border-slate-100 p-4 text-sm bg-white hover:border-amber-200 transition-colors">
                         <div className="flex items-start justify-between gap-4">
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <p className="text-base font-bold text-[#5b371f]">
                               {tx.cashbackAmount.toFixed(2)} ETB <span className="text-xs font-normal text-slate-400">({tx.cashbackPercent}%)</span>
                             </p>
@@ -1502,7 +1502,7 @@ export function CashbackTab({ merchantId }: Props) {
                                   size="sm"
                                   className={`h-8 w-8 rounded-lg ${
                                     currentPage === i 
-                                      ? "bg-gradient-to-r from-[#f8b513] to-[#754319] text-white" 
+                                      ? "bg-linear-to-r from-[#f8b513] to-[#754319] text-white" 
                                       : "text-slate-700"
                                   }`}
                                   onClick={() => setCurrentPage(i)}
@@ -1584,7 +1584,7 @@ function CashbackFormField({
             : CASHBACK_LIMITS.amountMaxInputLength
 
   return (
-    <div className="space-y-1">
+    <div className="stack-y-1">
       <Label className="text-xs font-medium text-slate-700">{label}</Label>
       <Input
         type="text"

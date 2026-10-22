@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 
 /** The merchant portal's primary button. */
 export const PRIMARY_BUTTON =
-  "rounded-xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 disabled:opacity-60"
+  "rounded-xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95 disabled:opacity-60"
 /** The merchant portal's secondary (outline) button. */
 export const OUTLINE_BUTTON = "rounded-xl border border-[#eddcc0] bg-white text-[#754319] hover:bg-[#fff8ea]"
 /** Muted text, as in the portal. */
@@ -79,7 +79,7 @@ export function connectionLabel(state: ConnectionState) {
 /** Full-height white screen, clear of the notch, the home bar and (in landscape) the side cut-outs. */
 export function Screen({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-dvh overflow-x-hidden bg-white text-[#5b371f] [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)] [padding-right:env(safe-area-inset-right)]">
+    <main className="min-h-dvh overflow-x-hidden bg-white text-[#5b371f] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {children}
     </main>
   )
@@ -87,7 +87,7 @@ export function Screen({ children }: { children: ReactNode }) {
 
 export function TopBar({ title, left, right }: { title: string; left?: ReactNode; right?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-10 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 [padding-top:env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-10 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 pt-[env(safe-area-inset-top)]">
       <div className="mx-auto flex h-14 max-w-xl items-center gap-1 px-2 md:h-16 md:max-w-2xl md:px-3 lg:max-w-6xl lg:px-4">
         {left}
         <h1 className={`flex-1 truncate text-lg font-bold text-white ${left ? "" : "pl-2"}`}>
@@ -111,11 +111,11 @@ export function NibCard({
 }) {
   const colors =
     tone === "gold"
-      ? "border-[#f8b513]/30 bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4]"
+      ? "border-[#f8b513]/30 bg-linear-to-br from-[#fff9ef] to-[#fdf1d4]"
       : tone === "danger"
         ? "border-[#F5C6C0] bg-[#FDECEA] text-[#7A1C14]"
         : "border-[#eddcc0] bg-white"
-  return <div className={`overflow-hidden rounded-2xl border shadow-sm ${colors} ${className}`}>{children}</div>
+  return <div className={`overflow-hidden rounded-2xl border shadow-xs ${colors} ${className}`}>{children}</div>
 }
 
 /** Small rounded label with a coloured dot, e.g. "● ONLINE". */
@@ -138,7 +138,7 @@ export function InfoRow({ label, value }: { label: string; value: string | null 
   return (
     <div>
       <p className={`text-xs font-medium ${MUTED}`}>{label}</p>
-      <p className="break-words text-[15px]">{value || "—"}</p>
+      <p className="wrap-break-word text-[15px]">{value || "—"}</p>
     </div>
   )
 }

@@ -246,9 +246,9 @@ export default function RoleManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div className="stack-y-1">
           <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Permission governance</h2>
           <p className="text-sm text-amber-800/60 font-medium">Manage dynamic roles and granular permissions for your team.</p>
         </div>
@@ -256,11 +256,11 @@ export default function RoleManagementPage() {
           {canCreateRole && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2 px-6">
+                <Button className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2 px-6">
                   <Plus className="w-4 h-4" /> Create New Role
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
                 <DialogHeader className="p-6 border-b border-slate-50">
                   <DialogTitle className="text-xl font-medium text-slate-800">Create Custom Role</DialogTitle>
                   <DialogDescription className="text-slate-500">
@@ -268,14 +268,14 @@ export default function RoleManagementPage() {
                   </DialogDescription>
                 </DialogHeader>
                 
-                <div className="space-y-6 p-6">
+                <div className="stack-y-6 p-6">
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="name" className="text-xs font-medium text-slate-500">Role Name</Label>
                       <Input 
                         id="name" 
                         placeholder="e.g. Compliance Officer" 
-                        className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                        className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
                         value={newRoleName}
                         onChange={(e) => setNewRoleName(e.target.value)}
                       />
@@ -286,24 +286,24 @@ export default function RoleManagementPage() {
                       <Input 
                         id="description" 
                         placeholder="Briefly describe the purpose of this role" 
-                        className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                        className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
                         value={newRoleDescription}
                         onChange={(e) => setNewRoleDescription(e.target.value)}
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="stack-y-4">
                     <Label className="text-sm font-bold text-slate-800 uppercase tracking-tight">Permissions Matrix</Label>
                     <div className="border border-slate-100 rounded-2xl divide-y divide-slate-50 overflow-hidden bg-slate-50/30">
                       {Object.entries(groupedPermissions).map(([category, perms]) => (
-                        <div key={category} className="p-5 space-y-4">
+                        <div key={category} className="p-5 stack-y-4">
                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-700/70">{category}</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                             {perms.map((perm) => {
                               const hasThisPerm = userPermissions.includes(perm.name)
                               return (
-                                <div key={perm.id} className="flex items-start space-x-3 group/perm">
+                                <div key={perm.id} className="flex items-start stack-x-3 group/perm">
                                   <Checkbox 
                                     id={perm.id} 
                                     disabled={!hasThisPerm}
@@ -344,7 +344,7 @@ export default function RoleManagementPage() {
 
                 <DialogFooter className="p-6 border-t border-slate-50 bg-slate-50/50">
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 px-6">Cancel</Button>
-                  <Button onClick={handleCreateRole} className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-8">Create Role</Button>
+                  <Button onClick={handleCreateRole} className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-8">Create Role</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -393,7 +393,7 @@ export default function RoleManagementPage() {
           const rolePerms = role.permissions.map(p => p.permission)
           
           return (
-            <Card key={role.id} className="group overflow-hidden rounded-3xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/5 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
+            <Card key={role.id} className="group overflow-hidden rounded-3xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/5 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
               <CardHeader className="bg-[#FFFDF7] pb-4">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
@@ -447,7 +447,7 @@ export default function RoleManagementPage() {
               </CardHeader>
               
               <CardContent className="flex-1 py-0 px-6">
-                <div className="space-y-4">
+                <div className="stack-y-4">
                   <div className="flex flex-wrap gap-1.5">
                     {rolePerms.slice(0, 3).map(p => (
                       <Badge key={p.id} variant="outline" className="text-[9px] font-bold uppercase tracking-tight px-2 py-0.5 rounded-lg border-black/5 bg-white text-slate-500 group-hover:border-amber-200 group-hover:text-amber-700 transition-colors">
@@ -464,7 +464,7 @@ export default function RoleManagementPage() {
                   </div>
                   
                   {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-amber-900/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="mt-4 pt-4 border-t border-amber-900/5 stack-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                       {Object.entries(
                         rolePerms.reduce((acc, p) => {
                           if (!acc[p.category]) acc[p.category] = []
@@ -472,7 +472,7 @@ export default function RoleManagementPage() {
                           return acc
                         }, {} as Record<string, Permission[]>)
                       ).map(([cat, perms]) => (
-                        <div key={cat} className="space-y-2">
+                        <div key={cat} className="stack-y-2">
                           <h5 className="text-[9px] font-bold text-amber-700/60 uppercase tracking-widest">{cat}</h5>
                           <div className="grid grid-cols-1 gap-1">
                             {perms.map(p => (
@@ -534,7 +534,7 @@ export default function RoleManagementPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center px-3 h-8 rounded-xl border border-black/5 bg-white text-xs font-bold text-amber-900 shadow-sm">
+            <div className="flex items-center px-3 h-8 rounded-xl border border-black/5 bg-white text-xs font-bold text-amber-900 shadow-xs">
               {currentPage} / {totalPages}
             </div>
             <Button
@@ -560,7 +560,7 @@ export default function RoleManagementPage() {
       )}
 
       {roles.length === 0 && !isLoading && (
-        <div className="text-center py-20 bg-[#FFFDF7] rounded-[32px] border border-black/5 shadow-sm">
+        <div className="text-center py-20 bg-[#FFFDF7] rounded-[32px] border border-black/5 shadow-xs">
           <div className="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-amber-100">
             <Shield className="w-8 h-8 text-amber-600/50" />
           </div>
@@ -568,7 +568,7 @@ export default function RoleManagementPage() {
           <p className="text-slate-500 text-sm max-w-xs mx-auto mt-1 font-medium leading-relaxed">
             Define specialized access levels by creating your first custom security role.
           </p>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="mt-6 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 px-6 font-bold h-11 transition-all">
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="mt-6 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 px-6 font-bold h-11 transition-all">
             Get Started
           </Button>
         </div>
@@ -576,7 +576,7 @@ export default function RoleManagementPage() {
 
       {/* Edit Role Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Edit Role: {selectedRole?.name}</DialogTitle>
             <DialogDescription className="text-slate-500">
@@ -584,13 +584,13 @@ export default function RoleManagementPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6 p-6">
+          <div className="stack-y-6 p-6">
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-name" className="text-xs font-medium text-slate-500">Role Name</Label>
                 <Input 
                   id="edit-name" 
-                  className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                  className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
                 />
@@ -600,24 +600,24 @@ export default function RoleManagementPage() {
                 <Label htmlFor="edit-description" className="text-xs font-medium text-slate-500">Description</Label>
                 <Input 
                   id="edit-description" 
-                  className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                  className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
                   value={newRoleDescription}
                   onChange={(e) => setNewRoleDescription(e.target.value)}
                 />
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="stack-y-4">
               <Label className="text-sm font-bold text-slate-800 uppercase tracking-tight">Permissions Matrix</Label>
               <div className="border border-slate-100 rounded-2xl divide-y divide-slate-50 overflow-hidden bg-slate-50/30">
                 {Object.entries(groupedPermissions).map(([category, perms]) => (
-                  <div key={category} className="p-5 space-y-4">
+                  <div key={category} className="p-5 stack-y-4">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-700/70">{category}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                       {perms.map((perm) => {
                         const hasThisPerm = userPermissions.includes(perm.name)
                         return (
-                          <div key={perm.id} className="flex items-start space-x-3 group/perm">
+                          <div key={perm.id} className="flex items-start stack-x-3 group/perm">
                             <Checkbox 
                               id={`edit-${perm.id}`} 
                               disabled={!hasThisPerm}
@@ -658,14 +658,14 @@ export default function RoleManagementPage() {
 
           <DialogFooter className="p-6 border-t border-slate-50 bg-slate-50/50">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 px-6">Cancel</Button>
-            <Button onClick={handleEditRole} className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-8">Save Changes</Button>
+            <Button onClick={handleEditRole} className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-8">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Role Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+        <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="flex items-center gap-3 text-rose-800 text-xl font-bold tracking-tight">
               <div className="p-2 bg-rose-50 rounded-xl">

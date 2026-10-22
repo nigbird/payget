@@ -142,7 +142,7 @@ export default function MerchantPortalShell({
         <header className="sticky top-0 z-50 border-b border-white/50 bg-white/85 backdrop-blur-md">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-3 py-2 md:h-16 md:flex-nowrap md:gap-3 md:px-8">
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
-              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden">
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-linear-to-br from-[#f8b513]/35 via-[#f8b513]/15 to-[#754319]/20 border border-white/60 shadow-xs flex items-center justify-center overflow-hidden">
                 {merchant?.logoUrl ? (
                   <Image
                     src={merchant.logoUrl}
@@ -163,7 +163,7 @@ export default function MerchantPortalShell({
               </div>
             </div>
 
-            <div className="order-3 w-full min-w-0 md:order-none md:flex-1">
+            <div className="order-3 w-full min-w-0 md:order-0 md:flex-1">
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="hidden md:block">
                   <p className="text-xs font-bold uppercase tracking-wider text-[#754319]/40">
@@ -171,7 +171,7 @@ export default function MerchantPortalShell({
                   </p>
                 </div>
 
-                <div className={cn("flex w-full items-center justify-around gap-0.5 rounded-[20px] border border-amber-200/40 bg-white/80 backdrop-blur-md shadow-lg md:w-auto md:justify-start md:overflow-x-auto md:rounded-2xl md:border-white/60 md:bg-white/65 md:shadow-none md:backdrop-blur-sm md:bg-none")}>
+                <div className={cn("flex w-full items-center justify-around gap-0.5 rounded-[20px] border border-amber-200/40 bg-white/80 backdrop-blur-md shadow-lg md:w-auto md:justify-start md:overflow-x-auto md:rounded-2xl md:border-white/60 md:bg-white/65 md:shadow-none md:backdrop-blur-xs md:bg-none")}>
                   {visibleNavItems.map((item) => {
                     const Icon = item.icon
                     const isActive =
@@ -184,7 +184,7 @@ export default function MerchantPortalShell({
                         className={cn(
                           "relative flex flex-col items-center justify-center gap-1 px-1 py-1 transition-all duration-500 md:flex-row md:min-h-9 md:gap-2 md:rounded-xl md:px-4 md:py-1.5 md:whitespace-nowrap",
                           isActive
-                            ? "text-[#754319] md:bg-gradient-to-r md:from-[#f8b513] md:to-[#754319] md:text-white md:shadow-lg md:shadow-amber-600/30"
+                            ? "text-[#754319] md:bg-linear-to-r md:from-[#f8b513] md:to-[#754319] md:text-white md:shadow-lg md:shadow-amber-600/30"
                             : "text-[#754319]/50 hover:text-[#754319] md:text-[#754319]/70 md:hover:bg-amber-50/50"
                         )}
                         title={item.label}
@@ -219,7 +219,7 @@ export default function MerchantPortalShell({
               {isSalesUser && assignedMerchants.length > 1 ? (
                 <div className="min-w-[140px] md:min-w-[220px]">
                   <Select value={merchantId} onValueChange={(value) => router.push(`/merchant/${value}`)}>
-                  <SelectTrigger className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white text-xs text-[#5b371f] shadow-sm md:text-sm">
+                  <SelectTrigger className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white text-xs text-[#5b371f] shadow-xs md:text-sm">
                       <SelectValue placeholder={merchant?.name ?? "Select merchant"} />
                     </SelectTrigger>
                     <SelectContent>

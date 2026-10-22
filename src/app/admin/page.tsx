@@ -50,7 +50,7 @@ export default function AdminDashboard() {
   }, [merchants, searchQuery])
 
   return (
-    <div className="space-y-6 bg-white">
+    <div className="stack-y-6 bg-white">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="card-soft-cream group rounded-[20px] transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/10">
           <CardHeader className="pb-2">
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
                 key={m.id}
                 className={cn(
                   "rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4",
-                  "shadow-sm shadow-black/5 transition-all duration-200",
+                  "shadow-xs shadow-black/5 transition-all duration-200",
                   "hover:-translate-y-0.5 hover:bg-amber-50/30"
                 )}
               >

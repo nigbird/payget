@@ -317,9 +317,9 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div className="stack-y-1">
           <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Staff management</h2>
           <p className="text-sm text-amber-800/60 font-medium">Manage administrative and merchant user access levels.</p>
         </div>
@@ -327,11 +327,11 @@ export default function UserManagementPage() {
           {canCreateUser && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2 px-6">
+                <Button className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2 px-6">
                   <Plus className="w-4 h-4" /> Add User
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[440px] max-h-[90vh] flex flex-col border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+              <DialogContent className="sm:max-w-[440px] max-h-[90vh] flex flex-col border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
                 <DialogHeader className="p-6 border-b border-slate-50 shrink-0">
                   <DialogTitle className="text-xl font-medium text-slate-800">Add New User</DialogTitle>
                   <DialogDescription className="text-slate-500">
@@ -346,7 +346,7 @@ export default function UserManagementPage() {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input 
                         id="name" 
-                        className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
+                        className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs" 
                         placeholder="Abebe Kebede" 
                         value={newUserName}
                         onChange={(e) => setNewUserName(e.target.value)}
@@ -360,7 +360,7 @@ export default function UserManagementPage() {
                       <Input 
                         id="email" 
                         type="email" 
-                        className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
+                        className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs" 
                         placeholder="abebe@example.com" 
                         value={newUserEmail}
                         onChange={(e) => setNewUserEmail(e.target.value)}
@@ -374,14 +374,14 @@ export default function UserManagementPage() {
                       <Input 
                         id="password" 
                         type={newUserPasswordVisible ? "text" : "password"} 
-                        className="pr-11 pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
+                        className="pr-11 pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs" 
                         value={newUserPassword}
                         onChange={(e) => setNewUserPassword(e.target.value)}
                       />
                       <button
                         type="button"
                         onClick={() => setNewUserPasswordVisible((visible) => !visible)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-slate-200 transition-colors"
                         aria-label={newUserPasswordVisible ? "Hide password" : "Show password"}
                       >
                         {newUserPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -395,14 +395,14 @@ export default function UserManagementPage() {
                       <Input 
                         id="confirm-password" 
                         type={newUserConfirmPasswordVisible ? "text" : "password"} 
-                        className="pr-11 pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
+                        className="pr-11 pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs" 
                         value={newUserConfirmPassword}
                         onChange={(e) => setNewUserConfirmPassword(e.target.value)}
                       />
                       <button
                         type="button"
                         onClick={() => setNewUserConfirmPasswordVisible((visible) => !visible)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-slate-200 transition-colors"
                         aria-label={newUserConfirmPasswordVisible ? "Hide password" : "Show password"}
                       >
                         {newUserConfirmPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -412,7 +412,7 @@ export default function UserManagementPage() {
                   <div className="grid gap-2">
                     <Label className="text-xs font-medium text-slate-500">Role Assignment</Label>
                     <Select onValueChange={setSelectedRoleId} value={selectedRoleId}>
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs">
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -440,8 +440,8 @@ export default function UserManagementPage() {
                     </Select>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4 shadow-sm">
-                    <div className="space-y-0.5">
+                  <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4 shadow-xs">
+                    <div className="stack-y-0.5">
                       <Label className="text-sm font-medium text-slate-800">Head Office</Label>
                       <div className="text-[10px] text-slate-500">
                         Assign user to Head Office or specific branch.
@@ -458,7 +458,7 @@ export default function UserManagementPage() {
                       <div className="grid gap-2">
                         <Label htmlFor="district" className="text-xs font-medium text-slate-500">District</Label>
                         <Select onValueChange={setDistrict} value={district}>
-                          <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
+                          <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs">
                             <SelectValue placeholder="Select District" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -471,7 +471,7 @@ export default function UserManagementPage() {
                       <div className="grid gap-2">
                         <Label htmlFor="branch" className="text-xs font-medium text-slate-500">Branch Name</Label>
                         <Select onValueChange={setBranch} value={branch}>
-                          <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
+                          <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs">
                             <SelectValue placeholder="Select Branch" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -489,13 +489,13 @@ export default function UserManagementPage() {
                   <Button
                     variant="outline"
                     onClick={() => setIsCreateDialogOpen(false)}
-                    className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
+                    className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-xs transition-colors"
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={handleCreateUser}
-                    className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
+                    className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
                   >
                     Create User
                   </Button>
@@ -506,10 +506,10 @@ export default function UserManagementPage() {
         </div>
       </div>
 
-      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
         <CardHeader className="bg-[#FFFDF7] border-b border-black/5 p-6 pb-0">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div className="space-y-1">
+            <div className="stack-y-1">
               <CardTitle className="text-base tracking-tight">Staff members</CardTitle>
               <CardDescription className="text-slate-600">
                 Search, filter, and manage administrative and merchant user accounts.
@@ -590,7 +590,7 @@ export default function UserManagementPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+                <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm supports-backdrop-filter:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
                   <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">User</TableHead>
                   <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Role</TableHead>
                   <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">Organization</TableHead>
@@ -601,7 +601,7 @@ export default function UserManagementPage() {
               </TableHeader>
               <TableBody>
                 {paginatedUsers.map((user) => (
-                  <TableRow key={user.id} className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm">
+                  <TableRow key={user.id} className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-xs">
                     <TableCell className="pl-6 py-5 align-middle">
                       <div className="flex flex-col gap-0.5">
                         <span className={`font-semibold text-slate-950 ${user.status === 'DEACTIVATED' ? 'text-slate-400 line-through' : ''}`}>
@@ -744,7 +744,7 @@ export default function UserManagementPage() {
                         size="sm"
                         className={`h-8 min-w-[32px] rounded-2xl border-black/10 text-xs font-bold transition-all ${
                           currentPage === pageNum 
-                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-sm shadow-amber-950/15" 
+                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-xs shadow-amber-950/15" 
                             : "bg-white text-slate-600 hover:bg-amber-50/50"
                         }`}
                         onClick={() => setCurrentPage(pageNum)}
@@ -781,7 +781,7 @@ export default function UserManagementPage() {
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+          <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
             <DialogHeader className="p-6 border-b border-slate-50">
               <DialogTitle className="text-xl font-medium text-slate-800">Edit User</DialogTitle>
               <DialogDescription className="text-slate-500">
@@ -796,7 +796,7 @@ export default function UserManagementPage() {
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input 
                     id="edit-name" 
-                    className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
+                    className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs" 
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                   />
@@ -809,7 +809,7 @@ export default function UserManagementPage() {
                   <Input 
                     id="edit-email" 
                     type="email" 
-                    className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm" 
+                    className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs" 
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
                   />
@@ -818,7 +818,7 @@ export default function UserManagementPage() {
               <div className="grid gap-2">
                 <Label className="text-xs font-medium text-slate-500">Role Assignment</Label>
                 <Select onValueChange={setEditRoleId} value={editRoleId}>
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs">
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -831,8 +831,8 @@ export default function UserManagementPage() {
                 </Select>
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4 shadow-sm">
-                <div className="space-y-0.5">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4 shadow-xs">
+                <div className="stack-y-0.5">
                   <Label className="text-sm font-medium text-slate-800">Head Office</Label>
                   <div className="text-[10px] text-slate-500">
                     Assign user to Head Office or specific branch.
@@ -849,7 +849,7 @@ export default function UserManagementPage() {
                   <div className="grid gap-2">
                     <Label htmlFor="edit-district" className="text-xs font-medium text-slate-500">District</Label>
                     <Select onValueChange={setEditDistrict} value={editDistrict}>
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs">
                         <SelectValue placeholder="Select District" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -862,7 +862,7 @@ export default function UserManagementPage() {
                   <div className="grid gap-2">
                     <Label htmlFor="edit-branch" className="text-xs font-medium text-slate-500">Branch Name</Label>
                     <Select onValueChange={setEditBranch} value={editBranch}>
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs">
                         <SelectValue placeholder="Select Branch" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -880,13 +880,13 @@ export default function UserManagementPage() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsEditDialogOpen(false)}
-                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
+                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-xs transition-colors"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleUpdateUser}
-                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
+                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
               >
                 Update User
               </Button>

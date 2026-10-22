@@ -354,7 +354,7 @@ export function RequestPaymentModal({
   const formContent = (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
-        <div className="px-5 py-3 space-y-4">
+        <div className="px-5 py-3 stack-y-4">
           {!isMerchantApproved && (
             <div className="rounded-lg border border-rose-100 bg-rose-50/50 p-3">
               <div className="flex items-start gap-2.5">
@@ -367,8 +367,8 @@ export function RequestPaymentModal({
             </div>
           )}
 
-          <div className={`space-y-4 ${isFormLocked ? "pointer-events-none opacity-60" : ""}`}>
-            <div className="space-y-2">
+          <div className={`stack-y-4 ${isFormLocked ? "pointer-events-none opacity-60" : ""}`}>
+            <div className="stack-y-2">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Payment Method</Label>
               <RadioGroup
                 defaultValue="BANK"
@@ -381,7 +381,7 @@ export function RequestPaymentModal({
                   <RadioGroupItem value="BANK" id="bank-modal" className="peer sr-only" />
                   <Label
                     htmlFor="bank-modal"
-                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 [&:has([data-state=checked])]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-slate-100 bg-white p-2.5 hover:bg-slate-50 peer-data-[state=checked]:border-amber-600 has-data-[state=checked]:border-amber-600 cursor-pointer transition-all min-h-[80px]"
                   >
                     <div className="w-10 h-10 flex items-center justify-center">
                       <img src="/niblogo.png" alt="Nib Bank" className="w-full h-full object-contain" />
@@ -404,7 +404,7 @@ export function RequestPaymentModal({
               </RadioGroup>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="phone" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 Customer Phone
               </Label>
@@ -414,7 +414,7 @@ export function RequestPaymentModal({
                   id="phone"
                   type="tel"
                   placeholder="0912345678"
-                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm shadow-sm"
+                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm shadow-xs"
                   required
                   disabled={isFormLocked}
                   value={requestForm.payerPhone}
@@ -426,7 +426,7 @@ export function RequestPaymentModal({
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 Amount
               </Label>
@@ -437,7 +437,7 @@ export function RequestPaymentModal({
                   type="text"
                   inputMode="decimal"
                   placeholder="0.00"
-                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 font-medium text-sm text-slate-800 shadow-sm"
+                  className="h-10 rounded-lg border-slate-200 bg-white pl-9 font-medium text-sm text-slate-800 shadow-xs"
                   required
                   disabled={isFormLocked}
                   value={requestForm.amount}
@@ -452,7 +452,7 @@ export function RequestPaymentModal({
             </div>
 
             {catalogItems.length > 0 && (
-              <div className="space-y-1.5">
+              <div className="stack-y-1.5">
                 <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Quick Add Items (optional)
                 </Label>
@@ -461,7 +461,7 @@ export function RequestPaymentModal({
                   <Input
                     type="text"
                     placeholder="Search your configured items..."
-                    className="h-9 rounded-lg border-slate-200 bg-white pl-9 text-xs shadow-sm"
+                    className="h-9 rounded-lg border-slate-200 bg-white pl-9 text-xs shadow-xs"
                     disabled={isFormLocked}
                     value={itemQuery}
                     onChange={(e) => {
@@ -492,7 +492,7 @@ export function RequestPaymentModal({
                 </div>
 
                 {cart.length > 0 && (
-                  <div className="space-y-1.5 pt-0.5">
+                  <div className="stack-y-1.5 pt-0.5">
                     {cart.map((line) => (
                       <div
                         key={line.itemId}
@@ -550,7 +550,7 @@ export function RequestPaymentModal({
               </div>
             )}
 
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="description" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Description
@@ -562,7 +562,7 @@ export function RequestPaymentModal({
                 <Textarea
                   id="description"
                   placeholder="Order #1022"
-                  className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm resize-none shadow-sm"
+                  className="min-h-[60px] max-h-[100px] rounded-lg border-slate-200 bg-white pl-9 py-2 text-sm resize-none shadow-xs"
                   disabled={isFormLocked}
                   value={requestForm.description}
                   onChange={(e) => {
@@ -576,7 +576,7 @@ export function RequestPaymentModal({
           </div>
 
           {generatedResult?.transactionReference && lastMode === "link" && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-2 shadow-sm">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 stack-y-2 shadow-xs">
               <div className="flex items-center justify-between">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Link Ready</p>
                 <Badge className="rounded-md bg-slate-200/50 text-slate-700 text-[9px] font-medium border-0 px-1.5 py-0 h-4">
@@ -588,7 +588,7 @@ export function RequestPaymentModal({
                   <Input
                     readOnly
                     value={generatedResult.paymentUrl}
-                    className="h-8 rounded-md border-slate-200 bg-white pr-8 text-[10px] text-slate-600 font-mono shadow-sm"
+                    className="h-8 rounded-md border-slate-200 bg-white pr-8 text-[10px] text-slate-600 font-mono shadow-xs"
                   />
                   <Button
                     type="button"
@@ -614,7 +614,7 @@ export function RequestPaymentModal({
           <Button
             type="button"
             onClick={() => handleRequestPayment("push")}
-            className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm text-xs font-bold transition-all"
+            className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs text-xs font-bold transition-all"
             disabled={isFormLocked || !isMerchantApproved || isAwaitingPin}
           >
             {isPushSubmitting ? (
@@ -627,7 +627,7 @@ export function RequestPaymentModal({
           <Button
             type="button"
             onClick={() => handleRequestPayment("link")}
-            className="h-10 rounded-xl bg-white border border-amber-200 hover:bg-amber-50 text-amber-900 text-xs font-bold shadow-sm transition-all"
+            className="h-10 rounded-xl bg-white border border-amber-200 hover:bg-amber-50 text-amber-900 text-xs font-bold shadow-xs transition-all"
             disabled={isFormLocked || !isMerchantApproved}
           >
             {isLinkSubmitting ? (
@@ -670,7 +670,7 @@ export function RequestPaymentModal({
   return (
     <Dialog open={open} onOpenChange={handleModalOpenChange}>
       <DialogContent
-        className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-sm flex flex-col max-h-[90vh] overflow-hidden"
+        className="max-w-sm border border-slate-100 bg-white p-0 rounded-2xl shadow-xs flex flex-col max-h-[90vh] overflow-hidden"
         onInteractOutside={preventLockedModalDismiss}
         onEscapeKeyDown={preventLockedModalDismiss}
       >

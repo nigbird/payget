@@ -304,7 +304,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
   if (!merchant) return null
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="stack-y-6 pb-6">
       <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -318,7 +318,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           </div>
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
+            className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all"
           >
             <UserPlus className="mr-2 h-4 w-4" />
             Add Team Member
@@ -326,13 +326,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="space-y-3 md:hidden">
+      <section className="stack-y-3">
+        <div className="stack-y-3 md:hidden">
           {teamMembers.map((member) => (
-            <Card key={`mobile-${member.id}`} className="rounded-2xl border-white/60 bg-white/85 shadow-sm">
-              <CardContent className="p-4 space-y-3">
+            <Card key={`mobile-${member.id}`} className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
+              <CardContent className="p-4 stack-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-gradient-to-br from-[#f8b513]/20 to-[#754319]/20 shadow-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-linear-to-br from-[#f8b513]/20 to-[#754319]/20 shadow-xs">
                     <span className="text-sm font-bold text-[#754319]">{member.name.split(" ").map(n => n[0]).join("").toUpperCase()}</span>
                   </div>
                   <div className="min-w-0">
@@ -374,7 +374,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           ))}
         </div>
 
-        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm overflow-hidden">
+        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-xs overflow-hidden">
           <CardContent className="p-0">
             <div className="hidden overflow-x-auto md:block">
               <Table>
@@ -392,7 +392,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                     <TableRow key={member.id} className="border-white/40 hover:bg-white/30 transition-colors">
                       <TableCell className="py-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#f8b513]/20 to-[#754319]/20 flex items-center justify-center border border-white/50 shadow-sm">
+                          <div className="h-10 w-10 rounded-full bg-linear-to-br from-[#f8b513]/20 to-[#754319]/20 flex items-center justify-center border border-white/50 shadow-xs">
                             <span className="text-sm font-bold text-[#754319]">{member.name.split(" ").map(n => n[0]).join("").toUpperCase()}</span>
                           </div>
                           <div>
@@ -481,12 +481,12 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-12">
-        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm p-6">
+        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-xs p-6">
           <h3 className="text-lg font-bold text-[#5b371f] mb-4 flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-amber-600" />
             Role Permissions
           </h3>
-          <div className="space-y-4">
+          <div className="stack-y-4">
             <div className="p-4 rounded-2xl border border-amber-200/50 bg-amber-50/30">
               <p className="font-bold text-[#5b371f] text-sm">Account Admin</p>
               <p className="text-xs text-[#754319]/80 mt-1">Full control over merchant settings, including configuration, profile settings, and team management.</p>
@@ -502,7 +502,7 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           </div>
         </Card>
 
-        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-sm p-6">
+        <Card className="rounded-3xl border-white/60 bg-white/65 shadow-md backdrop-blur-xs p-6">
           <h3 className="text-lg font-bold text-[#5b371f] mb-4 flex items-center gap-2">
             <Users className="h-5 w-5 text-amber-600" />
             Team Overview
@@ -533,20 +533,20 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           }
         }}
       >
-        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm max-h-[90vh] overflow-hidden">
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-xs max-h-[90vh] overflow-hidden">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Add Team Member</DialogTitle>
             <DialogDescription className="text-slate-500">
               Invite a new member to your merchant team.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddMember} className="space-y-4 px-4 sm:px-6 py-4 overflow-y-auto">
-            <div className="space-y-1.5">
+          <form onSubmit={handleAddMember} className="stack-y-4 px-4 sm:px-6 py-4 overflow-y-auto">
+            <div className="stack-y-1.5">
               <Label htmlFor="name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
                 id="name"
                 placeholder="Abebe Kebede"
-                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.name ? 'border-red-500' : ''}`}
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.name ? 'border-red-500' : ''}`}
                 required
                 maxLength={50}
                 value={memberForm.name}
@@ -556,13 +556,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 <p className="text-[10px] text-red-500 font-medium">{formErrors.name}</p>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="email" className="text-xs font-medium text-slate-500">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="abebe@example.com"
-                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.email ? 'border-red-500' : ''}`}
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.email ? 'border-red-500' : ''}`}
                 required
                 maxLength={50}
                 value={memberForm.email}
@@ -572,13 +572,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 <p className="text-[10px] text-red-500 font-medium">{formErrors.email}</p>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="phone" className="text-xs font-medium text-slate-500">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
                 placeholder="0912345678"
-                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
                 required
                 maxLength={15}
                 value={memberForm.phone}
@@ -588,13 +588,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 <p className="text-[10px] text-red-500 font-medium">{formErrors.phone}</p>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="role" className="text-xs font-medium text-slate-500">Role</Label>
               <Select
                 value={memberForm.role}
                 onValueChange={(val: MerchantTeamRole) => setMemberForm({ ...memberForm, role: val })}
               >
-                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300">
+                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -609,13 +609,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 type="button"
                 variant="outline"
                 onClick={() => setIsAddModalOpen(false)}
-                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
+                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-xs transition-colors"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
+                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
               >
                 Add Member
               </Button>
@@ -638,20 +638,20 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
           }
         }}
       >
-        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-sm max-h-[90vh] overflow-hidden">
+        <DialogContent className="max-w-md border border-slate-100 bg-white p-0 rounded-2xl shadow-xs max-h-[90vh] overflow-hidden">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Edit Team Member</DialogTitle>
             <DialogDescription className="text-slate-500">
               Update details for {selectedMember?.name}.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleEditMember} className="space-y-4 px-4 sm:px-6 py-4 overflow-y-auto">
-            <div className="space-y-1.5">
+          <form onSubmit={handleEditMember} className="stack-y-4 px-4 sm:px-6 py-4 overflow-y-auto">
+            <div className="stack-y-1.5">
               <Label htmlFor="edit-name" className="text-xs font-medium text-slate-500">Full Name</Label>
               <Input
                 id="edit-name"
                 placeholder="Abebe Kebede"
-                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.name ? 'border-red-500' : ''}`}
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.name ? 'border-red-500' : ''}`}
                 required
                 maxLength={50}
                 value={memberForm.name}
@@ -661,13 +661,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 <p className="text-[10px] text-red-500 font-medium">{formErrors.name}</p>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="edit-email" className="text-xs font-medium text-slate-500">Email Address</Label>
               <Input
                 id="edit-email"
                 type="email"
                 placeholder="abebe@example.com"
-                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.email ? 'border-red-500' : ''}`}
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.email ? 'border-red-500' : ''}`}
                 required
                 maxLength={50}
                 value={memberForm.email}
@@ -677,13 +677,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 <p className="text-[10px] text-red-500 font-medium">{formErrors.email}</p>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="edit-phone" className="text-xs font-medium text-slate-500">Phone Number</Label>
               <Input
                 id="edit-phone"
                 type="tel"
                 placeholder="+251934567890"
-                className={`h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
+                className={`h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300 ${formErrors.phone ? 'border-red-500' : ''}`}
                 required
                 maxLength={15}
                 value={memberForm.phone}
@@ -693,13 +693,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 <p className="text-[10px] text-red-500 font-medium">{formErrors.phone}</p>
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="stack-y-1.5">
               <Label htmlFor="edit-role" className="text-xs font-medium text-slate-500">Role</Label>
               <Select
                 value={memberForm.role}
                 onValueChange={(val: MerchantTeamRole) => setMemberForm({ ...memberForm, role: val })}
               >
-                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-slate-200 focus-visible:border-slate-300">
+                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white shadow-xs focus-visible:ring-slate-200 focus-visible:border-slate-300">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -714,13 +714,13 @@ export default function UserManagementPage({ params }: { params: Promise<{ id: s
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditModalOpen(false)}
-                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-sm transition-colors"
+                className="rounded-xl border-amber-200 text-amber-900 hover:bg-amber-50 h-11 shadow-xs transition-colors"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
+                className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11"
               >
                 Save Changes
               </Button>

@@ -106,9 +106,9 @@ export default function ChangePasswordPage() {
         <SigningInOverlay message="Saving your password…" subMessage="Redirecting to your dashboard" />
       ) : null}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
+        <div className="absolute top-20 left-20 w-96 h-96 bg-linear-to-br from-[#f4db9f]/30 to-[#f8b513]/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-linear-to-tl from-[#f8b513]/25 to-[#754319]/15 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-linear-to-r from-[#754319]/20 to-[#f4db9f]/15 rounded-full blur-2xl animate-pulse delay-500" />
         <div className="absolute inset-0 opacity-5">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -125,14 +125,14 @@ export default function ChangePasswordPage() {
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
         <div className="w-full max-w-md animate-fade-in-up">
-          <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 space-y-8">
+          <div className="backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl shadow-2xl p-8 stack-y-8">
             <div className="flex justify-center">
               <div className="w-20 h-20 flex items-center justify-center">
                 <img src="/niblogo.png" alt="Nib Bank Logo" className="max-w-full max-h-full object-contain" />
               </div>
             </div>
 
-            <div className="text-center space-y-2">
+            <div className="text-center stack-y-2">
               <h1 className="text-3xl font-bold text-[#1F2937] tracking-tight">Change Password</h1>
               <p className="text-[#6B7280] font-medium">
                 {isFirstLogin
@@ -143,15 +143,15 @@ export default function ChangePasswordPage() {
               </p>
             </div>
 
-            <form onSubmit={handleChangePassword} className="space-y-6">
-              <div className="space-y-2.5">
+            <form onSubmit={handleChangePassword} className="stack-y-6">
+              <div className="stack-y-2.5">
                 <Label htmlFor="currentPassword" className="text-sm font-semibold text-[#374151]">Current Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
                   <Input
                     id="currentPassword"
                     type={currentPasswordVisible ? "text" : "password"}
-                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-xs focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-xs"
                     placeholder="Enter your current password"
                     required
                     value={credentials.currentPassword}
@@ -169,14 +169,14 @@ export default function ChangePasswordPage() {
                 </div>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="stack-y-2.5">
                 <Label htmlFor="newPassword" className="text-sm font-semibold text-[#374151]">New Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
                   <Input
                     id="newPassword"
                     type={newPasswordVisible ? "text" : "password"}
-                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-xs focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-xs"
                     placeholder="Enter your new password"
                     required
                     value={credentials.newPassword}
@@ -195,14 +195,14 @@ export default function ChangePasswordPage() {
                 <PasswordStrength password={credentials.newPassword} />
               </div>
 
-              <div className="space-y-2.5">
+              <div className="stack-y-2.5">
                 <Label htmlFor="confirmPassword" className="text-sm font-semibold text-[#374151]">Confirm New Password</Label>
                 <div className="relative group transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280] group-focus-within:text-[#f8b513] transition-colors" />
                   <Input
                     id="confirmPassword"
                     type={confirmPasswordVisible ? "text" : "password"}
-                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-sm"
+                    className="h-12 pl-10 pr-12 rounded-xl border-[#E5E7EB] bg-white/80 backdrop-blur-xs focus:ring-2 focus:ring-[#f8b513]/20 focus:border-[#f8b513] transition-all shadow-xs"
                     placeholder="Confirm your new password"
                     required
                     value={credentials.confirmPassword}
@@ -250,7 +250,7 @@ export default function ChangePasswordPage() {
 
               <Button
                 type="submit"
-                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300"
+                className="w-full h-12 text-base font-bold rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 hover:-translate-y-0.5 transition-all duration-300"
                 disabled={isLoading}
               >
                 {isLoading ? (

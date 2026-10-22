@@ -70,7 +70,7 @@ export function SetPinScreen({ onSaved }: { onSaved: () => void }) {
     <Screen>
       <TopBar title="Set a PIN" />
       <form
-        className="mx-auto flex max-w-xl flex-col gap-5 px-5 py-4 md:mt-12 md:max-w-md md:rounded-3xl md:border md:border-[#eddcc0] md:p-8 md:shadow-sm"
+        className="mx-auto flex max-w-xl flex-col gap-5 px-5 py-4 md:mt-12 md:max-w-md md:rounded-3xl md:border md:border-[#eddcc0] md:p-8 md:shadow-xs"
         onSubmit={(event) => {
           event.preventDefault()
           void save()
@@ -154,7 +154,7 @@ export function PinDialog({
             event.preventDefault()
             void submit()
           }}
-          className="space-y-4"
+          className="stack-y-4"
         >
           <DialogHeader>
             <DialogTitle className="text-[#5b371f]">{title}</DialogTitle>

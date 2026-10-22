@@ -212,7 +212,7 @@ export function TechnicalDashboard({
   const allAttempts = c ? c.totalCount : 0
 
   return (
-    <section className="space-y-4" aria-busy={loading}>
+    <section className="stack-y-4" aria-busy={loading}>
       <FilterBar filters={filters} onChange={onFiltersChange} merchants={merchants}>
         <Button
           variant="outline"
@@ -337,7 +337,7 @@ export function TechnicalDashboard({
 
         <SectionCard title={<span className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-[#754319]" /> Key insights</span>} description="Generated from the selected filters">
           {highlights.length ? (
-            <ul className="space-y-3">
+            <ul className="stack-y-3">
               {highlights.map((h) => (
                 <li key={h} className="flex gap-2.5 text-sm leading-snug text-[#374151]">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f8b513]" />
@@ -346,7 +346,7 @@ export function TechnicalDashboard({
               ))}
             </ul>
           ) : (
-            <div className="space-y-3">{Array.from({ length: 4 }, (_, i) => <div key={i} className="h-4 animate-pulse rounded bg-[#F7F1E3]" />)}</div>
+            <div className="stack-y-3">{Array.from({ length: 4 }, (_, i) => <div key={i} className="h-4 animate-pulse rounded bg-[#F7F1E3]" />)}</div>
           )}
         </SectionCard>
       </div>
@@ -355,7 +355,7 @@ export function TechnicalDashboard({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SectionCard title="Transaction statuses" description="Initiated, pending, awaiting PIN and processing mean the payment was started but not completed">
           {c && allAttempts > 0 ? (
-            <div className="space-y-4">
+            <div className="stack-y-4">
               <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Outcome split">
                 {(
                   [
@@ -365,7 +365,7 @@ export function TechnicalDashboard({
                   ] as const
                 ).map(([k, v]) => (v > 0 ? <div key={k} style={{ width: `${(v / allAttempts) * 100}%`, background: STATUS_COLORS[k] }} /> : null))}
               </div>
-              <ul className="space-y-1.5 text-xs">
+              <ul className="stack-y-1.5 text-xs">
                 {Object.entries(s!.statusBreakdown)
                   .sort((a, b) => b[1] - a[1])
                   .map(([status, n]) => (
@@ -530,7 +530,7 @@ export function TechnicalDashboard({
 
         <SectionCard title={<span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-rose-600" /> Most failures</span>} description="Merchants with the most failed payments">
           {s?.failingMerchants.length ? (
-            <ul className="space-y-3">
+            <ul className="stack-y-3">
               {s.failingMerchants.map((m) => (
                 <li key={m.id}>
                   <button

@@ -81,7 +81,7 @@ function GuideDialog({ guide, onDone, onClose }: { guide: Guide; onDone?: () => 
         <DialogHeader>
           <DialogTitle className="text-[#5b371f]">{guide.title}</DialogTitle>
           <DialogDescription asChild>
-            <ol className="list-decimal space-y-2 pl-5 text-left text-[#5b371f]">
+            <ol className="list-decimal stack-y-2 pl-5 text-left text-[#5b371f]">
               {guide.steps.map((step) => (
                 <li key={step}>{step}</li>
               ))}
@@ -161,7 +161,7 @@ export function SetupItems({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="stack-y-4">
       {(installStepShown(state) || (showDone && state.installed)) && (
         <SetupItem
           title="Install the app"
@@ -221,7 +221,7 @@ export function SetupCard(props: Omit<Parameters<typeof SetupItems>[0], "showDon
   const urgent = props.state.notifications === "allow" || props.state.notifications === "denied"
   return (
     <NibCard tone={urgent ? "danger" : "gold"}>
-      <div className="space-y-3 p-4">
+      <div className="stack-y-3 p-4">
         <p className="text-base font-bold">Finish setup</p>
         <SetupItems {...props} showDone={false} />
       </div>

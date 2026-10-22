@@ -63,7 +63,7 @@ export function AdminAnalytics() {
   const userName = user.name ?? user.email ?? undefined
 
   return (
-    <div className="space-y-4">
+    <div className="stack-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-[#1F2937]">
@@ -87,7 +87,7 @@ export function AdminAnalytics() {
                 onClick={() => choose(key)}
                 className={cn(
                   "flex h-9 items-center gap-2 rounded-[10px] px-4 text-xs font-semibold transition-colors",
-                  active === key ? "bg-white text-[#5b371f] shadow-sm ring-1 ring-[#f8b513]/40" : "text-[#754319]/60 hover:text-[#5b371f]",
+                  active === key ? "bg-white text-[#5b371f] shadow-xs ring-1 ring-[#f8b513]/40" : "text-[#754319]/60 hover:text-[#5b371f]",
                 )}
               >
                 <Icon className="h-4 w-4" />

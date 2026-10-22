@@ -79,7 +79,7 @@ export function BusinessDashboard({
   }
 
   return (
-    <section className="space-y-4" aria-busy={loading}>
+    <section className="stack-y-4" aria-busy={loading}>
       <FilterBar filters={filters} onChange={onFiltersChange} merchants={merchants}>
         <Button
           variant="outline"
@@ -190,7 +190,7 @@ export function BusinessDashboard({
                   onClick={() => setView(key)}
                   className={cn(
                     "h-8 rounded-[10px] px-3 text-xs font-semibold transition-colors",
-                    view === key ? "bg-white text-[#5b371f] shadow-sm ring-1 ring-[#f8b513]/40" : "text-[#754319]/60 hover:text-[#5b371f]",
+                    view === key ? "bg-white text-[#5b371f] shadow-xs ring-1 ring-[#f8b513]/40" : "text-[#754319]/60 hover:text-[#5b371f]",
                   )}
                 >
                   {label}

@@ -539,7 +539,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
   if (!canEdit) {
     return (
-      <Card className="mx-auto max-w-3xl rounded-3xl border-white/60 bg-white/70 shadow-lg backdrop-blur-sm">
+      <Card className="mx-auto max-w-3xl rounded-3xl border-white/60 bg-white/70 shadow-lg backdrop-blur-xs">
         <CardContent className="p-8">
           <p className="font-semibold text-[#5b371f]">Only Account Admin can access Configuration settings.</p>
           <Link href={`/merchant/${id}`} className="mt-3 inline-flex items-center text-sm text-[#754319]">
@@ -552,7 +552,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 pb-6">
+    <div className="mx-auto max-w-5xl stack-y-5 pb-6">
       <section className="rounded-3xl border border-white/40 bg-white/65 p-4 md:p-7 shadow-xl backdrop-blur-md">
         <p className="text-xs uppercase tracking-[0.2em] text-[#754319]/70">Configuration</p>
         <h1 className="mt-2 text-2xl md:text-3xl font-bold text-[#5b371f]">Account Settings</h1>
@@ -561,14 +561,14 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
         </p>
       </section>
 
-      <Card className="rounded-3xl border-white/60 bg-white/70 shadow-xl backdrop-blur-sm overflow-hidden">
+      <Card className="rounded-3xl border-white/60 bg-white/70 shadow-xl backdrop-blur-xs overflow-hidden">
         <CardContent className="p-0">
           {/* Tab Navigation */}
           <div className="border-b border-[#754319]/10 bg-white/60 px-3 md:px-5">
             <div
               role="tablist"
               aria-label="Configuration sections"
-              className="-mb-px flex items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="-mb-px flex items-center overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
             >
               {TABS.map(({ value, label, icon: Icon }, index) => {
                 const active = activeTab === value
@@ -581,7 +581,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                       aria-selected={active}
                       onClick={() => setActiveTab(value)}
                       title={label}
-                      className={`relative mx-1 my-2 flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-colors duration-200 after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f8b513]/40 ${
+                      className={`relative mx-1 my-2 flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-colors duration-200 after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#f8b513]/40 ${
                         active
                           ? "bg-[#fdf6e7] text-[#5b371f] after:bg-[#f8b513]"
                           : "text-[#754319]/60 after:bg-transparent hover:bg-[#fdf6e7]/60 hover:text-[#5b371f]"
@@ -598,18 +598,18 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
 
           <div className="p-6 md:p-8">
             {activeTab === "system" && (
-              <div className="space-y-6">
+              <div className="stack-y-6">
                 {/* Transaction Limits Card */}
-                <Card className="rounded-2xl border-[#f8b513]/30 bg-gradient-to-br from-[#fff9ef] to-[#fdf1d4] shadow-sm">
+                <Card className="rounded-2xl border-[#f8b513]/30 bg-linear-to-br from-[#fff9ef] to-[#fdf1d4] shadow-xs">
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
                       <Shield className="h-5 w-5 text-[#754319]" />
                       Transaction Limits
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="stack-y-4">
                     <div className="grid gap-4">
-                      <div className="space-y-2">
+                      <div className="stack-y-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Daily Limit</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
@@ -622,7 +622,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         />
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="stack-y-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Daily Max</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
@@ -635,7 +635,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         />
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="stack-y-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium text-[#5b371f]">Max Transaction</Label>
                           <span className="text-sm font-bold text-[#5b371f]">
@@ -647,9 +647,9 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-6">
                   {/* QR Code Section */}
-                  <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm flex flex-col items-center justify-center p-6 text-center">
+                  <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs flex flex-col items-center justify-center p-6 text-center">
                     <CardHeader className="pb-4 w-full text-left p-0 mb-4">
                       <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
                         <QrCode className="h-5 w-5 text-[#754319]" />
@@ -657,7 +657,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                       </CardTitle>
                     </CardHeader>
                     
-                    <div className="flex-1 flex flex-col items-center justify-center space-y-4 w-full">
+                    <div className="flex-1 flex flex-col items-center justify-center stack-y-4 w-full">
                       {qrConfig.activeQr ? (
                         <>
                           <div className="relative p-4 bg-white rounded-3xl shadow-md border border-[#f8b513]/20 group">
@@ -711,18 +711,18 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           </div>
                         </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                        <div className="flex flex-col items-center justify-center py-10 stack-y-4">
                           <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center">
                             <QrCode className="h-10 w-10 text-amber-200" />
                           </div>
-                          <div className="space-y-1">
+                          <div className="stack-y-1">
                             <p className="text-sm font-bold text-slate-400">No QR Code generated</p>
                             <p className="text-[11px] text-slate-300">Generate a unique QR for instant payments</p>
                           </div>
                           <Button
                             onClick={() => handleQrAction("generate")}
                             disabled={isQrLoading}
-                            className="rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95"
+                            className="rounded-2xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95"
                           >
                             {isQrLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
                             Generate QR Code
@@ -733,16 +733,16 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                   </Card>
 
                   {/* Business Information Card */}
-                  <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
+                  <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs">
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
                         <Building2 className="h-5 w-5 text-[#754319]" />
                         Business Information
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="stack-y-4">
                       <div className="grid gap-4">
-                        <div className="space-y-2">
+                        <div className="stack-y-2">
                           <Label htmlFor="companyName">Company Name</Label>
                           <Input
                             id="companyName"
@@ -756,7 +756,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                           {errors.companyName && <p className="text-xs text-rose-600">{errors.companyName}</p>}
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="stack-y-2">
                           <Label htmlFor="accountNumber">Account Number</Label>
                           <Input
                             id="accountNumber"
@@ -779,19 +779,19 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
             )}
 
             {activeTab === "profile" && (
-              <div className="space-y-6">
+              <div className="stack-y-6">
                 {/* Profile Information Card */}
-                <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
+                <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs">
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
                       <User className="h-5 w-5 text-[#754319]" />
                       Profile Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="stack-y-4">
                     <div className="grid gap-6 md:grid-cols-2">
-                      <div className="space-y-4">
-                      <div className="space-y-2">
+                      <div className="stack-y-4">
+                      <div className="stack-y-2">
                         <Label htmlFor="username">Email or Phone</Label>
                         <Input
                           id="username"
@@ -825,7 +825,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                             )}
                           </div>
 
-                          <div className="flex-1 space-y-2">
+                          <div className="flex-1 stack-y-2">
                             <Input
                               key={logoInputKey}
                               type="file"
@@ -848,16 +848,16 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 </Card>
 
                 {/* Security Settings Card */}
-                <Card className="rounded-2xl border-white/60 bg-white/80 shadow-sm">
+                <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs">
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-lg text-[#5b371f]">
                       <Lock className="h-5 w-5 text-[#754319]" />
                       Security Settings
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="stack-y-4">
                     <div className="grid gap-4">
-                      <div className="space-y-2">
+                      <div className="stack-y-2">
                         <Label htmlFor="currentPassword">Current Password</Label>
                         <div className="relative">
                           <Input
@@ -879,7 +879,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         {errors.currentPassword && <p className="text-xs text-rose-600">{errors.currentPassword}</p>}
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="stack-y-2">
                         <Label htmlFor="newPassword">New Password</Label>
                         <div className="relative">
                           <Input
@@ -902,7 +902,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                         {errors.newPassword && <p className="text-xs text-rose-600">{errors.newPassword}</p>}
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="stack-y-2">
                         <Label htmlFor="confirmPassword">Confirm New Password</Label>
                         <div className="relative">
                           <Input
@@ -952,7 +952,7 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
                 type="button"
                 onClick={activeTab === "system" ? handleSaveSystem : handleSaveProfile}
                 disabled={(activeTab === "system" ? !hasSystemChanges : !hasProfileChanges) || isSaving}
-                className="rounded-2xl border border-white/20 bg-gradient-to-r from-[#f8b513] to-[#754319] text-white shadow-sm shadow-amber-950/15 hover:opacity-95 disabled:opacity-60"
+                className="rounded-2xl border border-white/20 bg-linear-to-r from-[#f8b513] to-[#754319] text-white shadow-xs shadow-amber-950/15 hover:opacity-95 disabled:opacity-60"
               >
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isSaving ? "Saving..." : "Save Changes"}

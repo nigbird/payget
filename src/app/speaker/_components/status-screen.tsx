@@ -163,7 +163,7 @@ function LatestPayment({ payment }: { payment: Payment }) {
           {test ? "Test payment" : "Latest payment"}
           <span className={`font-normal normal-case tracking-normal ${MUTED}`}>· {formatTime(payment.receivedAt)}</span>
         </p>
-        <p className="mt-1 break-words text-3xl font-bold tabular-nums md:text-4xl lg:text-5xl">
+        <p className="mt-1 wrap-break-word text-3xl font-bold tabular-nums md:text-4xl lg:text-5xl">
           {formatAmount(payment.amount, payment.currency)}
         </p>
         {from && <p className={`mt-1 truncate text-sm md:text-base ${MUTED}`}>{from}</p>}
@@ -176,7 +176,7 @@ function EmptyPayments() {
   return (
     <NibCard>
       <div className="flex flex-col items-center px-6 py-10 text-center">
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#f8b513]/25 to-[#754319]/15">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#f8b513]/25 to-[#754319]/15">
           <Inbox className="h-6 w-6 text-[#754319]" />
         </span>
         <p className="mt-3 font-semibold">No payments yet today</p>
@@ -297,7 +297,7 @@ export function StatusScreen({
       />
       {/* Phone: one column. Desktop: a compact status column and the payments beside it. */}
       <div className="mx-auto max-w-xl px-4 pb-8 pt-3 md:max-w-2xl md:px-5 md:pt-5 lg:grid lg:max-w-6xl lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:px-6 lg:pt-6 xl:grid-cols-[23rem_minmax(0,1fr)]">
-        <div className="flex flex-col gap-3 lg:sticky lg:top-[5.5rem]">
+        <div className="flex flex-col gap-3 lg:sticky lg:top-22">
           <StatusCard
             merchantName={merchantName}
             deviceName={deviceName}

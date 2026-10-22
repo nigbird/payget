@@ -370,7 +370,7 @@ export function ApprovalsQueue({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="stack-y-4">
       <FilterToolbar
         search={
           <SearchInput
@@ -518,14 +518,14 @@ export function ApprovalsQueue({
           </DialogHeader>
 
           {selected && (
-            <div className="space-y-4">
+            <div className="stack-y-4">
               {selected.sections.map((section) => {
                 const fields = section.fields.filter((f) => f.value != null && f.value !== '')
                 if (fields.length === 0) return null
                 return (
-                  <div key={section.title} className="space-y-1">
+                  <div key={section.title} className="stack-y-1">
                     <Label className="text-muted-foreground">{section.title}</Label>
-                    <div className="space-y-1 rounded-md border bg-muted/40 p-3 text-sm">
+                    <div className="stack-y-1 rounded-md border bg-muted/40 p-3 text-sm">
                       {fields.map((f) => (
                         <div key={f.label} className="flex justify-between gap-4">
                           <span className="shrink-0 text-muted-foreground">{f.label}</span>
@@ -539,12 +539,12 @@ export function ApprovalsQueue({
                 )
               })}
 
-              <div className="space-y-1">
+              <div className="stack-y-1">
                 <Label className="text-muted-foreground">Maker&apos;s reason</Label>
                 <p className="rounded-md border p-3 text-sm">{selected.reason}</p>
               </div>
 
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <Label htmlFor="queue-comments">Comments (optional)</Label>
                 <Textarea
                   id="queue-comments"

@@ -90,7 +90,7 @@ export function PWAInstallButton() {
             </button>
           </div>
 
-          <div className="mt-3 space-y-2 text-xs text-[#754319]/70">
+          <div className="mt-3 stack-y-2 text-xs text-[#754319]/70">
             {/* Android Chrome */}
             <p className="font-medium text-[#754319]">On Android (Chrome):</p>
             <p>Tap the <span className="font-semibold">⋮ menu</span> → <span className="font-semibold">"Add to Home screen"</span></p>

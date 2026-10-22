@@ -615,15 +615,15 @@ export default function MasterDataConfigPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div className="stack-y-1">
           <h2 className="text-2xl font-bold tracking-tight text-[#5b371f]">Master Data Config</h2>
           <p className="text-sm text-amber-800/60 font-medium">Manage dropdown values and organization hierarchy.</p>
         </div>
       </div>
 
-      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-sm shadow-amber-950/10">
+      <Card className="overflow-hidden rounded-2xl border border-black/5 bg-[#FFFDF7] shadow-xs shadow-amber-950/10">
         <CardHeader className="bg-[#FFFDF7] border-b border-black/5 p-6">
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -638,7 +638,7 @@ export default function MasterDataConfigPage() {
                     className={cn(
                       "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border-2",
                       isActive
-                        ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] border-white/30 text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all translate-y-[-1px]"
+                        ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] border-white/30 text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all -translate-y-px"
                         : "bg-white border-black/5 text-slate-600 hover:bg-amber-50/50 hover:border-amber-200"
                     )}
                   >
@@ -650,7 +650,7 @@ export default function MasterDataConfigPage() {
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
+              <div className="stack-y-1">
                 <CardTitle className="text-base tracking-tight">{TAB_CONFIG[activeTab].label}</CardTitle>
                 <CardDescription className="text-slate-600">{TAB_CONFIG[activeTab].description}</CardDescription>
               </div>
@@ -688,7 +688,7 @@ export default function MasterDataConfigPage() {
                   
                   <Button 
                     onClick={openAddDialog} 
-                    className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2"
+                    className="h-10 rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all gap-2"
                   >
                     <Plus className="h-4 w-4" /> Add New
                   </Button>
@@ -717,7 +717,7 @@ export default function MasterDataConfigPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
+                <TableRow className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm supports-backdrop-filter:bg-white/80 shadow-[0_1px_0_0_rgba(0,0,0,0.06)] hover:bg-white/95">
                   <TableHead className="pl-6 py-4 text-xs font-semibold tracking-wide text-slate-700">Name</TableHead>
                   {activeTab === "branches" && (
                     <TableHead className="py-4 text-xs font-semibold tracking-wide text-slate-700">District Mapping</TableHead>
@@ -744,7 +744,7 @@ export default function MasterDataConfigPage() {
                   </TableRow>
                 ) : (
                   paginatedData.map((item, index) => (
-                    <TableRow key={`${item.name}-${index}`} className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-sm">
+                    <TableRow key={`${item.name}-${index}`} className="bg-[#FFFDF7] group transition-all duration-200 hover:bg-amber-50/40 hover:shadow-xs">
                       <TableCell className="pl-6 py-5 align-middle">
                         <span className="font-semibold text-slate-950">{item.name}</span>
                       </TableCell>
@@ -854,7 +854,7 @@ export default function MasterDataConfigPage() {
                         size="sm"
                         className={`h-8 min-w-[32px] rounded-2xl border-black/10 text-xs font-bold transition-all ${
                           safePageIndex + 1 === pageNum 
-                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-sm shadow-amber-950/15" 
+                            ? "bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white border-white/30 shadow-xs shadow-amber-950/15" 
                             : "bg-white text-slate-600 hover:bg-amber-50/50"
                         }`}
                         onClick={() => setPageIndex(pageNum - 1)}
@@ -891,7 +891,7 @@ export default function MasterDataConfigPage() {
 
       {/* Add Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+        <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Add New {TAB_CONFIG[activeTab].label.slice(0, -1)}</DialogTitle>
             <DialogDescription className="text-slate-500">
@@ -906,7 +906,7 @@ export default function MasterDataConfigPage() {
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder={`e.g., ${activeTab === 'branches' ? 'Downtown Branch' : 'Northern District'}`}
-                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
               />
             </div>
             
@@ -914,7 +914,7 @@ export default function MasterDataConfigPage() {
               <div className="grid gap-2">
                 <Label htmlFor="district" className="text-xs font-medium text-slate-500">District Mapping *</Label>
                 <Select value={formDistrict} onValueChange={setFormDistrict}>
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm bg-white">
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs bg-white">
                     <SelectValue placeholder="Select a district" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -936,7 +936,7 @@ export default function MasterDataConfigPage() {
                 value={formCode}
                 onChange={(e) => setFormCode(e.target.value)}
                 placeholder="e.g., BR-001"
-                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
               />
             </div>
           </div>
@@ -947,7 +947,7 @@ export default function MasterDataConfigPage() {
             <Button
               onClick={handleAdd}
               disabled={isSubmitting}
-              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Entry"}
             </Button>
@@ -957,7 +957,7 @@ export default function MasterDataConfigPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+        <DialogContent className="sm:max-w-[425px] border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Edit {TAB_CONFIG[activeTab].label.slice(0, -1)}</DialogTitle>
             <DialogDescription className="text-slate-500">Update master data entry details.</DialogDescription>
@@ -969,7 +969,7 @@ export default function MasterDataConfigPage() {
                 id="edit-name"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
               />
             </div>
 
@@ -977,7 +977,7 @@ export default function MasterDataConfigPage() {
               <div className="grid gap-2">
                 <Label htmlFor="edit-district" className="text-xs font-medium text-slate-500">District Mapping *</Label>
                 <Select value={formDistrict} onValueChange={setFormDistrict}>
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-sm bg-white">
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:ring-slate-200 shadow-xs bg-white">
                     <SelectValue placeholder="Select a district" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-slate-200 bg-white">
@@ -997,11 +997,11 @@ export default function MasterDataConfigPage() {
                 id="edit-code"
                 value={formCode}
                 onChange={(e) => setFormCode(e.target.value)}
-                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-sm"
+                className="h-11 rounded-xl border-slate-200 focus-visible:ring-slate-200 shadow-xs"
               />
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4 shadow-sm mt-2">
-              <div className="space-y-0.5">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4 shadow-xs mt-2">
+              <div className="stack-y-0.5">
                 <Label className="text-sm font-medium text-slate-800">Active Status</Label>
                 <div className="text-[10px] text-slate-500">Enable or disable this entry system-wide.</div>
               </div>
@@ -1015,7 +1015,7 @@ export default function MasterDataConfigPage() {
             <Button
               onClick={handleUpdate}
               disabled={isSubmitting}
-              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
             </Button>
@@ -1025,7 +1025,7 @@ export default function MasterDataConfigPage() {
 
       {/* Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={handleImportDialogOpenChange}>
-        <DialogContent className="sm:max-w-[600px] border border-slate-100 bg-white p-0 rounded-2xl shadow-sm">
+        <DialogContent className="sm:max-w-[600px] border border-slate-100 bg-white p-0 rounded-2xl shadow-xs">
           <DialogHeader className="p-6 border-b border-slate-50">
             <DialogTitle className="text-xl font-medium text-slate-800">Bulk Import {TAB_CONFIG[activeTab].label}</DialogTitle>
             <DialogDescription className="text-slate-500">
@@ -1044,7 +1044,7 @@ export default function MasterDataConfigPage() {
             >
               <input ref={fileInputRef} type="file" accept=".csv,.xlsx" onChange={handleFileSelect} className="hidden" id="file-upload" />
               <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-4">
-                <div className="h-16 w-16 rounded-3xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-400 group-hover:text-amber-500 transition-colors">
+                <div className="h-16 w-16 rounded-3xl bg-white border border-slate-100 shadow-xs flex items-center justify-center text-slate-400 group-hover:text-amber-500 transition-colors">
                   <FileSpreadsheet className="h-8 w-8" />
                 </div>
                 <div>
@@ -1059,7 +1059,7 @@ export default function MasterDataConfigPage() {
             {importFile && (
               <div className="flex items-center justify-between rounded-xl bg-amber-50/50 border border-amber-100 p-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-xs">
                     <FileSpreadsheet className="h-5 w-5 text-amber-600" />
                   </div>
                   <div className="flex flex-col">
@@ -1074,7 +1074,7 @@ export default function MasterDataConfigPage() {
             )}
 
             {importPreview.length > 0 && (
-              <div className="space-y-4">
+              <div className="stack-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -1126,11 +1126,11 @@ export default function MasterDataConfigPage() {
             )}
 
             {importErrors.length > 0 && (
-              <div className="space-y-2">
+              <div className="stack-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" /> {importErrors.length} Errors detected
                 </h4>
-                <div className="max-h-32 overflow-y-auto rounded-xl border border-rose-100 bg-rose-50/50 p-4 space-y-2">
+                <div className="max-h-32 overflow-y-auto rounded-xl border border-rose-100 bg-rose-50/50 p-4 stack-y-2">
                   {importErrors.map((err, i) => (
                     <p key={i} className="text-[10px] text-rose-700 font-medium">
                       Row {err.row}: <span className="font-bold">{err.error}</span>
@@ -1147,7 +1147,7 @@ export default function MasterDataConfigPage() {
             <Button
               onClick={handleImport}
               disabled={isImporting || importPreview.length === 0}
-              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-sm shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
+              className="rounded-2xl border border-white/30 bg-[linear-gradient(135deg,#f4db9f_0%,#f8b513_55%,#754319_140%)] text-white shadow-xs shadow-amber-950/15 hover:shadow-md hover:shadow-amber-950/20 transition-all h-11 px-6"
             >
               {isImporting ? (
                 <>

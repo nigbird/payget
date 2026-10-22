@@ -96,14 +96,14 @@ export function PasswordStrength({ password, className, showHint = true }: Props
 
   if (!password) {
     return showHint ? (
-      <div className={cn("space-y-1.5", className)}>
+      <div className={cn("stack-y-1.5", className)}>
         <p className="text-[11px] text-slate-500">{PASSWORD_POLICY_TEXT}</p>
       </div>
     ) : null
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("stack-y-2", className)}>
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-semibold text-slate-600">Password strength</span>
         <span

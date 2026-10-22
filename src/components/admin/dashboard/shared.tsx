@@ -308,7 +308,7 @@ export function KpiTile({
   size?: "md" | "lg"
 }) {
   return (
-    <div className="flex h-full flex-col rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4 shadow-sm shadow-black/5">
+    <div className="flex h-full flex-col rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4 shadow-xs shadow-black/5">
       <div className="flex items-center gap-2 text-xs font-semibold text-[#6B7280]">
         <Icon className="h-4 w-4 shrink-0 text-[#754319]" />
         <span className="truncate">{title}</span>
@@ -347,9 +347,9 @@ export function BarList({
   const max = Math.max(0, ...rows.map((r) => r.value))
   if (!rows.length || max === 0) return <div className="py-6 text-center text-xs text-[#6B7280]">{empty}</div>
   return (
-    <ul className="space-y-3">
+    <ul className="stack-y-3">
       {rows.map((r) => (
-        <li key={r.key} className="space-y-1.5">
+        <li key={r.key} className="stack-y-1.5">
           <div className="flex items-baseline justify-between gap-3 text-xs">
             <span className="truncate font-medium text-[#1F2937]">{r.label}</span>
             <span className="shrink-0 tabular-nums text-[#4B5563]">

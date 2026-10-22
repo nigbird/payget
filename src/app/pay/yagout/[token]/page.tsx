@@ -20,7 +20,7 @@ type PageProps = { params: Promise<{ token: string }> }
 function Shell({ title, message }: { title: string; message: string }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#FFFDF7] px-4">
-      <div className="w-full max-w-md rounded-2xl border border-black/5 bg-white p-8 text-center shadow-sm">
+      <div className="w-full max-w-md rounded-2xl border border-black/5 bg-white p-8 text-center shadow-xs">
         <h1 className="text-lg font-bold text-slate-900">{title}</h1>
         <p className="pt-2 text-sm text-slate-500">{message}</p>
       </div>
@@ -65,7 +65,7 @@ export default async function YagoutHandoffPage({ params }: PageProps) {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#FFFDF7] px-4">
-      <div className="w-full max-w-md rounded-2xl border border-black/5 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-md rounded-2xl border border-black/5 bg-white p-8 shadow-xs">
         <div className="pb-6 text-center">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
             {merchant?.name ?? "Payment"}
