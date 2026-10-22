@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
-import { generatePasswordSetupLink, sendNotification } from '@/lib/notifications';
+import { generatePasswordSetupLink, sendNotification, merchantSetupLinkExpiry } from '@/lib/notifications';
+import { writeAuditLog } from '@/lib/audit-log';
 import crypto from 'crypto';
 
 export async function POST(
@@ -37,7 +38,7 @@ export async function POST(
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expires = merchantSetupLinkExpiry();
 
     await db.updateMerchant(id, {
       passwordResetToken: token,
@@ -49,6 +50,15 @@ export async function POST(
       to: merchant.contactUsername,
       subject: 'Merchant Account Setup Link Resent',
       message: `Your account approval is complete. Please activate your merchant portal access by setting a password here: ${setupLink}`
+    });
+
+    await writeAuditLog({
+      request,
+      userId: user.id,
+      action: 'MERCHANT_SETUP_LINK_RESEND',
+      entityType: 'MERCHANT',
+      entityId: id,
+      newValue: { result: delivered ? 'success' : 'failed', expiresAt: expires.toISOString() },
     });
 
     if (!delivered) {

@@ -66,6 +66,18 @@ const nextConfig: NextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
+          {
+            // No Flash/PDF cross-domain policy files may grant other sites access.
+            key: 'X-Permitted-Cross-Domain-Policies',
+            value: 'none',
+          },
+          {
+            // Every resource this app loads is same-origin (fonts are self-hosted
+            // by next/font, images/audio are local), so pages can require that
+            // nothing cross-origin is embedded without opting in.
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
         ],
       },
       {

@@ -20,7 +20,7 @@ function csvCell(value: string) {
 
 export async function GET(request: Request) {
   const user = await requireAuthUser(request)
-  if (!user || (user.role !== "ADMIN" && !userHasPermission(user, "qr.generation.manage"))) {
+  if (!user || !userHasPermission(user, "qr.generation.manage")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

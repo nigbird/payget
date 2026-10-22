@@ -118,7 +118,9 @@ export function resolveProviderConfig(): ProviderConfig {
 }
 
 export function generateProviderTransactionRef(): string {
-  return `ref${Math.random().toString(36).slice(2, 11)}`
+  // Same "ref" + 9 base-36 chars shape as before, from a CSPRNG.
+  const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+  return `ref${Array.from(crypto.randomBytes(9), (b) => alphabet[b % 36]).join("")}`
 }
 
 export function isProviderPushSuccess(response: ProviderPushResponse): boolean {

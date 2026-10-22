@@ -283,8 +283,8 @@ export default function UserManagementPage() {
   const filteredUsers = users.filter(u => {
     const isStaff = u.role !== 'MERCHANT'
     const matchesTab = currentTab === 'staff' ? isStaff : !isStaff
-    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          u.email.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = (u.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (u.email ?? '').toLowerCase().includes(searchQuery.toLowerCase())
     return matchesTab && matchesSearch
   })
 

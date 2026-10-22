@@ -10,7 +10,7 @@ import {
   signAccessToken,
   SALES_ACCESS_TOKEN_TTL_SECONDS
 } from "@/lib/token-auth"
-import { touchSession, revokeSession } from "@/lib/session-manager"
+import { touchSession, revokeSession, isSessionIdleExpired } from "@/lib/session-manager"
 import {
   refreshTokenCookieName,
   setRefreshTokenCookie
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       where: { tokenHash },
       include: {
         session: {
-          select: { id: true, revokedAt: true, expiresAt: true }
+          select: { id: true, revokedAt: true, expiresAt: true, lastActivityAt: true, teamMemberId: true }
         },
         teamMember: {
           include: { merchant: { select: { id: true, name: true, status: true } } }
@@ -87,6 +87,12 @@ export async function POST(request: Request) {
           data: { revokedAt: new Date() }
         })
         return NextResponse.json({ error: "Session expired or revoked" }, { status: 401 })
+      }
+      // Server-side inactivity limit: a refresh token alone can't revive a
+      // session nobody has used for longer than the idle timeout.
+      if (isSessionIdleExpired(session)) {
+        await revokeSession(session.id)
+        return NextResponse.json({ error: "Session expired due to inactivity" }, { status: 401 })
       }
     }
 
@@ -147,6 +153,12 @@ export async function POST(request: Request) {
         SALES_ACCESS_TOKEN_TTL_SECONDS
       )
     } else {
+      // A deactivated account can't keep renewing its session.
+      if ((user as any)?.status && (user as any).status !== "ACTIVE") {
+        if (sid) await revokeSession(sid)
+        return NextResponse.json({ error: "Account is deactivated" }, { status: 401 })
+      }
+
       const permissions =
         (user as any).customRole?.permissions?.map((p: any) => p.permission?.name).filter(Boolean) || []
 

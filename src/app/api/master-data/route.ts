@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuthUser, userHasPermission } from '@/lib/request-auth';
+import { requireAuthUser, userHasPermission, userHasAnyPermission } from '@/lib/request-auth';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCsrf } from '@/lib/request-security';
 
@@ -97,7 +97,7 @@ export async function PATCH(request: Request) {
     }
 
     // Check if user is admin
-    if (user.role !== "ADMIN" && !userHasPermission(user, "SYSTEM_CONFIG")) {
+    if (!userHasAnyPermission(user, ["CONFIGURATION_MANAGE", "SYSTEM_CONFIG"])) {
       await writeAuditLog({
         request,
         userId: actorUserId,
@@ -327,7 +327,7 @@ export async function POST(request: Request) {
     }
 
     // Check if user is admin
-    if (user.role !== "ADMIN" && !userHasPermission(user, "SYSTEM_CONFIG")) {
+    if (!userHasAnyPermission(user, ["CONFIGURATION_MANAGE", "SYSTEM_CONFIG"])) {
       await writeAuditLog({
         request,
         userId: actorUserId,

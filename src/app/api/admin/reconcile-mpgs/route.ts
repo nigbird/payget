@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server"
-import { requireAuthUser } from "@/lib/request-auth"
+import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { reconcileMpgsTransactions } from "@/lib/mpgs-settlement"
+import { requireCsrf } from "@/lib/request-security"
 
 
 export async function POST(request: Request) {
   try {
+    const csrfError = requireCsrf(request)
+    if (csrfError) return csrfError
+
     const user = await requireAuthUser(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    if (user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (!userHasPermission(user, "mpgs.reconciliation.manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { results, stats } = await reconcileMpgsTransactions({
       request,

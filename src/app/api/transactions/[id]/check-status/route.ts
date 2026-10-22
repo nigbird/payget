@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { requireAuthUser } from "@/lib/request-auth"
+import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
 import { checkTransactionStatusAtProvider } from "@/lib/provider-encryption"
 import { writeAuditLog } from "@/lib/audit-log"
@@ -59,7 +59,8 @@ export async function POST(
       user.merchantId === tx.merchantId ||
       (user.assignedMerchantIds && user.assignedMerchantIds.includes(tx.merchantId))
 
-    if (user.role !== "ADMIN" && !isAssigned) {
+    // Staff need the reconciliation permission (every staff account has role ADMIN).
+    if (!isAssigned && !userHasPermission(user, "payment.reconciliation.manage")) {
       await writeAuditLog({
         request,
         userId: actorUserId,

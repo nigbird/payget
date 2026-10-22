@@ -271,10 +271,10 @@ export function RequestPaymentModal({
     const requestTimeoutId = setTimeout(() => controller.abort(), 90_000)
 
     try {
-      const transactionId = `tx_${Math.random().toString(36).slice(2, 10)}`
+      const transactionId = `tx_${crypto.randomUUID().replace(/-/g, "")}`
       const timestamp = new Date().toISOString()
       const serviceDescription = requestForm.description || `Payment Request for Customer`
-      const authToken = `demo_auth_${Math.random().toString(36).slice(2, 10)}`
+      const authToken = `demo_auth_${crypto.randomUUID().replace(/-/g, "")}`
 
       const payload = {
         merchantId,

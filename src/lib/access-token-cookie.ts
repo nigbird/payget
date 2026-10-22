@@ -96,7 +96,7 @@ export async function setAccessTokenCookie(
     value: await encryptAccessTokenForCookie(accessToken),
     httpOnly: true,
     secure: isProd(),
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     expires: new Date(Date.now() + ttl * 1000),
   })
@@ -108,7 +108,7 @@ export function clearAccessTokenCookie(res: NextResponse): void {
     value: "",
     httpOnly: true,
     secure: isProd(),
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     expires: new Date(0),
   })

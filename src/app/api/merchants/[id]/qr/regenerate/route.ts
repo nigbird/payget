@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
+import { requireCsrf } from "@/lib/request-security"
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = requireCsrf(request)
+    if (csrfError) return csrfError
+
     const { id } = await params
     const user = await requireAuthUser(request)
     if (!user || (!userHasPermission(user, "CONFIGURATION_MANAGE") && user.merchantId !== id)) {

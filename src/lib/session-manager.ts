@@ -155,17 +155,38 @@ export async function revokeSession(sid: string): Promise<void> {
 }
 
 /**
- * Check whether a session is currently valid (exists, not revoked, not expired).
+ * Server-side inactivity limits. The browser already logs a user out after 5
+ * minutes idle (30 for team members, see session-watcher) and refreshes the
+ * session's lastActivityAt every few seconds while the user is active, so these
+ * are deliberately longer: they never cut off an active user, but a session
+ * nobody has used for this long — e.g. a refresh cookie lifted from an
+ * abandoned browser — can no longer be revived.
+ */
+export const USER_IDLE_TIMEOUT_MS = 15 * 60 * 1000
+export const TEAM_MEMBER_IDLE_TIMEOUT_MS = 45 * 60 * 1000
+
+export function isSessionIdleExpired(session: { lastActivityAt: Date; teamMemberId: string | null }, now = Date.now()) {
+  const limit = session.teamMemberId ? TEAM_MEMBER_IDLE_TIMEOUT_MS : USER_IDLE_TIMEOUT_MS
+  return now - session.lastActivityAt.getTime() > limit
+}
+
+/**
+ * Check whether a session is currently valid (exists, not revoked, not expired,
+ * not idle past the inactivity limit). An idle session is revoked on the spot.
  */
 export async function validateSession(sid: string): Promise<boolean> {
   if (!sid) return false
   const session = await prisma.activeSession.findUnique({
     where: { id: sid },
-    select: { revokedAt: true, expiresAt: true }
+    select: { revokedAt: true, expiresAt: true, lastActivityAt: true, teamMemberId: true }
   })
   if (!session) return false
   if (session.revokedAt !== null) return false
   if (session.expiresAt <= new Date()) return false
+  if (isSessionIdleExpired(session)) {
+    await revokeSession(sid)
+    return false
+  }
   return true
 }
 

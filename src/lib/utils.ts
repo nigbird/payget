@@ -89,11 +89,17 @@ export function maskIdentifier(identifier: string): string {
   return '***';
 }
 
+// Local part: letters, digits and . _ % + ' - (not starting/ending with a dot);
+// domain: dot-separated labels that don't start/end with a hyphen, then a TLD of
+// 2+ letters. Rejects quotes, angle brackets, spaces, consecutive dots, etc.
+const EMAIL_RE = /^[A-Za-z0-9](?:[A-Za-z0-9._%+'-]*[A-Za-z0-9_%+-])?@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+
 export function isValidEmail(email: string): boolean {
+  if (typeof email !== 'string') return false;
   const trimmed = email.trim();
   if (trimmed.length > 50) return false;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(trimmed);
+  if (trimmed.includes('..')) return false;
+  return EMAIL_RE.test(trimmed);
 }
 
 /**

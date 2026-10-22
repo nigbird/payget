@@ -19,6 +19,8 @@ export type ResolvedAuthUser = {
   /** Actual MerchantTeamMember role (account_admin/sales_admin/payment_initiator) for OTP-based SALES sessions. */
   teamRole?: string | null
   teamMemberId?: string | null
+  /** Staff member still on an admin-issued temporary password: no permissions until changed. */
+  passwordChangeRequired?: boolean
 }
 
 export async function requireAuthUser(request: Request): Promise<ResolvedAuthUser | null> {
@@ -26,7 +28,27 @@ export async function requireAuthUser(request: Request): Promise<ResolvedAuthUse
     getBearerTokenFromHeaders(request.headers) ??
     (await getAccessTokenFromCookie(request))
   if (!token) return null
+  return resolveAuthUserFromToken(token)
+}
 
+export async function requireAuthUserFromContext(): Promise<ResolvedAuthUser | null> {
+  const token = await getAccessTokenFromServerCookies()
+  if (!token) return null
+  return resolveAuthUserFromToken(token)
+}
+
+/**
+ * Verifies the access token and its server-side session, then resolves the
+ * user from the database rather than trusting the token alone:
+ * - a deactivated user is rejected immediately (not when the token expires);
+ * - staff permissions and role come from the database, so a revoked
+ *   permission stops working on the next request;
+ * - a staff member who must still replace their temporary password gets no
+ *   permissions and no merchant access until they do (the change-password
+ *   flow itself only needs a session). Returning null instead would make the
+ *   browser treat it as an expired session and sign them out.
+ */
+async function resolveAuthUserFromToken(token: string): Promise<ResolvedAuthUser | null> {
   try {
     const payload = await verifyAccessToken(token)
     const userId = typeof payload.sub === "string" ? payload.sub : null
@@ -37,39 +59,17 @@ export async function requireAuthUser(request: Request): Promise<ResolvedAuthUse
 
     if (sid) {
       // SALES sessions are backed by an ActiveSession keyed by teamMemberId, so
-      // this check now applies to team members too.
+      // this check applies to team members too.
       const valid = await validateSession(sid)
       if (!valid) return null
       touchSession(sid)
-    } else if (!isSales) {
-      // Backward compat: tokens without sid (pre-migration) — verify sessionVersion.
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { sessionVersion: true }
-      })
-      if (!user) return null
-      if (payload.sessionVersion !== undefined && user.sessionVersion !== payload.sessionVersion) {
-        return null
-      }
     }
 
-    let email: string | null = null
-    let name: string | null = null
-    if (!isSales) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, email: true, name: true }
-      })
-      if (!user) return null
-      email = user.email
-      name = user.name
-    }
-
-    return {
+    const base: ResolvedAuthUser = {
       id: userId,
       sid,
-      email,
-      name,
+      email: null,
+      name: null,
       role: typeof payload.role === "string" ? payload.role : null,
       merchantId: typeof payload.merchantId === "string" ? payload.merchantId : null,
       permissions: Array.isArray(payload.permissions) ? (payload.permissions as string[]) : [],
@@ -80,59 +80,46 @@ export async function requireAuthUser(request: Request): Promise<ResolvedAuthUse
         ? ((payload as any).assignedMerchantIds as string[])
         : [],
       assignedMerchants: Array.isArray((payload as any).assignedMerchants)
-        ? ((payload as any).assignedMerchants as { id: string; name: string }[])
+        ? ((payload as any).assignedMerchants as { id: string; name: string; role?: string }[])
         : [],
       teamRole: typeof (payload as any).teamRole === "string" ? (payload as any).teamRole : null,
-      teamMemberId: typeof (payload as any).teamMemberId === "string" ? (payload as any).teamMemberId : null
-    }
-  } catch {
-    return null
-  }
-}
-
-export async function requireAuthUserFromContext(): Promise<ResolvedAuthUser | null> {
-  const token = await getAccessTokenFromServerCookies()
-  if (!token) return null
-
-  try {
-    const payload = await verifyAccessToken(token)
-    const userId = typeof payload.sub === "string" ? payload.sub : null
-    if (!userId) return null
-
-    const sid = typeof (payload as any).sid === "string" ? (payload as any).sid as string : undefined
-    const isSales = userId.startsWith("sales-")
-
-    if (sid) {
-      const valid = await validateSession(sid)
-      if (!valid) return null
-      touchSession(sid)
-    } else if (!isSales) {
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { sessionVersion: true } })
-      if (!user) return null
-      if (payload.sessionVersion !== undefined && user.sessionVersion !== payload.sessionVersion) return null
+      teamMemberId: typeof (payload as any).teamMemberId === "string" ? (payload as any).teamMemberId : null,
     }
 
-    let email: string | null = null
-    let name: string | null = null
-    if (!isSales) {
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true } })
-      if (!user) return null
-      email = user.email
-      name = user.name
-    }
+    if (isSales) return base
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+        firstLogin: true,
+        merchantId: true,
+        sessionVersion: true,
+        customRole: { select: { permissions: { select: { permission: { select: { name: true } } } } } },
+      },
+    })
+    if (!user) return null
+    if (user.status !== "ACTIVE") return null
+    // Backward compat: tokens without sid (pre-migration) — verify sessionVersion.
+    if (!sid && payload.sessionVersion !== undefined && user.sessionVersion !== payload.sessionVersion) return null
+
+    const isStaff = user.role !== "MERCHANT"
+    const mustChangePassword = isStaff && user.firstLogin
     return {
-      id: userId, sid, email, name,
-      role: typeof payload.role === "string" ? payload.role : null,
-      merchantId: typeof payload.merchantId === "string" ? payload.merchantId : null,
-      permissions: Array.isArray(payload.permissions) ? (payload.permissions as string[]) : [],
-      isHeadOffice: typeof payload.isHeadOffice === "boolean" ? payload.isHeadOffice : false,
-      district: typeof payload.district === "string" ? payload.district : null,
-      branch: typeof payload.branch === "string" ? payload.branch : null,
-      assignedMerchantIds: Array.isArray((payload as any).assignedMerchantIds) ? ((payload as any).assignedMerchantIds as string[]) : [],
-      assignedMerchants: Array.isArray((payload as any).assignedMerchants) ? ((payload as any).assignedMerchants as { id: string; name: string }[]) : [],
-      teamRole: typeof (payload as any).teamRole === "string" ? (payload as any).teamRole : null,
-      teamMemberId: typeof (payload as any).teamMemberId === "string" ? (payload as any).teamMemberId : null
+      ...base,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      merchantId: user.merchantId,
+      permissions: mustChangePassword
+        ? []
+        : isStaff
+          ? (user.customRole?.permissions ?? []).map((p) => p.permission.name)
+          : base.permissions,
+      passwordChangeRequired: mustChangePassword,
     }
   } catch {
     return null
@@ -157,7 +144,7 @@ export function userCanAssignPermissions(user: ResolvedAuthUser | null, targetPe
 }
 
 export function canAccessMerchant(user: ResolvedAuthUser | null, targetMerchantId: string) {
-  if (!user) return false
+  if (!user || user.passwordChangeRequired) return false
   if (["ADMIN", "MAKER", "CHECKER", "HEAD_OFFICE"].includes(user.role || "")) return true
   if (user.role === "MERCHANT") return user.merchantId === targetMerchantId
   if (user.role === "SALES") return user.assignedMerchantIds?.includes(targetMerchantId) ?? false

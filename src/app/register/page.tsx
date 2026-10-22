@@ -293,8 +293,6 @@ export default function MerchantSelfRegistration() {
 
     setIsSubmitting(true)
     
-    const merchantId = `m_${Math.random().toString(36).substr(2, 9)}`
-    
     // Normalize phone number if contactUsername is a phone number
     const finalFormData = { ...formData }
     if (isValidPhoneNumber(finalFormData.contactUsername) && !isValidEmail(finalFormData.contactUsername)) {
@@ -306,7 +304,6 @@ export default function MerchantSelfRegistration() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: merchantId,
           ...finalFormData,
           branchName: "Self-Service",
           district: "Self-Service",

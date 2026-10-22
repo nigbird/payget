@@ -3,6 +3,43 @@ import { sendSms } from '@/lib/sms';
 import { isValidEmail, isValidPhoneNumber, maskIdentifier } from '@/lib/utils';
 import { createOpaqueToken } from '@/lib/opaque-tokens';
 
+/**
+ * SMTP transport with TLS enforced: the server certificate is verified (it was
+ * not, which let anyone on the network path impersonate the mail server and
+ * capture the SMTP password and reset links), TLS 1.2+ only, and STARTTLS is
+ * required when not using implicit TLS (port 465), so mail is never sent in
+ * clear text. SMTP_TLS_ALLOW_INVALID_CERT=true is an escape hatch for a server
+ * with an internally-signed certificate; prefer adding its CA instead.
+ */
+function createSmtpTransport(host: string | undefined, user: string | undefined, pass: string | undefined) {
+  const secure = process.env.SMTP_SECURE === 'true';
+  return nodemailer.createTransport({
+    host,
+    port: parseInt(process.env.SMTP_PORT || '465'),
+    secure,
+    requireTLS: !secure,
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: process.env.SMTP_TLS_ALLOW_INVALID_CERT !== 'true',
+      minVersion: 'TLSv1.2',
+    },
+  });
+}
+
+/**
+ * Merchant account-activation (password setup) link lifetime. Shorter than the
+ * old fixed 24h so an intercepted link is useful for less time; staff can
+ * resend an expired link from the review screen. Override with
+ * MERCHANT_SETUP_LINK_TTL_HOURS.
+ */
+export const MERCHANT_SETUP_LINK_TTL_HOURS = Number(process.env.MERCHANT_SETUP_LINK_TTL_HOURS) > 0
+  ? Number(process.env.MERCHANT_SETUP_LINK_TTL_HOURS)
+  : 4
+
+export function merchantSetupLinkExpiry(now = Date.now()): Date {
+  return new Date(now + MERCHANT_SETUP_LINK_TTL_HOURS * 60 * 60 * 1000)
+}
+
 /** Default password reset link lifetime (5 minutes). */
 export const PASSWORD_RESET_TIMEOUT_SECONDS = 360
 
@@ -65,18 +102,7 @@ async function sendEmailNotification(
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_EMAIL_USER,
-        pass: process.env.SMTP_EMAIL_PASS,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
+    const transporter = createSmtpTransport(process.env.SMTP_HOST, process.env.SMTP_EMAIL_USER, process.env.SMTP_EMAIL_PASS);
 
     const info = await transporter.sendMail({
       from: `"NibTera Merchants" <${process.env.SMTP_EMAIL_USER}>`,
@@ -217,15 +243,7 @@ export async function sendPaymentLinkEmail(params: {
   ].join('\n');
 
   try {
-    const transporter = nodemailer.createTransport({
-      host,
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
+    const transporter = createSmtpTransport(host, user, pass);
 
     const info = await transporter.sendMail({
       from: `"${merchantName}" <${user}>`,
@@ -273,7 +291,7 @@ function getNotificationBaseUrl(): string {
  */
 export async function generatePasswordSetupLink(merchantId: string, originalToken: string): Promise<string> {
   const baseUrl = getNotificationBaseUrl();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const expiresAt = merchantSetupLinkExpiry();
   const opaqueToken = await createOpaqueToken('PASSWORD_SETUP', { merchantId, originalToken }, expiresAt);
 
   return `${baseUrl}/l/${opaqueToken}`;

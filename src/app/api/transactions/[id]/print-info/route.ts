@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { requireAuthUser } from "@/lib/request-auth"
+import { requireAuthUser, userHasAnyPermission } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
 import { writeAuditLog } from "@/lib/audit-log"
 
@@ -34,7 +34,8 @@ export async function PATCH(
       user.merchantId === merchant.id ||
       (user.assignedMerchantIds && user.assignedMerchantIds.includes(merchant.id))
 
-    if (user.role !== "ADMIN" && !isAssigned) {
+    // Staff need a reconciliation permission (every staff account has role ADMIN).
+    if (!isAssigned && !userHasAnyPermission(user, ["payment.reconciliation.view", "payment.reconciliation.manage"])) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 

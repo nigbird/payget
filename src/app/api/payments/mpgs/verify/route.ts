@@ -3,6 +3,7 @@ import { z } from "zod"
 import { db } from "@/lib/db"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { settleMpgsTransaction } from "@/lib/mpgs-settlement"
+import { requireCsrf } from "@/lib/request-security"
 
 const VerifySchema = z.object({
   merchantId: z.string().min(1),
@@ -12,6 +13,9 @@ const VerifySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrfError = requireCsrf(request)
+    if (csrfError) return csrfError
+
     const user = await requireAuthUser(request)
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

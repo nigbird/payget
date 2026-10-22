@@ -18,7 +18,7 @@ export function setRefreshTokenCookie(
     value,
     httpOnly: true,
     secure: isProd(),
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     expires
   })
@@ -30,7 +30,7 @@ export function clearRefreshTokenCookie(res: NextResponse): void {
     value: "",
     httpOnly: true,
     secure: isProd(),
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     expires: new Date(0)
   })

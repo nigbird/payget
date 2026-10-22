@@ -770,10 +770,10 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
     const requestTimeoutId = setTimeout(() => controller.abort(), requestTimeoutMs)
 
     try {
-      const transactionId = `tx_${Math.random().toString(36).slice(2, 10)}`
+      const transactionId = `tx_${crypto.randomUUID().replace(/-/g, "")}`
       const timestamp = new Date().toISOString()
       const serviceDescription = requestForm.description || `Payment Request for Customer`
-      const authToken = `demo_auth_${Math.random().toString(36).slice(2, 10)}`
+      const authToken = `demo_auth_${crypto.randomUUID().replace(/-/g, "")}`
 
       const payload = {
         merchantId: id,
@@ -1039,11 +1039,11 @@ export default function MerchantDashboard({ params }: { params: Promise<{ id: st
         return
       }
 
-      const transactionId = `tx_${Math.random().toString(36).slice(2, 10)}`
+      const transactionId = `tx_${crypto.randomUUID().replace(/-/g, "")}`
       const payload = {
         merchantId: id,
         transactionId,
-        userCredentials: { authToken: `demo_auth_${Math.random().toString(36).slice(2, 10)}` },
+        userCredentials: { authToken: `demo_auth_${crypto.randomUUID().replace(/-/g, "")}` },
         amount: amountNum,
         serviceDescription: requestForm.description || "Payment Request for Customer",
         timestamp: new Date().toISOString(),

@@ -232,8 +232,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: providerResponse.message || "Provider rejected the USSD push",
-          details: providerResponse.details || providerResponse.error,
-          statusCode: providerResponse.statusCode,
         },
         { status: 400 }
       )

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { requireAuthUser } from "@/lib/request-auth"
+import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { requireCsrf } from "@/lib/request-security"
 import {
   sendProviderPushPayment,
@@ -67,7 +67,8 @@ export async function POST(
       user.merchantId === merchant.id ||
       (user.assignedMerchantIds && user.assignedMerchantIds.includes(merchant.id))
 
-    if (user.role !== "ADMIN" && !isAssigned) {
+    // Staff need the reconciliation permission (every staff account has role ADMIN).
+    if (!isAssigned && !userHasPermission(user, "payment.reconciliation.manage")) {
       await writeAuditLog({
         request,
         userId: actorUserId,
@@ -113,8 +114,7 @@ export async function POST(
       })
 
       return NextResponse.json({
-        error: providerResponse.message || "Provider rejected the USSD push",
-        details: providerResponse.details || providerResponse.error,
+        error: providerResponse.message || "Provider rejected the USSD push",
       }, { status: 400 })
     }
 

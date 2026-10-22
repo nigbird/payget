@@ -117,7 +117,10 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    if (!(await isMerchantAccountAdmin(user, id)) && !['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE'].includes(user.role || '')) {
+    // Only the merchant's own account admin manages its team. Staff accounts all
+    // carry role ADMIN, so a role check here let any staff member add a phone of
+    // their choosing as account admin of any merchant and sign in to it by OTP.
+    if (!(await isMerchantAccountAdmin(user, id))) {
       await writeAuditLog({
         request,
         userId: actorUserId,
@@ -207,7 +210,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    if (!(await isMerchantAccountAdmin(user, id)) && !['ADMIN', 'MAKER', 'CHECKER', 'HEAD_OFFICE'].includes(user.role || '')) {
+    // Only the merchant's own account admin manages its team. Staff accounts all
+    // carry role ADMIN, so a role check here let any staff member add a phone of
+    // their choosing as account admin of any merchant and sign in to it by OTP.
+    if (!(await isMerchantAccountAdmin(user, id))) {
       await writeAuditLog({
         request,
         userId: actorUserId,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
+import { writeAuditLog } from "@/lib/audit-log"
 
 export async function PATCH(
   request: Request,
@@ -12,7 +13,7 @@ export async function PATCH(
     if (csrfError) return csrfError
 
     const { id: merchantId, customerId } = await params
-    const { error } = await requireMerchantCashbackAccess(request, merchantId)
+    const { user, error } = await requireMerchantCashbackAccess(request, merchantId)
     if (error) return error
 
     const body = await request.json()
@@ -63,6 +64,23 @@ export async function PATCH(
       },
       include: { category: { select: { name: true } } }
     })
+
+    await writeAuditLog({
+
+      request,
+
+      userId: user!.role === "SALES" ? null : user!.id,
+
+      action: "CASHBACK_ELIGIBLE_UPDATE",
+
+      entityType: "MERCHANT",
+
+      entityId: merchantId,
+
+      newValue: { customerId, actorTeamMemberId: user!.teamMemberId ?? undefined },
+
+    })
+
 
     return NextResponse.json({
       id: updated.id,

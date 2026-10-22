@@ -51,17 +51,20 @@ function safeEqualHex(a: string, b: string): boolean {
   return aa.length === bb.length && crypto.timingSafeEqual(aa, bb)
 }
 
+/** Replay-protection rejection; its message is safe to return to the API caller. */
+export class ReplayProtectionError extends Error {}
+
 export async function enforceReplayProtection(merchantId: string, nonce: string, timestamp: string) {
   const ts = Date.parse(timestamp)
   if (Number.isNaN(ts)) {
-    throw new Error("Invalid timestamp")
+    throw new ReplayProtectionError("Invalid timestamp")
   }
   const delta = Math.abs(Date.now() - ts)
   if (delta > REPLAY_WINDOW_MS) {
-    throw new Error("Request timestamp outside allowed window")
+    throw new ReplayProtectionError("Request timestamp outside allowed window")
   }
   if (!nonce || nonce.length < 16) {
-    throw new Error("Nonce is required and must be at least 16 characters")
+    throw new ReplayProtectionError("Nonce is required and must be at least 16 characters")
   }
 
   const now = new Date()
@@ -84,7 +87,7 @@ export async function enforceReplayProtection(merchantId: string, nonce: string,
     })
 
     if (existing) {
-      throw new Error("Nonce already used")
+      throw new ReplayProtectionError("Nonce already used")
     }
 
     await tx.requestNonce.create({

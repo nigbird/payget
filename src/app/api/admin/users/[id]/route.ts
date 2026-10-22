@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
+import { revokeAllUserSessions } from '@/lib/session-manager';
+import { sendNotification } from '@/lib/notifications';
+import { isValidEmail } from '@/lib/utils';
 
 export async function PATCH(
   request: Request,
@@ -81,7 +84,31 @@ export async function PATCH(
     // Prepare update data
     const updateData: any = {};
     if (body.name !== undefined) updateData.name = body.name;
-    if (body.email !== undefined) updateData.email = body.email;
+    // The Users page sends the email on every edit; only an actual change counts.
+    const newEmail = typeof body.email === 'string' ? body.email.trim() : undefined;
+    const emailChanged = newEmail !== undefined && newEmail.toLowerCase() !== (oldUser.email ?? '').toLowerCase();
+    if (emailChanged) {
+      // The email is the login and where reset links go, so changing it is a
+      // takeover path: never self-service, always valid and unique, and the
+      // old address is told (below) so an unexpected change gets noticed.
+      if (id === actorUserId) {
+        return deny("SELF_EMAIL_CHANGE", "Your email must be changed by another user administrator.");
+      }
+      if (!isValidEmail(newEmail)) {
+        return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
+      }
+      const taken = await prisma.user.findFirst({
+        where: { email: { equals: newEmail, mode: 'insensitive' }, NOT: { id } },
+        select: { id: true },
+      });
+      if (taken) {
+        return NextResponse.json({ error: 'That email is already used by another account' }, { status: 409 });
+      }
+      updateData.email = newEmail;
+      updateData.passwordResetToken = null;
+      updateData.passwordResetExpires = null;
+      updateData.sessionVersion = { increment: 1 };
+    }
     // The Users page sends customRoleId on every edit; only an actual change counts.
     if (body.customRoleId !== undefined && (body.customRoleId || null) !== oldUser.customRoleId) {
       if (id === actorUserId) {
@@ -127,6 +154,22 @@ export async function PATCH(
       where: { id },
       data: updateData,
     });
+
+    if (emailChanged) {
+      // Sign the account out everywhere and tell the previous address.
+      await revokeAllUserSessions(id);
+      if (oldUser.email) {
+        await sendNotification({
+          to: oldUser.email,
+          subject: 'Your NibTera account email was changed',
+          message: `The sign-in email of your NibTera staff account was changed by an administrator.\n\nIf you did not expect this, contact your system administrator or the security team immediately.`,
+        }).catch((e) => console.error('[admin-users] old-email notification failed', e));
+      }
+    }
+
+    if (updateData.status === 'DEACTIVATED') {
+      await revokeAllUserSessions(id);
+    }
 
     await writeAuditLog({
       request,
@@ -240,9 +283,11 @@ export async function DELETE(
       where: { id },
       data: { 
         status: 'DEACTIVATED',
-        sessionVersion: { increment: 1 } 
+        sessionVersion: { increment: 1 }
       },
     });
+    // End every open session now, not when the access token expires.
+    await revokeAllUserSessions(id);
 
     await writeAuditLog({
       request,

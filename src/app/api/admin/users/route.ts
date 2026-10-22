@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { requireAuthUser, userCanAssignPermissions, userHasPermission } from '@/lib/request-auth';
+import { validatePassword } from '@/lib/password-policy';
 import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 
@@ -160,6 +161,13 @@ export async function POST(request: Request) {
         newValue: { result: "failed", reason: "PASSWORD_REQUIRED" },
       });
       return NextResponse.json({ error: 'Password is required to create a user.' }, { status: 400 });
+    }
+
+    // The temporary password must meet the same policy as any other password
+    // (it expires after 72h and has to be changed at first login anyway).
+    const policy = validatePassword(String(password));
+    if (!policy.valid) {
+      return NextResponse.json({ error: policy.errors[0] ?? "Password does not meet the password policy." }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

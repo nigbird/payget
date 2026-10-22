@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import { revokeAllUserSessions, revokeSession } from "@/lib/session-manager"
 import { writeAuditLog } from "@/lib/audit-log"
+import { requireCsrf } from "@/lib/request-security"
 
 type Params = { params: Promise<{ userId: string }> }
 
@@ -14,7 +15,7 @@ export async function GET(request: Request, { params }: Params) {
   const { userId } = await params
   const authUser = await requireAuthUser(request)
   if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (authUser.role !== "ADMIN" && !userHasPermission(authUser, "USER_CREATE")) {
+  if (!userHasPermission(authUser, "USER_CREATE")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -47,10 +48,13 @@ export async function GET(request: Request, { params }: Params) {
  * Body: { sid?: string } — if sid is provided, revoke that session only; otherwise revoke all.
  */
 export async function DELETE(request: Request, { params }: Params) {
+  const csrfError = requireCsrf(request)
+  if (csrfError) return csrfError
+
   const { userId } = await params
   const authUser = await requireAuthUser(request)
   if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (authUser.role !== "ADMIN" && !userHasPermission(authUser, "USER_CREATE")) {
+  if (!userHasPermission(authUser, "USER_CREATE")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

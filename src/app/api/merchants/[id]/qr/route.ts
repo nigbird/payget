@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { requireAuthUser, userHasPermission } from "@/lib/request-auth"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
+import { requireCsrf } from "@/lib/request-security"
 
 export async function GET(
   request: Request,
@@ -48,6 +49,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const csrfError = requireCsrf(request)
+    if (csrfError) return csrfError
+
     const { id } = await params
     const user = await requireAuthUser(request)
     if (!user || (!userHasPermission(user, "CONFIGURATION_MANAGE") && user.merchantId !== id)) {

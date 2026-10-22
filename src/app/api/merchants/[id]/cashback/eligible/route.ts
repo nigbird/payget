@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireCsrf } from "@/lib/request-security"
 import { requireMerchantCashbackAccess } from "@/lib/cashback/api-auth"
+import { writeAuditLog } from "@/lib/audit-log"
 import { listEligibleCustomers } from "@/lib/cashback/service"
 
 export async function GET(
@@ -34,7 +35,7 @@ export async function DELETE(
     if (csrfError) return csrfError
 
     const { id: merchantId } = await params
-    const { error } = await requireMerchantCashbackAccess(request, merchantId)
+    const { user, error } = await requireMerchantCashbackAccess(request, merchantId)
     if (error) return error
 
     const body = await request.json().catch(() => ({}))
@@ -47,6 +48,23 @@ export async function DELETE(
     const result = await prisma.cashbackEligibleCustomer.deleteMany({
       where: { merchantId, id: { in: ids } },
     })
+
+    await writeAuditLog({
+
+      request,
+
+      userId: user!.role === "SALES" ? null : user!.id,
+
+      action: "CASHBACK_ELIGIBLE_DELETE",
+
+      entityType: "MERCHANT",
+
+      entityId: merchantId,
+
+      newValue: { deleted: result.count, ids: ids.slice(0, 50), actorTeamMemberId: user!.teamMemberId ?? undefined },
+
+    })
+
 
     return NextResponse.json({ deleted: result.count })
   } catch (e) {

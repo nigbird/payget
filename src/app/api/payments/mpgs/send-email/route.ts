@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { requireAuthUser, canAccessMerchant } from "@/lib/request-auth"
 import { sendPaymentLinkEmail } from "@/lib/notifications"
 import { writeAuditLog } from "@/lib/audit-log"
+import { requireCsrf } from "@/lib/request-security"
 
 const SendSchema = z.object({
   merchantId: z.string().min(1),
@@ -13,6 +14,9 @@ const SendSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const csrfError = requireCsrf(request)
+    if (csrfError) return csrfError
+
     const user = await requireAuthUser(request)
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

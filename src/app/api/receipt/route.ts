@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       let err: any = {}
       try { err = JSON.parse(receiptText) } catch {}
       return NextResponse.json(
-        { error: err.message || "Failed to fetch receipt from bank" },
+        { error: "Failed to fetch receipt from bank" },
         { status: 502 }
       )
     }
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
       let err: any = {}
       try { err = JSON.parse(invoiceText) } catch {}
       return NextResponse.json(
-        { error: err.message || "Failed to generate receipt" },
+        { error: "Failed to generate receipt" },
         { status: 502 }
       )
     }

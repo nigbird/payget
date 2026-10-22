@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 import { requireAuthUser, userHasPermission, userHasAnyPermission, canAccessMerchant, isMerchantAccountAdmin } from '@/lib/request-auth';
 import { requireCsrf } from '@/lib/request-security';
-import { sendNotification, generatePasswordSetupLink, generateMerchantRegisterLink } from '@/lib/notifications';
+import { sendNotification, generatePasswordSetupLink, generateMerchantRegisterLink, merchantSetupLinkExpiry } from '@/lib/notifications';
 import crypto from 'crypto';
 import { validateAccountNumberField } from '@/lib/account-number';
 import { validateUrl } from '@/lib/url-validation';
@@ -147,10 +147,19 @@ export async function PATCH(
       if (!result.valid) fieldErrors[key] = result.error;
       else body[key] = body[key]?.trim() ? body[key].trim() : null;
     }
-    if (body.email !== undefined && (typeof body.email !== 'string' || !isValidEmail(body.email))) {
+    const currentMerchant = await db.getMerchantById(id);
+    if (!currentMerchant) {
+      return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
+    }
+    // Format rules apply to new values only: the onboarding form resends every
+    // field, and a merchant saved under older, looser rules must stay editable.
+    const sameText = (a: unknown, b: unknown) =>
+      typeof a === 'string' && typeof b === 'string' && a.trim().toLowerCase() === b.trim().toLowerCase();
+    if (body.email !== undefined && !sameText(body.email, currentMerchant.email) &&
+        (typeof body.email !== 'string' || !isValidEmail(body.email))) {
       fieldErrors.email = 'Invalid email format';
     }
-    if (body.contactUsername !== undefined) {
+    if (body.contactUsername !== undefined && !sameText(body.contactUsername, currentMerchant.contactUsername)) {
       const cu = typeof body.contactUsername === 'string' ? body.contactUsername.trim() : '';
       if (isValidEmail(cu)) body.contactUsername = cu;
       else if (isValidPhoneNumber(cu)) body.contactUsername = normalizePhoneNumber(cu);
@@ -171,10 +180,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Validation failed', errors: fieldErrors }, { status: 400 });
     }
 
-    const currentMerchant = await db.getMerchantById(id);
-    if (!currentMerchant) {
-      return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
-    }
 
     if (body.accountNumber !== undefined) {
       // Account number is fixed after onboarding; merchants cannot change it themselves.
@@ -288,7 +293,7 @@ export async function PATCH(
       if (incomingStatus === "approved" || incomingStatus === "APPROVED") {
         const token = crypto.randomBytes(32).toString("hex")
         body.passwordResetToken = token
-        body.passwordResetExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+        body.passwordResetExpires = merchantSetupLinkExpiry()
       }
     }
 

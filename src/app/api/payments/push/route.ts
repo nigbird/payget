@@ -9,7 +9,7 @@ import {
 } from "@/lib/provider-encryption"
 import { decryptPayload } from "@/lib/jwe"
 import { withMerchantSecret } from "@/lib/merchant-secret"
-import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature } from "@/lib/request-security"
+import { auditSecurityEvent, enforceReplayProtection, verifyHmacSignature, ReplayProtectionError, requireCsrf } from "@/lib/request-security"
 import crypto from "crypto"
 import { writeAuditLog } from "@/lib/audit-log"
 import { maskAccount, maskPhone } from "@/lib/utils"
@@ -26,6 +26,14 @@ export async function POST(request: Request) {
 
     const sessionUser = await requireAuthUser(request)
     if (sessionUser) {
+      // Browser (cookie) session: same-origin requests only.
+      const csrfError = requireCsrf(request)
+      if (csrfError) return csrfError
+      // Payments are created by the merchant's own users; back-office staff
+      // (all role ADMIN) are not allowed to raise them for arbitrary merchants.
+      if (sessionUser.role !== "MERCHANT" && sessionUser.role !== "SALES") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
       const parsed = PaymentInitiateSchema.safeParse(body)
       if (!parsed.success) {
         return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
@@ -189,8 +197,6 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ 
         error: providerResponse.message || "Provider rejected the request",
-        details: providerResponse.details || providerResponse.error,
-        statusCode: providerResponse.statusCode
       }, { status: 400 })
     }
 
@@ -231,12 +237,9 @@ export async function POST(request: Request) {
       message: providerResponse.details || "Push payment request initiated successfully.",
     })
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.message.includes("Nonce") ||
-        error.message.includes("timestamp") ||
-        error.message.includes("signature"))
-    ) {
+    // Only replay-protection rejections are echoed; any other error text could
+    // expose internals (e.g. a database error that mentions a "timestamp" column).
+    if (error instanceof ReplayProtectionError) {
       return NextResponse.json({ error: error.message }, { status: 401 })
     }
     console.error('Push payment error:', error)

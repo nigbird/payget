@@ -32,6 +32,9 @@ import {
 } from "@/lib/rate-limit";
 import { normalizeLoginIdentifierForLockout } from "@/lib/login-identifier-normalize";
 
+/** How long an admin-issued temporary password (staff first login) stays usable. */
+const TEMP_PASSWORD_MAX_AGE_MS = 72 * 60 * 60 * 1000
+
 function lockoutResponseIp(retryAfterSeconds: number) {
   return NextResponse.json(
     {
@@ -223,6 +226,46 @@ export async function POST(request: Request) {
       const lr = firstLockoutResponse(after.ip, after.identifier)
       if (lr) return lr
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Deactivated accounts can't sign in (deactivation only revoked existing
+    // sessions before). Checked after the password, so it reveals nothing to
+    // someone who doesn't know it.
+    if ((user as any).status && (user as any).status !== "ACTIVE") {
+      await writeAuditLog({
+        request,
+        userId: user.id,
+        action: "LOGIN_FAILURE",
+        entityType: "USER",
+        entityId: user.id,
+        newValue: { result: "failed", reason: "ACCOUNT_DEACTIVATED" },
+      })
+      return NextResponse.json(
+        { error: "This account has been deactivated. Please contact your administrator." },
+        { status: 403 }
+      )
+    }
+
+    // An admin-issued temporary password (staff first login) expires: after
+    // TEMP_PASSWORD_MAX_AGE_MS the user must set a new one via "Forgot password".
+    if (
+      userRole !== "MERCHANT" &&
+      (user as any).firstLogin &&
+      (user as any).createdAt &&
+      Date.now() - new Date((user as any).createdAt).getTime() > TEMP_PASSWORD_MAX_AGE_MS
+    ) {
+      await writeAuditLog({
+        request,
+        userId: user.id,
+        action: "LOGIN_FAILURE",
+        entityType: "USER",
+        entityId: user.id,
+        newValue: { result: "failed", reason: "TEMPORARY_PASSWORD_EXPIRED" },
+      })
+      return NextResponse.json(
+        { error: "Your temporary password has expired. Use \"Forgot password\" to set a new one." },
+        { status: 403 }
+      )
     }
 
     const permissions =
