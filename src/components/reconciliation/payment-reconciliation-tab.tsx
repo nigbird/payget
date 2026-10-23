@@ -275,8 +275,8 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
         toast({ title: 'Export complete', description: `Exported ${rows.length} decided requests to CSV.` })
       } else {
         const rows: UnresolvedTransaction[] = data.transactions || []
-        // Column names and order follow the reconciliation team's template.
-        // merchantId is the merchant's credit account, the side they match against core banking.
+        // Column names and order follow the reconciliation team's template, plus
+        // CREDIT.ACCT.NO (the merchant's account) alongside the payer's DEBIT.ACCT.NO.
         downloadCsv(
           'payment-reconciliation-transactions',
           [
@@ -287,6 +287,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
             'Trx_Date',
             'payerPhone',
             'DEBIT.ACCT.NO',
+            'CREDIT.ACCT.NO',
             'transactionReference',
             'serviceDescription',
             'transactionTimestamp',
@@ -296,12 +297,13 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           ],
           rows.map((tx) => [
             tx.id,
-            tx.merchant?.accountNumber || '',
+            tx.merchantId,
             tx.amount,
             tx.status,
             formatDay(tx.timestamp),
             tx.payerPhone || tx.userCredentials?.phone || '',
             tx.payerAccount || '',
+            tx.merchant?.accountNumber || '',
             tx.transactionReference,
             tx.serviceDescription || '',
             formatDate(tx.transactionTimestamp),
@@ -821,11 +823,12 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
             const hasPending = selectedTx.reconciliationRequests?.some((r) => r.status === 'PENDING')
             const fields: [string, React.ReactNode, boolean?][] = [
               ['id', selectedTx.id, true],
-              ['merchantId (credit account)', selectedTx.merchant?.accountNumber, true],
+              ['merchantId', selectedTx.merchantId, true],
               ['amount', formatCurrency(selectedTx.amount)],
               ['Trx_Date', formatDay(selectedTx.timestamp)],
               ['payerPhone', selectedTx.payerPhone || selectedTx.userCredentials?.phone],
               ['DEBIT.ACCT.NO', selectedTx.payerAccount, true],
+              ['CREDIT.ACCT.NO', selectedTx.merchant?.accountNumber, true],
               ['transactionReference', selectedTx.transactionReference, true],
               ['serviceDescription', selectedTx.serviceDescription],
               ['transactionTimestamp', formatDate(selectedTx.transactionTimestamp)],
