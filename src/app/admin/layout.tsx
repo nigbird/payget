@@ -11,7 +11,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <SidebarNav />
       <SidebarInset className="min-h-svh bg-[#fffdf9]">
         <AdminTopbar />
-        <div className="flex-1 overflow-auto bg-[#fffdf9] px-6 pb-10 pt-6">
+        <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#fffdf9] px-6 pb-10 pt-6">
           <div className="mx-auto w-full max-w-7xl">{children}</div>
         </div>
       </SidebarInset>
