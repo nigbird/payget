@@ -5,19 +5,43 @@ import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 import { executeTransferForTransaction } from '@/lib/cashback/processor';
 import { createIfNoPendingRequest, PENDING_REQUEST_EXISTS_ERROR } from '@/lib/reconciliation-request-lock';
+import { paymentFt } from '@/lib/payment-channel';
 
-const PAYMENT_METHODS = ['BANK', 'TELEBIRR', 'YAGOUT', 'MPGS'];
+const CASHBACK_STATUSES = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'SKIPPED'];
 
 /**
- * Attaches the payment's method and source to each cashback row. For YagoutPay
- * the source is the gateway the customer paid through (pg_name / paymode from
- * the return), which is what separates NIB-via-Yagout from other banks/wallets.
+ * Channel filter as SQL predicates on the payment Transaction (see
+ * lib/payment-channel.ts). null means "don't filter on this column".
+ */
+const CHANNEL_SQL: Record<string, { method: string | null; origin: string | null; qr: boolean | null }> = {
+  BANK_PUSH: { method: 'BANK', origin: 'INTERNAL', qr: false },
+  BANK_QR: { method: 'BANK', origin: 'INTERNAL', qr: true },
+  EXTERNAL: { method: null, origin: 'EXTERNAL', qr: null },
+  TELEBIRR: { method: 'TELEBIRR', origin: null, qr: null },
+  YAGOUT: { method: 'YAGOUT', origin: null, qr: null },
+  MPGS: { method: 'MPGS', origin: null, qr: null },
+};
+
+/**
+ * Attaches the payment's channel, FT, status and source to each cashback row.
+ * For YagoutPay the source is the gateway the customer paid through (pg_name /
+ * paymode from the return), which is what separates NIB-via-Yagout from other
+ * banks/wallets.
  */
 async function withPaymentSource<T extends { paymentTransactionId: string }>(rows: T[]) {
   if (rows.length === 0) return [];
   const payments = await prisma.transaction.findMany({
     where: { id: { in: rows.map((r) => r.paymentTransactionId) } },
-    select: { id: true, paymentMethod: true, userCredentials: true },
+    select: {
+      id: true,
+      paymentMethod: true,
+      origin: true,
+      status: true,
+      timestamp: true,
+      cbsreference: true,
+      externalReference: true,
+      userCredentials: true,
+    },
   });
   const byId = new Map(payments.map((p) => [p.id, p]));
 
@@ -29,6 +53,10 @@ async function withPaymentSource<T extends { paymentTransactionId: string }>(row
     return {
       ...row,
       paymentMethod: payment?.paymentMethod ?? null,
+      paymentOrigin: payment?.origin ?? null,
+      paymentStatus: payment?.status ?? null,
+      paymentDate: payment?.timestamp ?? null,
+      paymentFt: paymentFt(payment),
       paymentSource: yagout?.pgName ?? null,
       paymentMode: yagout?.paymode ?? null,
     };
@@ -54,8 +82,7 @@ export async function GET(request: Request) {
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
     const download = searchParams.get('download') === 'true';
-    const paymentMethodParam = searchParams.get('paymentMethod');
-    const paymentMethod = PAYMENT_METHODS.includes(paymentMethodParam ?? '') ? paymentMethodParam : null;
+    const channel = CHANNEL_SQL[searchParams.get('paymentMethod') ?? ''] ?? null;
     const paymentSource = searchParams.get('paymentSource')?.trim() || null;
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
@@ -73,7 +100,7 @@ export async function GET(request: Request) {
       where.merchant = { name: merchantName };
     }
 
-    if (status && status !== 'ALL') {
+    if (status && CASHBACK_STATUSES.includes(status)) {
       where.status = status;
       delete where.NOT; // Remove the NOT clause if status is explicitly set
     }
@@ -95,6 +122,7 @@ export async function GET(request: Request) {
         // found again by that FT — matches how payment reconciliation searches.
         { providerCreditRef: { contains: search, mode: 'insensitive' } },
         { providerDebitRef: { contains: search, mode: 'insensitive' } },
+        { paymentTransactionId: { contains: search, mode: 'insensitive' } },
         { requests: { some: { ftNumber: { contains: search, mode: 'insensitive' } } } },
         { customerPhone: { contains: search } },
         { customerAccount: { contains: search } }
@@ -103,12 +131,17 @@ export async function GET(request: Request) {
 
     // Payment method/source live on the payment Transaction, which the cashback
     // row only references by id (no relation), so resolve matching ids first.
-    if (paymentMethod || paymentSource) {
+    if (channel || paymentSource) {
+      const method = channel?.method ?? null;
+      const origin = channel?.origin ?? null;
+      const qr = channel?.qr ?? null;
       const matches = await prisma.$queryRaw<{ id: string }[]>`
         SELECT c.id
         FROM "CashbackTransaction" c
         JOIN "Transaction" t ON t.id = c."paymentTransactionId"
-        WHERE (${paymentMethod}::text IS NULL OR t."paymentMethod"::text = ${paymentMethod})
+        WHERE (${method}::text IS NULL OR t."paymentMethod"::text = ${method})
+          AND (${origin}::text IS NULL OR t."origin"::text = ${origin})
+          AND (${qr}::boolean IS NULL OR (LEFT(t.id, 3) = 'qr_') = ${qr})
           AND (${paymentSource}::text IS NULL OR t."userCredentials"->'yagout'->>'pgName' = ${paymentSource})
       `;
       where.id = { in: matches.map((m) => m.id) };

@@ -5,6 +5,7 @@ import { requireCsrf } from '@/lib/request-security';
 import { writeAuditLog } from '@/lib/audit-log';
 import { settleTransaction } from '@/lib/payment-settlement';
 import { createIfNoPendingRequest, PENDING_REQUEST_EXISTS_ERROR } from '@/lib/reconciliation-request-lock';
+import { CHANNEL_WHERE } from '@/lib/payment-channel';
 
 /**
  * Manual payment reconciliation (maker/checker).
@@ -24,8 +25,6 @@ const UNRESOLVED_STATUSES = ['AWAITING_PIN', 'INITIATED', 'PENDING', 'PROCESSING
 /** Every status, so the reconciliation team can report on resolved payments too. */
 const ALL_STATUSES = [...UNRESOLVED_STATUSES, 'SUCCESS', 'FAILED'] as const;
 
-/** Payment methods this FT-based flow reconciles (everything but card). */
-const FT_PAYMENT_METHODS = ['BANK', 'TELEBIRR', 'YAGOUT'] as const;
 
 export async function GET(request: Request) {
   try {
@@ -43,9 +42,8 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     // MPGS is reconciled from its own tab, so it is never a valid filter here.
-    const paymentMethod = (FT_PAYMENT_METHODS as readonly string[]).includes(searchParams.get('paymentMethod') ?? '')
-      ? searchParams.get('paymentMethod')
-      : null;
+    const channelParam = searchParams.get('paymentMethod') ?? '';
+    const channelWhere = channelParam === 'MPGS' ? null : CHANNEL_WHERE[channelParam] ?? null;
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
     const view = searchParams.get('view') === 'history' ? 'history' : 'unresolved';
@@ -76,10 +74,10 @@ export async function GET(request: Request) {
       const historyWhere: any = {
         status: status === 'EXECUTED' || status === 'REJECTED' ? status : { in: ['EXECUTED', 'REJECTED'] },
       };
-      if (merchantId || paymentMethod) {
+      if (merchantId || channelWhere) {
         historyWhere.transaction = {
           ...(merchantId ? { merchantId } : {}),
-          ...(paymentMethod ? { paymentMethod } : {}),
+          ...(channelWhere ?? {}),
         };
       }
       if (dateRange) historyWhere.checkedAt = dateRange;
@@ -96,6 +94,8 @@ export async function GET(request: Request) {
           include: {
             transaction: {
               select: {
+                id: true,
+                origin: true,
                 transactionReference: true,
                 amount: true,
                 paymentMethod: true,
@@ -134,7 +134,7 @@ export async function GET(request: Request) {
       : status === 'ALL'
         ? undefined
         : { in: [...UNRESOLVED_STATUSES] };
-    const where: any = { paymentMethod: paymentMethod ?? { not: 'MPGS' } };
+    const where: any = { ...(channelWhere ?? { paymentMethod: { not: 'MPGS' } }) };
     if (statusFilter) where.status = statusFilter;
 
     if (merchantId) {
@@ -149,6 +149,7 @@ export async function GET(request: Request) {
       where.OR = [
         { transactionReference: { contains: search, mode: 'insensitive' } },
         { cbsreference: { contains: search, mode: 'insensitive' } },
+        { externalReference: { contains: search, mode: 'insensitive' } },
         { payerPhone: { contains: search } },
         { payerAccount: { contains: search } },
       ];

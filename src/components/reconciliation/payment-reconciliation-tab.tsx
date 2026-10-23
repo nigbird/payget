@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast'
 import { downloadCsv } from '@/lib/export-csv'
 import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
 import { TablePagination } from './table-pagination'
+import { CHANNEL_LABELS, channelLabel as sharedChannelLabel, paymentFt, type ChannelSource } from '@/lib/payment-channel'
 
 type UnresolvedTransaction = {
   id: string
@@ -33,9 +34,11 @@ type UnresolvedTransaction = {
   merchant: { id: string; name: string; accountNumber: string | null }
   amount: number
   paymentMethod?: string | null
+  origin?: string | null
   status: string
   transactionReference: string
   cbsreference: string | null
+  externalReference?: string | null
   providerStatusCode: string | null
   providerStatusDesc: string | null
   payerPhone: string | null
@@ -51,6 +54,8 @@ type ReconciliationRequest = {
   id: string
   transactionId: string
   transaction?: {
+    id?: string
+    origin?: string | null
     transactionReference: string
     amount: number
     paymentMethod?: string | null
@@ -87,11 +92,12 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: 'FAILED', label: 'Failed' },
 ]
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  BANK: 'NIB Bank',
-  TELEBIRR: 'Telebirr',
-  YAGOUT: 'YagoutPay',
-}
+/** Channel filter values; the API maps each one to its query. */
+/** Card payments are reconciled from the Card (MPGS) tab, so it is no filter option here. */
+const CHANNEL_OPTIONS = Object.entries(CHANNEL_LABELS).filter(([value]) => value !== 'MPGS')
+
+const channelLabel = (tx?: ChannelSource) => sharedChannelLabel(tx) || '—'
+const ftOf = paymentFt
 
 const HISTORY_STATUS_OPTIONS = [
   { value: 'EXECUTED', label: 'Settled' },
@@ -259,7 +265,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
             r.transaction?.transactionReference || '',
             r.transaction?.merchant?.name || '',
             r.transaction?.amount ?? '',
-            r.transaction?.paymentMethod || '',
+            channelLabel(r.transaction),
             r.transaction?.payerPhone || r.transaction?.payerAccount || '',
             r.ftNumber,
             r.previousStatus,
@@ -276,12 +282,14 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
       } else {
         const rows: UnresolvedTransaction[] = data.transactions || []
         // Column names and order follow the reconciliation team's template, plus
-        // CREDIT.ACCT.NO (the merchant's account) alongside the payer's DEBIT.ACCT.NO.
+        // merchantName and CREDIT.ACCT.NO (the merchant's account). paymentMethod is
+        // the channel, so NIB Bank push, QR and external credits can be told apart.
         downloadCsv(
           'payment-reconciliation-transactions',
           [
             'id',
             'merchantId',
+            'merchantName',
             'amount',
             'status',
             'Trx_Date',
@@ -298,6 +306,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
           rows.map((tx) => [
             tx.id,
             tx.merchantId,
+            tx.merchant?.name || '',
             tx.amount,
             tx.status,
             formatDay(tx.timestamp),
@@ -307,9 +316,10 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
             tx.transactionReference,
             tx.serviceDescription || '',
             formatDate(tx.transactionTimestamp),
-            tx.paymentMethod || '',
-            tx.cbsreference || '',
-            tx.providerStatusDesc || '',
+            channelLabel(tx),
+            ftOf(tx),
+            // One line, so Excel rows don't balloon on multi-line provider messages.
+            (tx.providerStatusDesc || '').replace(/\s*\n\s*/g, ' ').trim(),
           ])
         )
         toast({ title: 'Export complete', description: `Exported ${rows.length} transactions to CSV.` })
@@ -534,7 +544,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All methods</SelectItem>
-                {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                {CHANNEL_OPTIONS.map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
@@ -618,7 +628,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                             {r.transaction ? formatCurrency(r.transaction.amount) : '—'}
                           </TableCell>
                           <TableCell className="text-sm">
-                            {PAYMENT_METHOD_LABELS[r.transaction?.paymentMethod ?? ''] ?? r.transaction?.paymentMethod ?? '—'}
+                            {channelLabel(r.transaction)}
                           </TableCell>
                           <TableCell className="font-mono text-xs">{r.ftNumber}</TableCell>
                           <TableCell>
@@ -690,7 +700,7 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
                           <TableCell>{tx.merchant?.name}</TableCell>
                           <TableCell>{formatCurrency(tx.amount)}</TableCell>
                           <TableCell className="text-sm">
-                            {PAYMENT_METHOD_LABELS[tx.paymentMethod ?? ''] ?? tx.paymentMethod ?? '—'}
+                            {channelLabel(tx)}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {tx.payerPhone || tx.payerAccount || tx.userCredentials?.phone || '—'}
@@ -832,8 +842,8 @@ export function PaymentReconciliationTab({ embedded = false }: { embedded?: bool
               ['transactionReference', selectedTx.transactionReference, true],
               ['serviceDescription', selectedTx.serviceDescription],
               ['transactionTimestamp', formatDate(selectedTx.transactionTimestamp)],
-              ['paymentMethod', PAYMENT_METHOD_LABELS[selectedTx.paymentMethod ?? ''] ?? selectedTx.paymentMethod],
-              ['cbsreference', selectedTx.cbsreference, true],
+              ['paymentMethod', channelLabel(selectedTx)],
+              ['cbsreference', ftOf(selectedTx), true],
             ]
             return (
               <div className="mt-6 stack-y-6">

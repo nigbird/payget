@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils'
 import { downloadCsv } from '@/lib/export-csv'
 import { FilterToolbar, SearchInput, DateRangeFilter } from './filter-toolbar'
 import { TablePagination } from './table-pagination'
+import { CHANNEL_LABELS, channelLabel } from '@/lib/payment-channel'
 
 type CashbackReconciliationItem = {
   id: string
@@ -51,6 +52,15 @@ type CashbackReconciliationItem = {
   paymentAmount: number
   /** BANK | TELEBIRR | YAGOUT | MPGS, from the payment transaction. */
   paymentMethod: string | null
+  /** INTERNAL | EXTERNAL, from the payment transaction. */
+  paymentOrigin: string | null
+  paymentStatus: string | null
+  paymentDate: string | null
+  /** The payment's FT (see lib/payment-channel paymentFt). */
+  paymentFt: string
+  /** Cashback transfer reference; the FT when settled from a bank receipt. */
+  providerCreditRef: string | null
+  providerDebitRef: string | null
   /** YagoutPay gateway the customer paid through (pg_name), e.g. their bank or wallet. */
   paymentSource: string | null
   paymentMode: string | null
@@ -67,15 +77,17 @@ type CashbackReconciliationItem = {
   requests?: any[]
 }
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  BANK: 'NIB Bank',
-  TELEBIRR: 'Telebirr',
-  YAGOUT: 'YagoutPay',
-  MPGS: 'Card (MPGS)',
+/** Channel of the payment behind a cashback row — the same split as payment reconciliation. */
+function paymentChannel(row: { paymentTransactionId: string; paymentOrigin?: string | null; paymentMethod?: string | null }) {
+  return channelLabel({ id: row.paymentTransactionId, origin: row.paymentOrigin, paymentMethod: row.paymentMethod })
 }
 
-function paymentMethodLabel(method: string | null | undefined) {
-  return method ? PAYMENT_METHOD_LABELS[method] ?? method : ''
+/** YYYY-MM-DD in local time, matching the payment reconciliation export's Trx_Date. */
+function formatDay(value: string | null | undefined) {
+  if (!value) return ''
+  const d = new Date(value)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 /** "Gateway · paymode" for Yagout payments; empty for the direct rails. */
@@ -311,6 +323,12 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
           customerAccount: tx.customerAccount,
           paymentAmount: tx.paymentAmount,
           paymentMethod: tx.paymentMethod ?? null,
+          paymentOrigin: tx.paymentOrigin ?? null,
+          paymentStatus: tx.paymentStatus ?? null,
+          paymentDate: tx.paymentDate ?? null,
+          paymentFt: tx.paymentFt ?? '',
+          providerCreditRef: tx.providerCreditRef ?? null,
+          providerDebitRef: tx.providerDebitRef ?? null,
           paymentSource: tx.paymentSource ?? null,
           paymentMode: tx.paymentMode ?? null,
           cashbackAmount: tx.cashbackAmount,
@@ -320,7 +338,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
           retryCount: tx.retryCount || 0,
           failureReason: tx.failureReason,
           skipReason: tx.skipReason,
-          subsidiaryAccountNumber: tx.subsidiaryAccountNumber,
+          subsidiaryAccountNumber: tx.subsidiaryAccount ?? null,
           processedAt: tx.processedAt,
           createdAt: tx.createdAt,
           requests: tx.requests
@@ -380,26 +398,41 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
         if (!res.ok) throw new Error('Failed to fetch export data')
         const data = await res.json()
 
-        downloadCsv('cashback-transactions', [
-          'Transaction Ref', 'Merchant', 'Merchant Account', 'Payment Method', 'Payment Source', 'Pay Mode',
-          'Customer Phone', 'Customer Account', 'Eligibility Category', 'Payment Amount (ETB)', 'Cashback Amount (ETB)',
-          'Cashback %', 'Cashback Status', 'Failure Reason', 'Created At'
+        // Named like the payment reconciliation export so the two can be matched on
+        // paymentTransactionId. Cashback moves money from the merchant's cashback
+        // (subsidiary) account — DEBIT.ACCT.NO — to the customer — CREDIT.ACCT.NO.
+        downloadCsv('cashback-reconciliation-transactions', [
+          'id', 'paymentTransactionId', 'merchantId', 'merchantName', 'merchantAccount',
+          'transactionReference', 'paymentMethod', 'paymentSource', 'payMode', 'paymentStatus',
+          'paymentAmount', 'paymentFT', 'Trx_Date', 'customerPhone', 'DEBIT.ACCT.NO', 'CREDIT.ACCT.NO',
+          'category', 'cashbackPercent', 'cashbackAmount', 'status', 'cashbackFT', 'providerDebitRef',
+          'failureReason', 'createdAt', 'processedAt'
         ], data.transactions.map((i: any) => [
-          i.transactionReference,
-          i.merchant?.name || 'Unknown Merchant',
+          i.id,
+          i.paymentTransactionId,
+          i.merchantId,
+          i.merchant?.name || '',
           i.merchant?.accountNumber || '',
-          paymentMethodLabel(i.paymentMethod),
+          i.transactionReference,
+          paymentChannel(i),
           i.paymentSource || '',
           i.paymentMode || '',
+          i.paymentStatus || '',
+          i.paymentAmount,
+          i.paymentFt || '',
+          formatDay(i.paymentDate),
           i.customerPhone || '',
+          i.subsidiaryAccount || '',
           i.customerAccount || '',
           i.category?.name || '',
-          i.paymentAmount,
-          i.cashbackAmount,
           i.cashbackPercent,
+          i.cashbackAmount,
           i.status,
+          i.providerCreditRef || '',
+          i.providerDebitRef || '',
           i.failureReason || i.skipReason || '',
-          new Date(i.createdAt).toLocaleString()
+          new Date(i.createdAt).toLocaleString(),
+          i.processedAt ? new Date(i.processedAt).toLocaleString() : ''
         ]))
         toast({ title: 'Export Complete', description: `Exported ${data.transactions.length} transactions to CSV` })
       } catch (error) {
@@ -699,8 +732,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                         <SelectItem value='PROCESSING'>Processing</SelectItem>
                         <SelectItem value='COMPLETED'>Completed</SelectItem>
                         <SelectItem value='FAILED'>Failed</SelectItem>
-                        <SelectItem value='MANUAL_REVIEW'>Manual Review</SelectItem>
-                        <SelectItem value='RECONCILED'>Reconciled</SelectItem>
+                        <SelectItem value='SKIPPED'>Skipped</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select
@@ -716,7 +748,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value='ALL'>All methods</SelectItem>
-                        {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                        {Object.entries(CHANNEL_LABELS).map(([value, label]) => (
                           <SelectItem key={value} value={value}>{label}</SelectItem>
                         ))}
                       </SelectContent>
@@ -796,7 +828,7 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
                                 {item.customerPhone || item.customerAccount || '-'}
                               </TableCell>
                               <TableCell className='text-sm'>
-                                {paymentMethodLabel(item.paymentMethod) || '-'}
+                                {paymentChannel(item) || '-'}
                                 {item.paymentSource && (
                                   <div className='text-xs text-slate-500'>
                                     {paymentSourceLabel(item.paymentSource, item.paymentMode)}
@@ -1110,26 +1142,29 @@ export function CashbackReconciliationTab({ embedded = false }: { embedded?: boo
               <div className='rounded-[18px] border border-[#F1E7D0] bg-[#FFFDF7] p-4'>
                 <div className='text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3'>Technical Details</div>
                 <div className='grid grid-cols-2 gap-3 text-xs'>
-                  <div>
-                    <div className='text-slate-500'>Cashback ID</div>
-                    <div className='font-mono mt-0.5'>{selectedItem.id}</div>
-                  </div>
-                  <div>
-                    <div className='text-slate-500'>Payment TX ID</div>
-                    <div className='font-mono mt-0.5'>{selectedItem.paymentTransactionId}</div>
-                  </div>
-                  {selectedItem.subsidiaryAccountNumber && (
-                    <div>
-                      <div className='text-slate-500'>Subsidiary Account</div>
-                      <div className='font-mono mt-0.5'>{selectedItem.subsidiaryAccountNumber}</div>
+                  {(
+                    [
+                      ['Cashback ID', selectedItem.id, true],
+                      ['Payment TX ID', selectedItem.paymentTransactionId, true],
+                      ['merchantId', selectedItem.merchantId, true],
+                      ['Paid via', paymentChannel(selectedItem)],
+                      ['Payment status', selectedItem.paymentStatus],
+                      ['Payment date', formatDay(selectedItem.paymentDate)],
+                      ['Payment FT', selectedItem.paymentFt, true],
+                      ['Cashback FT', selectedItem.providerCreditRef, true],
+                      ['Provider debit ref', selectedItem.providerDebitRef, true],
+                      ['DEBIT.ACCT.NO (subsidiary)', selectedItem.subsidiaryAccountNumber, true],
+                      ['CREDIT.ACCT.NO (customer)', selectedItem.customerAccount, true],
+                      ['Customer phone', selectedItem.customerPhone],
+                      ['Category', selectedItem.categoryName],
+                      ['Cashback %', `${selectedItem.cashbackPercent}%`],
+                    ] as [string, string | null | undefined, boolean?][]
+                  ).map(([label, value, mono]) => (
+                    <div key={label}>
+                      <div className='text-slate-500'>{label}</div>
+                      <div className={`mt-0.5 break-all ${mono ? 'font-mono' : ''}`}>{value || '—'}</div>
                     </div>
-                  )}
-                  {selectedItem.categoryName && (
-                    <div>
-                      <div className='text-slate-500'>Category</div>
-                      <div className='mt-0.5'>{selectedItem.categoryName}</div>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
 
