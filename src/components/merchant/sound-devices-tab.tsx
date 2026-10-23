@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { QRCodeCanvas } from "qrcode.react"
-import { BellRing, Copy, ExternalLink, Loader2, Plus, Speaker, Trash2 } from "lucide-react"
+import {
+  BellRing,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Speaker,
+  Trash2,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -29,6 +39,8 @@ type SoundDeviceDto = {
 
 type Props = { merchantId: string; canManage: boolean }
 
+const DEVICES_PAGE_SIZE = 5
+
 export function SoundDevicesTab({ merchantId, canManage }: Props) {
   const { toast } = useToast()
   const [devices, setDevices] = useState<SoundDeviceDto[]>([])
@@ -39,6 +51,12 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
   const [testing, setTesting] = useState(false)
   const [pairing, setPairing] = useState<{ name: string; link: string } | null>(null)
   const [toRemove, setToRemove] = useState<SoundDeviceDto | null>(null)
+  const [page, setPage] = useState(0)
+
+  const pageCount = Math.max(1, Math.ceil(devices.length / DEVICES_PAGE_SIZE))
+  // Clamp so removing the last device on a page doesn't strand the view on an empty page.
+  const safePage = Math.min(page, pageCount - 1)
+  const pagedDevices = devices.slice(safePage * DEVICES_PAGE_SIZE, (safePage + 1) * DEVICES_PAGE_SIZE)
 
   const load = useCallback(async () => {
     try {
@@ -155,8 +173,13 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
       </Card>
 
       <Card className="rounded-2xl border-white/60 bg-white/80 shadow-xs">
-        <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
-          <CardTitle className="text-lg text-[#5b371f]">Paired devices</CardTitle>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
+          <CardTitle className="text-lg text-[#5b371f]">
+            Paired devices
+            {devices.length > 0 && (
+              <span className="ml-2 text-sm font-normal text-[#754319]/60">({devices.length})</span>
+            )}
+          </CardTitle>
           <Button variant="outline" size="sm" onClick={sendTest} disabled={testing || devices.length === 0}>
             {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BellRing className="mr-2 h-4 w-4" />}
             Send test announcement
@@ -168,8 +191,9 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
           ) : devices.length === 0 ? (
             <p className="text-sm text-[#754319]/70">No devices paired yet.</p>
           ) : (
+            <>
             <ul className="divide-y divide-[#754319]/10">
-              {devices.map((d) => (
+              {pagedDevices.map((d) => (
                 <li key={d.id} className="flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-[#5b371f]">{d.name}</p>
@@ -193,6 +217,32 @@ export function SoundDevicesTab({ merchantId, canManage }: Props) {
                 </li>
               ))}
             </ul>
+            {pageCount > 1 && (
+              <div className="flex items-center justify-between border-t border-[#754319]/10 pt-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1 rounded-lg px-2 text-xs font-semibold text-slate-500"
+                  onClick={() => setPage(Math.max(0, safePage - 1))}
+                  disabled={safePage === 0}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </Button>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Page {safePage + 1} of {pageCount}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1 rounded-lg px-2 text-xs font-semibold text-slate-500"
+                  onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
+                  disabled={safePage >= pageCount - 1}
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -573,21 +573,21 @@ export default function MerchantConfigurationPage({ params }: { params: Promise<
               {TABS.map(({ value, label, icon: Icon }, index) => {
                 const active = activeTab === value
                 return (
-                  <div key={value} className="flex shrink-0 items-center">
-                    {index > 0 && <span aria-hidden className="h-4 w-px bg-[#754319]/10" />}
+                  <div key={value} className="flex flex-1 shrink-0 items-center">
+                    {index > 0 && <span aria-hidden className="h-4 w-px shrink-0 bg-[#754319]/10" />}
                     <button
                       type="button"
                       role="tab"
                       aria-selected={active}
                       onClick={() => setActiveTab(value)}
                       title={label}
-                      className={`relative mx-1 my-2 flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-colors duration-200 after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#f8b513]/40 ${
+                      className={`relative mx-1 my-2 flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-colors duration-200 after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#f8b513]/40 ${
                         active
                           ? "bg-[#fdf6e7] text-[#5b371f] after:bg-[#f8b513]"
                           : "text-[#754319]/60 after:bg-transparent hover:bg-[#fdf6e7]/60 hover:text-[#5b371f]"
                       }`}
                     >
-                      <Icon className={`h-4 w-4 ${active ? "text-[#754319]" : "text-[#754319]/50"}`} />
+                      <Icon className={`h-4 w-4 shrink-0 ${active ? "text-[#754319]" : "text-[#754319]/50"}`} />
                       {label}
                     </button>
                   </div>

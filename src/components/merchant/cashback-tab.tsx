@@ -874,7 +874,7 @@ export function CashbackTab({ merchantId }: Props) {
 
       <Card className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="stack-y-0.5">
               <Label htmlFor="cashback-enabled" className="text-base font-semibold text-[#5b371f]">
                 Enable Cashback Program
@@ -898,7 +898,7 @@ export function CashbackTab({ merchantId }: Props) {
 
       {form.enabled && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 rounded-xl h-12 bg-amber-50/50 p-1 border border-amber-100/60">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:h-12 md:grid-cols-4 rounded-xl bg-amber-50/50 p-1 border border-amber-100/60">
             <TabsTrigger
               value="settings"
               className="rounded-lg data-[state=active]:bg-linear-to-r data-[state=active]:from-[#f8b513] data-[state=active]:to-[#754319] data-[state=active]:text-white data-[state=active]:shadow-xs data-[state=inactive]:text-[#754319]/70"
@@ -973,7 +973,7 @@ export function CashbackTab({ merchantId }: Props) {
                   {form.mode === "ALL_CUSTOMERS" && (
                     <div className="pt-4 border-t">
                       <h4 className="text-sm font-semibold text-[#5b371f] mb-4">Universal cashback rules</h4>
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-4 sm:grid-cols-3">
                         <CashbackFormField
                           label="Cashback %"
                           hint="0.01 – 100"
@@ -1118,47 +1118,13 @@ export function CashbackTab({ merchantId }: Props) {
 
             <TabsContent value="customers" className="stack-y-6">
               <Card className="rounded-2xl border-white/60 bg-white/85 shadow-xs">
-                <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-6">
-                    <CardTitle className="text-base text-[#5b371f] flex items-center gap-2">
+                <CardHeader className="stack-y-4 pb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle className="flex items-center gap-2 whitespace-nowrap text-base text-[#5b371f]">
                       <Users className="h-4 w-4" /> Eligible customers
                     </CardTitle>
-                    
-                    <div className="flex items-center gap-2 border-l pl-4 md:pl-6">
-                      <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider shrink-0">
-                        Show group
-                      </Label>
-                      <Select
-                        value={customerFilterCategoryId}
-                        onValueChange={setCustomerFilterCategoryId}
-                      >
-                        <SelectTrigger className="h-9 min-w-[140px] rounded-xl border-amber-200/80 bg-white text-xs font-semibold text-[#754319] shadow-xs">
-                          <SelectValue placeholder="All groups" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
-                          <SelectItem value="all" className="rounded-lg text-sm">
-                            All groups
-                          </SelectItem>
-                          {config?.categories.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id} className="rounded-lg text-sm">
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative w-full sm:w-56">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Input
-                        placeholder="Search phone, account, group…"
-                        className="h-9 rounded-xl border-slate-200 bg-white pl-9 text-sm"
-                        value={customerSearch}
-                        onChange={(e) => setCustomerSearch(e.target.value)}
-                      />
-                    </div>
                     <Button
                       type="button"
                       variant="outline"
@@ -1278,16 +1244,47 @@ export function CashbackTab({ merchantId }: Props) {
                     </DialogContent>
                   </Dialog>
                   </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Select value={customerFilterCategoryId} onValueChange={setCustomerFilterCategoryId}>
+                      <SelectTrigger
+                        aria-label="Show group"
+                        className="h-9 rounded-xl border-amber-200/80 bg-white text-xs font-semibold text-[#754319] shadow-xs sm:w-48"
+                      >
+                        <SelectValue placeholder="All groups" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-amber-100 bg-white shadow-lg">
+                        <SelectItem value="all" className="rounded-lg text-sm">
+                          All groups
+                        </SelectItem>
+                        {config?.categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id} className="rounded-lg text-sm">
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        placeholder="Search phone, account, group…"
+                        className="h-9 rounded-xl border-slate-200 bg-white pl-9 text-sm"
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="max-h-[400px] overflow-auto rounded-xl border border-slate-100 bg-white">
-                    <table className="w-full text-sm">
+                    <table className="w-full min-w-[560px] text-sm">
                       <thead className="bg-slate-50/50 sticky top-0 border-b">
                         <tr>
                           <th className="text-left p-3 font-semibold text-slate-600">Phone number</th>
                           <th className="text-left p-3 font-semibold text-slate-600">Account</th>
                           <th className="text-left p-3 font-semibold text-slate-600">Assigned category</th>
-                          <th className="text-right p-3 font-semibold text-slate-600 w-16">Actions</th>
+                          <th className="text-right p-3 font-semibold text-slate-600 w-24">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
@@ -1387,7 +1384,7 @@ export function CashbackTab({ merchantId }: Props) {
                       <DateRangePicker value={historyDateRange} onChange={setHistoryDateRange} />
                     </div>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-10 w-40 rounded-xl border-slate-200 bg-white">
+                      <SelectTrigger className="h-10 flex-1 rounded-xl border-slate-200 bg-white sm:w-40 sm:flex-none">
                         <div className="flex items-center gap-2">
                           <Filter className="h-4 w-4" />
                           <SelectValue placeholder="Status" />
@@ -1418,12 +1415,12 @@ export function CashbackTab({ merchantId }: Props) {
                   <div className="stack-y-3">
                     {transactions.map((tx) => (
                       <div key={tx.id} className="rounded-xl border border-slate-100 p-4 text-sm bg-white hover:border-amber-200 transition-colors">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="stack-y-1">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                          <div className="min-w-0 stack-y-1">
                             <p className="text-base font-bold text-[#5b371f]">
                               {tx.cashbackAmount.toFixed(2)} ETB <span className="text-xs font-normal text-slate-400">({tx.cashbackPercent}%)</span>
                             </p>
-                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                               <span>Payment: <span className="font-semibold text-slate-700">{tx.paymentAmount.toFixed(2)}</span></span>
                               <span className="w-1 h-1 rounded-full bg-slate-300" />
                               <span>Customer: <span className="font-semibold text-slate-700">{tx.customerPhone ?? "—"}</span></span>
@@ -1435,8 +1432,8 @@ export function CashbackTab({ merchantId }: Props) {
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-1 sm:shrink-0 sm:items-end">
+                            <div className="flex flex-wrap items-center gap-2">
                               <StatusBadge status={tx.status} />
                               <p className="font-mono text-[10px] text-slate-400 uppercase tracking-tighter">{tx.paymentTransactionId}</p>
                             </div>
@@ -1461,7 +1458,7 @@ export function CashbackTab({ merchantId }: Props) {
                   
                   {/* Pagination */}
                   {transactionsTotal > 0 && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                    <div className="mt-4 flex flex-col items-center gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-between">
                       <p className="text-xs text-slate-500">
                         Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, transactionsTotal)} of {transactionsTotal}
                       </p>
