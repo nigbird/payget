@@ -5,7 +5,6 @@ import crypto from 'crypto';
 import { writeAuditLog } from '@/lib/audit-log';
 import { deliverMerchantCallback } from '@/lib/merchant-callback';
 import { classifyProviderOutcome } from '@/lib/provider-outcome';
-import { checkTransactionStatusAtProvider } from '@/lib/provider-encryption';
 
 const TERMINAL_STATUSES = new Set(['success', 'failed']);
 
@@ -295,24 +294,6 @@ export async function POST(request: Request) {
         );
         finalStatus = "processing";
         indeterminateReason = "AMOUNT_MISMATCH";
-      }
-    }
-
-    // When the key came from the caller-supplied pubkey (no per-transaction
-    // secret), decrypting proves nothing about who sent it — anyone can derive
-    // that key from our public key. Don't settle on its word: confirm with the
-    // provider's status API, and hold for reconciliation if that can't confirm.
-    if (finalStatus === "success" && sharedSecretSource === "server_private_key") {
-      const txSecret = tx.userCredentials?.providerSharedSecret;
-      const confirmation = txSecret
-        ? await checkTransactionStatusAtProvider(tx.transactionReference, txSecret).catch(() => null)
-        : null;
-      if (!confirmation?.ok || confirmation.paymentStatus !== "PAID") {
-        console.error(
-          `[CALLBACK] Unconfirmed success via pubkey callback for ${tx.transactionReference}; holding for reconciliation`
-        );
-        finalStatus = "processing";
-        indeterminateReason = "UNCONFIRMED_PUBKEY_CALLBACK";
       }
     }
 
