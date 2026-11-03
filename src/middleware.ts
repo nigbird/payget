@@ -40,8 +40,13 @@ async function resolveUserFromRequest(req: NextRequest): Promise<{
 // that can fail even though the app is perfectly healthy. request-security.ts's
 // requireCsrf hits the same problem and already prefers a configured app URL
 // over anything request-derived; reuse that here instead of req.url.
+// On a deployed server those vars hold the PUBLIC origin (requireCsrf needs it),
+// which routes this loopback back through the proxy/WAF and fails — every page
+// load then bounces to /login. INTERNAL_APP_URL (e.g. http://127.0.0.1:4002)
+// points the loopback at the app process directly and takes precedence.
 function internalBaseUrl(req: NextRequest): string {
   const configured =
+    process.env.INTERNAL_APP_URL ||
     process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL
   if (configured) {
     try {
@@ -67,8 +72,11 @@ async function validateSessionFromMiddleware(req: NextRequest): Promise<boolean>
         signal: AbortSignal.timeout(3000),
       })
       return res.ok
-    } catch {
+    } catch (e) {
       // fall through to retry, or fail closed below
+      if (attempt === 1) {
+        console.error("[middleware] session validation call to %s failed:", validateUrl.origin, e)
+      }
     }
   }
   return false
