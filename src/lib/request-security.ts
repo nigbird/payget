@@ -13,7 +13,7 @@ function randomString(length: number) {
 }
 
 export function requireCsrf(request: Request): Response | null {
-  // Defense-in-depth alongside SameSite=Lax cookies.
+  // Defense-in-depth alongside SameSite=Strict cookies.
   // Browsers always send Origin on cross-origin requests; same-origin requests
   // send Origin matching the app's host. Server-to-server calls (no Origin) pass.
   const origin = request.headers.get("origin")

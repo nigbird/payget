@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { useAuth, refreshAccessToken } from "@/lib/auth-context"
+import { useAuth, refreshAccessTokenResult } from "@/lib/auth-context"
 import { useRouter, usePathname } from "next/navigation"
 import {
   Dialog,
@@ -52,6 +52,7 @@ export function SessionWatcher() {
     pathname?.startsWith("/activate") ||
     pathname?.startsWith("/l/") ||
     pathname === "/speaker" ||
+    pathname === "/session-resume" ||
     pathname?.startsWith("/merchant/review-update")
 
   const isAuthPageRef = useRef(isAuthPage)
@@ -155,14 +156,18 @@ export function SessionWatcher() {
           // The access token may have simply expired (it's short-lived and only
           // renewed reactively). Try a silent refresh and replay the request once
           // before treating this as a real session expiry.
-          const refreshed = await refreshAccessToken()
-          if (refreshed) {
+          const refreshed = await refreshAccessTokenResult()
+          if (refreshed === "ok") {
             const retryResponse = await originalFetch(...args)
             if (retryResponse.status !== 401) return retryResponse
             window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
             return retryResponse
           }
-          window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
+          // A refresh that failed for a transient reason (network, 5xx) is not
+          // a verdict on the session; only a rejected refresh logs out.
+          if (refreshed === "unauthorized") {
+            window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
+          }
         }
         return response
       } catch (error) {

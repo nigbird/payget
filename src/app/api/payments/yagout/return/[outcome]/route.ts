@@ -139,8 +139,9 @@ export async function POST(
 
     // The merchant raised this payment from their dashboard and paid it in the
     // same browser, so send them back there; the dashboard opens its payment
-    // result modal for this reference. The session cookies are SameSite=Lax,
-    // which a top-level GET after this redirect still carries.
+    // result modal for this reference. On the first request after this cross-site redirect the browser withholds
+    // the SameSite=Strict session cookies, and middleware routes the page through
+    // /session-resume, which refreshes from a same-site fetch and comes back.
     const reference = result.transactionReference ?? response.orderNo
     const tx = result.transactionId && reference ? await db.getTransactionByReference(reference) : null
     if (tx) {

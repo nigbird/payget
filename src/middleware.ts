@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
 import { decryptAccessTokenFromCookie, accessTokenCookieName } from "@/lib/access-token-cookie"
 import { canOpenDashboard } from "@/lib/dashboard-permissions"
+import { refreshTokenCookieName } from "@/lib/refresh-token-cookie"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -129,6 +130,7 @@ export async function middleware(req: NextRequest) {
     pathname === "/merchant/setup-password" ||
     pathname.startsWith("/pay/") ||
     pathname.startsWith("/l/") ||
+    pathname === "/session-resume" ||
     // Sound devices authenticate with their own device token (see lib/sound-devices),
     // not a session — a counter speaker must outlive the 5-minute idle logout.
     pathname === "/speaker"
@@ -167,11 +169,30 @@ export async function middleware(req: NextRequest) {
     return res
   }
 
+  // No usable access token doesn't mean the session is over: the 5-minute
+  // access cookie may have lapsed a moment before this click, the session check
+  // above may have hit a transient failure, or the browser came from another
+  // site (YagoutPay's return, an emailed link), where SameSite=Strict cookies
+  // are withheld from the first request. /session-resume refreshes from a
+  // same-site fetch and comes back, or goes to login if the refresh is
+  // rejected — the requested page is still never served without a session.
+  const mayResumeSession =
+    !!req.cookies.get(refreshTokenCookieName())?.value ||
+    req.headers.get("sec-fetch-site") === "cross-site"
+  function resumeSession() {
+    const next = new URL(nextUrl.toString())
+    next.searchParams.delete("_rsc")
+    const resumeUrl = new URL("/session-resume", req.url)
+    resumeUrl.searchParams.set("next", next.pathname + next.search)
+    return redirect(resumeUrl.toString())
+  }
+
   if (isAdminRoute && !isLoggedIn && !isAuthExemptRoute) {
     if (pathname === "/login") return
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    if (mayResumeSession) return resumeSession()
     return redirect("/login")
   }
 
@@ -180,6 +201,7 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    if (mayResumeSession) return resumeSession()
     const loginUrl = new URL("/login/merchant", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)
     const res = NextResponse.redirect(loginUrl)
@@ -192,6 +214,7 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    if (mayResumeSession && pathname !== "/") return resumeSession()
     return redirect("/login")
   }
 

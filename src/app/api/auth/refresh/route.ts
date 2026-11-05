@@ -17,6 +17,16 @@ import {
 } from "@/lib/refresh-token-cookie"
 import { requireCsrf } from '@/lib/request-security';
 
+/**
+ * A token rotated this recently is not treated as stolen. Two browser tabs
+ * refreshing at the same moment, or a refresh response lost to a navigation
+ * or network drop (the server rotated, the browser never got the new cookie),
+ * both present the just-rotated token; without this window either one ends
+ * the user's session mid-use. Outside the window, reuse still revokes the
+ * whole family.
+ */
+const REFRESH_REUSE_GRACE_MS = 30 * 1000
+
 export async function POST(request: Request) {
   try {
     const csrfError = await requireCsrf(request);
@@ -58,7 +68,11 @@ export async function POST(request: Request) {
     }
 
     // Reuse detection: token is already revoked — attacker may hold an old token.
-    if (existing.revokedAt) {
+    const withinReuseGrace =
+      !!existing.revokedAt &&
+      !!existing.replacedById &&
+      Date.now() - existing.revokedAt.getTime() < REFRESH_REUSE_GRACE_MS
+    if (existing.revokedAt && !withinReuseGrace) {
       // Revoke entire family and the associated session to cut off the attacker.
       await prisma.$transaction([
         prisma.refreshToken.updateMany({
@@ -194,10 +208,14 @@ export async function POST(request: Request) {
         }
       })
 
-      await tx.refreshToken.update({
-        where: { id: existing.id },
-        data: { revokedAt: new Date(), replacedById: next.id }
-      })
+      // A token reused inside the grace window keeps its original revokedAt,
+      // so the window can't be extended by presenting it again.
+      if (!existing.revokedAt) {
+        await tx.refreshToken.update({
+          where: { id: existing.id },
+          data: { revokedAt: new Date(), replacedById: next.id }
+        })
+      }
 
       return next
     })

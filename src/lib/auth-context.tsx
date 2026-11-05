@@ -47,31 +47,43 @@ const AuthContext = createContext<AuthContextValue>({
   logout: async () => {},
 })
 
-async function fetchMe(): Promise<AuthUser | null> {
+/**
+ * "unauthorized" means the server rejected the session (401/403). "error" is
+ * anything else — a network blip, a 5xx while the server is busy or
+ * restarting, a rate limit — and must not be mistaken for a logout.
+ */
+type MeResult = AuthUser | "unauthorized" | "error"
+
+async function fetchMe(): Promise<MeResult> {
   try {
     const res = await fetch("/api/auth/me", { credentials: "include" })
-    if (!res.ok) return null
+    if (res.status === 401 || res.status === 403) return "unauthorized"
+    if (!res.ok) return "error"
     return (await res.json()) as AuthUser
   } catch {
-    return null
+    return "error"
   }
 }
+
+export type RefreshResult = "ok" | "unauthorized" | "error"
 
 // Module-level (not per-component) in-flight promise so every caller — the
 // auth context's own me->refresh fallback, and SessionWatcher's 401
 // interceptor — shares one outstanding refresh. The refresh endpoint rotates
 // the refresh token and treats a reused token as theft, revoking the whole
 // session, so two concurrent POSTs here would lock the user out.
-let refreshPromise: Promise<boolean> | null = null
+let refreshPromise: Promise<RefreshResult> | null = null
 
-export function refreshAccessToken(): Promise<boolean> {
+export function refreshAccessTokenResult(): Promise<RefreshResult> {
   if (!refreshPromise) {
     refreshPromise = fetch("/api/auth/refresh", {
       method: "POST",
       credentials: "include",
     })
-      .then((res) => res.ok)
-      .catch(() => false)
+      .then((res): RefreshResult =>
+        res.ok ? "ok" : res.status === 401 || res.status === 403 ? "unauthorized" : "error"
+      )
+      .catch((): RefreshResult => "error")
       .finally(() => {
         refreshPromise = null
       })
@@ -79,30 +91,41 @@ export function refreshAccessToken(): Promise<boolean> {
   return refreshPromise
 }
 
+export function refreshAccessToken(): Promise<boolean> {
+  return refreshAccessTokenResult().then((r) => r === "ok")
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [status, setStatus] = useState<AuthStatus>("loading")
   const router = useRouter()
   const refreshing = useRef(false)
+  const statusRef = useRef<AuthStatus>("loading")
+  statusRef.current = status
 
   const loadUser = useCallback(async () => {
     if (refreshing.current) return
     refreshing.current = true
     try {
       let me = await fetchMe()
-      if (!me) {
+      if (me === "unauthorized") {
         // Access token may be expired — try refreshing.
-        const refreshed = await refreshAccessToken()
-        if (refreshed) {
-          me = await fetchMe()
-        }
+        const refreshed = await refreshAccessTokenResult()
+        me = refreshed === "ok" ? await fetchMe() : refreshed
       }
-      if (me) {
-        setUser(me)
-        setStatus("authenticated")
-      } else {
+      if (me === "error") {
+        // Transient failure: keep a signed-in user signed in and let the next
+        // poll try again. Only a definite rejection ends the session.
+        if (statusRef.current !== "authenticated") {
+          setUser(null)
+          setStatus("unauthenticated")
+        }
+      } else if (me === "unauthorized") {
         setUser(null)
         setStatus("unauthenticated")
+      } else {
+        setUser(me)
+        setStatus("authenticated")
       }
     } finally {
       refreshing.current = false
