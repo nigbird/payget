@@ -10,10 +10,21 @@ const LAST_ATTEMPT_KEY = "session_resume_at"
 const LOOP_GUARD_MS = 15 * 1000
 const MAX_TRANSIENT_RETRIES = 3
 
-/** Only same-origin paths: never an absolute or protocol-relative URL. */
+/**
+ * Only a path on this origin. Prefix checks alone are not enough: browsers
+ * strip tabs/newlines and treat "\" as "/", so "/\t/evil.example" passes a
+ * startsWith("//") test and still navigates off-site. Resolve it the way the
+ * browser will and compare origins.
+ */
 function safeNext(raw: string | null): string | null {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return null
-  return raw
+  if (!raw || !raw.startsWith("/")) return null
+  try {
+    const url = new URL(raw, window.location.origin)
+    if (url.origin !== window.location.origin) return null
+    return url.pathname + url.search + url.hash
+  } catch {
+    return null
+  }
 }
 
 /**

@@ -22,8 +22,8 @@ import { requireCsrf } from '@/lib/request-security';
  * refreshing at the same moment, or a refresh response lost to a navigation
  * or network drop (the server rotated, the browser never got the new cookie),
  * both present the just-rotated token; without this window either one ends
- * the user's session mid-use. Outside the window, reuse still revokes the
- * whole family.
+ * the user's session mid-use. Outside the window, or from a different
+ * browser, reuse still revokes the whole family.
  */
 const REFRESH_REUSE_GRACE_MS = 30 * 1000
 
@@ -68,10 +68,24 @@ export async function POST(request: Request) {
     }
 
     // Reuse detection: token is already revoked — attacker may hold an old token.
-    const withinReuseGrace =
-      !!existing.revokedAt &&
-      !!existing.replacedById &&
+    // The grace only covers the same browser that did the rotation (same IP and
+    // user agent as the replacement token), so a stolen copy replayed from
+    // elsewhere inside the window is still treated as theft.
+    let withinReuseGrace = false
+    if (
+      existing.revokedAt &&
+      existing.replacedById &&
       Date.now() - existing.revokedAt.getTime() < REFRESH_REUSE_GRACE_MS
+    ) {
+      const replacement = await prisma.refreshToken.findUnique({
+        where: { id: existing.replacedById },
+        select: { ipAddress: true, userAgent: true }
+      })
+      withinReuseGrace =
+        !!replacement &&
+        replacement.ipAddress === getClientIp(request) &&
+        (replacement.userAgent ?? null) === (request.headers.get("user-agent") ?? null)
+    }
     if (existing.revokedAt && !withinReuseGrace) {
       // Revoke entire family and the associated session to cut off the attacker.
       await prisma.$transaction([
