@@ -1,4 +1,5 @@
 import type { Transaction, TransactionItemLine } from "@/lib/db"
+import { getNonce } from "get-nonce"
 
 const GENERAL_BUCKET = "General"
 
@@ -107,6 +108,11 @@ export function printOrder(
     document.body.removeChild(iframe)
   }
 
+  // The blank iframe inherits this page's CSP, which only allows <style>
+  // elements carrying the request nonce.
+  const nonce = getNonce()
+  const nonceAttr = nonce ? ` nonce="${escapeHtml(nonce)}"` : ""
+
   doc.open()
   doc.write(`
     <!doctype html>
@@ -114,7 +120,7 @@ export function printOrder(
       <head>
         <meta charset="utf-8" />
         <title>Order ${escapeHtml(tx.transactionReference)}</title>
-        <style>
+        <style${nonceAttr}>
           @page { size: 80mm auto; margin: 4mm; }
           * { box-sizing: border-box; }
           body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; margin: 0; }
