@@ -174,6 +174,9 @@ export interface Transaction {
       amount?: string;
       currency?: string;
       country?: string;
+      /** me_id of the Yagout account the order was raised under; a return post
+       *  is only applied if it decrypted under this account's key. */
+      meId?: string;
       /** Gateway reference (pg_ref) — the one to quote to Yagout when reconciling. */
       pgRef?: string | null;
       /** Aggregator reference (ag_ref). */
@@ -277,6 +280,7 @@ function mapTransaction(
         amount?: string;
         currency?: string;
         country?: string;
+        meId?: string;
         pgRef?: string | null;
         agRef?: string | null;
         status?: string;

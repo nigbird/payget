@@ -100,9 +100,11 @@ export async function POST(
 
     const response = parseTxnResponse(txnPlain)
 
-    // The response carries the merchant id it was issued for; if that is not
-    // the merchant whose key just decrypted it, treat it as replayed.
-    if (response.meId && response.meId.trim() !== meId) {
+    // The response carries the merchant id it was issued for. It must be present
+    // and name the account whose key just decrypted it, otherwise it is treated
+    // as replayed or forged. Settlement then checks that this account is the one
+    // the order was raised under.
+    if (!response.meId || response.meId.trim() !== meId) {
       console.error("[YAGOUT] Return post me_id does not match its payload", {
         formMeId: meId,
         payloadMeId: response.meId,
@@ -127,7 +129,13 @@ export async function POST(
       }
     }
 
-    const result = await settleYagoutFromReturn({ response, pgDetails, raw, request })
+    const result = await settleYagoutFromReturn({
+      response,
+      decryptedWithMeId: meId,
+      pgDetails,
+      raw,
+      request,
+    })
 
     console.log("[YAGOUT] Return post applied", {
       outcome,
