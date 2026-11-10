@@ -11,8 +11,12 @@ const nextConfig: NextConfig = {
   },
   // No remote image hosts: every image is served by this app (uploads go through
   // /api/uploads/*). The old placeholder hosts were unused template leftovers.
+  // unoptimized: images are served as-is, so the /_next/image optimizer and its
+  // unbounded disk cache never run (VA-003 / CVE-2026-27980). Logos are tiny, so
+  // resizing bought almost nothing.
   images: {
     remotePatterns: [],
+    unoptimized: true,
   },
   // Don't advertise the framework in response headers.
   poweredByHeader: false,
