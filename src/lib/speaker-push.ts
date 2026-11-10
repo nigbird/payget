@@ -37,7 +37,7 @@ function sameKey(key: ArrayBuffer | null, expected: Uint8Array): boolean {
  * start: it re-sends the current subscription, which also repairs one the
  * server dropped or a browser that rotated it.
  */
-export async function enablePaymentPush(deviceToken: string): Promise<PushStatus> {
+export async function enablePaymentPush(): Promise<PushStatus> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
     return "unsupported"
   }
@@ -48,8 +48,9 @@ export async function enablePaymentPush(deviceToken: string): Promise<PushStatus
   if (permission !== "granted") return permission === "denied" ? "denied" : "error"
 
   try {
-    const auth = { Authorization: `Bearer ${deviceToken}` }
-    const config = await fetch("/api/devices/push-subscription", { headers: auth, cache: "no-store" })
+    // The device authenticates via its httpOnly session cookie (same-origin
+    // fetch sends it automatically); no token is held in JS here.
+    const config = await fetch("/api/devices/push-subscription", { cache: "no-store" })
     if (!config.ok) return "error"
     const { publicKey } = (await config.json()) as { publicKey: string | null }
     if (!publicKey) return "unavailable"
@@ -68,7 +69,7 @@ export async function enablePaymentPush(deviceToken: string): Promise<PushStatus
 
     const saved = await fetch("/api/devices/push-subscription", {
       method: "PUT",
-      headers: { ...auth, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(subscription.toJSON()),
     })
     return saved.ok ? "enabled" : "error"
@@ -79,12 +80,9 @@ export async function enablePaymentPush(deviceToken: string): Promise<PushStatus
 }
 
 /** Stops payment notifications on this device ("Payment notifications" switched off). */
-export async function disablePaymentPush(deviceToken: string): Promise<void> {
+export async function disablePaymentPush(): Promise<void> {
   try {
-    await fetch("/api/devices/push-subscription", {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${deviceToken}` },
-    })
+    await fetch("/api/devices/push-subscription", { method: "DELETE" })
     const registration = await navigator.serviceWorker?.getRegistration("/")
     await (await registration?.pushManager.getSubscription())?.unsubscribe()
   } catch (err) {

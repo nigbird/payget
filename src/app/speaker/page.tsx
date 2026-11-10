@@ -42,8 +42,12 @@ import type { ConnectionState, Payment } from "./_components/ui"
  * Counter speaker: a phone, tablet or PC left on at the till that announces
  * every payment the merchant receives. Paired from the merchant portal
  * (Configuration → Sound Devices), which opens /speaker#t=<device token>.
- * The token lives in this browser's localStorage and is independent of any
+ * The token is exchanged once (POST /api/devices/session) for an httpOnly
+ * cookie and is never kept in JS-readable storage, so a cross-site-scripting
+ * flaw cannot read the device credential. The session is independent of any
  * merchant login, so the page keeps working through session timeouts.
+ * Devices paired by an older client still carry the token in localStorage;
+ * they migrate to the cookie on their next online load (see below).
  *
  * Same screens and behaviour as the Android app (nibtera_speaker): Pair, a PIN,
  * Status, Settings. It starts by itself when opened; an installed app may play
@@ -130,6 +134,45 @@ function tokenFromPairingInput(input: string): { token: string } | { error: stri
   return token.startsWith("sdv_") ? { token } : { error: "This link has no pairing code in it." }
 }
 
+type SessionInfo = { deviceId: string; deviceName: string; merchantName: string }
+type SessionResult = { ok: true; info: SessionInfo } | { ok: false; offline: boolean }
+
+/** Current device session from the httpOnly cookie. `offline` distinguishes a
+ * network failure (keep trusting the existing pairing) from a 401 (not paired). */
+async function getDeviceSession(): Promise<SessionResult> {
+  try {
+    const res = await fetch("/api/devices/session", { cache: "no-store" })
+    if (res.ok) return { ok: true, info: await res.json() }
+    return { ok: false, offline: false }
+  } catch {
+    return { ok: false, offline: true }
+  }
+}
+
+/** Exchange a raw token for the httpOnly cookie (`mode:"check"` only resolves
+ * the device without committing the cookie, so the page can compare identities). */
+async function postDeviceSession(token: string, mode?: "check"): Promise<SessionResult> {
+  try {
+    const res = await fetch("/api/devices/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mode ? { token, mode } : { token }),
+    })
+    if (res.ok) return { ok: true, info: await res.json() }
+    return { ok: false, offline: false }
+  } catch {
+    return { ok: false, offline: true }
+  }
+}
+
+async function deleteDeviceSession(): Promise<void> {
+  try {
+    await fetch("/api/devices/session", { method: "DELETE" })
+  } catch {
+    // best-effort; the cookie also expires on its own
+  }
+}
+
 /** Running in an app window: the speaker's own, or the merchant portal's app opened on /speaker. */
 function isInstalledApp() {
   return (
@@ -146,8 +189,11 @@ function isIos() {
 
 export default function SpeakerPage() {
   const settings = useSpeakerSettings()
-  const [token, setToken] = useState<string | null>(null)
+  const [paired, setPaired] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  // Transitional only: a token from an older client that still lives in
+  // localStorage, sent as a Bearer fallback until it migrates to the cookie.
+  const legacyTokenRef = useRef<string | null>(null)
   const [pinSet, setPinSet] = useState(false)
   const [pinAction, setPinAction] = useState<PinAction | null>(null)
   const [view, setView] = useState<"status" | "settings">("status")
@@ -166,36 +212,116 @@ export default function SpeakerPage() {
   const [env, setEnv] = useState({ installed: false, ios: false, mobile: true, chromeAndroid: false, samsung: false })
   const [pairingError, setPairingError] = useState<string | null>(null)
 
-  const active = !!token
+  const active = paired
+
+  const applyInfo = useCallback((info: SessionInfo) => {
+    const next = { deviceName: info.deviceName, merchantName: info.merchantName }
+    setInfo(next)
+    writeStorage(INFO_STORAGE_KEY, JSON.stringify(next))
+  }, [])
+
+  /** Commit a fresh pairing token to the cookie as a *new* device: clears the
+   * previous PIN and history, since it may be a different merchant. */
+  const switchTo = useCallback(
+    async (freshToken: string): Promise<boolean> => {
+      const result = await postDeviceSession(freshToken)
+      if (!result.ok) return false
+      legacyTokenRef.current = null
+      writeStorage(TOKEN_STORAGE_KEY, null)
+      writeStorage(RECENT_STORAGE_KEY, null)
+      clearPin()
+      setPinSet(false)
+      setRecent([])
+      applyInfo(result.info)
+      setPaired(true)
+      return true
+    },
+    [applyInfo]
+  )
 
   // Pick up a fresh pairing from the link's #fragment (never sent to the
   // server or written to access logs), then drop it from the address bar.
   // Replacing an existing pairing needs the PIN, so a link someone else sends
-  // can't move the speaker to another merchant account.
+  // can't move the speaker to another merchant account. The raw token is
+  // exchanged for an httpOnly cookie and never stored where JS can read it.
   useEffect(() => {
-    const existing = readStorage(TOKEN_STORAGE_KEY)
     const match = window.location.hash.match(/[#&]t=([^&]+)/)
     if (match) history.replaceState(null, "", window.location.pathname)
     const fresh = match ? decodeURIComponent(match[1]) : null
 
-    if (fresh && existing && fresh !== existing && hasPin()) {
-      setToken(existing)
-      setPinAction({ kind: "replace", token: fresh })
-    } else if (fresh && fresh !== existing) {
-      writeStorage(TOKEN_STORAGE_KEY, fresh)
-      writeStorage(RECENT_STORAGE_KEY, null)
-      writeStorage(INFO_STORAGE_KEY, null)
-      clearPin()
-      setToken(fresh)
-    } else {
-      setToken(existing)
-    }
-    setPinSet(hasPin())
     setRecent(readRecent())
-    try {
-      const cached = JSON.parse(readStorage(INFO_STORAGE_KEY) ?? "null")
-      if (cached?.merchantName) setInfo(cached)
-    } catch {}
+    const cachedInfo = (() => {
+      try {
+        return JSON.parse(readStorage(INFO_STORAGE_KEY) ?? "null") as { merchantName?: string } | null
+      } catch {
+        return null
+      }
+    })()
+    if (cachedInfo?.merchantName) setInfo(cachedInfo as { deviceName: string; merchantName: string })
+    setPinSet(hasPin())
+
+    ;(async () => {
+      // Resolve the current pairing from the cookie, migrating a legacy
+      // localStorage token into the cookie if that is all this browser has.
+      let current: SessionInfo | null = null
+      let offline = false
+      const sess = await getDeviceSession()
+      if (sess.ok) current = sess.info
+      else if (sess.offline) offline = true
+
+      if (!current && !offline) {
+        const legacy = readStorage(TOKEN_STORAGE_KEY)
+        if (legacy) {
+          const migrated = await postDeviceSession(legacy)
+          if (migrated.ok) {
+            writeStorage(TOKEN_STORAGE_KEY, null) // never keep the raw token in JS
+            current = migrated.info
+          } else if (migrated.offline) {
+            offline = true
+            legacyTokenRef.current = legacy // Bearer fallback until it migrates
+          } else {
+            writeStorage(TOKEN_STORAGE_KEY, null) // 401: revoked, drop it
+          }
+        }
+      } else if (offline) {
+        const legacy = readStorage(TOKEN_STORAGE_KEY)
+        if (legacy) legacyTokenRef.current = legacy
+      }
+
+      if (offline) {
+        // Can't reach the server: trust the cached pairing (the cookie is still
+        // in the browser). The stream re-validates once online, and a revoked
+        // device gets a 401 there and unpairs itself.
+        setPaired(!!cachedInfo?.merchantName || !!legacyTokenRef.current)
+        setLoaded(true)
+        return
+      }
+
+      if (fresh) {
+        if (current) {
+          const check = await postDeviceSession(fresh, "check")
+          if (check.ok && check.info.deviceId === current.deviceId) {
+            applyInfo(current) // same device re-paired: keep PIN and history
+            setPaired(true)
+          } else if (hasPin()) {
+            applyInfo(current) // a different link: gate the switch behind the PIN
+            setPaired(true)
+            setPinAction({ kind: "replace", token: fresh })
+          } else {
+            await switchTo(fresh)
+          }
+        } else {
+          await switchTo(fresh)
+        }
+      } else if (current) {
+        applyInfo(current)
+        setPaired(true)
+      } else {
+        setPaired(false)
+      }
+      setLoaded(true)
+    })()
+
     setPermission(notificationPermission())
     setEnv({
       installed: isInstalledApp(),
@@ -218,7 +344,8 @@ export default function SpeakerPage() {
         if (model && /^SM-/i.test(model)) setEnv((e) => ({ ...e, samsung: true }))
       })
       .catch(() => {})
-    setLoaded(true)
+    // setLoaded is handled inside the async pairing resolution above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // A new day starts with an empty list.
@@ -255,12 +382,14 @@ export default function SpeakerPage() {
   }
 
   const forget = useCallback(() => {
+    void deleteDeviceSession() // clear the httpOnly cookie server-side
+    legacyTokenRef.current = null
     writeStorage(TOKEN_STORAGE_KEY, null)
     writeStorage(RECENT_STORAGE_KEY, null)
     writeStorage(INFO_STORAGE_KEY, null)
     clearPin()
     stopKeepAlive()
-    setToken(null)
+    setPaired(false)
     setPinSet(false)
     setRecent([])
     setInfo(null)
@@ -278,14 +407,13 @@ export default function SpeakerPage() {
     forget()
   }, [forget])
 
-  const pairWithLink = (link: string) => {
+  const pairWithLink = async (link: string) => {
     const result = tokenFromPairingInput(link)
     if ("error" in result) return setPairingError(result.error)
-    writeStorage(TOKEN_STORAGE_KEY, result.token)
-    clearPin()
-    setPinSet(false)
     setPairingError(null)
-    setToken(result.token)
+    if (!(await switchTo(result.token))) {
+      setPairingError("Couldn't pair. Check the link and the connection, then try again.")
+    }
   }
 
   const handlePayment = useCallback((payment: StreamPayment) => {
@@ -304,19 +432,19 @@ export default function SpeakerPage() {
   // track play straight away in an installed app; in a browser tab they wait
   // for the first tap (see the tap handler below).
   useEffect(() => {
-    if (!token) return
+    if (!paired) return
     unlockAudio()
     void voiceDescription().then(setVoice)
     // Re-sync the push subscription; the permission prompt itself needs a tap (Setup card).
     if (notificationPermission() === "granted" && getSpeakerSettings().paymentNotifications) {
-      void enablePaymentPush(token).then(setPushStatus)
+      void enablePaymentPush().then(setPushStatus)
     }
-  }, [token])
+  }, [paired])
 
   // The keep-alive track, unless "Speak amounts with the screen off" is switched off
   // (a personal phone: no "Listening" chip, no interrupted music; notifications still alert).
   useEffect(() => {
-    if (!token) return
+    if (!paired) return
     if (!settings.backgroundSound) {
       stopKeepAlive()
       setKeepAlive("off")
@@ -326,19 +454,19 @@ export default function SpeakerPage() {
       setKeepAlive(keepAliveState())
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the name only labels the media notification (below)
-  }, [token, settings.backgroundSound])
+  }, [paired, settings.backgroundSound])
 
   useEffect(() => {
-    if (!token) return
+    if (!paired) return
     setKeepAliveMetadata({ title: "Listening for payments", artist: info?.merchantName ?? "Nibtera Speaker" })
-  }, [token, info?.merchantName])
+  }, [paired, info?.merchantName])
 
   // Receiving payments. Prefer the live stream (instant); fall back to polling
-  // when the network holds the stream back. fetch() rather than EventSource
-  // because EventSource can't send an Authorization header, and the token must
-  // not go in the URL.
+  // when the network holds the stream back. fetch() (not EventSource) so the
+  // request can carry a Bearer header for a not-yet-migrated legacy device;
+  // normally auth rides on the httpOnly cookie that same-origin fetch sends.
   useEffect(() => {
-    if (!token) return
+    if (!paired) return
 
     let stopped = false
     let controller: AbortController | null = null
@@ -347,7 +475,11 @@ export default function SpeakerPage() {
     let lastDataAt = Date.now()
     let usePolling = false
     const seen = new Set<number>(readRecent().map((p) => p.id))
-    const auth = { Authorization: `Bearer ${token}` }
+    // Empty for cookie-based devices; a Bearer fallback only while a legacy
+    // localStorage token still awaits migration to the cookie.
+    const auth: Record<string, string> = legacyTokenRef.current
+      ? { Authorization: `Bearer ${legacyTokenRef.current}` }
+      : {}
 
     const deliver = (payment: StreamPayment) => {
       lastEventId = Math.max(lastEventId, payment.id)
@@ -378,6 +510,17 @@ export default function SpeakerPage() {
       const next = { deviceName: ready.deviceName, merchantName: ready.merchantName }
       setInfo(next)
       writeStorage(INFO_STORAGE_KEY, JSON.stringify(next))
+      // Now that we're online, migrate a legacy localStorage token into the
+      // httpOnly cookie, then stop sending (and storing) the raw token.
+      if (legacyTokenRef.current) {
+        const legacy = legacyTokenRef.current
+        void postDeviceSession(legacy).then((r) => {
+          if (r.ok) {
+            legacyTokenRef.current = null
+            writeStorage(TOKEN_STORAGE_KEY, null)
+          }
+        })
+      }
       // Without a position, a speaker that drops before its first payment would
       // reconnect without Last-Event-ID and miss everything published while away.
       if (!lastEventId && typeof ready.cursor === "number") lastEventId = ready.cursor
@@ -513,13 +656,13 @@ export default function SpeakerPage() {
       window.removeEventListener("online", reconnectNow)
       navigator.serviceWorker?.removeEventListener("message", onWorkerMessage)
     }
-  }, [token, onRevoked, handlePayment])
+  }, [paired, onRevoked, handlePayment])
 
   // "Offline" after 30 s without a connection, with one warning tone (Settings → Warn when offline).
   const offlineSince = useRef<number | null>(null)
   const warned = useRef(false)
   useEffect(() => {
-    if (!token) return
+    if (!paired) return
     if (baseConnection === "live") {
       offlineSince.current = null
       warned.current = false
@@ -538,7 +681,7 @@ export default function SpeakerPage() {
     check()
     const timer = setInterval(check, 5000)
     return () => clearInterval(timer)
-  }, [token, baseConnection])
+  }, [paired, baseConnection])
 
   // Keep the screen (and therefore the page) awake while running.
   useEffect(() => {
@@ -614,17 +757,17 @@ export default function SpeakerPage() {
   }, [active])
 
   const allowNotifications = async () => {
-    if (!token) return
+    if (!paired) return
     updateSpeakerSettings({ paymentNotifications: true })
-    setPushStatus(await enablePaymentPush(token))
+    setPushStatus(await enablePaymentPush())
     setPermission(notificationPermission())
   }
 
   const togglePaymentNotifications = async (on: boolean) => {
-    if (!token) return
+    if (!paired) return
     if (on) return allowNotifications()
     updateSpeakerSettings({ paymentNotifications: false })
-    await disablePaymentPush(token)
+    await disablePaymentPush()
     setPushStatus(null)
   }
 
@@ -634,18 +777,12 @@ export default function SpeakerPage() {
       clearPin()
       setPinSet(false) // the Set PIN screen takes over
     } else if (action.kind === "unpair") {
-      if (token) await disablePaymentPush(token)
+      await disablePaymentPush()
       forget()
     } else {
-      // Paired with another link: a new device, so a new PIN and history.
-      writeStorage(TOKEN_STORAGE_KEY, action.token)
-      writeStorage(RECENT_STORAGE_KEY, null)
-      writeStorage(INFO_STORAGE_KEY, null)
-      clearPin()
-      setPinSet(false)
-      setRecent([])
-      setInfo(null)
-      setToken(action.token)
+      // Paired with another link: a new device (new cookie), so a new PIN and
+      // history. switchTo clears the old PIN/recent and commits the new token.
+      await switchTo(action.token)
     }
   }
 
@@ -671,7 +808,7 @@ export default function SpeakerPage() {
     </p>
   ) : null
 
-  if (!token) {
+  if (!paired) {
     return (
       <PairScreen
         onPair={pairWithLink}
