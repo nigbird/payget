@@ -2,7 +2,9 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   // pino writes logs from a worker thread; it must load from node_modules, not the bundle.
-  serverExternalPackages: ['pino', 'pino-roll', 'thread-stream'],
+  // exceljs pulls in unzipper 0.12 (VA-016), whose unused S3 helper requires
+  // @aws-sdk/client-s3; loaded from node_modules, that lazy require never runs.
+  serverExternalPackages: ['pino', 'pino-roll', 'thread-stream', 'exceljs'],
   typescript: {
     ignoreBuildErrors: true,
   },
