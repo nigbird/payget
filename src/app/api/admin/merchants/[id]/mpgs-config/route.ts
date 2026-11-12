@@ -69,7 +69,7 @@ export async function POST(
   const body = await request.json().catch(() => ({}))
   const parsed = MpgsConfigSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
+    return NextResponse.json({ error: "Invalid payload", details: z.flattenError(parsed.error) }, { status: 400 })
   }
 
   if (!parsed.data.mpgsPassword && !merchant.mpgsPassword) {

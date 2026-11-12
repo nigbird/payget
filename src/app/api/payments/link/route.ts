@@ -1,3 +1,4 @@
+import { flattenError } from "zod"
 import { NextResponse } from "next/server"
 import { createGatewayTransactionAndToken, PaymentInitiateSchema } from "@/app/api/payments/_shared"
 import { requireAuthUser } from "@/lib/request-auth"
@@ -51,9 +52,9 @@ export async function POST(request: Request) {
           action: "PAYMENT_LINK_CREATE",
           entityType: "TRANSACTION",
           entityId: null,
-          newValue: { result: "failed", reason: "INVALID_PAYLOAD", details: parsed.error.flatten() },
+          newValue: { result: "failed", reason: "INVALID_PAYLOAD", details: flattenError(parsed.error) },
         })
-        return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
+        return NextResponse.json({ error: "Invalid payload", details: flattenError(parsed.error) }, { status: 400 })
       }
 
       const isAssignedMerchant =
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
           const decrypted = await decryptPayload(encryptedPayload, merchantSecret)
           const decryptedParsed = PaymentInitiateSchema.safeParse(decrypted)
           if (!decryptedParsed.success) {
-            return { errorResponse: NextResponse.json({ error: "Invalid encrypted payload", details: decryptedParsed.error.flatten() }, { status: 400 }) }
+            return { errorResponse: NextResponse.json({ error: "Invalid encrypted payload", details: flattenError(decryptedParsed.error) }, { status: 400 }) }
           }
           if (merchantIdHeader !== decryptedParsed.data.merchantId) {
             return { errorResponse: NextResponse.json({ error: "Merchant ID mismatch" }, { status: 400 }) }

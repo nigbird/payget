@@ -46,7 +46,7 @@ export const PaymentInitiateSchema = z
     if (data.method === "MPGS") {
       if (!data.customerEmail?.trim()) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["customerEmail"],
           message: "Customer email is required for MPGS payments",
         })
@@ -61,14 +61,14 @@ export const PaymentInitiateSchema = z
     if (data.method === "YAGOUT") {
       if (!data.customerEmail?.trim()) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["customerEmail"],
           message: "Customer email is required for YagoutPay payments",
         })
       }
       if (!data.userCredentials.phone?.trim()) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["userCredentials", "phone"],
           message: "Customer phone is required for YagoutPay payments",
         })
@@ -78,7 +78,7 @@ export const PaymentInitiateSchema = z
 
     if (!data.userCredentials.phone?.trim()) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["userCredentials", "phone"],
         message: "Customer phone is required",
       })

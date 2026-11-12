@@ -46,7 +46,7 @@ export async function POST(
   const body = await request.json().catch(() => ({}))
   const parsed = VerifySchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 })
+    return NextResponse.json({ error: "Invalid payload", details: z.flattenError(parsed.error) }, { status: 400 })
   }
   const form = parsed.data
 

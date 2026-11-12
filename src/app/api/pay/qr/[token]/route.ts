@@ -120,7 +120,7 @@ export async function POST(
       for (const raw of rawItems) {
         const parsed = CartItemSchema.safeParse(raw)
         if (!parsed.success) {
-          return NextResponse.json({ error: "Invalid item entry", details: parsed.error.flatten() }, { status: 400 })
+          return NextResponse.json({ error: "Invalid item entry", details: z.flattenError(parsed.error) }, { status: 400 })
         }
         if (parsed.data) validatedItems.push(parsed.data)
       }

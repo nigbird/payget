@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const parsed = SendSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid payload", details: parsed.error.flatten() },
+        { error: "Invalid payload", details: z.flattenError(parsed.error) },
         { status: 400 }
       )
     }
