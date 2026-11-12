@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // No remote image hosts: every image is served by this app (uploads go through
   // /api/uploads/*). The old placeholder hosts were unused template leftovers.
   // unoptimized: images are served as-is, so the /_next/image optimizer and its

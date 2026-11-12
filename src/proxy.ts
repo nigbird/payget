@@ -84,10 +84,10 @@ async function validateSessionFromMiddleware(req: NextRequest): Promise<boolean>
 }
 
 // ---------------------------------------------------------------------------
-// Middleware
+// Proxy (Next 16 name for middleware)
 // ---------------------------------------------------------------------------
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const nonce = btoa(crypto.randomUUID())
   const cspHeader = `
     default-src 'self';
