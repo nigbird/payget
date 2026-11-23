@@ -60,6 +60,11 @@ export default function ChangePasswordPage() {
       return
     }
 
+    if (credentials.newPassword === credentials.currentPassword) {
+      setFormError("Your new password must be different from your current password.")
+      return
+    }
+
     const policy = validatePassword(credentials.newPassword)
     if (!policy.valid) {
       setFormError(policy.errors[0] ?? "Password does not meet the required policy.")

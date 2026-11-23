@@ -286,6 +286,23 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: `For your security, this password isn’t safe to use. Please choose a different one.` }, { status: 400 });
       }
 
+      // A reset must actually replace the password, same rule as change-password.
+      const existingHash =
+        entityType === 'MERCHANT' && merchant
+          ? (await prisma.user.findFirst({ where: { merchantId: merchant.id, role: 'MERCHANT' }, select: { password: true } }))?.password ?? merchant.password
+          : user?.password;
+      if (existingHash && (await bcrypt.compare(password, existingHash))) {
+        await writeAuditLog({
+          request,
+          userId: actorUserId,
+          action: 'AUTH_RESET_PASSWORD_RESET',
+          entityType,
+          entityId: merchant?.id || user?.id,
+          newValue: { result: 'failed', reason: 'PASSWORD_REUSE' },
+        });
+        return NextResponse.json({ error: 'Your new password must be different from your current password.' }, { status: 400 });
+      }
+
       // Hash password for both merchant and user
       const hashedPassword = await bcrypt.hash(password, 10);
 

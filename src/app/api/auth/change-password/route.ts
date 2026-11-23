@@ -75,6 +75,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
     }
 
+    // A "change" to the same password defeats the forced first-login change:
+    // the admin-set initial password would stay in use indefinitely (VA, CWE-521).
+    // Compare against the stored hash, not just the submitted currentPassword.
+    if (newPassword === currentPassword || (await bcrypt.compare(newPassword, dbUser.password))) {
+      await writeAuditLog({
+        request,
+        userId: user.id,
+        action: 'AUTH_CHANGE_PASSWORD',
+        entityType: 'USER',
+        entityId: user.id,
+        newValue: { result: 'failed', reason: 'PASSWORD_REUSE' }
+      });
+      return NextResponse.json({ error: 'Your new password must be different from your current password.' }, { status: 400 });
+    }
+
     // Hash new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 

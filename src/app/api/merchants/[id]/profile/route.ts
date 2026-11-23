@@ -109,6 +109,12 @@ export async function PATCH(
             { status: 401 }
           )
         }
+        if (await bcrypt.compare(body.newPassword, currentHashed)) {
+          return NextResponse.json(
+            { error: 'Your new password must be different from your current password.' },
+            { status: 400 }
+          )
+        }
       }
 
       // Hash new password
